@@ -843,9 +843,15 @@ impl<'a> Maker<'a> {
     }
     /// Use the configs in the [`Maker`] object to make a [`LexicalBinding`] parse node.
     pub fn lexical_binding(self) -> Rc<LexicalBinding> {
-        LexicalBinding::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag)
-            .unwrap()
-            .0
+        LexicalBinding::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.in_flag,
+            self.yield_flag,
+            self.await_flag,
+        )
+        .unwrap()
+        .0
     }
     /// Use the configs in the [`Maker`] object to make a [`LexicalDeclaration`] parse node.
     pub fn lexical_declaration(self) -> Rc<LexicalDeclaration> {

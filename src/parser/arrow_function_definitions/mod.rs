@@ -14,8 +14,8 @@ use std::io::Write;
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
 #[derive(Debug)]
 pub struct ArrowFunction {
-    parameters: Rc<ArrowParameters>,
-    body: Rc<ConciseBody>,
+    pub parameters: Rc<ArrowParameters>,
+    pub body: Rc<ConciseBody>,
 }
 
 impl fmt::Display for ArrowFunction {
@@ -289,6 +289,13 @@ impl ArrowParameters {
             ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn expected_argument_count(&self) -> f64 {
+        match self {
+            ArrowParameters::Identifier(_) => 1.0,
+            ArrowParameters::Formals(formals) => formals.expected_argument_count(),
+        }
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -397,6 +404,10 @@ impl ArrowFormalParameters {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.params.early_errors(agent, errs, strict);
+    }
+
+    fn expected_argument_count(&self) -> f64 {
+        self.params.expected_argument_count()
     }
 }
 

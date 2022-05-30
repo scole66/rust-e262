@@ -1,62 +1,108 @@
-use super::agent::Agent;
-use super::cr::Completion;
-use super::environment_record::{EnvironmentRecord, PrivateEnvironmentRecord};
-use super::execution_context::ExecutionContext;
-use super::object::{
-    define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
-    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys,
-    ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface,
-    InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
-};
-use super::parser::async_function_definitions::AsyncFunctionDeclaration;
-use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::parser::function_definitions::FunctionDeclaration;
-use super::parser::generator_function_definitions::GeneratorDeclaration;
-use super::parser::parameter_lists::FormalParameters;
-use super::parser::scripts::Script;
-use super::realm::Realm;
-use super::strings::JSString;
-use super::values::{ECMAScriptValue, PrivateName, PropertyKey, Symbol};
+use super::agent::*;
+//use super::chunk::*;
+use super::cr::*;
+use super::environment_record::*;
+use super::execution_context::*;
+use super::object::*;
+use super::parser::arrow_function_definitions::*;
+use super::parser::async_function_definitions::*;
+use super::parser::async_generator_function_definitions::*;
+use super::parser::function_definitions::*;
+use super::parser::generator_function_definitions::*;
+use super::parser::parameter_lists::*;
+use super::realm::*;
+use super::strings::*;
+use super::values::*;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug)]
-enum ScriptRecord {}
-#[derive(Debug)]
-enum ModuleRecord {}
-
-#[derive(Debug)]
-enum ConstructorKind {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ConstructorKind {
     Base,
     Derived,
 }
 
-#[derive(Debug)]
-enum SorM {
-    Script(ScriptRecord),
-    Module(ModuleRecord),
-}
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ThisMode {
     Lexical,
     Strict,
     Global,
 }
 
+#[derive(Debug, Clone)]
+pub enum ClassName {
+    String(JSString),
+    Symbol(Symbol),
+    Private(PrivateName),
+    Empty,
+}
+
+#[derive(Debug)]
+pub struct ClassFieldDefinitionRecord {}
+
+#[derive(Debug, Clone)]
+pub enum BodySource {
+    Function(Rc<FunctionBody>),
+    Generator(Rc<GeneratorBody>),
+    AsyncFunction(Rc<AsyncFunctionBody>),
+    AsyncGenerator(Rc<AsyncGeneratorBody>),
+    ConciseBody(Rc<ConciseBody>),
+}
+
+impl From<Rc<FunctionBody>> for BodySource {
+    fn from(src: Rc<FunctionBody>) -> Self {
+        Self::Function(src)
+    }
+}
+
+impl From<Rc<ConciseBody>> for BodySource {
+    fn from(src: Rc<ConciseBody>) -> Self {
+        Self::ConciseBody(src)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ParamSource {
+    FormalParameters(Rc<FormalParameters>),
+    ArrowParameters(Rc<ArrowParameters>),
+}
+
+impl From<Rc<FormalParameters>> for ParamSource {
+    fn from(src: Rc<FormalParameters>) -> Self {
+        Self::FormalParameters(src)
+    }
+}
+impl From<Rc<ArrowParameters>> for ParamSource {
+    fn from(src: Rc<ArrowParameters>) -> Self {
+        Self::ArrowParameters(src)
+    }
+}
+impl ParamSource {
+    pub fn expected_argument_count(&self) -> f64 {
+        match self {
+            ParamSource::FormalParameters(formals) => formals.expected_argument_count(),
+            ParamSource::ArrowParameters(arrow) => arrow.expected_argument_count(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
-    formal_parameters: Rc<FormalParameters>,
-    ecmascript_code: Rc<Script>,
+    private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    formal_parameters: ParamSource,
+    ecmascript_code: BodySource,
     constructor_kind: ConstructorKind,
     pub realm: Rc<RefCell<Realm>>,
-    script_or_module: Option<SorM>,
+    script_or_module: Option<ScriptOrModule>,
     pub this_mode: ThisMode,
     strict: bool,
     pub home_object: Option<Object>,
     source_text: String,
+    fields: Vec<ClassFieldDefinitionRecord>,
+    private_methods: Vec<PrivateElement>,
+    class_field_initializer_name: ClassName,
     is_class_constructor: bool,
 }
 
@@ -177,7 +223,51 @@ impl FunctionInterface for FunctionObject {
     }
 }
 
-impl FunctionObject {}
+impl FunctionObject {
+    #[allow(clippy::too_many_arguments)]
+    pub fn object(
+        agent: &mut Agent,
+        prototype: Option<Object>,
+        environment: Rc<dyn EnvironmentRecord>,
+        private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        formal_parameters: ParamSource,
+        ecmascript_code: BodySource,
+        constructor_kind: ConstructorKind,
+        realm: Rc<RefCell<Realm>>,
+        script_or_module: Option<ScriptOrModule>,
+        this_mode: ThisMode,
+        strict: bool,
+        home_object: Option<Object>,
+        source_text: &str,
+        fields: Vec<ClassFieldDefinitionRecord>,
+        private_methods: Vec<PrivateElement>,
+        class_field_initializer_name: ClassName,
+        is_class_constructor: bool,
+    ) -> Object {
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, FUNCTION_OBJECT_SLOTS)),
+                function_data: RefCell::new(FunctionObjectData {
+                    environment,
+                    private_environment,
+                    formal_parameters,
+                    ecmascript_code,
+                    constructor_kind,
+                    realm,
+                    script_or_module,
+                    this_mode,
+                    strict,
+                    home_object,
+                    source_text: source_text.to_string(),
+                    is_class_constructor,
+                    fields,
+                    private_methods,
+                    class_field_initializer_name,
+                }),
+            }),
+        }
+    }
+}
 
 // SetFunctionName ( F, name [ , prefix ] )
 //
@@ -266,22 +356,22 @@ pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
 // When you have
 // fn builtin_function(..., arguments: &[ECMAScriptValue]) -> ...
 // Then in your code you can say:
-//      let mut args = Arguments::from(arguments);
+//      let mut args = FuncArgs::from(arguments);
 //      let first_arg = args.next_arg();
 //      let second_arg = args.next_arg();
 // etc. If the args are there, you get them, if the arguments array is short, then you get undefined.
 // args.remaining() returns an iterator over the "rest" of the args (since "next_arg" won't tell if you've "gotten to the end")
-pub struct Arguments<'a> {
+pub struct FuncArgs<'a> {
     iterator: std::slice::Iter<'a, ECMAScriptValue>,
     count: usize,
 }
-impl<'a> From<&'a [ECMAScriptValue]> for Arguments<'a> {
+impl<'a> From<&'a [ECMAScriptValue]> for FuncArgs<'a> {
     fn from(source: &'a [ECMAScriptValue]) -> Self {
         let count = source.len();
         Self { iterator: source.iter(), count }
     }
 }
-impl<'a> Arguments<'a> {
+impl<'a> FuncArgs<'a> {
     pub fn next_arg(&mut self) -> ECMAScriptValue {
         self.iterator.next().cloned().unwrap_or(ECMAScriptValue::Undefined)
     }
@@ -650,6 +740,108 @@ impl AsyncGeneratorDeclaration {
     ) -> ECMAScriptValue {
         todo!()
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FunctionThisMode {
+    LexicalThis,
+    NonLexicalThis,
+}
+
+/// Create a ECMAScript Function Object, as though from source code
+///
+/// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
+#[allow(clippy::too_many_arguments)]
+pub fn ordinary_function_create(
+    agent: &mut Agent,
+    function_prototype: Object,
+    source_text: &str,
+    parameter_list: ParamSource,
+    body: BodySource,
+    this_mode: FunctionThisMode,
+    env: Rc<dyn EnvironmentRecord>,
+    private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    strict: bool,
+) -> Object {
+    // OrdinaryFunctionCreate ( functionPrototype, sourceText, ParameterList, Body, thisMode, env, privateEnv )
+    //
+    // The abstract operation OrdinaryFunctionCreate takes arguments functionPrototype (an Object), sourceText (a
+    // sequence of Unicode code points), ParameterList (a Parse Node), Body (a Parse Node), thisMode (lexical-this or
+    // non-lexical-this), env (an Environment Record), and privateEnv (a PrivateEnvironment Record or null) and returns
+    // a function object. It is used to specify the runtime creation of a new function with a default [[Call]] internal
+    // method and no [[Construct]] internal method (although one may be subsequently added by an operation such as
+    // MakeConstructor). sourceText is the source text of the syntactic definition of the function to be created. It
+    // performs the following steps when called:
+    //
+    //  1. Let internalSlotsList be the internal slots listed in Table 33.
+    //  2. Let F be OrdinaryObjectCreate(functionPrototype, internalSlotsList).
+    //  3. Set F.[[Call]] to the definition specified in 10.2.1.
+    //  4. Set F.[[SourceText]] to sourceText.
+    //  5. Set F.[[FormalParameters]] to ParameterList.
+    //  6. Set F.[[ECMAScriptCode]] to Body.
+    //  7. If the source text matched by Body is strict mode code, let Strict be true; else let Strict be false.
+    //  8. Set F.[[Strict]] to Strict.
+    //  9. If thisMode is lexical-this, set F.[[ThisMode]] to lexical.
+    //  10. Else if Strict is true, set F.[[ThisMode]] to strict.
+    //  11. Else, set F.[[ThisMode]] to global.
+    //  12. Set F.[[IsClassConstructor]] to false.
+    //  13. Set F.[[Environment]] to env.
+    //  14. Set F.[[PrivateEnvironment]] to privateEnv.
+    //  15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
+    //  16. Set F.[[Realm]] to the current Realm Record.
+    //  17. Set F.[[HomeObject]] to undefined.
+    //  18. Set F.[[Fields]] to a new empty List.
+    //  19. Set F.[[PrivateMethods]] to a new empty List.
+    //  20. Set F.[[ClassFieldInitializerName]] to empty.
+    //  21. Let len be the ExpectedArgumentCount of ParameterList.
+    //  22. Perform SetFunctionLength(F, len).
+    //  23. Return F.
+    let this_mode = match this_mode {
+        FunctionThisMode::LexicalThis => ThisMode::Lexical,
+        FunctionThisMode::NonLexicalThis => match strict {
+            true => ThisMode::Strict,
+            false => ThisMode::Global,
+        },
+    };
+    let script_or_module = agent.get_active_script_or_module();
+    let realm = agent.current_realm_record().unwrap();
+    let prototype = Some(function_prototype);
+
+    let arg_count = parameter_list.expected_argument_count();
+
+    let func = FunctionObject::object(
+        agent,
+        prototype,
+        env,
+        private_env,
+        parameter_list,
+        body,
+        ConstructorKind::Base,
+        realm,
+        script_or_module,
+        this_mode,
+        strict,
+        None,
+        source_text,
+        Vec::<ClassFieldDefinitionRecord>::new(),
+        Vec::<PrivateElement>::new(),
+        ClassName::Empty,
+        false,
+    );
+
+    set_function_length(agent, &func, arg_count);
+
+    func
+}
+
+pub struct MakeConstructorOptionalArgs {
+    writable_prototype: bool,
+    prototype: Option<Object>,
+}
+
+#[allow(unused_variables)]
+pub fn make_constructor(agent: &mut Agent, func: &Object, args: Option<MakeConstructorOptionalArgs>) {
+    todo!()
 }
 
 #[cfg(test)]

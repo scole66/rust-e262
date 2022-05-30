@@ -1,6 +1,6 @@
 use super::agent::*;
 use super::cr::{AbruptCompletion, Completion};
-use super::function_object::{create_builtin_function, Arguments};
+use super::function_object::{create_builtin_function, FuncArgs};
 use super::object::{
     define_property_or_throw, get, get_agentless, ordinary_create_from_constructor, ordinary_define_own_property,
     ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
@@ -521,7 +521,7 @@ fn native_error_constructor_function(
     arguments: &[ECMAScriptValue],
     intrinsic_id: IntrinsicId,
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let message = args.next_arg();
     let afo: Object;
 

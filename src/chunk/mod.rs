@@ -1,8 +1,18 @@
-use crate::compiler::{Insn, Opcode};
-use crate::strings::JSString;
+use crate::compiler::*;
+use crate::function_object::*;
+//use crate::parser::parameter_lists::*;
+use crate::strings::*;
 use anyhow::anyhow;
 use num::bigint::BigInt;
 use std::rc::Rc;
+
+#[derive(Debug)]
+pub struct StashedFunctionData {
+    pub source_text: String,
+    pub params: ParamSource,
+    pub body: BodySource,
+    pub strict: bool,
+}
 
 /// A compilation unit
 #[derive(Debug, Default)]
@@ -12,6 +22,7 @@ pub struct Chunk {
     pub opcodes: Vec<Opcode>,
     pub floats: Vec<f64>,
     pub bigints: Vec<Rc<BigInt>>,
+    pub function_object_data: Vec<StashedFunctionData>,
 }
 
 impl Chunk {
@@ -45,6 +56,12 @@ impl Chunk {
         (collection.len() - 1)
             .try_into()
             .map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
+    }
+
+    pub fn add_to_func_stash(&mut self, fd: StashedFunctionData) -> anyhow::Result<u16> {
+        let result = self.function_object_data.len();
+        self.function_object_data.push(fd);
+        result.try_into().map_err(|_| anyhow!("Out of room for more functions!"))
     }
 
     pub fn op(&mut self, opcode: Insn) {
@@ -89,7 +106,7 @@ impl Chunk {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
-            Insn::Unwind => {
+            Insn::Unwind | Insn::InstantiateIdFreeFunctionExpression | Insn::InstantiateArrowFunctionExpression => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{}", insn, arg))
             }

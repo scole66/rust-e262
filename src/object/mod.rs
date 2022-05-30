@@ -1456,7 +1456,23 @@ pub enum InternalSlotName {
     Realm,
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
-    Nonsense,    // For testing purposes, for the time being.
+    // Function Object Slots
+    Environment,
+    PrivateEnvironment,
+    FormalParameters,
+    ECMAScriptCode,
+    ConstructorKind,
+    ScriptOrModule,
+    ThisMode,
+    Strict,
+    HomeObject,
+    SourceText,
+    Fields,
+    PrivateMethods,
+    ClassFieldInitializerName,
+    IsClassConstructor,
+
+    Nonsense, // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
 pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] =
@@ -1468,6 +1484,25 @@ pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Extensible,
     InternalSlotName::InitialName,
     InternalSlotName::Realm,
+];
+pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::Realm,
+    InternalSlotName::Environment,
+    InternalSlotName::PrivateEnvironment,
+    InternalSlotName::FormalParameters,
+    InternalSlotName::ECMAScriptCode,
+    InternalSlotName::ConstructorKind,
+    InternalSlotName::ScriptOrModule,
+    InternalSlotName::ThisMode,
+    InternalSlotName::Strict,
+    InternalSlotName::HomeObject,
+    InternalSlotName::SourceText,
+    InternalSlotName::Fields,
+    InternalSlotName::PrivateMethods,
+    InternalSlotName::ClassFieldInitializerName,
+    InternalSlotName::IsClassConstructor,
 ];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
@@ -1511,6 +1546,9 @@ pub fn make_basic_object(
         ArrayObject::object(agent, prototype)
     } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
         SymbolObject::object(agent, prototype)
+    } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
+        //FunctionObject::object(agent, prototype)
+        panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);

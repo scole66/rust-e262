@@ -223,9 +223,9 @@ pub fn function_early_errors(
 //      function BindingIdentifier[~Yield, ~Await]opt ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
     location: Location,
 }
 

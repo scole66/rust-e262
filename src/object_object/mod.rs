@@ -1,7 +1,7 @@
 use crate::agent::{Agent, WksId};
 use crate::cr::Completion;
 use crate::errors::create_type_error;
-use crate::function_object::{create_builtin_function, Arguments};
+use crate::function_object::{create_builtin_function, FuncArgs};
 use crate::object::{
     create_array_from_list, define_property_or_throw, enumerable_own_property_names, get,
     ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level, to_property_descriptor,
@@ -36,7 +36,7 @@ fn object_prototype_value_of(
 //      3. Let O be ! ToObject(this value).
 //      4. Let isArray be ? IsArray(O).
 //      5. If isArray is true, let builtinTag be "Array".
-//      6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
+//      6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "FuncArgs".
 //      7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
 //      8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
 //      9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
@@ -277,7 +277,7 @@ fn object_constructor_function(
             }
         }
     }
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let value = args.next_arg();
     let obj = if value.is_null() || value.is_undefined() {
         ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[])
@@ -312,7 +312,7 @@ fn object_assign(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let target = args.next_arg();
     let to = to_object(agent, target)?;
     for next_source in args.remaining() {
@@ -349,7 +349,7 @@ fn object_create(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     let o = match o_arg {
         ECMAScriptValue::Object(o) => Some(o),
@@ -424,7 +424,7 @@ fn object_define_properties(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
         ECMAScriptValue::Object(o) => {
@@ -451,7 +451,7 @@ fn object_define_property(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
         ECMAScriptValue::Object(o) => {
@@ -484,7 +484,7 @@ fn object_entries(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     let obj = to_object(agent, o_arg)?;
     let name_list = enumerable_own_property_names(agent, &obj, EnumerationStyle::KeyPlusValue)?;
@@ -507,7 +507,7 @@ fn object_freeze(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
         ECMAScriptValue::Object(o) => {

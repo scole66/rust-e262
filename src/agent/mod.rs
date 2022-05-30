@@ -1,27 +1,25 @@
-use super::chunk::Chunk;
-use super::compiler::Insn;
-use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
-use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
+use super::chunk::*;
+use super::compiler::*;
+use super::cr::*;
+use super::environment_record::*;
 use super::errors::*;
-use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
-use super::object::{
-    call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor,
-};
-use super::parser::async_function_definitions::AsyncFunctionDeclaration;
-use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::parser::class_definitions::ClassDeclaration;
-use super::parser::declarations_and_variables::LexicalDeclaration;
-use super::parser::function_definitions::FunctionDeclaration;
-use super::parser::generator_function_definitions::GeneratorDeclaration;
-use super::parser::scripts::{Script, VarScopeDecl};
-use super::parser::statements_and_declarations::DeclPart;
-use super::parser::{parse_text, ParseGoal, ParsedText};
-use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
-use super::strings::JSString;
+use super::execution_context::*;
+use super::function_object::*;
+use super::object::*;
+use super::parser::async_function_definitions::*;
+use super::parser::async_generator_function_definitions::*;
+use super::parser::class_definitions::*;
+use super::parser::declarations_and_variables::*;
+use super::parser::function_definitions::*;
+use super::parser::generator_function_definitions::*;
+use super::parser::scripts::*;
+use super::parser::statements_and_declarations::*;
+use super::parser::*;
+use super::realm::*;
+use super::reference::*;
+use super::strings::*;
+use super::symbol_object::*;
 use super::values::*;
-use crate::object::create_data_property_or_throw;
-use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
@@ -122,6 +120,27 @@ impl Agent {
         }
     }
 
+    /// Return the active script or module record associated with the current execution
+    ///
+    /// See [GetActiveScriptOrModule](https://tc39.es/ecma262/#sec-getactivescriptormodule) from ECMA-262.
+    pub fn get_active_script_or_module(&self) -> Option<ScriptOrModule> {
+        // GetActiveScriptOrModule ( )
+        //
+        // The abstract operation GetActiveScriptOrModule takes no arguments and returns a Script Record, a Module
+        // Record, or null. It is used to determine the running script or module, based on the running execution
+        // context. It performs the following steps when called:
+        //
+        //  1. If the execution context stack is empty, return null.
+        //  2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
+        //  3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
+        for ec in self.execution_context_stack.iter() {
+            if let Some(script_or_module) = &ec.script_or_module {
+                return Some(script_or_module.clone());
+            }
+        }
+        None
+    }
+
     pub fn next_object_id(&mut self) -> usize {
         let result = self.obj_id;
         assert!(result < usize::MAX);
@@ -174,6 +193,13 @@ impl Agent {
         match self.execution_context_stack.len() {
             0 => None,
             n => self.execution_context_stack[n - 1].lexical_environment.clone(),
+        }
+    }
+
+    pub fn current_private_environment(&self) -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].private_environment.clone(),
         }
     }
 
@@ -795,6 +821,20 @@ impl Agent {
                 Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
                 Insn::Add => self.binary_operation(index, BinOp::Add),
                 Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
+
+                Insn::InstantiateIdFreeFunctionExpression => {
+                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let info = &chunk.function_object_data[id as usize];
+                    self.instantiate_ordinary_function_expression_without_binding_id(index, info)
+                }
+
+                Insn::InstantiateArrowFunctionExpression => {
+                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let info = &chunk.function_object_data[id as usize];
+                    self.instantiate_arrow_function_expression(index, info)
+                }
             }
         }
         self.execution_context_stack[index]
@@ -1014,6 +1054,85 @@ impl Agent {
             }
         }
     }
+
+    fn instantiate_ordinary_function_expression_without_binding_id(
+        &mut self,
+        index: usize,
+        info: &StashedFunctionData,
+    ) {
+        // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
+        // returns a function object. It is defined piecewise over the following productions:
+        //
+        //  FunctionExpression : function ( FormalParameters ) { FunctionBody }
+        //      1. If name is not present, set name to "".
+        //      2. Let env be the LexicalEnvironment of the running execution context.
+        //      3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //      4. Let sourceText be the source text matched by FunctionExpression.
+        //      5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //         FunctionBody, non-lexical-this, env, privateEnv).
+        //      6. Perform SetFunctionName(closure, name).
+        //      7. Perform MakeConstructor(closure).
+        //      8. Return closure.
+
+        // Name is on the stack.
+        // env/privateenv come from the agent.
+        // sourceText is on the stack? Or with the productions?
+        // FormalParameters/FunctionBody are... In a registry someplace maybe? With a registry ID in the instruction?
+        // strict is ... in that registry? (Needs to be not part of the current chunk).
+        let env = self.current_lexical_environment().unwrap();
+        let priv_env = self.current_private_environment();
+
+        let name = JSString::try_from(
+            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap(),
+        )
+        .unwrap();
+
+        let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            self,
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            FunctionThisMode::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+        );
+
+        set_function_name(self, &closure, name.into(), None);
+        make_constructor(self, &closure, None);
+
+        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+    }
+
+    fn instantiate_arrow_function_expression(&mut self, index: usize, info: &StashedFunctionData) {
+        let env = self.current_lexical_environment().unwrap();
+        let priv_env = self.current_private_environment();
+
+        let name = JSString::try_from(
+            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap(),
+        )
+        .unwrap();
+
+        let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            self,
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            FunctionThisMode::LexicalThis,
+            env,
+            priv_env,
+            info.strict,
+        );
+        set_function_name(self, &closure, name.into(), None);
+
+        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -1076,7 +1195,7 @@ pub fn parse_script(
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk).unwrap();
+            script.compile(&mut chunk, source_text).unwrap();
             for line in chunk.disassemble() {
                 println!("{line}");
             }

@@ -3,12 +3,12 @@ use crate::parser::testhelp::Maker;
 use crate::tests::test_agent;
 use crate::values::ECMAScriptValue;
 
-mod arguments {
+mod func_args {
     use super::*;
     #[test]
     fn empty() {
         let arguments: &[ECMAScriptValue] = &[];
-        let mut args = Arguments::from(arguments);
+        let mut args = FuncArgs::from(arguments);
 
         assert_eq!(args.count(), 0);
         assert_eq!(args.next_arg(), ECMAScriptValue::Undefined);
@@ -17,7 +17,7 @@ mod arguments {
     #[test]
     fn list_of_two() {
         let arguments: &[ECMAScriptValue] = &[ECMAScriptValue::from(10), ECMAScriptValue::from(20)];
-        let mut args = Arguments::from(arguments);
+        let mut args = FuncArgs::from(arguments);
 
         assert_eq!(args.count(), 2);
         assert_eq!(args.next_arg(), ECMAScriptValue::from(10));
@@ -35,7 +35,7 @@ mod arguments {
             ECMAScriptValue::from(2),
             ECMAScriptValue::from(3),
         ];
-        let mut args = Arguments::from(arguments);
+        let mut args = FuncArgs::from(arguments);
 
         let first = args.next_arg();
         assert_eq!(first, ECMAScriptValue::from("first"));
