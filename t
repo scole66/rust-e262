@@ -162,6 +162,11 @@ case $1 in
   FunctionExpression) data=($1 function_expression parser::function_definitions) ;;
   FunctionBody) data=($1 function_body parser::function_definitions) ;;
   FunctionStatementList) data=($1 function_statement_list parser::function_definitions) ;;
+  GeneratorMethod) data=($1 generator_method parser::generator_function_definitions) ;;
+  GeneratorDeclaration) data=($1 generator_declaration parser::generator_function_definitions) ;;
+  GeneratorExpression) data=($1 generator_expression parser::generator_function_definitions) ;;
+  GeneratorBody) data=($1 generator_body parser::generator_function_definitions) ;;
+  YieldExpression) data=($1 yield_expression parser::generator_function_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED,
-    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER, UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -157,6 +154,11 @@ mod generator_method {
     #[test_case("*public(){}" => None; "public")]
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).generator_method().private_bound_identifier().map(String::from)
+    }
+
+    #[test_case("   *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_method().location()
     }
 }
 
@@ -396,6 +398,11 @@ mod generator_declaration {
         Maker::new(src).generator_declaration().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_declaration().location()
+    }
 }
 
 // GENERATOR EXPRESSION
@@ -555,6 +562,17 @@ mod generator_expression {
         Maker::new(src).generator_expression().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("function *a(){}" => true; "named")]
+    #[test_case("function *(){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).generator_expression().is_named_function()
+    }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_expression().location()
+    }
 }
 
 // GENERATOR BODY
@@ -610,6 +628,24 @@ mod generator_body {
         let mut errs = vec![];
         Maker::new(src).generator_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("'one'; 3;" => false; "directive no strict")]
+    #[test_case("12;" => false; "no prologue")]
+    #[test_case("'a'; 'use strict';" => true; "good strict")]
+    #[test_case("'use\\x20strict';" => false; "bad strict")]
+    fn function_body_contains_use_strict(src: &str) -> bool {
+        Maker::new(src).generator_body().function_body_contains_use_strict()
+    }
+
+    #[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => svec(&["alpha", "BETA"]); "normal")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   yield 1;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_body().location()
     }
 }
 
@@ -762,5 +798,12 @@ mod yield_expression {
     #[test_case("yield *a" => false; "yield from (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).yield_expression().contains_arguments()
+    }
+
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "simple")]
+    #[test_case("   yield 1" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 } }; "value")]
+    #[test_case("   yield *u" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "from")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_expression().location()
     }
 }
