@@ -157,6 +157,7 @@ case $1 in
   EmptyStatement) data=($1 empty_statement parser::empty_statement) ;;
   EqualityExpression) data=($1 equality_expression parser::equality_operators) ;;
   ExponentiationExpression) data=($1 exponentiation_expression parser::exponentiation_operator) ;;
+  ExpressionStatement) data=($1 expression_statement parser::expression_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
