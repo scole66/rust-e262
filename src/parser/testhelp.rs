@@ -22,7 +22,7 @@ use empty_statement::*;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
-use function_definitions::{FunctionBody, FunctionDeclaration, FunctionStatementList};
+use function_definitions::*;
 use generator_function_definitions::{
     GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression,
 };
@@ -752,6 +752,10 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionExpression`] parse node.
+    pub fn function_expression(self) -> Rc<FunctionExpression> {
+        FunctionExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`FunctionRestParameter`] parse node.
     pub fn function_rest_parameter(self) -> Rc<FunctionRestParameter> {

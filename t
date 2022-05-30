@@ -158,6 +158,10 @@ case $1 in
   EqualityExpression) data=($1 equality_expression parser::equality_operators) ;;
   ExponentiationExpression) data=($1 exponentiation_expression parser::exponentiation_operator) ;;
   ExpressionStatement) data=($1 expression_statement parser::expression_statement) ;;
+  FunctionDeclaration) data=($1 function_declaration parser::function_definitions) ;;
+  FunctionExpression) data=($1 function_expression parser::function_definitions) ;;
+  FunctionBody) data=($1 function_body parser::function_definitions) ;;
+  FunctionStatementList) data=($1 function_statement_list parser::function_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
