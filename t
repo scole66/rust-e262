@@ -171,6 +171,7 @@ case $1 in
   IdentifierReference) data=($1 identifier_reference parser::identifiers) ;;
   BindingIdentifier) data=($1 binding_identifier parser::identifiers) ;;
   LabelIdentifier) data=($1 label_identifier parser::identifiers) ;;
+  IfStatement) data=($1 if_statement parser::if_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
