@@ -167,6 +167,10 @@ case $1 in
   GeneratorExpression) data=($1 generator_expression parser::generator_function_definitions) ;;
   GeneratorBody) data=($1 generator_body parser::generator_function_definitions) ;;
   YieldExpression) data=($1 yield_expression parser::generator_function_definitions) ;;
+  Identifier) data=($1 identifier parser::identifiers) ;;
+  IdentifierReference) data=($1 identifier_reference parser::identifiers) ;;
+  BindingIdentifier) data=($1 binding_identifier parser::identifiers) ;;
+  LabelIdentifier) data=($1 label_identifier parser::identifiers) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

@@ -8,6 +8,7 @@ use ahash::AHashSet;
 
 mod identifier {
     use super::*;
+    use test_case::test_case;
 
     fn id_kwd_test(kwd: &str) {
         let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
@@ -330,6 +331,12 @@ mod identifier {
         assert!(scanner == scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
+
+    #[test_case("bob" => with |s| assert_ne!(s, ""); "typical")]
+    fn debug(src: &str) -> String {
+        let id = Maker::new(src).identifier();
+        format!("{:?}", id)
+    }
 }
 
 #[test]
@@ -564,6 +571,13 @@ mod identifier_reference {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).yield_ok(false).await_ok(false).identifier_reference().assignment_target_type(strict)
     }
+
+    #[test_case("   blu" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "identifier")]
+    #[test_case("   await" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "await kwd")]
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "yield kwd")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_ok(false).await_ok(false).identifier_reference().location()
+    }
 }
 
 fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
@@ -677,6 +691,8 @@ fn binding_identifier_test_cache_01() {
 }
 mod binding_identifier {
     use super::*;
+    use test_case::test_case;
+
     mod early_errors {
         use super::*;
         use test_case::test_case;
@@ -831,6 +847,13 @@ mod binding_identifier {
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
+    }
+
+    #[test_case("   blu" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "identifier")]
+    #[test_case("   await" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "await kwd")]
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "yield kwd")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_ok(false).await_ok(false).binding_identifier().location()
     }
 }
 
@@ -995,6 +1018,8 @@ fn label_identifier_test_cache_01() {
 }
 mod label_identifier {
     use super::*;
+    use test_case::test_case;
+
     mod early_errors {
         use super::*;
         use test_case::test_case;
@@ -1083,5 +1108,12 @@ mod label_identifier {
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
+    }
+
+    #[test_case("   blu" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "identifier")]
+    #[test_case("   await" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "await kwd")]
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "yield kwd")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_ok(false).await_ok(false).label_identifier().location()
     }
 }

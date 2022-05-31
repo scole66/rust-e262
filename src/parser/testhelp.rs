@@ -803,6 +803,10 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Identifier`] parse node.
+    pub fn identifier(self) -> Rc<Identifier> {
+        Identifier::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`IdentifierReference`] parse node.
     pub fn identifier_reference(self) -> Rc<IdentifierReference> {
         IdentifierReference::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
@@ -836,6 +840,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ImportCall`] parse node.
     pub fn import_call(self) -> Rc<ImportCall> {
         ImportCall::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LabelIdentifier`] parse node.
+    pub fn label_identifier(self) -> Rc<LabelIdentifier> {
+        LabelIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
     pub fn labelled_item(self) -> Rc<LabelledItem> {
