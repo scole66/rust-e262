@@ -2636,6 +2636,11 @@ mod for_declaration {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).for_declaration().contains_arguments()
     }
+
+    #[test_case("   let a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).for_declaration().location()
+    }
 }
 
 // FOR BINDING
@@ -2737,5 +2742,11 @@ mod for_binding {
     #[test_case("{a}" => false; "pat (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).for_binding().contains_arguments()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "id")]
+    #[test_case("   {a}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).for_binding().location()
     }
 }
