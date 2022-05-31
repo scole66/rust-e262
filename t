@@ -172,6 +172,13 @@ case $1 in
   BindingIdentifier) data=($1 binding_identifier parser::identifiers) ;;
   LabelIdentifier) data=($1 label_identifier parser::identifiers) ;;
   IfStatement) data=($1 if_statement parser::if_statement) ;;
+  IterationStatement) data=($1 iteration_statement parser::iteration_statements) ;;
+  DoWhileStatement) data=($1 do_while_statement parser::iteration_statements) ;;
+  WhileStatement) data=($1 while_statement parser::iteration_statements) ;;
+  ForStatement) data=($1 for_statement parser::iteration_statements) ;;
+  ForInOfStatement) data=($1 for_in_of_statement parser::iteration_statements) ;;
+  ForDeclaration) data=($1 for_declaration parser::iteration_statements) ;;
+  ForBinding) data=($1 for_binding parser::iteration_statements) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

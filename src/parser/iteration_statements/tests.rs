@@ -326,6 +326,14 @@ mod iteration_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).iteration_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   do var x; while(0);" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "dowhile stmt")]
+    #[test_case("   while (x) var t;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 16 } }; "while stmt")]
+    #[test_case("   for(;;)var y;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "for stmt")]
+    #[test_case("   for(x in b) var ww;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "for-in stmt")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).iteration_statement().location()
+    }
 }
 
 // DO WHILE STATEMENT
@@ -508,6 +516,11 @@ mod do_while_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).do_while_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   do var x; while(0);" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "dowhile stmt")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).do_while_statement().location()
+    }
 }
 
 // WHILE STATEMENT
@@ -637,6 +650,11 @@ mod while_statement {
     #[test_case("while(0)var u;" => svec(&["u"]); "while stmt")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).while_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   while (x) var t;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 16 } }; "while stmt")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).while_statement().location()
     }
 }
 
@@ -1606,6 +1624,13 @@ mod for_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).for_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   for(a=0;a<10;a++){var b;}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 25 } }; "for stmt")]
+    #[test_case("   for(var a=0;a<10;a++){var b;}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 29 } }; "for var")]
+    #[test_case("   for(let a=0;a<10;a++){var b;}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 29 } }; "for lix")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).for_statement().location()
+    }
 }
 
 // FOR IN-OF STATEMENT
@@ -2504,6 +2529,22 @@ mod for_in_of_statement {
     #[test_case("for await(let a of b)var x;" => svec(&["x"]); "for-lex-of-await")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).for_in_of_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   for(a in b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 17 } }; "for-in")]
+    #[test_case("   for(a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 17 } }; "for-of")]
+    #[test_case("   for({a} of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "dstr-of")]
+    #[test_case("   for({a} in b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "dstr-in")]
+    #[test_case("   for(var a in b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 21 } }; "for-var-in")]
+    #[test_case("   for(var a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 21 } }; "for-var-of")]
+    #[test_case("   for(let a in b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 21 } }; "for-lex-in")]
+    #[test_case("   for(let a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 21 } }; "for-lex-of")]
+    #[test_case("   for await(a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 23 } }; "for-of-await")]
+    #[test_case("   for await({a} of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 25 } }; "dstr-of-await")]
+    #[test_case("   for await(var a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 27 } }; "for-var-of-await")]
+    #[test_case("   for await(let a of b)var x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 27 } }; "for-lex-of-await")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).for_in_of_statement().location()
     }
 }
 
