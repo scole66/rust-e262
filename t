@@ -179,6 +179,8 @@ case $1 in
   ForInOfStatement) data=($1 for_in_of_statement parser::iteration_statements) ;;
   ForDeclaration) data=($1 for_declaration parser::iteration_statements) ;;
   ForBinding) data=($1 for_binding parser::iteration_statements) ;;
+  LabelledStatement) data=($1 labelled_statement parser::labelled_statements) ;;
+  LabelledItem) data=($1 labelled_item parser::labelled_statements) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
