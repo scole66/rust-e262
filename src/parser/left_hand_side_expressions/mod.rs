@@ -151,34 +151,30 @@ impl IsFunctionDefinition for MemberExpression {
     }
 }
 
-pub trait ToMemberExpression {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression;
-}
-
-impl ToMemberExpression for PrimaryExpression {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
-        MemberExpression::PrimaryExpression(node)
+impl From<Rc<PrimaryExpression>> for MemberExpression {
+    fn from(node: Rc<PrimaryExpression>) -> Self {
+        Self::PrimaryExpression(node)
     }
 }
 
-impl ToMemberExpression for SuperProperty {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
-        MemberExpression::SuperProperty(node)
+impl From<Rc<SuperProperty>> for MemberExpression {
+    fn from(node: Rc<SuperProperty>) -> Self {
+        Self::SuperProperty(node)
     }
 }
 
-impl ToMemberExpression for MetaProperty {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
-        MemberExpression::MetaProperty(node)
+impl From<Rc<MetaProperty>> for MemberExpression {
+    fn from(node: Rc<MetaProperty>) -> Self {
+        Self::MetaProperty(node)
     }
 }
 
-fn me_boxer<T>(pair: (Rc<T>, Scanner)) -> ParseResult<MemberExpression>
+fn me_boxer<T>(pair: (T, Scanner)) -> ParseResult<MemberExpression>
 where
-    T: ToMemberExpression,
+    T: Into<MemberExpression>,
 {
     let (node, scanner) = pair;
-    Ok((Rc::new(T::to_member_expression_kind(node)), scanner))
+    Ok((Rc::new(node.into()), scanner))
 }
 
 fn member_expression_head_recursive(

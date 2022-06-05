@@ -181,6 +181,19 @@ case $1 in
   ForBinding) data=($1 for_binding parser::iteration_statements) ;;
   LabelledStatement) data=($1 labelled_statement parser::labelled_statements) ;;
   LabelledItem) data=($1 labelled_item parser::labelled_statements) ;;
+  MemberExpression) data=($1 member_expression parser::left_hand_side_expressions) ;;
+  SuperProperty) data=($1 super_property parser::left_hand_side_expressions) ;;
+  MetaProperty) data=($1 meta_property parser::left_hand_side_expressions) ;;
+  Arguments) data=($1 arguments parser::left_hand_side_expressions) ;;
+  ArgumentList) data=($1 argument_list parser::left_hand_side_expressions) ;;
+  NewExpression) data=($1 new_expression parser::left_hand_side_expressions) ;;
+  CallMemberExpression) data=($1 call_member_expression parser::left_hand_side_expressions) ;;
+  SuperCall) data=($1 super_call parser::left_hand_side_expressions) ;;
+  ImportCall) data=($1 import_call parser::left_hand_side_expressions) ;;
+  CallExpression) data=($1 call_expression parser::left_hand_side_expressions) ;;
+  LeftHandSideExpression) data=($1 left_hand_side_expression parser::left_hand_side_expressions) ;;
+  OptionalExpression) data=($1 optional_expression parser::left_hand_side_expressions) ;;
+  OptionalChain) data=($1 optional_chain parser::left_hand_side_expressions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
