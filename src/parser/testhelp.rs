@@ -33,7 +33,7 @@ use iteration_statements::{
 };
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::*;
-use method_definitions::MethodDefinition;
+use method_definitions::*;
 use multiplicative_operators::MultiplicativeExpression;
 use parameter_lists::{
     FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters,
@@ -1010,6 +1010,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`PropertyName`] parse node.
     pub fn property_name(self) -> Rc<PropertyName> {
         PropertyName::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`PropertySetParameterList`] parse node.
+    pub fn property_set_parameter_list(self) -> Rc<PropertySetParameterList> {
+        PropertySetParameterList::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`RelationalExpression`] parse node.
     pub fn relational_expression(self) -> Rc<RelationalExpression> {
