@@ -196,6 +196,8 @@ case $1 in
   OptionalChain) data=($1 optional_chain parser::left_hand_side_expressions) ;;
   MethodDefinition) data=($1 method_definition parser::method_definitions) ;;
   PropertySetParameterList) data=($1 property_set_parameter_list parser::method_definitions) ;;
+  MultiplicativeExpression) data=($1 multiplicative_expression parser::multiplicative_operators) ;;
+  MultiplicativeOperator) data=($1 multiplicative_operator parser::multiplicative_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
