@@ -198,6 +198,11 @@ case $1 in
   PropertySetParameterList) data=($1 property_set_parameter_list parser::method_definitions) ;;
   MultiplicativeExpression) data=($1 multiplicative_expression parser::multiplicative_operators) ;;
   MultiplicativeOperator) data=($1 multiplicative_operator parser::multiplicative_operators) ;;
+  UniqueFormalParameters) data=($1 unique_formal_parameters parser::parameter_lists) ;;
+  FormalParameters) data=($1 formal_parameters parser::parameter_lists) ;;
+  FormalParameterList) data=($1 formal_parameter_list parser::parameter_lists) ;;
+  FunctionRestParameter) data=($1 function_rest_parameter parser::parameter_lists) ;;
+  FormalParameter) data=($1 formal_parameter parser::parameter_lists) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

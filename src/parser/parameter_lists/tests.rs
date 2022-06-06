@@ -80,6 +80,11 @@ mod unique_formal_parameters {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).unique_formal_parameters().contains_arguments()
     }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).unique_formal_parameters().location()
+    }
 }
 
 // FORMAL PARAMETERS
@@ -313,6 +318,15 @@ mod formal_parameters {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).formal_parameters().contains_arguments()
     }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "list only")]
+    #[test_case("  " => Location{ starting_line: 1, starting_column: 1, span: Span{ starting_index: 0, length: 0 }}; "empty")]
+    #[test_case("  a," => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "list comma")]
+    #[test_case("  ...a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "rest")]
+    #[test_case("  a,...b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6}}; "list rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).formal_parameters().location()
+    }
 }
 
 // FORMAL PARAMETER LIST
@@ -443,6 +457,12 @@ mod formal_parameter_list {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).formal_parameter_list().contains_arguments()
     }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1}}; "item")]
+    #[test_case("  a,b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3}}; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).formal_parameter_list().location()
+    }
 }
 
 // FUNCTION REST PARAMETER
@@ -508,6 +528,11 @@ mod function_rest_parameter {
     #[test_case("...a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).function_rest_parameter().contains_arguments()
+    }
+
+    #[test_case("  ...a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4}}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_rest_parameter().location()
     }
 }
 
@@ -590,5 +615,10 @@ mod formal_parameter {
     #[test_case("a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).formal_parameter().contains_arguments()
+    }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1}}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).formal_parameter().location()
     }
 }
