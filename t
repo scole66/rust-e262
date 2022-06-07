@@ -203,6 +203,27 @@ case $1 in
   FormalParameterList) data=($1 formal_parameter_list parser::parameter_lists) ;;
   FunctionRestParameter) data=($1 function_rest_parameter parser::parameter_lists) ;;
   FormalParameter) data=($1 formal_parameter parser::parameter_lists) ;;
+  PrimaryExpression) data=($1 primary_expression parser::primary_expressions) ;;
+  Elisions) data=($1 elision parser::primary_expressions) ;;
+  SpreadElement) data=($1 spread_element parser::primary_expressions) ;;
+  ElementList) data=($1 element_list parser::primary_expressions) ;;
+  ArrayLiteral) data=($1 array_literal parser::primary_expressions) ;;
+  Initializer) data=($1 initializer parser::primary_expressions) ;;
+  CoverInitializedName) data=($1 cover_initialized_name parser::primary_expressions) ;;
+  ComputedPropertyName) data=($1 computed_property_name parser::primary_expressions) ;;
+  LiteralPropertyName) data=($1 literal_property_name parser::primary_expressions) ;;
+  PropertyName) data=($1 property_name parser::primary_expressions) ;;
+  PropertyDefinition) data=($1 property_definition parser::primary_expressions) ;;
+  PropertyDefinitionList) data=($1 property_definition_list parser::primary_expressions) ;;
+  ObjectLiteral) data=($1 object_literal parser::primary_expressions) ;;
+  Numeric) data=($1 numeric parser::primary_expressions) ;;
+  Literal) data=($1 literal parser::primary_expressions) ;;
+  TemplateLiteral) data=($1 template_literal parser::primary_expressions) ;;
+  SubstitutionTemplate) data=($1 substitution_template parser::primary_expressions) ;;
+  TemplateSpans) data=($1 template_spans parser::primary_expressions) ;;
+  TemplateMiddleList) data=($1 template_middle_list parser::primary_expressions) ;;
+  ParenthesizedExpression) data=($1 parenthesized_expression parser::primary_expressions) ;;
+  CoverParenthesizedExpressionAndArrowParameterList) data=($1 cover_parenthesized_expression_and_arrow_parameter_list parser::primary_expressions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

@@ -586,6 +586,63 @@ mod primary_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).primary_expression().assignment_target_type(strict)
     }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("a" => true; "identifier ref")]
+    #[test_case("1" => false; "literal")]
+    #[test_case("[1]" => false; "array literal")]
+    #[test_case("{a:1}" => false; "object literal")]
+    #[test_case("function (){}" => false; "function expression")]
+    #[test_case("class {}" => false; "class expression")]
+    #[test_case("function *(){}" => false; "generator expression")]
+    #[test_case("async function (){}" => false; "async fn")]
+    #[test_case("async function *(){}" => false; "async gen")]
+    #[test_case("/a/" => false; "regex")]
+    #[test_case("``" => false; "template")]
+    #[test_case("(a)" => false; "parenthesized")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).primary_expression().is_identifier_ref()
+    }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => false; "literal")]
+    #[test_case("[1]" => false; "array literal")]
+    #[test_case("{a:1}" => false; "object literal")]
+    #[test_case("function (){}" => false; "function expression")]
+    #[test_case("class {}" => false; "class expression")]
+    #[test_case("function *(){}" => false; "generator expression")]
+    #[test_case("async function (){}" => false; "async fn")]
+    #[test_case("async function *(){}" => false; "async gen")]
+    #[test_case("/a/" => false; "regex")]
+    #[test_case("``" => false; "template")]
+    #[test_case("(a)" => false; "parenthesized")]
+    #[test_case("function bob(){}" => true; "named function expression")]
+    #[test_case("class bob {}" => true; "named class expression")]
+    #[test_case("function *bob(){}" => true; "named generator expression")]
+    #[test_case("async function bob(){}" => true; "named async fn")]
+    #[test_case("async function *bob(){}" => true; "named async gen")]
+    #[test_case("(class bob {})" => true; "named parenthesized")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).primary_expression().is_named_function()
+    }
+
+    #[test_case("   this" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "this")]
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "identifier ref")]
+    #[test_case("   1" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "literal")]
+    #[test_case("   [1]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "array literal")]
+    #[test_case("   {a:1}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "object literal")]
+    #[test_case("   function (){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "function expression")]
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "class expression")]
+    #[test_case("   function *(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "generator expression")]
+    #[test_case("   async function (){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "async fn")]
+    #[test_case("   async function *(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 20 } }; "async gen")]
+    #[test_case("   /a/" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "regex")]
+    #[test_case("   ``" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "template")]
+    #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).primary_expression().location()
+    }
 }
 
 // LITERAL
@@ -679,6 +736,20 @@ fn literal_test_string() {
     concise_check(&*lit, "String: 'string'", vec![]);
 }
 #[test]
+fn literal_test_debugmark() {
+    let (lit, scanner) = check(Literal::parse(&mut newparser("@@H"), Scanner::new()));
+    chk_scan(&scanner, 3);
+    assert!(matches!(
+        *lit,
+        Literal::DebugLiteral {
+            val: 'H',
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    ));
+    pretty_check(&*lit, "Literal: @@H", vec![]);
+    concise_check(&*lit, "Punctuator: @@H", vec![]);
+}
+#[test]
 fn literal_test_keyword() {
     check_err(Literal::parse(&mut newparser("function"), Scanner::new()), "Literal expected", 1, 1);
 }
@@ -744,6 +815,7 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
 mod literal {
     use super::*;
     use test_case::test_case;
+
     #[test_case("3" => AHashSet::<String>::new(); "Numeric")]
     #[test_case("null" => AHashSet::<String>::new(); "Null")]
     #[test_case("true" => AHashSet::<String>::new(); "Boolean")]
@@ -751,6 +823,24 @@ mod literal {
     fn early_errors(src: &str) -> AHashSet<String> {
         Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors();
         AHashSet::<String>::new()
+    }
+
+    #[test_case("null", "true" => true; "not eq")]
+    #[test_case("false", "false" => false; "eq")]
+    #[test_case("false", "    false" => true; "not eq by location")]
+    fn ne(s1: &str, s2: &str) -> bool {
+        let lit1 = Maker::new(s1).literal();
+        let lit2 = Maker::new(s2).literal();
+        lit1 != lit2
+    }
+
+    #[test_case("   null" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "null lit")]
+    #[test_case("   true" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "bool lit")]
+    #[test_case("   0" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "number lit")]
+    #[test_case("   '0'" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "string lit")]
+    #[test_case("   @@0" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "debug lit")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).primary_expression().location()
     }
 }
 
@@ -807,6 +897,24 @@ fn elision_test_conciseerrors_1() {
 fn elision_test_contains_01() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+mod elision {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("   ," => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "one")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).elision().location()
+    }
+
+    #[test]
+    fn cache() {
+        let mut parser = newparser(",,,");
+        let (node1, scan1) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
+        let (node2, scan2) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
+        assert!(scan1 == scan2);
+        assert!(Rc::ptr_eq(&node1, &node2));
+    }
 }
 
 // SPREAD ELEMENT
@@ -879,6 +987,11 @@ mod spread_element {
     #[test_case("...arguments" => true; "yes")]
     fn contains_arguments(src: &str) -> bool {
         SpreadElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   ...z" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).spread_element().location()
     }
 }
 

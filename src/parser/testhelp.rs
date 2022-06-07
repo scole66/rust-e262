@@ -643,6 +643,10 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Elisions`] parse node.
+    pub fn elision(self) -> Rc<Elisions> {
+        Elisions::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`EmptyStatement`] parse node.
     pub fn empty_statement(self) -> Rc<EmptyStatement> {
         EmptyStatement::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
@@ -1060,6 +1064,10 @@ impl<'a> Maker<'a> {
         SingleNameBinding::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`SpreadElement`] parse node.
+    pub fn spread_element(self) -> Rc<SpreadElement> {
+        SpreadElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`Statement`] parse node.
     pub fn statement(self) -> Rc<Statement> {

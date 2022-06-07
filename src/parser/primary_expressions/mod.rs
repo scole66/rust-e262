@@ -141,76 +141,70 @@ impl IsFunctionDefinition for PrimaryExpression {
         }
     }
 }
-pub trait ToPrimaryExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression;
-    fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
-        Ok((Rc::new(Self::to_primary_expression(node)), scanner))
+
+impl From<Rc<IdentifierReference>> for PrimaryExpression {
+    fn from(node: Rc<IdentifierReference>) -> Self {
+        Self::IdentifierReference { node }
     }
 }
 
-impl ToPrimaryExpression for IdentifierReference {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::IdentifierReference { node }
+impl From<Rc<Literal>> for PrimaryExpression {
+    fn from(node: Rc<Literal>) -> Self {
+        Self::Literal { node }
     }
 }
 
-impl ToPrimaryExpression for Literal {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Literal { node }
+impl From<Rc<ArrayLiteral>> for PrimaryExpression {
+    fn from(node: Rc<ArrayLiteral>) -> Self {
+        Self::ArrayLiteral { node }
     }
 }
 
-impl ToPrimaryExpression for ArrayLiteral {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::ArrayLiteral { node }
+impl From<Rc<ObjectLiteral>> for PrimaryExpression {
+    fn from(node: Rc<ObjectLiteral>) -> Self {
+        Self::ObjectLiteral { node }
     }
 }
 
-impl ToPrimaryExpression for ObjectLiteral {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::ObjectLiteral { node }
+impl From<Rc<ParenthesizedExpression>> for PrimaryExpression {
+    fn from(node: Rc<ParenthesizedExpression>) -> Self {
+        Self::Parenthesized { node }
     }
 }
 
-impl ToPrimaryExpression for ParenthesizedExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Parenthesized { node }
+impl From<Rc<TemplateLiteral>> for PrimaryExpression {
+    fn from(node: Rc<TemplateLiteral>) -> Self {
+        Self::TemplateLiteral { node }
     }
 }
 
-impl ToPrimaryExpression for TemplateLiteral {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::TemplateLiteral { node }
+impl From<Rc<FunctionExpression>> for PrimaryExpression {
+    fn from(node: Rc<FunctionExpression>) -> Self {
+        Self::Function { node }
     }
 }
 
-impl ToPrimaryExpression for FunctionExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Function { node }
+impl From<Rc<ClassExpression>> for PrimaryExpression {
+    fn from(node: Rc<ClassExpression>) -> Self {
+        Self::Class { node }
     }
 }
 
-impl ToPrimaryExpression for ClassExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Class { node }
+impl From<Rc<GeneratorExpression>> for PrimaryExpression {
+    fn from(node: Rc<GeneratorExpression>) -> Self {
+        Self::Generator { node }
     }
 }
 
-impl ToPrimaryExpression for GeneratorExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Generator { node }
+impl From<Rc<AsyncFunctionExpression>> for PrimaryExpression {
+    fn from(node: Rc<AsyncFunctionExpression>) -> Self {
+        Self::AsyncFunction { node }
     }
 }
 
-impl ToPrimaryExpression for AsyncFunctionExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::AsyncFunction { node }
-    }
-}
-
-impl ToPrimaryExpression for AsyncGeneratorExpression {
-    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::AsyncGenerator { node }
+impl From<Rc<AsyncGeneratorExpression>> for PrimaryExpression {
+    fn from(node: Rc<AsyncGeneratorExpression>) -> Self {
+        Self::AsyncGenerator { node }
     }
 }
 
@@ -222,12 +216,12 @@ impl PrimaryExpression {
 
     fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
-        IdentifierReference::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_literal(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = Literal::parse(parser, scanner)?;
-        Literal::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_array_literal(
@@ -237,7 +231,7 @@ impl PrimaryExpression {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (node, after) = ArrayLiteral::parse(parser, scanner, yield_flag, await_flag)?;
-        ArrayLiteral::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_object_literal(
@@ -247,12 +241,12 @@ impl PrimaryExpression {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (node, after) = ObjectLiteral::parse(parser, scanner, yield_flag, await_flag)?;
-        ObjectLiteral::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_function_exp(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = FunctionExpression::parse(parser, scanner)?;
-        FunctionExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
     fn parse_parenthesized_exp(
         parser: &mut Parser,
@@ -261,7 +255,7 @@ impl PrimaryExpression {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (node, after) = ParenthesizedExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        ParenthesizedExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
     fn parse_template_literal(
         parser: &mut Parser,
@@ -270,27 +264,27 @@ impl PrimaryExpression {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (node, after) = TemplateLiteral::parse(parser, scanner, yield_flag, await_flag, false)?;
-        TemplateLiteral::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_class_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = ClassExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        ClassExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_generator_exp(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = GeneratorExpression::parse(parser, scanner)?;
-        GeneratorExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_async_func(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = AsyncFunctionExpression::parse(parser, scanner)?;
-        AsyncFunctionExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_async_gen(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = AsyncGeneratorExpression::parse(parser, scanner)?;
-        AsyncGeneratorExpression::to_primary_expression_result(node, after)
+        Ok((Rc::new(PrimaryExpression::from(node)), after))
     }
 
     fn parse_regex(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
