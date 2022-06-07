@@ -435,11 +435,7 @@ fn coalesce_expression_head_test_02() {
     let head = &*pn.head;
     chk_scan(&scanner, 7);
     pretty_check(head, "CoalesceExpressionHead: z ?? a", vec!["CoalesceExpression: z ?? a"]);
-    concise_check(
-        head,
-        "CoalesceExpression: z ?? a",
-        vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"],
-    );
+    concise_check(head, "CoalesceExpression: z ?? a", vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"]);
 }
 #[test]
 fn coalesce_expression_head_test_prettyerrors_1() {
