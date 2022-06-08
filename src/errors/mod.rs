@@ -164,19 +164,19 @@ impl ObjectInterface for ErrorObject {
     }
 
     fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(&*self))
+        Ok(ordinary_get_prototype_of(self))
     }
     fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(&*self, obj))
+        Ok(ordinary_set_prototype_of(self, obj))
     }
     fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
-        Ok(ordinary_is_extensible(&*self))
+        Ok(ordinary_is_extensible(self))
     }
     fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(&*self))
+        Ok(ordinary_prevent_extensions(self))
     }
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        Ok(ordinary_get_own_property(&*self, key))
+        Ok(ordinary_get_own_property(self, key))
     }
     fn define_own_property(
         &self,
@@ -184,13 +184,13 @@ impl ObjectInterface for ErrorObject {
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
-        ordinary_define_own_property(agent, &*self, key, desc)
+        ordinary_define_own_property(agent, self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, &*self, key)
+        ordinary_has_property(agent, self, key)
     }
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(agent, &*self, key, receiver)
+        ordinary_get(agent, self, key, receiver)
     }
     fn set(
         &self,
@@ -199,10 +199,10 @@ impl ObjectInterface for ErrorObject {
         v: ECMAScriptValue,
         receiver: &ECMAScriptValue,
     ) -> Completion<bool> {
-        ordinary_set(agent, &*self, key, v, receiver)
+        ordinary_set(agent, self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(agent, &*self, key)
+        ordinary_delete(agent, self, key)
     }
     fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(agent, self))
