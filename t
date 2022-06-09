@@ -224,6 +224,7 @@ case $1 in
   TemplateMiddleList) data=($1 template_middle_list parser::primary_expressions) ;;
   ParenthesizedExpression) data=($1 parenthesized_expression parser::primary_expressions) ;;
   CoverParenthesizedExpressionAndArrowParameterList) data=($1 cover_parenthesized_expression_and_arrow_parameter_list parser::primary_expressions) ;;
+  RelationalExpression) data=($1 relational_expression parser::relational_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
