@@ -116,4 +116,10 @@ mod return_statement {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).return_statement().contains_arguments()
     }
+
+    #[test_case("  return;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "bare")]
+    #[test_case("  return  9;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "value")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).return_statement().location()
+    }
 }
