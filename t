@@ -226,6 +226,8 @@ case $1 in
   CoverParenthesizedExpressionAndArrowParameterList) data=($1 cover_parenthesized_expression_and_arrow_parameter_list parser::primary_expressions) ;;
   RelationalExpression) data=($1 relational_expression parser::relational_operators) ;;
   ReturnStatement) data=($1 return_statement parser::return_statement) ;;
+  Script) data=($1 script parser::scripts) ;;
+  ScriptBody) data=($1 script_body parser::scripts) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

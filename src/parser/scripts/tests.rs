@@ -308,4 +308,14 @@ mod script_body {
     fn location(src: &str) -> Location {
         Maker::new(src).script_body().location()
     }
+
+    #[test_case("var a; const q=1; function b(){}" => svec(&["a", "b"]); "names")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
 }
