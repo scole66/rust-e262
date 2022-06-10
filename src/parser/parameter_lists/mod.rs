@@ -113,6 +113,10 @@ impl UniqueFormalParameters {
         //      1. Return IsSimpleParameterList of FormalParameters.
         self.formals.is_simple_parameter_list()
     }
+
+    pub fn expected_argument_count(&self) -> f64 {
+        self.formals.expected_argument_count()
+    }
 }
 
 // FormalParameters[Yield, Await] :
@@ -377,6 +381,23 @@ impl FormalParameters {
             }
         }
     }
+
+    /// Reports the number of expected arguments for the parameter list.
+    ///
+    /// The ExpectedArgumentCount of a FormalParameterList is the number of FormalParameters to the left of either the
+    /// rest parameter or the first FormalParameter with an Initializer. A FormalParameter without an initializer is
+    /// allowed after the first parameter with an initializer but such parameters are considered to be optional with
+    /// undefined as their default value.
+    ///
+    /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
+    pub fn expected_argument_count(&self) -> f64 {
+        match self {
+            FormalParameters::Empty(_) | FormalParameters::Rest(_) => 0.0,
+            FormalParameters::List(list)
+            | FormalParameters::ListComma(list, _)
+            | FormalParameters::ListRest(list, _) => list.expected_argument_count(),
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -535,6 +556,29 @@ impl FormalParameterList {
             FormalParameterList::List(fpl, fp) => {
                 fpl.early_errors(agent, errs, strict);
                 fp.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    /// Sub-calculation of expected arguments for parameter lists
+    ///
+    /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
+    fn expected_argument_count(&self) -> f64 {
+        match self {
+            FormalParameterList::Item(item) => {
+                if item.has_initializer() {
+                    0.0
+                } else {
+                    1.0
+                }
+            }
+            FormalParameterList::List(list, item) => {
+                let count = list.expected_argument_count();
+                if list.has_initializer() || item.has_initializer() {
+                    count
+                } else {
+                    count + 1.0
+                }
             }
         }
     }
