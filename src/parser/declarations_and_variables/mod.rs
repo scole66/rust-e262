@@ -2350,6 +2350,16 @@ impl BindingElement {
             }
         }
     }
+
+    /// Report whether this binding id contains an intializer
+    ///
+    /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
+    pub fn has_initializer(&self) -> bool {
+        match self {
+            BindingElement::Single(sing) => sing.has_initializer(),
+            BindingElement::Pattern(_, izer) => izer.is_some(),
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -2483,6 +2493,14 @@ impl SingleNameBinding {
             }
             SingleNameBinding::Id(id, None) => id.early_errors(agent, errs, strict),
         }
+    }
+
+    /// Report whether this binding id contains an intializer
+    ///
+    /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
+    pub fn has_initializer(&self) -> bool {
+        let SingleNameBinding::Id(_, izer) = self;
+        izer.is_some()
     }
 }
 

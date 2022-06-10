@@ -538,6 +538,16 @@ impl FormalParameterList {
             }
         }
     }
+
+    /// Report whether this portion of a parameter list contains an intializer
+    ///
+    /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
+    fn has_initializer(&self) -> bool {
+        match self {
+            FormalParameterList::Item(item) => item.has_initializer(),
+            FormalParameterList::List(list, item) => list.has_initializer() || item.has_initializer(),
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -718,6 +728,13 @@ impl FormalParameter {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(agent, errs, strict)
+    }
+
+    /// Report whether this parameter contains an intializer
+    ///
+    /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
+    fn has_initializer(&self) -> bool {
+        self.element.has_initializer()
     }
 }
 
