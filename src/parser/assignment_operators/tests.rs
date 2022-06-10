@@ -122,7 +122,7 @@ mod assignment_expression {
         sv(&["AssignmentExpression: [ a ] = [ 1 ]", "ArrayAssignmentPattern: [ a ]", "Punctuator: =", "ArrayLiteral: [ 1 ]"])
     )); "AssignmentPattern = AssignmentExpression")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 1)); "empty")]
-    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), 3)); "bad destructuring")]
+    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), (1, 3, 1))); "bad destructuring")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), false, true, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -482,6 +482,20 @@ mod assignment_expression {
     fn is_named_function(src: &str) -> bool {
         Maker::new(src).assignment_expression().is_named_function()
     }
+
+    #[test_case(" 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 2 } }; "fall-thru")]
+    #[test_case(" yield 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 8 } }; "yield expression")]
+    #[test_case(" x => x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 6 } }; "arrow function")]
+    #[test_case(" async x => x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 12 } }; "async arrow function")]
+    #[test_case(" x = x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 5 } }; "assignment")]
+    #[test_case(" x += x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 6 } }; "op-assignment")]
+    #[test_case(" x &&= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "logical-and assignment")]
+    #[test_case(" x ||= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "logical-or assignment")]
+    #[test_case(" x ??= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "coalesce assignment")]
+    #[test_case(" {alpha, beta} = x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 17 } }; "destructuring assignment")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_expression().location()
+    }
 }
 
 mod assignment_operator {
@@ -668,6 +682,12 @@ mod assignment_pattern {
     fn contains_arguments(src: &str) -> bool {
         AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case(" {a,b,c}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "object pattern")]
+    #[test_case(" [x,y,z]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "array pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_pattern().location()
+    }
 }
 
 mod object_assignment_pattern {
@@ -795,6 +815,14 @@ mod object_assignment_pattern {
     #[test_case("{xyzzy,...bob}" => false; "List+Rest (no)")]
     fn contains_arguments(src: &str) -> bool {
         ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(" {}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 2 } }; "empty")]
+    #[test_case(" { ...a }" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "rest-only")]
+    #[test_case(" {a,b,c}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "list-only")]
+    #[test_case(" {a,...b}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "list+rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_assignment_pattern().location()
     }
 }
 
@@ -979,6 +1007,13 @@ mod array_assignment_pattern {
     #[test_case("[xyzzy,,...bob]" => false; "List Elision Rest (no)")]
     fn contains_arguments(src: &str) -> bool {
         ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(" [ ...a ]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "rest-only")]
+    #[test_case(" [1,2,3]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "list-only")]
+    #[test_case(" [1,...b]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "list+rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_assignment_pattern().location()
     }
 }
 
@@ -1564,7 +1599,7 @@ mod destructuring_assignment_target {
         sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
     )); "AssignmentPattern")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
-    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 7)); "ObjectLiteral but not AssignmentPattern")]
+    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), (1, 7, 1))); "ObjectLiteral but not AssignmentPattern")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);

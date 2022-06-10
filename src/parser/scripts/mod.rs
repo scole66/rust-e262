@@ -18,11 +18,14 @@ use std::io::Write;
 // Script :
 //      ScriptBody opt
 #[derive(Debug)]
-pub struct Script(pub Option<Rc<ScriptBody>>);
+pub struct Script {
+    pub body: Option<Rc<ScriptBody>>,
+    location: Location,
+}
 
 impl fmt::Display for Script {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.0 {
+        match &self.body {
             None => Ok(()),
             Some(n) => n.fmt(f),
         }
@@ -36,7 +39,7 @@ impl PrettyPrint for Script {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Script: {}", first, self)?;
-        if let Some(body) = &self.0 {
+        if let Some(body) = &self.body {
             body.pprint_with_leftpad(writer, &successive, Spot::Final)
         } else {
             Ok(())
@@ -47,7 +50,7 @@ impl PrettyPrint for Script {
     where
         T: Write,
     {
-        match &self.0 {
+        match &self.body {
             None => {
                 let (first, _) = prettypad(pad, state);
                 writeln!(writer, "{}Script:", first)
@@ -107,18 +110,26 @@ impl From<&VarScopeDecl> for String {
 
 impl Script {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        let starting_location = Location::from(scanner);
         let (script, after_script, err) = match ScriptBody::parse(parser, scanner) {
             Ok((node, scan)) => (Some(node), scan, None),
             Err(err) => (None, scanner, Some(err)),
         };
         let end = scan_for_eof(after_script, parser.source);
         match end {
-            Ok(scan) => Ok((Rc::new(Script(script)), scan)),
+            Ok((eof_loc, scan)) => {
+                let location = starting_location.merge(&eof_loc);
+                Ok((Rc::new(Script { body: script, location }), scan))
+            }
             Err(e) => match err {
                 Some(x) => Err(x),
                 None => Err(e),
             },
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     // Static Semantics: Early Errors
@@ -127,17 +138,25 @@ impl Script {
     // * It is a Syntax Error if any element of the LexicallyDeclaredNames of ScriptBody also occurs in the
     //   VarDeclaredNames of ScriptBody.
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
-        match &self.0 {
+        match &self.body {
             Some(body) => {
                 let lex_names = body.lexically_declared_names();
                 let var_names = body.var_declared_names();
                 if !has_unique_elements(lex_names.clone()) {
-                    errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Duplicate lexically declared names",
+                        Some(body.location()),
+                    ));
                 }
                 let lex_names_set: AHashSet<JSString> = lex_names.into_iter().collect();
                 let var_names_set: AHashSet<JSString> = var_names.into_iter().collect();
                 if !lex_names_set.is_disjoint(&var_names_set) {
-                    errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Name defined both lexically and var-style",
+                        Some(body.location()),
+                    ));
                 }
                 body.early_errors(agent, errs);
             }
@@ -146,7 +165,7 @@ impl Script {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.0 {
+        match &self.body {
             None => false,
             Some(n) => kind == ParseNodeKind::ScriptBody || n.contains(kind),
         }
@@ -156,7 +175,7 @@ impl Script {
     ///
     /// See [LexicallyDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-lexicallydeclarednames) from ECMA-262.
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        match &self.0 {
+        match &self.body {
             None => vec![],
             Some(sb) => sb.lexically_declared_names(),
         }
@@ -166,7 +185,7 @@ impl Script {
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        match &self.0 {
+        match &self.body {
             None => vec![],
             Some(sb) => sb.var_declared_names(),
         }
@@ -179,7 +198,7 @@ impl Script {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        match &self.0 {
+        match &self.body {
             None => vec![],
             Some(sb) => sb.var_scoped_declarations(),
         }
@@ -192,7 +211,7 @@ impl Script {
     ///
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
-        match &self.0 {
+        match &self.body {
             None => vec![],
             Some(sb) => sb.lexically_scoped_declarations(),
         }
@@ -237,6 +256,10 @@ impl ScriptBody {
         Ok((Rc::new(ScriptBody { statement_list: sl, direct: parser.direct }), after_sl))
     }
 
+    pub fn location(&self) -> Location {
+        self.statement_list.location()
+    }
+
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         self.statement_list.top_level_lexically_declared_names()
     }
@@ -260,23 +283,47 @@ impl ScriptBody {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
-                errs.push(create_syntax_error_object(agent, "`super' not allowed in top-level code"));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    "`super' not allowed in top-level code",
+                    Some(self.statement_list.location()),
+                ));
             }
             if self.statement_list.contains(ParseNodeKind::NewTarget) {
-                errs.push(create_syntax_error_object(agent, "`new.target` not allowed in top-level code"));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    "`new.target` not allowed in top-level code",
+                    Some(self.statement_list.location()),
+                ));
             }
         }
         if self.statement_list.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "duplicate labels detected",
+                Some(self.statement_list.location()),
+            ));
         }
         if self.statement_list.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "undefined break target detected",
+                Some(self.statement_list.location()),
+            ));
         }
         if self.statement_list.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "undefined continue target detected",
+                Some(self.statement_list.location()),
+            ));
         }
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
-            errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "invalid private identifier detected",
+                Some(self.statement_list.location()),
+            ));
         }
         self.statement_list.early_errors(agent, errs, self.contains_use_strict(), false, false);
     }

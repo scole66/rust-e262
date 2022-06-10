@@ -15,19 +15,19 @@ use std::io::Write;
 //      try Block[?Yield, ?Await, ?Return] Catch[?Yield, ?Await, ?Return] Finally[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum TryStatement {
-    Catch(Rc<Block>, Rc<Catch>),
-    Finally(Rc<Block>, Rc<Finally>),
-    Full(Rc<Block>, Rc<Catch>, Rc<Finally>),
+    Catch { block: Rc<Block>, catch: Rc<Catch>, location: Location },
+    Finally { block: Rc<Block>, finally: Rc<Finally>, location: Location },
+    Full { block: Rc<Block>, catch: Rc<Catch>, finally: Rc<Finally>, location: Location },
 }
 
 impl fmt::Display for TryStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TryStatement::Catch(block, catch) => write!(f, "try {} {}", block, catch),
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Catch { block, catch, .. } => write!(f, "try {} {}", block, catch),
+            TryStatement::Finally { block, finally, .. } => {
                 write!(f, "try {} {}", block, finally)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 write!(f, "try {} {} {}", block, catch, finally)
             }
         }
@@ -42,15 +42,15 @@ impl PrettyPrint for TryStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TryStatement: {}", first, self)?;
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 catch.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 finally.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 catch.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 finally.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -66,15 +66,15 @@ impl PrettyPrint for TryStatement {
         writeln!(writer, "{}TryStatement: {}", first, self)?;
         pprint_token(writer, "try", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 catch.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 finally.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 catch.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 finally.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -91,7 +91,8 @@ impl TryStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_try = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (try_loc, after_try) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
         let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
             Catch(Rc<Catch>),
@@ -113,28 +114,45 @@ impl TryStatement {
             .map(|(kind, scan)| {
                 (
                     Rc::new(match kind {
-                        CaseKind::Catch(c) => TryStatement::Catch(block, c),
-                        CaseKind::Finally(f) => TryStatement::Finally(block, f),
-                        CaseKind::Full(c, f) => TryStatement::Full(block, c, f),
+                        CaseKind::Catch(catch) => {
+                            let location = try_loc.merge(&catch.location());
+                            TryStatement::Catch { block, catch, location }
+                        }
+                        CaseKind::Finally(finally) => {
+                            let location = try_loc.merge(&finally.location());
+                            TryStatement::Finally { block, finally, location }
+                        }
+                        CaseKind::Full(catch, finally) => {
+                            let location = try_loc.merge(&finally.location());
+                            TryStatement::Full { block, catch, finally, location }
+                        }
                     }),
                     scan,
                 )
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            TryStatement::Catch { location, .. }
+            | TryStatement::Finally { location, .. }
+            | TryStatement::Full { location, .. } => *location,
+        }
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 let mut names = block.var_declared_names();
                 names.extend(catch.var_declared_names());
                 names
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 let mut names = block.var_declared_names();
                 names.extend(finally.var_declared_names());
                 names
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 let mut names = block.var_declared_names();
                 names.extend(catch.var_declared_names());
                 names.extend(finally.var_declared_names());
@@ -145,13 +163,13 @@ impl TryStatement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.contains_undefined_break_target(label_set)
                     || catch.contains_undefined_break_target(label_set)
                     || finally.contains_undefined_break_target(label_set)
@@ -161,9 +179,9 @@ impl TryStatement {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => block.contains(kind) || catch.contains(kind),
-            TryStatement::Finally(block, finally) => block.contains(kind) || finally.contains(kind),
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Catch { block, catch, .. } => block.contains(kind) || catch.contains(kind),
+            TryStatement::Finally { block, finally, .. } => block.contains(kind) || finally.contains(kind),
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.contains(kind) || catch.contains(kind) || finally.contains(kind)
             }
         }
@@ -171,13 +189,13 @@ impl TryStatement {
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.contains_duplicate_labels(label_set)
                     || catch.contains_duplicate_labels(label_set)
                     || finally.contains_duplicate_labels(label_set)
@@ -187,15 +205,15 @@ impl TryStatement {
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.contains_undefined_continue_target(iteration_set, &[])
                     || catch.contains_undefined_continue_target(iteration_set)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.contains_undefined_continue_target(iteration_set, &[])
                     || finally.contains_undefined_continue_target(iteration_set)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.contains_undefined_continue_target(iteration_set, &[])
                     || catch.contains_undefined_continue_target(iteration_set)
                     || finally.contains_undefined_continue_target(iteration_set)
@@ -211,13 +229,13 @@ impl TryStatement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            TryStatement::Catch(block, catch) => {
+            TryStatement::Catch { block, catch, .. } => {
                 block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names)
             }
-            TryStatement::Finally(block, finally) => {
+            TryStatement::Finally { block, finally, .. } => {
                 block.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names)
             }
-            TryStatement::Full(block, catch, finally) => {
+            TryStatement::Full { block, catch, finally, .. } => {
                 block.all_private_identifiers_valid(names)
                     && catch.all_private_identifiers_valid(names)
                     && finally.all_private_identifiers_valid(names)
@@ -237,9 +255,11 @@ impl TryStatement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            TryStatement::Catch(b, c) => b.contains_arguments() || c.contains_arguments(),
-            TryStatement::Finally(b, f) => b.contains_arguments() || f.contains_arguments(),
-            TryStatement::Full(b, c, f) => b.contains_arguments() || c.contains_arguments() || f.contains_arguments(),
+            TryStatement::Catch { block, catch, .. } => block.contains_arguments() || catch.contains_arguments(),
+            TryStatement::Finally { block, finally, .. } => block.contains_arguments() || finally.contains_arguments(),
+            TryStatement::Full { block, catch, finally, .. } => {
+                block.contains_arguments() || catch.contains_arguments() || finally.contains_arguments()
+            }
         }
     }
 
@@ -252,9 +272,9 @@ impl TryStatement {
         within_switch: bool,
     ) {
         let (block, catch, finally) = match self {
-            TryStatement::Catch(block, catch) => (block, Some(catch), None),
-            TryStatement::Finally(block, finally) => (block, None, Some(finally)),
-            TryStatement::Full(block, catch, finally) => (block, Some(catch), Some(finally)),
+            TryStatement::Catch { block, catch, .. } => (block, Some(catch), None),
+            TryStatement::Finally { block, finally, .. } => (block, None, Some(finally)),
+            TryStatement::Full { block, catch, finally, .. } => (block, Some(catch), Some(finally)),
         };
         block.early_errors(agent, errs, strict, within_iteration, within_switch);
         if let Some(catch) = catch {
@@ -270,9 +290,9 @@ impl TryStatement {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let (block, catch, finally) = match self {
-            TryStatement::Catch(block, catch) => (block, Some(catch), None),
-            TryStatement::Finally(block, finally) => (block, None, Some(finally)),
-            TryStatement::Full(block, catch, finally) => (block, Some(catch), Some(finally)),
+            TryStatement::Catch { block, catch, .. } => (block, Some(catch), None),
+            TryStatement::Finally { block, finally, .. } => (block, None, Some(finally)),
+            TryStatement::Full { block, catch, finally, .. } => (block, Some(catch), Some(finally)),
         };
         let mut list = block.var_scoped_declarations();
         if let Some(catch) = catch {
@@ -292,6 +312,7 @@ impl TryStatement {
 pub struct Catch {
     parameter: Option<Rc<CatchParameter>>,
     block: Rc<Block>,
+    location: Location,
 }
 
 impl fmt::Display for Catch {
@@ -340,24 +361,31 @@ impl Catch {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
+        let (catch_loc, after_catch) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
         Err(ParseError::new(
             PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]),
             after_catch,
         ))
         .otherwise(|| {
             let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
-            Ok((Rc::new(Catch { parameter: None, block }), after_block))
+            let location = catch_loc.merge(&block.location());
+            Ok((Rc::new(Catch { parameter: None, block, location }), after_block))
         })
         .otherwise(|| {
-            let after_open =
+            let (_, after_open) =
                 scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
             let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
-            let after_close =
+            let (_, after_close) =
                 scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
             let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-            Ok((Rc::new(Catch { parameter: Some(cp), block }), after_block))
+            let location = catch_loc.merge(&block.location());
+            Ok((Rc::new(Catch { parameter: Some(cp), block, location }), after_block))
         })
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -424,11 +452,19 @@ impl Catch {
             let ldn = self.block.lexically_declared_names();
             let vdn = self.block.var_declared_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.block.location()),
+                ));
             }
             for name in bn.iter() {
                 if ldn.contains(name) || vdn.contains(name) {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", name),
+                        Some(self.block.location()),
+                    ));
                 }
             }
             cp.early_errors(agent, errs, strict);
@@ -449,6 +485,7 @@ impl Catch {
 #[derive(Debug)]
 pub struct Finally {
     block: Rc<Block>,
+    location: Location,
 }
 
 impl fmt::Display for Finally {
@@ -486,9 +523,15 @@ impl Finally {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_fin = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
+        let (fin_loc, after_fin) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
         let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
-        Ok((Rc::new(Finally { block }), after_block))
+        let location = fin_loc.merge(&block.location());
+        Ok((Rc::new(Finally { block, location }), after_block))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

@@ -72,7 +72,7 @@ fn lexical_declaration_test_err_03() {
         LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false),
         "‘;’ expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -137,6 +137,11 @@ mod lexical_declaration {
     fn contains_arguments(src: &str) -> bool {
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   let x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_declaration().location()
+    }
 }
 
 // LET OR CONST
@@ -173,6 +178,12 @@ mod let_or_const {
     #[test_case(LetOrConst::Const => true; "kwd const")]
     fn is_constant_declaration(which: LetOrConst) -> bool {
         which.is_constant_declaration()
+    }
+
+    #[test_case(LetOrConst::Let => with |s| assert_ne!(s, ""); "kwd let")]
+    #[test_case(LetOrConst::Const => with |s| assert_ne!(s, ""); "kwd const")]
+    fn debug(src: LetOrConst) -> String {
+        format!("{src:?}")
     }
 }
 
@@ -263,6 +274,12 @@ mod binding_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 1 } }; "item")]
+    #[test_case("   a,b" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 3 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_list().location()
     }
 }
 
@@ -391,6 +408,13 @@ mod lexical_binding {
     fn contains_arguments(src: &str) -> bool {
         LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 1 } }; "id; no init")]
+    #[test_case("  a=0" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 3 } }; "id with init")]
+    #[test_case("  {c}=a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_binding().location()
+    }
 }
 
 // VARIABLE STATMENT
@@ -429,7 +453,7 @@ fn variable_statement_test_err_02() {
 }
 #[test]
 fn variable_statement_test_err_03() {
-    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn variable_statement_test_var_declared_names_01() {
@@ -476,6 +500,11 @@ mod variable_statement {
     #[test_case("var left, center='ham', right;" => svec(&["left", "center = 'ham'", "right"]); "a list")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).variable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   var left;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).variable_statement().location()
     }
 }
 
@@ -849,6 +878,12 @@ mod binding_pattern {
     fn contains_arguments(src: &str) -> bool {
         BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {a}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "object")]
+    #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "array")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_pattern().location()
+    }
 }
 
 // OBJECT BINDING PATTERN
@@ -856,7 +891,7 @@ mod binding_pattern {
 fn object_binding_pattern_test_01() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ObjectBindingPattern::Empty));
+    assert!(matches!(&*node, ObjectBindingPattern::Empty { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { }", vec![]);
     concise_check(&*node, "ObjectBindingPattern: { }", vec!["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", node);
@@ -867,7 +902,7 @@ fn object_binding_pattern_test_01() {
 fn object_binding_pattern_test_02() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{...a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ObjectBindingPattern::RestOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::RestOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { ... a }", vec!["BindingRestProperty: ... a"]);
     concise_check(
         &*node,
@@ -882,7 +917,7 @@ fn object_binding_pattern_test_02() {
 fn object_binding_pattern_test_03() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ObjectBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a }", vec!["BindingPropertyList: a"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{:?}", node);
@@ -893,7 +928,7 @@ fn object_binding_pattern_test_03() {
 fn object_binding_pattern_test_04() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,...b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, Some(_))));
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: Some(_), .. }));
     pretty_check(
         &*node,
         "ObjectBindingPattern: { a , ... b }",
@@ -912,7 +947,7 @@ fn object_binding_pattern_test_04() {
 fn object_binding_pattern_test_05() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, None)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: None, .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a , }", vec!["BindingPropertyList: a"]);
     concise_check(
         &*node,
@@ -1064,6 +1099,14 @@ mod object_binding_pattern {
     fn contains_arguments(src: &str) -> bool {
         ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   { ...a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   { a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   { a, ...b }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_binding_pattern().location()
+    }
 }
 
 // ARRAY BINDING PATTERN
@@ -1071,7 +1114,7 @@ mod object_binding_pattern {
 fn array_binding_pattern_test_01() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ]", vec![]);
     concise_check(&*node, "ArrayBindingPattern: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1082,7 +1125,7 @@ fn array_binding_pattern_test_01() {
 fn array_binding_pattern_test_02() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Elisions: ,"]);
     concise_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1093,7 +1136,7 @@ fn array_binding_pattern_test_02() {
 fn array_binding_pattern_test_03() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["BindingRestElement: ... a"]);
     concise_check(
         &*node,
@@ -1108,7 +1151,7 @@ fn array_binding_pattern_test_03() {
 fn array_binding_pattern_test_04() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Elisions: ,", "BindingRestElement: ... a"]);
     concise_check(
         &*node,
@@ -1123,7 +1166,7 @@ fn array_binding_pattern_test_04() {
 fn array_binding_pattern_test_05() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a ]", vec!["BindingElementList: a"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1134,7 +1177,7 @@ fn array_binding_pattern_test_05() {
 fn array_binding_pattern_test_06() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { bre: None, elision: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["BindingElementList: a"]);
     concise_check(
         &*node,
@@ -1149,7 +1192,7 @@ fn array_binding_pattern_test_06() {
 fn array_binding_pattern_test_07() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["BindingElementList: a", "Elisions: ,"]);
     concise_check(
         &*node,
@@ -1164,7 +1207,7 @@ fn array_binding_pattern_test_07() {
 fn array_binding_pattern_test_08() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: None, bre: Some(_), .. }));
     pretty_check(
         &*node,
         "ArrayBindingPattern: [ a , ... b ]",
@@ -1183,7 +1226,7 @@ fn array_binding_pattern_test_08() {
 fn array_binding_pattern_test_09() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: Some(_), .. }));
     pretty_check(
         &*node,
         "ArrayBindingPattern: [ a , , ... b ]",
@@ -1449,6 +1492,14 @@ mod array_binding_pattern {
     #[test_case("[a,,...b]" => false; "List Elision Rest (none)")]
     fn contains_arguments(src: &str) -> bool {
         ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   []" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   [ ...a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   [ a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   [ a, ...b ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_binding_pattern().location()
     }
 }
 
@@ -2084,6 +2135,13 @@ mod binding_element {
     fn contains_arguments(src: &str) -> bool {
         BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   {x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "pattern without initializer")]
+    #[test_case("   {x}=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "pattern plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_element().location()
+    }
 }
 
 // SINGLE NAME BINDING
@@ -2180,6 +2238,12 @@ mod single_name_binding {
     #[test_case("a=b" => false; "izer (no)")]
     fn contains_arguments(src: &str) -> bool {
         SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   x=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "nam plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).single_name_binding().location()
     }
 }
 
@@ -2280,5 +2344,11 @@ mod binding_rest_element {
     #[test_case("...{a}" => false; "pattern (no)")]
     fn contains_arguments(src: &str) -> bool {
         BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   ...x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "id")]
+    #[test_case("   ...{x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_rest_element().location()
     }
 }

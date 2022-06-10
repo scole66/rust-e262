@@ -2,11 +2,19 @@ use super::*;
 use crate::environment_record::DeclarativeEnvironmentRecord;
 use crate::errors::unwind_any_error;
 use crate::object::{get, ordinary_object_create};
+use crate::parser::testhelp::*;
 use crate::reference::ReferencedName;
 use crate::symbol_object::SymbolRegistry;
 use crate::tests::test_agent;
 use crate::values::{to_object, to_string};
 use test_case::test_case;
+
+impl ScriptRecord {
+    pub fn new_empty(realm: Rc<RefCell<Realm>>) -> Self {
+        let script = Maker::new("").script();
+        ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(Chunk::new("empty")) }
+    }
+}
 
 mod script_record {
     use super::*;

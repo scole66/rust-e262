@@ -23,7 +23,7 @@ mod unary_expression {
     fn delete() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Delete(_)));
+        assert!(matches!(*ue, UnaryExpression::Delete { .. }));
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", vec!["Keyword: delete", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -33,7 +33,7 @@ mod unary_expression {
     fn void() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
-        assert!(matches!(*ue, UnaryExpression::Void(_)));
+        assert!(matches!(*ue, UnaryExpression::Void { .. }));
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", vec!["Keyword: void", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -43,7 +43,7 @@ mod unary_expression {
     fn r#typeof() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Typeof(_)));
+        assert!(matches!(*ue, UnaryExpression::Typeof { .. }));
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", vec!["Keyword: typeof", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -53,7 +53,7 @@ mod unary_expression {
     fn numberify() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::NoOp(_)));
+        assert!(matches!(*ue, UnaryExpression::NoOp { .. }));
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", vec!["Punctuator: +", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -63,7 +63,7 @@ mod unary_expression {
     fn negate() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Negate(_)));
+        assert!(matches!(*ue, UnaryExpression::Negate { .. }));
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", vec!["Punctuator: -", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -73,7 +73,7 @@ mod unary_expression {
     fn complement() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Complement(_)));
+        assert!(matches!(*ue, UnaryExpression::Complement { .. }));
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", vec!["Punctuator: ~", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -83,7 +83,7 @@ mod unary_expression {
     fn not() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Not(_)));
+        assert!(matches!(*ue, UnaryExpression::Not { .. }));
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", vec!["Punctuator: !", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -456,5 +456,25 @@ mod unary_expression {
     #[test_case("await a", false => ATTKind::Invalid; "await kwd")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).unary_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("-a" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).unary_expression().is_named_function()
+    }
+
+    #[test_case("  delete a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "delete")]
+    #[test_case("  void a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "void")]
+    #[test_case("  typeof a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "typeof kwd")]
+    #[test_case("  +a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "to-number")]
+    #[test_case("  -a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "negate")]
+    #[test_case("  ~a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "complement")]
+    #[test_case("  !a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "not")]
+    #[test_case("  await a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "await kwd")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).unary_expression().location()
     }
 }

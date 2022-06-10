@@ -243,4 +243,17 @@ mod multiplicative_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).multiplicative_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a*b" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).multiplicative_expression().is_named_function()
+    }
+
+    #[test_case("  a*b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "expr")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).multiplicative_expression().location()
+    }
 }

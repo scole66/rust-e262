@@ -583,6 +583,24 @@ mod statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   ;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 1 } }; "empty")]
+    #[test_case("   debugger;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 9 } }; "debugger stmt")]
+    #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 9 } }; "continue stmt")]
+    #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 6 } }; "break stmt")]
+    #[test_case("   3;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 2 } }; "Expression")]
+    #[test_case("   throw a;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 8 } }; "throw stmt")]
+    #[test_case("   return;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 7 } }; "return stmt")]
+    #[test_case("   { var a; }" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 10 } }; "block stmt")]
+    #[test_case("   var a;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 6 } }; "var stmt")]
+    #[test_case("   if(1){var a;}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 13 } }; "if stmt")]
+    #[test_case("   for(;;){var a;}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "breakable")]
+    #[test_case("   with(0){var a;}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "with stmt")]
+    #[test_case("   lbl:var a;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 10 } }; "labelled stmt")]
+    #[test_case("   try { var a; } finally {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 25 } }; "try stmt")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).statement().location()
+    }
 }
 
 mod hoistable_decl_part {
@@ -800,6 +818,13 @@ mod declaration {
             .iter()
             .map(String::from)
             .collect::<Vec<_>>()
+    }
+
+    #[test_case("   function kobold(){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 19 } }; "hoistable")]
+    #[test_case("   class goblin {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "class def")]
+    #[test_case("   const pixie = bullywug;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 23 } }; "lexical decl")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).declaration().location()
     }
 }
 
@@ -1029,6 +1054,14 @@ mod hoistable_declaration {
     fn declaration_part(src: &str) -> String {
         Maker::new(src).hoistable_declaration().declaration_part().to_string()
     }
+
+    #[test_case("   function kobold(){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 19 } }; "function def")]
+    #[test_case("   function *kobold(){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 20 } }; "generator def")]
+    #[test_case("   async function kobold(){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 25 } }; "async fcn")]
+    #[test_case("   async function *kobold(){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 26 } }; "async gen")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).hoistable_declaration().location()
+    }
 }
 
 // BREAKABLE STATEMENT
@@ -1180,5 +1213,11 @@ mod breakable_statement {
     #[test_case("switch (x) { case 1: var p; break; }" => svec(&["p"]); "switch stmt")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).breakable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   for(;;);" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 8 } }; "iteration")]
+    #[test_case("   switch (x) { case 1: break; }" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 29 } }; "switch stmt")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).breakable_statement().location()
     }
 }

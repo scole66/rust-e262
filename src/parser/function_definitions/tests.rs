@@ -89,7 +89,7 @@ fn function_declaration_test_err_03() {
         FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false),
         "not an identifier",
         1,
-        9,
+        10,
     );
 }
 #[test]
@@ -235,6 +235,11 @@ mod function_declaration {
             .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_declaration().location()
+    }
 }
 
 // FUNCTION EXPRESSION
@@ -371,6 +376,17 @@ mod function_expression {
             .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("function a(){}" => true; "named")]
+    #[test_case("function (){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).function_expression().is_named_function()
+    }
+
+    #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_expression().location()
+    }
 }
 
 // FUNCTION BODY
@@ -460,6 +476,11 @@ mod function_body {
     #[test_case("" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).function_body().contains_arguments()
+    }
+
+    #[test_case("   return 3;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_body().location()
     }
 }
 
@@ -573,5 +594,11 @@ mod function_statement_list {
     #[test_case("a;" => false; "stmt (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).function_statement_list().contains_arguments()
+    }
+
+    #[test_case("   return 3;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "something")]
+    #[test_case("   " => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_statement_list().location()
     }
 }

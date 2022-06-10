@@ -55,9 +55,13 @@ impl LabelledStatement {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (_, after_colon) = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
+    }
+
+    pub fn location(&self) -> Location {
+        self.identifier.location().merge(&self.item.location())
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
@@ -233,6 +237,13 @@ impl LabelledItem {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            LabelledItem::Statement(node) => node.location(),
+            LabelledItem::Function(node) => node.location(),
+        }
+    }
+
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         match self {
             LabelledItem::Statement(_) => {
@@ -335,7 +346,11 @@ impl LabelledItem {
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text is matched by this production.
         if matches!(self, LabelledItem::Function(_)) {
-            errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in modern ECMAScript code"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Labelled functions not allowed in modern ECMAScript code",
+                Some(self.location()),
+            ));
         }
         match self {
             LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration, within_switch),

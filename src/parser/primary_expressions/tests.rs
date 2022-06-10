@@ -44,42 +44,42 @@ fn primary_expression_test_idref() {
     let pe_res = PrimaryExpression::parse(&mut newparser("blue"), Scanner::new(), false, false);
     let (boxed_pe, scanner) = check(pe_res);
     chk_scan(&scanner, 4);
-    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference(_)));
+    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference { .. }));
     assert_eq!(boxed_pe.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_literal() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(*node, PrimaryExpression::Literal(_)));
+    assert!(matches!(*node, PrimaryExpression::Literal { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_this() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*node, PrimaryExpression::This));
+    assert!(matches!(*node, PrimaryExpression::This { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_arraylit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*node, PrimaryExpression::ArrayLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ArrayLiteral { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_objlit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*node, PrimaryExpression::ObjectLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ObjectLiteral { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_group() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(*node, PrimaryExpression::Parenthesized(_)));
+    assert!(matches!(*node, PrimaryExpression::Parenthesized { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
@@ -87,7 +87,7 @@ fn primary_expression_test_func() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    assert!(matches!(*node, PrimaryExpression::Function(..)));
+    assert!(matches!(*node, PrimaryExpression::Function { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
     concise_check(
@@ -108,7 +108,7 @@ fn primary_expression_test_generator() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
-    assert!(matches!(*node, PrimaryExpression::Generator(..)));
+    assert!(matches!(*node, PrimaryExpression::Generator { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -136,7 +136,7 @@ fn primary_expression_test_async_generator() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
-    assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncGenerator { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -165,7 +165,7 @@ fn primary_expression_test_async_function() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
-    assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncFunction { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -192,14 +192,14 @@ fn primary_expression_test_async_function() {
 fn primary_expression_test_regexp() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(*node, PrimaryExpression::RegularExpression(..)));
+    assert!(matches!(*node, PrimaryExpression::RegularExpression { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_class_expression() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("class{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(*node, PrimaryExpression::Class(..)));
+    assert!(matches!(*node, PrimaryExpression::Class { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
@@ -586,18 +586,81 @@ mod primary_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).primary_expression().assignment_target_type(strict)
     }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("a" => true; "identifier ref")]
+    #[test_case("1" => false; "literal")]
+    #[test_case("[1]" => false; "array literal")]
+    #[test_case("{a:1}" => false; "object literal")]
+    #[test_case("function (){}" => false; "function expression")]
+    #[test_case("class {}" => false; "class expression")]
+    #[test_case("function *(){}" => false; "generator expression")]
+    #[test_case("async function (){}" => false; "async fn")]
+    #[test_case("async function *(){}" => false; "async gen")]
+    #[test_case("/a/" => false; "regex")]
+    #[test_case("``" => false; "template")]
+    #[test_case("(a)" => false; "parenthesized")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).primary_expression().is_identifier_ref()
+    }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => false; "literal")]
+    #[test_case("[1]" => false; "array literal")]
+    #[test_case("{a:1}" => false; "object literal")]
+    #[test_case("function (){}" => false; "function expression")]
+    #[test_case("class {}" => false; "class expression")]
+    #[test_case("function *(){}" => false; "generator expression")]
+    #[test_case("async function (){}" => false; "async fn")]
+    #[test_case("async function *(){}" => false; "async gen")]
+    #[test_case("/a/" => false; "regex")]
+    #[test_case("``" => false; "template")]
+    #[test_case("(a)" => false; "parenthesized")]
+    #[test_case("function bob(){}" => true; "named function expression")]
+    #[test_case("class bob {}" => true; "named class expression")]
+    #[test_case("function *bob(){}" => true; "named generator expression")]
+    #[test_case("async function bob(){}" => true; "named async fn")]
+    #[test_case("async function *bob(){}" => true; "named async gen")]
+    #[test_case("(class bob {})" => true; "named parenthesized")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).primary_expression().is_named_function()
+    }
+
+    #[test_case("   this" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "this")]
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "identifier ref")]
+    #[test_case("   1" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "literal")]
+    #[test_case("   [1]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "array literal")]
+    #[test_case("   {a:1}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "object literal")]
+    #[test_case("   function (){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "function expression")]
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "class expression")]
+    #[test_case("   function *(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "generator expression")]
+    #[test_case("   async function (){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 } }; "async fn")]
+    #[test_case("   async function *(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 20 } }; "async gen")]
+    #[test_case("   /a/" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "regex")]
+    #[test_case("   ``" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "template")]
+    #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).primary_expression().location()
+    }
 }
 
 // LITERAL
 #[test]
 fn literal_test_debug() {
-    assert_eq!(format!("{:?}", Literal { kind: LiteralKind::NullLiteral }), "Literal { kind: NullLiteral }");
+    let literal = Maker::new("null").literal();
+    assert_ne!(format!("{:?}", literal), "");
 }
 #[test]
 fn literal_test_null() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("null"), Scanner::new()));
     chk_scan(&scanner, 4);
-    assert!(matches!(lit.kind, LiteralKind::NullLiteral));
+    assert!(matches!(
+        *lit,
+        Literal::NullLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: null", vec![]);
     concise_check(&*lit, "Keyword: null", vec![]);
 }
@@ -605,7 +668,13 @@ fn literal_test_null() {
 fn literal_test_boolean_01() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("true"), Scanner::new()));
     chk_scan(&scanner, 4);
-    assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(true)));
+    assert!(matches!(
+        *lit,
+        Literal::BooleanLiteral {
+            val: true,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: true", vec![]);
     concise_check(&*lit, "Keyword: true", vec![]);
 }
@@ -613,7 +682,13 @@ fn literal_test_boolean_01() {
 fn literal_test_boolean_02() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("false"), Scanner::new()));
     chk_scan(&scanner, 5);
-    assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(false)));
+    assert!(matches!(
+        *lit,
+        Literal::BooleanLiteral {
+            val: false,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: false", vec![]);
     concise_check(&*lit, "Keyword: false", vec![]);
 }
@@ -621,7 +696,13 @@ fn literal_test_boolean_02() {
 fn literal_test_leading_dot() {
     let (lit, scanner) = check(Literal::parse(&mut newparser(".25"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)));
+    assert_eq!(
+        *lit,
+        Literal::NumericLiteral {
+            val: Numeric::Number(0.25),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    );
     pretty_check(&*lit, "Literal: 0.25", vec![]);
     concise_check(&*lit, "Numeric: 0.25", vec![]);
 }
@@ -629,7 +710,13 @@ fn literal_test_leading_dot() {
 fn literal_test_bigint() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("7173n"), Scanner::new()));
     chk_scan(&scanner, 5);
-    assert!(matches!(lit.kind, LiteralKind::NumericLiteral(Numeric::BigInt(_))));
+    assert!(matches!(
+        *lit,
+        Literal::NumericLiteral {
+            val: Numeric::BigInt(_),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: 7173", vec![]);
     concise_check(&*lit, "Numeric: 7173", vec![]);
     format!("{:?}", lit);
@@ -638,9 +725,29 @@ fn literal_test_bigint() {
 fn literal_test_string() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("'string'"), Scanner::new()));
     chk_scan(&scanner, 8);
-    assert!(matches!(lit.kind, LiteralKind::StringLiteral(_)));
+    assert!(matches!(
+        *lit,
+        Literal::StringLiteral {
+            val: _,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 8 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: 'string'", vec![]);
     concise_check(&*lit, "String: 'string'", vec![]);
+}
+#[test]
+fn literal_test_debugmark() {
+    let (lit, scanner) = check(Literal::parse(&mut newparser("@@H"), Scanner::new()));
+    chk_scan(&scanner, 3);
+    assert!(matches!(
+        *lit,
+        Literal::DebugLiteral {
+            val: 'H',
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    ));
+    pretty_check(&*lit, "Literal: @@H", vec![]);
+    concise_check(&*lit, "Punctuator: @@H", vec![]);
 }
 #[test]
 fn literal_test_keyword() {
@@ -691,17 +798,6 @@ fn literal_test_conciseerrors_4() {
     concise_error_validate(&*item);
 }
 #[test]
-fn literal_kind_ne() {
-    let lk1 = LiteralKind::NumericLiteral(Numeric::Number(99.0));
-    let lk2 = LiteralKind::NumericLiteral(Numeric::Number(100.0));
-    let lk3 = LiteralKind::BooleanLiteral(false);
-    let lk4 = LiteralKind::BooleanLiteral(false);
-
-    assert!(lk1 != lk2);
-    assert!(lk1 != lk3);
-    assert!(lk3 == lk4);
-}
-#[test]
 fn numeric_has_legacy_octal() {
     assert!(!Numeric::Number(0.0).has_legacy_octal_syntax());
 }
@@ -719,6 +815,7 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
 mod literal {
     use super::*;
     use test_case::test_case;
+
     #[test_case("3" => AHashSet::<String>::new(); "Numeric")]
     #[test_case("null" => AHashSet::<String>::new(); "Null")]
     #[test_case("true" => AHashSet::<String>::new(); "Boolean")]
@@ -726,6 +823,24 @@ mod literal {
     fn early_errors(src: &str) -> AHashSet<String> {
         Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors();
         AHashSet::<String>::new()
+    }
+
+    #[test_case("null", "true" => true; "not eq")]
+    #[test_case("false", "false" => false; "eq")]
+    #[test_case("false", "    false" => true; "not eq by location")]
+    fn ne(s1: &str, s2: &str) -> bool {
+        let lit1 = Maker::new(s1).literal();
+        let lit2 = Maker::new(s2).literal();
+        lit1 != lit2
+    }
+
+    #[test_case("   null" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "null lit")]
+    #[test_case("   true" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "bool lit")]
+    #[test_case("   0" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "number lit")]
+    #[test_case("   '0'" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "string lit")]
+    #[test_case("   @@0" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "debug lit")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).primary_expression().location()
     }
 }
 
@@ -738,13 +853,25 @@ fn elision_test_01() {
 fn elision_test_02() {
     let (e, scanner) = check(Elisions::parse(&mut newparser(",,"), Scanner::new()));
     chk_scan(&scanner, 2);
-    assert!(matches!(*e, Elisions { count: 2 }));
+    assert!(matches!(
+        *e,
+        Elisions {
+            count: 2,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
 }
 #[test]
 fn elision_test_03() {
     let (e, scanner) = check(Elisions::parse(&mut newparser(",,,]"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert!(matches!(*e, Elisions { count: 3 }));
+    assert!(matches!(
+        *e,
+        Elisions {
+            count: 3,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    ));
 }
 #[test]
 fn elision_test_pprint() {
@@ -771,6 +898,24 @@ fn elision_test_contains_01() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+mod elision {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("   ," => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "one")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).elision().location()
+    }
+
+    #[test]
+    fn cache() {
+        let mut parser = newparser(",,,");
+        let (node1, scan1) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
+        let (node2, scan2) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
+        assert!(scan1 == scan2);
+        assert!(Rc::ptr_eq(&node1, &node2));
+    }
+}
 
 // SPREAD ELEMENT
 #[test]
@@ -785,9 +930,8 @@ fn spread_element_test_empty() {
 }
 #[test]
 fn spread_element_test_assignment_expression() {
-    let (se, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+    let (_, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*se, SpreadElement::AssignmentExpression(_)));
 }
 #[test]
 fn spread_element_test_pretty() {
@@ -844,6 +988,11 @@ mod spread_element {
     fn contains_arguments(src: &str) -> bool {
         SpreadElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   ...z" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).spread_element().location()
+    }
 }
 
 // ELEMENT LIST
@@ -860,7 +1009,7 @@ fn element_list_test_01() {
 fn element_list_test_02() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("3"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+    assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: 3", vec!["AssignmentExpression: 3"]);
     concise_check(&*el, "Numeric: 3", vec![]);
     format!("{:?}", *el);
@@ -869,7 +1018,7 @@ fn element_list_test_02() {
 fn element_list_test_03() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*el, ElementList::AssignmentExpression((Some(be), _)) if be.count == 2));
+    assert!(matches!(&*el, ElementList::AssignmentExpression{elision: Some(be), ..} if be.count == 2));
     pretty_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "AssignmentExpression: 3"]);
     concise_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "Numeric: 3"]);
 }
@@ -877,7 +1026,7 @@ fn element_list_test_03() {
 fn element_list_test_05() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*el, ElementList::SpreadElement((None, _))));
+    assert!(matches!(*el, ElementList::SpreadElement { elision: None, .. }));
     pretty_check(&*el, "ElementList: ... a", vec!["SpreadElement: ... a"]);
     concise_check(&*el, "SpreadElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
 }
@@ -885,7 +1034,7 @@ fn element_list_test_05() {
 fn element_list_test_06() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*el, ElementList::SpreadElement((Some(be), _)) if be.count == 2));
+    assert!(matches!(&*el, ElementList::SpreadElement{elision:Some(be), ..} if be.count == 2));
     pretty_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
     concise_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
 }
@@ -893,7 +1042,7 @@ fn element_list_test_06() {
 fn element_list_test_07() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, None, _))));
+    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , b", vec!["ElementList: a", "AssignmentExpression: b"]);
     concise_check(&*el, "ElementList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
 }
@@ -901,7 +1050,7 @@ fn element_list_test_07() {
 fn element_list_test_08() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, Some(be), _)) if be.count == 1));
+    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
     concise_check(
         &*el,
@@ -913,7 +1062,7 @@ fn element_list_test_08() {
 fn element_list_test_09() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, None, _))));
+    assert!(matches!(&*el, ElementList::ElementListSpreadElement { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , ... b", vec!["ElementList: a", "SpreadElement: ... b"]);
     concise_check(&*el, "ElementList: a , ... b", vec!["IdentifierName: a", "Punctuator: ,", "SpreadElement: ... b"]);
 }
@@ -921,7 +1070,7 @@ fn element_list_test_09() {
 fn element_list_test_10() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, Some(be), _)) if be.count == 1));
+    assert!(matches!(&*el, ElementList::ElementListSpreadElement{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
     concise_check(
         &*el,
@@ -933,7 +1082,7 @@ fn element_list_test_10() {
 fn element_list_test_04() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("0,"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+    assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
 }
 #[test]
 fn element_list_test_11() {
@@ -1220,6 +1369,18 @@ mod element_list {
     fn contains_arguments(src: &str) -> bool {
         ElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   xyzzy" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "AssignmentExpression")]
+    #[test_case("   ,xyzzy" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "Elision AssignmentExpression")]
+    #[test_case("   ...xyzzy" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "SpreadElement")]
+    #[test_case("   ,...xyzzy" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "Elision SpreadElement")]
+    #[test_case("   xyzzy,bob" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "ElementList , AssignmentExpression")]
+    #[test_case("   xyzzy,,bob" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "ElementList , Elision AssignmentExpression")]
+    #[test_case("   xyzzy,...bob" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 12 } }; "ElementList , SpreadElement")]
+    #[test_case("   xyzzy,,...bob" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "ElementList , Elision SpreadElement")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).element_list().location()
+    }
 }
 
 // ARRAY LITERAL
@@ -1227,7 +1388,13 @@ mod element_list {
 fn array_literal_test_01() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*al, ArrayLiteral::Empty(None)));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::Empty {
+            elision: None,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ ]", vec![]);
     concise_check(&*al, "ArrayLiteral: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", &*al);
@@ -1236,7 +1403,9 @@ fn array_literal_test_01() {
 fn array_literal_test_02() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*al, ArrayLiteral::Empty(Some(be)) if be.count == 1));
+    assert!(
+        matches!(&*al, ArrayLiteral::Empty{elision: Some(be), location: Location{ starting_line:1, starting_column:1, span:Span{ starting_index:0, length:3 } }} if be.count == 1)
+    );
     pretty_check(&*al, "ArrayLiteral: [ , ]", vec!["Elisions: ,"]);
     concise_check(&*al, "ArrayLiteral: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
 }
@@ -1244,7 +1413,13 @@ fn array_literal_test_02() {
 fn array_literal_test_03() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*al, ArrayLiteral::ElementList(_)));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::ElementList {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a ]", vec!["ElementList: a"]);
     concise_check(&*al, "ArrayLiteral: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
 }
@@ -1252,7 +1427,14 @@ fn array_literal_test_03() {
 fn array_literal_test_04() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*al, ArrayLiteral::ElementListElision(_, None)));
+    assert!(matches!(
+        *al,
+        ArrayLiteral::ElementListElision {
+            elision: None,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } },
+            ..
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
     concise_check(
         &*al,
@@ -1264,7 +1446,14 @@ fn array_literal_test_04() {
 fn array_literal_test_05() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*al, ArrayLiteral::ElementListElision(_, Some(be)) if be.count == 1));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::ElementListElision{
+            elision: Some(be),
+            location: Location { starting_line:1, starting_column:1, span: Span{ starting_index: 0, length: 5 } },
+            ..
+        } if be.count == 1
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
     concise_check(
         &*al,
@@ -1441,6 +1630,15 @@ mod array_literal {
     fn contains_arguments(src: &str) -> bool {
         ArrayLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   []" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   [,]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "Elision")]
+    #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "ElementList")]
+    #[test_case("   [a,,]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "ElementList Elision")]
+    #[test_case("   [a,]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "ElementList (Comma)")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_literal().location()
+    }
 }
 
 // INITIALIZER
@@ -1458,7 +1656,13 @@ fn initializer_test_nomatch() {
 fn initializer_test_01() {
     let (izer, scanner) = check(Initializer::parse(&mut newparser("=a"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*izer, Initializer::AssignmentExpression(_)));
+    assert!(matches!(
+        &*izer,
+        Initializer {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            ..
+        }
+    ));
     pretty_check(&*izer, "Initializer: = a", vec!["AssignmentExpression: a"]);
     concise_check(&*izer, "Initializer: = a", vec!["Punctuator: =", "IdentifierName: a"]);
     format!("{:?}", *izer);
@@ -1516,6 +1720,17 @@ mod initializer {
     #[test_case("=arguments" => true; "yes")]
     fn contains_arguments(src: &str) -> bool {
         Initializer::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   =a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).initializer().location()
+    }
+
+    #[test_case("=a" => false; "not anon func")]
+    #[test_case("=function (){}" => true; "anon func")]
+    fn is_anonymous_function_definition(src: &str) -> bool {
+        Maker::new(src).initializer().is_anonymous_function_definition()
     }
 }
 
@@ -1584,6 +1799,11 @@ mod cover_initialized_name {
         let (item, _) = CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), true, true).unwrap();
         assert_eq!(item.prop_name(), JSString::from("a"));
     }
+
+    #[test_case("   n=a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).cover_initialized_name().location()
+    }
 }
 
 // COMPUTED PROPERTY NAME
@@ -1608,7 +1828,13 @@ fn computed_property_name_test_nomatch_3() {
 fn computed_property_name_test_01() {
     let (cpn, scanner) = check(ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*cpn, ComputedPropertyName::AssignmentExpression(_)));
+    assert!(matches!(
+        &*cpn,
+        ComputedPropertyName {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["AssignmentExpression: a"]);
     concise_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", &*cpn);
@@ -1658,6 +1884,11 @@ mod computed_property_name {
     fn contains_arguments(src: &str) -> bool {
         ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   [3]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).computed_property_name().location()
+    }
 }
 
 // LITERAL PROPERTY NAME
@@ -1674,7 +1905,13 @@ fn literal_property_name_test_none() {
 fn literal_property_name_test_01() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*lpn, LiteralPropertyName::IdentifierName(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::IdentifierName {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: b", vec![]);
     concise_check(&*lpn, "IdentifierName: b", vec![]);
     format!("{:?}", *lpn);
@@ -1683,7 +1920,13 @@ fn literal_property_name_test_01() {
 fn literal_property_name_test_02() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("'b'"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*lpn, LiteralPropertyName::StringLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::StringLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 'b'", vec![]);
     concise_check(&*lpn, "String: 'b'", vec![]);
 }
@@ -1691,7 +1934,13 @@ fn literal_property_name_test_02() {
 fn literal_property_name_test_03() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::NumericLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 0", vec![]);
     concise_check(&*lpn, "Numeric: 0", vec![]);
 }
@@ -1699,7 +1948,13 @@ fn literal_property_name_test_03() {
 fn literal_property_name_test_04() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("1n"), Scanner::new()));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::NumericLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 1", vec![]);
     concise_check(&*lpn, "Numeric: 1", vec![]);
 }
@@ -1749,6 +2004,13 @@ mod literal_property_name {
     fn prop_name(src: &str) -> JSString {
         let (item, _) = LiteralPropertyName::parse(&mut newparser(src), Scanner::new()).unwrap();
         item.prop_name()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "identifier")]
+    #[test_case("   'a'" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "string")]
+    #[test_case("   3" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "numeric")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).literal_property_name().location()
     }
 }
 
@@ -1863,6 +2125,21 @@ mod property_name {
     fn contains_arguments(src: &str) -> bool {
         PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test]
+    fn cache() {
+        let mut parser = newparser("killroy");
+        let (node1, scan1) = PropertyName::parse(&mut parser, Scanner::new(), true, true).unwrap();
+        let (node2, scan2) = PropertyName::parse(&mut parser, Scanner::new(), true, true).unwrap();
+        assert!(scan1 == scan2);
+        assert!(Rc::ptr_eq(&node1, &node2));
+    }
+
+    #[test_case("   jdj" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "literal name")]
+    #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "computed name")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).property_name().location()
+    }
 }
 
 // PROPERTY DEFINITION
@@ -1895,7 +2172,13 @@ fn property_definition_test_03() {
 fn property_definition_test_04() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*pd, PropertyDefinition::AssignmentExpression(_)));
+    assert!(matches!(
+        &*pd,
+        PropertyDefinition::AssignmentExpression(
+            _,
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        )
+    ));
     pretty_check(&*pd, "PropertyDefinition: ... a", vec!["AssignmentExpression: a"]);
     concise_check(&*pd, "PropertyDefinition: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
 }
@@ -2116,6 +2399,15 @@ mod property_definition {
     fn contains_arguments(src: &str) -> bool {
         PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   jdj" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "idref")]
+    #[test_case("   a=b" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "covered")]
+    #[test_case("   a:b" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "colon-form")]
+    #[test_case("   ...a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "spread")]
+    #[test_case("   a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "method")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).property_definition().location()
+    }
 }
 
 // PROPERTY DEFINITION LIST
@@ -2250,6 +2542,12 @@ mod property_definition_list {
     fn contains_arguments(src: &str) -> bool {
         PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "item")]
+    #[test_case("   a,b" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).property_definition_list().location()
+    }
 }
 
 // OBJECT LITERAL
@@ -2257,7 +2555,12 @@ mod property_definition_list {
 fn object_literal_test_01() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*ol, ObjectLiteral::Empty));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::Empty {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { }", vec![]);
     concise_check(&*ol, "ObjectLiteral: { }", vec!["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", *ol);
@@ -2266,7 +2569,13 @@ fn object_literal_test_01() {
 fn object_literal_test_02() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*ol, ObjectLiteral::Normal(_)));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::Normal {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } },
+            ..
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
     concise_check(
         &*ol,
@@ -2278,7 +2587,13 @@ fn object_literal_test_02() {
 fn object_literal_test_03() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*ol, ObjectLiteral::TrailingComma(_)));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::TrailingComma {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 6 } },
+            ..
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
     concise_check(
         &*ol,
@@ -2402,6 +2717,13 @@ mod object_literal {
     fn contains_arguments(src: &str) -> bool {
         ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   {a:10}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    #[test_case("   {a:10,}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 } }; "trailing comma")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_literal().location()
+    }
 }
 
 // PARENTHESIZED EXPRESSION
@@ -2409,7 +2731,10 @@ mod object_literal {
 fn parenthesized_expression_test_01() {
     let (pe, scanner) = check(ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*pe, ParenthesizedExpression::Expression(_)));
+    assert_eq!(
+        pe.location,
+        Location { starting_column: 1, starting_line: 1, span: Span { starting_index: 0, length: 3 } }
+    );
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     format!("{:?}", pe);
@@ -2497,6 +2822,17 @@ mod parenthesized_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).parenthesized_expression().assignment_target_type(strict)
     }
+
+    #[test_case("(function a(){})" => true; "named")]
+    #[test_case("(function (){})" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).parenthesized_expression().is_named_function()
+    }
+
+    #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).parenthesized_expression().location()
+    }
 }
 
 // TEMPLATE MIDDLE LIST
@@ -2504,7 +2840,13 @@ mod parenthesized_expression {
 fn template_middle_list_test_01() {
     let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}a${0"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*tml, TemplateMiddleList::ListHead(_, _, _)));
+    assert!(matches!(
+        &*tml,
+        TemplateMiddleList::ListHead {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } },
+            ..
+        }
+    ));
     pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
     concise_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["TemplateMiddle: }a${", "Numeric: 0"]);
     format!("{:?}", tml);
@@ -2544,7 +2886,7 @@ fn template_middle_list_test_04() {
     let (tml, scanner) =
         check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*tml, TemplateMiddleList::ListHead(_, _, _)));
+    assert!(matches!(&*tml, TemplateMiddleList::ListHead { .. }));
     pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
     concise_check(&*tml, "TemplateMiddleList: }${ a", vec!["TemplateMiddle: }${", "IdentifierName: a"]);
     format!("{:?}", tml);
@@ -2657,7 +2999,7 @@ mod template_middle_list {
 fn template_spans_test_01() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*ts, TemplateSpans::Tail(_, _)));
+    assert!(matches!(&*ts, TemplateSpans::Tail { .. }));
     pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
     concise_check(&*ts, "TemplateTail: }done`", vec![]);
     format!("{:?}", ts);
@@ -2666,7 +3008,7 @@ fn template_spans_test_01() {
 fn template_spans_test_02() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}${a}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 10);
-    assert!(matches!(&*ts, TemplateSpans::List(_, _, _)));
+    assert!(matches!(&*ts, TemplateSpans::List { .. }));
     pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
     concise_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
     format!("{:?}", ts);
@@ -2766,6 +3108,12 @@ mod template_spans {
     fn contains_arguments(src: &str) -> bool {
         TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   }`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "tail")]
+    #[test_case("   }${a}`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).template_spans().location()
+    }
 }
 
 // SUBSTITUTION TEMPLATE
@@ -2855,14 +3203,13 @@ mod substitution_template {
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
     const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
 
-    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true => set(&[PACKAGE_NOT_ALLOWED, RE_ESCAPE_ONE, RE_ESCAPE_TWO]); "TemplateHead Expression TemplateSpans")]
-    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, false => set(&[PACKAGE_NOT_ALLOWED, RE_ESCAPE_ONE, RE_ESCAPE_TWO]); "TemplateHead Expression TemplateSpans")]
+    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, true => set(&[PACKAGE_NOT_ALLOWED]); "tagged")]
+    #[test_case("`\\u{99}${package}\\u{98}`", true, false => set(&[PACKAGE_NOT_ALLOWED]); "not tagged, but no unicode errs")]
+    fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false)
-            .unwrap()
-            .0
-            .early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).tagged_ok(tagged).substitution_template().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2882,6 +3229,11 @@ mod substitution_template {
             .0
             .contains_arguments()
     }
+
+    #[test_case("   `${a}`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "sub")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).substitution_template().location()
+    }
 }
 
 // TEMPLATE LITERAL
@@ -2889,8 +3241,8 @@ mod substitution_template {
 fn template_literal_test_01() {
     let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`rust`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate(_, _)));
-    if let TemplateLiteral::NoSubstitutionTemplate(_, tagged) = &*tl {
+    assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate { .. }));
+    if let TemplateLiteral::NoSubstitutionTemplate { tagged, .. } = &*tl {
         assert!(!*tagged);
     }
     pretty_check(&*tl, "TemplateLiteral: `rust`", vec![]);
@@ -3040,483 +3392,557 @@ mod template_literal {
     fn contains_arguments(src: &str) -> bool {
         TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   ``" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "no sub")]
+    #[test_case("   `${a}`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "sub")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).template_literal().location()
+    }
 }
 
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
-#[test]
-fn cpeaapl_test_01() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("()"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 2);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec![]);
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( )",
-        vec!["Punctuator: (", "Punctuator: )"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_02() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(8 in [1,2,3])"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 14);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression(_)));
-    pretty_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
-        vec!["Expression: 8 in [ 1 , 2 , 3 ]"],
-    );
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
-        vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_03() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(8 in a,)"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 9);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpComma(_)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )", vec!["Expression: 8 in a"]);
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
-        vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_04() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...a)"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 6);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident(_)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )", vec!["BindingIdentifier: a"]);
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
-        vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_05() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...{})"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 7);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Pattern(_)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )", vec!["BindingPattern: { }"]);
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
-        vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_06() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(a,...b)"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 8);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(..)));
-    pretty_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
-        vec!["Expression: a", "BindingIdentifier: b"],
-    );
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
-        vec![
-            "Punctuator: (",
-            "IdentifierName: a",
-            "Punctuator: ,",
-            "Punctuator: ...",
-            "IdentifierName: b",
-            "Punctuator: )",
-        ],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_07() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(a,...[])"),
-        Scanner::new(),
-        false,
-        false,
-    ));
-    chk_scan(&scanner, 9);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(..)));
-    pretty_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
-        vec!["Expression: a", "BindingPattern: [ ]"],
-    );
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
-        vec![
-            "Punctuator: (",
-            "IdentifierName: a",
-            "Punctuator: ,",
-            "Punctuator: ...",
-            "ArrayBindingPattern: [ ]",
-            "Punctuator: )",
-        ],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn cpeaapl_test_08() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(""), Scanner::new(), false, false),
-        "‘(’ expected",
-        1,
-        1,
-    );
-}
-#[test]
-fn cpeaapl_test_09() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("("), Scanner::new(), false, false),
-        "Expression, spread pattern, or closing paren expected",
-        1,
-        2,
-    );
-}
-#[test]
-fn cpeaapl_test_10() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(..."), Scanner::new(), false, false),
-        "BindingIdentifier or BindingPattern expected",
-        1,
-        5,
-    );
-}
-#[test]
-fn cpeaapl_test_11() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a"), Scanner::new(), false, false),
-        "‘)’ expected",
-        1,
-        6,
-    );
-}
-#[test]
-fn cpeaapl_test_12() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(...[]"),
-            Scanner::new(),
-            false,
-            false,
-        ),
-        "‘)’ expected",
-        1,
-        7,
-    );
-}
-#[test]
-fn cpeaapl_test_13() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p"), Scanner::new(), false, false),
-        "‘)’ expected",
-        1,
-        3,
-    );
-}
-#[test]
-fn cpeaapl_test_14() {
-    check_err(
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p,"), Scanner::new(), false, false),
-        "‘)’ expected",
-        1,
-        4,
-    );
-}
-#[test]
-fn cpeaapl_test_prettyerrors_1() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false)
-            .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_2() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false)
-            .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_3() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
-            .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_4() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...a)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_5() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...{})"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_6() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(0,...a)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_prettyerrors_7() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(0,...{})"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_1() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false)
-            .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_2() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false)
-            .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_3() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
-            .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_4() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...a)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_5() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...{})"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_6() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(0,...a)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_conciseerrors_7() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(0,...{})"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn cpeaapl_test_cache_01() {
-    let mut parser = newparser("(a+b+c)");
-    let (node, scanner) =
-        check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
-    let (node2, scanner2) =
-        check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
-    assert!(Rc::ptr_eq(&node, &node2));
-}
-
-#[test]
-fn cpeaapl_test_contains_01() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(this)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), true);
-}
-#[test]
-fn cpeaapl_test_contains_02() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a)"), Scanner::new(), false, false)
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_03() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(this,)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), true);
-}
-#[test]
-fn cpeaapl_test_contains_04() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,)"), Scanner::new(), false, false)
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_05() {
-    let (item, _) =
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_06() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...blue)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_07() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(...[a,b,c])"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_08() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(this, ...thing)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), true);
-}
-#[test]
-fn cpeaapl_test_contains_09() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(a, ...thing)"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-#[test]
-fn cpeaapl_test_contains_10() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(this, ...[a])"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), true);
-}
-#[test]
-fn cpeaapl_test_contains_11() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-        &mut newparser("(b, ...[a])"),
-        Scanner::new(),
-        false,
-        false,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
 mod cover_parenthesized_expression_and_arrow_parameter_list {
     use super::*;
     use test_case::test_case;
 
+    #[test]
+    fn test_01() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("()"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty { .. }));
+        pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec![]);
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( )",
+            vec!["Punctuator: (", "Punctuator: )"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_02() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(8 in [1,2,3])"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 14);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
+            vec!["Expression: 8 in [ 1 , 2 , 3 ]"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
+            vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_03() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(8 in a,)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 9);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpComma { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
+            vec!["Expression: 8 in a"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
+            vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_04() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...a)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
+            vec!["BindingIdentifier: a"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
+            vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_05() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...{})"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 7);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Pattern { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
+            vec!["BindingPattern: { }"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
+            vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_06() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(a,...b)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 8);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
+            vec!["Expression: a", "BindingIdentifier: b"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
+            vec![
+                "Punctuator: (",
+                "IdentifierName: a",
+                "Punctuator: ,",
+                "Punctuator: ...",
+                "IdentifierName: b",
+                "Punctuator: )",
+            ],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_07() {
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(a,...[])"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 9);
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { .. }));
+        pretty_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
+            vec!["Expression: a", "BindingPattern: [ ]"],
+        );
+        concise_check(
+            &*node,
+            "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
+            vec![
+                "Punctuator: (",
+                "IdentifierName: a",
+                "Punctuator: ,",
+                "Punctuator: ...",
+                "ArrayBindingPattern: [ ]",
+                "Punctuator: )",
+            ],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn test_08() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(""), Scanner::new(), false, false),
+            "‘(’ expected",
+            1,
+            1,
+        );
+    }
+    #[test]
+    fn test_09() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("("), Scanner::new(), false, false),
+            "Expression, spread pattern, or closing paren expected",
+            1,
+            2,
+        );
+    }
+    #[test]
+    fn test_10() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(
+                &mut newparser("(..."),
+                Scanner::new(),
+                false,
+                false,
+            ),
+            "BindingIdentifier or BindingPattern expected",
+            1,
+            5,
+        );
+    }
+    #[test]
+    fn test_11() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(
+                &mut newparser("(...a"),
+                Scanner::new(),
+                false,
+                false,
+            ),
+            "‘)’ expected",
+            1,
+            6,
+        );
+    }
+    #[test]
+    fn test_12() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(
+                &mut newparser("(...[]"),
+                Scanner::new(),
+                false,
+                false,
+            ),
+            "‘)’ expected",
+            1,
+            7,
+        );
+    }
+    #[test]
+    fn test_13() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(
+                &mut newparser("(p"),
+                Scanner::new(),
+                false,
+                false,
+            ),
+            "‘)’ expected",
+            1,
+            3,
+        );
+    }
+    #[test]
+    fn test_14() {
+        check_err(
+            CoverParenthesizedExpressionAndArrowParameterList::parse(
+                &mut newparser("(p,"),
+                Scanner::new(),
+                false,
+                false,
+            ),
+            "‘)’ expected",
+            1,
+            4,
+        );
+    }
+    #[test]
+    fn test_prettyerrors_1() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_2() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_3() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("()"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_4() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...a)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_5() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...{})"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_6() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,...a)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_prettyerrors_7() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,...{})"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_1() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_2() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_3() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("()"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_4() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...a)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_5() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...{})"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_6() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,...a)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_conciseerrors_7() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(0,...{})"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn test_cache_01() {
+        let mut parser = newparser("(a+b+c)");
+        let (node, scanner) =
+            check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) =
+            check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+
+    #[test]
+    fn test_contains_01() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(this)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), true);
+    }
+    #[test]
+    fn test_contains_02() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(a)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_03() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(this,)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), true);
+    }
+    #[test]
+    fn test_contains_04() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(a,)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_05() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("()"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_06() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...blue)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_07() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...[a,b,c])"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_08() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(this, ...thing)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), true);
+    }
+    #[test]
+    fn test_contains_09() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(a, ...thing)"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
+    #[test]
+    fn test_contains_10() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(this, ...[a])"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), true);
+    }
+    #[test]
+    fn test_contains_11() {
+        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(b, ...[a])"),
+            Scanner::new(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(item.contains(ParseNodeKind::This), false);
+    }
     #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression")]
     #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
     #[test_case("()", true => set(&[]); "Empty")]
@@ -3534,5 +3960,16 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             .0
             .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]
+    #[test_case("   (a,)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "Expression+Comma")]
+    #[test_case("   ()" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "Empty")]
+    #[test_case("   (...a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "rest id")]
+    #[test_case("   (...{z=a})" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "rest pattern")]
+    #[test_case("   (z, ...a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "exp rest id; exp")]
+    #[test_case("   (z, ...{a=b})" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "exp rest pat; exp")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).cover_parenthesized_expression_and_arrow_parameter_list().location()
     }
 }

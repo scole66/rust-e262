@@ -42,15 +42,11 @@ impl fmt::Display for AbruptCompletion {
                 write!(f, "Break{{V:{v},T:{t}}}")
             }
             AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None } => write!(f, "Continue{{}}"),
-            AbruptCompletion::Continue { value: v, target: None } => {
-                write!(f, "Continue{{V:{v}}}")
-            }
+            AbruptCompletion::Continue { value: v, target: None } => write!(f, "Continue{{V:{v}}}"),
             AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(t) } => {
                 write!(f, "Continue{{T:{t}}}")
             }
-            AbruptCompletion::Continue { value: v, target: Some(t) } => {
-                write!(f, "Continue{{V:{v},T:{t}}}")
-            }
+            AbruptCompletion::Continue { value: v, target: Some(t) } => write!(f, "Continue{{V:{v},T:{t}}}"),
             AbruptCompletion::Return { value } => write!(f, "Return{{{value}}}"),
             AbruptCompletion::Throw { value } => write!(f, "Throw{{{value}}}"),
         }

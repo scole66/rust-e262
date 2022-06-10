@@ -202,6 +202,11 @@ mod async_generator_method {
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).async_generator_method().private_bound_identifier().map(String::from)
     }
+
+    #[test_case("   async *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 12 }})]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_generator_method().location()
+    }
 }
 
 // ASYNC GENERATOR DECLARATION
@@ -337,7 +342,7 @@ fn async_generator_declaration_test_076() {
         AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false),
         "not an identifier",
         1,
-        11 + 6,
+        18,
     );
 }
 #[test]
@@ -510,6 +515,8 @@ fn async_generator_declaration_test_all_private_identifiers_valid(src: &str) -> 
 
 mod async_generator_declaration {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
@@ -517,6 +524,11 @@ mod async_generator_declaration {
             .unwrap()
             .0
             .early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_generator_declaration().location()
     }
 }
 
@@ -700,14 +712,14 @@ fn async_generator_expression_test_conciseerrors_2() {
     concise_error_validate(&*item);
 }
 #[test]
-fn async_generator_expresion_test_contains_01() {
+fn async_generator_expression_test_contains_01() {
     let (item, _) =
         AsyncGeneratorExpression::parse(&mut newparser("async function * a(b=10) { return 10; }"), Scanner::new())
             .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
-fn async_generator_expresion_test_contains_02() {
+fn async_generator_expression_test_contains_02() {
     let (item, _) =
         AsyncGeneratorExpression::parse(&mut newparser("async function * (b=10) { return 10; }"), Scanner::new())
             .unwrap();
@@ -723,6 +735,8 @@ fn async_generator_expression_test_all_private_identifiers_valid(src: &str) -> b
 }
 mod async_generator_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
@@ -730,6 +744,17 @@ mod async_generator_expression {
             .unwrap()
             .0
             .early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("async function *a(){}" => true; "named")]
+    #[test_case("async function *(){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).async_generator_expression().is_named_function()
+    }
+
+    #[test_case("   async function *foop(q,r) { return calculate(q, r);}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 52 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_generator_expression().location()
     }
 }
 

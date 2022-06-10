@@ -1,31 +1,28 @@
 use super::*;
 use additive_operators::AdditiveExpression;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
-use assignment_operators::AssignmentExpression;
-use async_arrow_function_definitions::{
-    AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody,
-};
-use async_function_definitions::{
-    AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression,
-};
-use async_generator_function_definitions::{AsyncGeneratorDeclaration, AsyncGeneratorMethod};
+use assignment_operators::*;
+use async_arrow_function_definitions::*;
+use async_function_definitions::*;
+use async_generator_function_definitions::*;
 use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
 use binary_logical_operators::{
     CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression,
 };
 use bitwise_shift_operators::ShiftExpression;
 use block::{Block, BlockStatement, StatementList, StatementListItem};
-use class_definitions::{
-    ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage,
-    ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList, ClassTail, FieldDefinition,
-};
+use break_statement::*;
+use class_definitions::*;
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
-use declarations_and_variables::{LexicalDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement};
+use continue_statement::*;
+use debugger_statement::*;
+use declarations_and_variables::*;
+use empty_statement::*;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
-use function_definitions::{FunctionBody, FunctionDeclaration, FunctionStatementList};
+use function_definitions::*;
 use generator_function_definitions::{
     GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression,
 };
@@ -36,7 +33,7 @@ use iteration_statements::{
 };
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::*;
-use method_definitions::MethodDefinition;
+use method_definitions::*;
 use multiplicative_operators::MultiplicativeExpression;
 use parameter_lists::{
     FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters,
@@ -82,7 +79,7 @@ pub fn chk_scan(scanner: &Scanner, count: u32) {
 pub fn newparser(text: &str) -> Parser {
     Parser::new(text, false, ParseGoal::Script)
 }
-pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U)
+pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U, token_len: usize)
 where
     T: fmt::Debug,
     U: Into<String>,
@@ -90,7 +87,7 @@ where
     let pe = result.unwrap_err();
     assert_eq!(
         pe.location,
-        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: token_len } }
     );
     assert_eq!(format!("{}", pe), msg.into());
 }
@@ -224,6 +221,22 @@ impl<'a> Maker<'a> {
             .unwrap()
             .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ArrayAssignmentPattern`] parse node.
+    pub fn array_assignment_pattern(self) -> Rc<ArrayAssignmentPattern> {
+        ArrayAssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ArrayBindingPattern`] parse node.
+    pub fn array_binding_pattern(self) -> Rc<ArrayBindingPattern> {
+        ArrayBindingPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ArrayLiteral`] parse node.
+    pub fn array_literal(self) -> Rc<ArrayLiteral> {
+        ArrayLiteral::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ArrowFunction`] parse node.
     pub fn arrow_function(self) -> Rc<ArrowFunction> {
         ArrowFunction::parse(
@@ -251,6 +264,12 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentPattern`] parse node.
+    pub fn assignment_pattern(self) -> Rc<AssignmentPattern> {
+        AssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncArrowBindingIdentifier`] parse node.
     pub fn async_arrow_binding_identifier(self) -> Rc<AsyncArrowBindingIdentifier> {
@@ -296,9 +315,9 @@ impl<'a> Maker<'a> {
     pub fn async_function_expression(self) -> Rc<AsyncFunctionExpression> {
         AsyncFunctionExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
-    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
-    pub fn async_method(self) -> Rc<AsyncMethod> {
-        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorBody`] parse node.
+    pub fn async_generator_body(self) -> Rc<AsyncGeneratorBody> {
+        AsyncGeneratorBody::parse(&mut newparser(self.source), Scanner::new()).0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorDeclaration`] parse node.
     pub fn async_generator_declaration(self) -> Rc<AsyncGeneratorDeclaration> {
@@ -312,19 +331,47 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorExpression`] parse node.
+    pub fn async_generator_expression(self) -> Rc<AsyncGeneratorExpression> {
+        AsyncGeneratorExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
     pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
         AsyncGeneratorMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
+    pub fn async_method(self) -> Rc<AsyncMethod> {
+        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AwaitExpression`] parse node.
     pub fn await_expression(self) -> Rc<AwaitExpression> {
         AwaitExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`BindingElement`] parse node.
+    pub fn binding_element(self) -> Rc<BindingElement> {
+        BindingElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`BindingIdentifier`] parse node.
     pub fn binding_identifier(self) -> Rc<BindingIdentifier> {
         BindingIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingList`] parse node.
+    pub fn binding_list(self) -> Rc<BindingList> {
+        BindingList::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingPattern`] parse node.
+    pub fn binding_pattern(self) -> Rc<BindingPattern> {
+        BindingPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingRestElement`] parse node.
+    pub fn binding_rest_element(self) -> Rc<BindingRestElement> {
+        BindingRestElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
@@ -381,6 +428,10 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BreakStatement`] parse node.
+    pub fn break_statement(self) -> Rc<BreakStatement> {
+        BreakStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`BreakableStatement`] parse node.
     pub fn breakable_statement(self) -> Rc<BreakableStatement> {
@@ -558,6 +609,35 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ContinueStatement`] parse node.
+    pub fn continue_statement(self) -> Rc<ContinueStatement> {
+        ContinueStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CoverInitializedName`] parse node.
+    pub fn cover_initialized_name(self) -> Rc<CoverInitializedName> {
+        CoverInitializedName::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CoverParenthesizedExpressionAndArrowParameterList`] parse node.
+    pub fn cover_parenthesized_expression_and_arrow_parameter_list(
+        self,
+    ) -> Rc<CoverParenthesizedExpressionAndArrowParameterList> {
+        CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+        )
+        .unwrap()
+        .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`DebuggerStatement`] parse node.
+    pub fn debugger_statement(self) -> Rc<DebuggerStatement> {
+        DebuggerStatement::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`Declaration`] parse node.
     pub fn declaration(self) -> Rc<Declaration> {
         Declaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -586,11 +666,17 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
-    /// Use the configs in the [`Maker`] object to make a [`ExponentiationExpression`] parse node.
-    pub fn exponentiation_expression(self) -> Rc<ExponentiationExpression> {
-        ExponentiationExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-            .unwrap()
-            .0
+    /// Use the configs in the [`Maker`] object to make a [`Elisions`] parse node.
+    pub fn elision(self) -> Rc<Elisions> {
+        Elisions::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ElementList`] parse node.
+    pub fn element_list(self) -> Rc<ElementList> {
+        ElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`EmptyStatement`] parse node.
+    pub fn empty_statement(self) -> Rc<EmptyStatement> {
+        EmptyStatement::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`EqualityExpression`] parse node.
     pub fn equality_expression(self) -> Rc<EqualityExpression> {
@@ -617,6 +703,12 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ExpressionStatement`] parse node.
     pub fn expression_statement(self) -> Rc<ExpressionStatement> {
         ExpressionStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ExponentiationExpression`] parse node.
+    pub fn exponentiation_expression(self) -> Rc<ExponentiationExpression> {
+        ExponentiationExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
@@ -692,6 +784,10 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionExpression`] parse node.
+    pub fn function_expression(self) -> Rc<FunctionExpression> {
+        FunctionExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`FunctionRestParameter`] parse node.
     pub fn function_rest_parameter(self) -> Rc<FunctionRestParameter> {
         FunctionRestParameter::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
@@ -738,23 +834,15 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Identifier`] parse node.
+    pub fn identifier(self) -> Rc<Identifier> {
+        Identifier::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`IdentifierReference`] parse node.
     pub fn identifier_reference(self) -> Rc<IdentifierReference> {
         IdentifierReference::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
-    }
-    /// Use the configs in the [`Maker`] object to make a [`IterationStatement`] parse node.
-    pub fn iteration_statement(self) -> Rc<IterationStatement> {
-        IterationStatement::parse(
-            &mut newparser(self.source),
-            Scanner::new(),
-            self.yield_flag,
-            self.await_flag,
-            self.return_flag,
-        )
-        .unwrap()
-        .0
     }
     /// Use the configs in the [`Maker`] object to make a [`IfStatement`] parse node.
     pub fn if_statement(self) -> Rc<IfStatement> {
@@ -771,6 +859,28 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ImportCall`] parse node.
     pub fn import_call(self) -> Rc<ImportCall> {
         ImportCall::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`Initializer`] parse node.
+    pub fn initializer(self) -> Rc<Initializer> {
+        Initializer::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`IterationStatement`] parse node.
+    pub fn iteration_statement(self) -> Rc<IterationStatement> {
+        IterationStatement::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.return_flag,
+        )
+        .unwrap()
+        .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LabelIdentifier`] parse node.
+    pub fn label_identifier(self) -> Rc<LabelIdentifier> {
+        LabelIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
     pub fn labelled_item(self) -> Rc<LabelledItem> {
@@ -801,6 +911,18 @@ impl<'a> Maker<'a> {
         LeftHandSideExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LexicalBinding`] parse node.
+    pub fn lexical_binding(self) -> Rc<LexicalBinding> {
+        LexicalBinding::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.in_flag,
+            self.yield_flag,
+            self.await_flag,
+        )
+        .unwrap()
+        .0
     }
     /// Use the configs in the [`Maker`] object to make a [`LexicalDeclaration`] parse node.
     pub fn lexical_declaration(self) -> Rc<LexicalDeclaration> {
@@ -872,6 +994,18 @@ impl<'a> Maker<'a> {
     pub fn new_expression(self) -> Rc<NewExpression> {
         NewExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ObjectAssignmentPattern`] parse node.
+    pub fn object_assignment_pattern(self) -> Rc<ObjectAssignmentPattern> {
+        ObjectAssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ObjectBindingPattern`] parse node.
+    pub fn object_binding_pattern(self) -> Rc<ObjectBindingPattern> {
+        ObjectBindingPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ObjectLiteral`] parse node.
     pub fn object_literal(self) -> Rc<ObjectLiteral> {
         ObjectLiteral::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -914,6 +1048,10 @@ impl<'a> Maker<'a> {
     pub fn property_name(self) -> Rc<PropertyName> {
         PropertyName::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`PropertySetParameterList`] parse node.
+    pub fn property_set_parameter_list(self) -> Rc<PropertySetParameterList> {
+        PropertySetParameterList::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`RelationalExpression`] parse node.
     pub fn relational_expression(self) -> Rc<RelationalExpression> {
         RelationalExpression::parse(
@@ -954,6 +1092,16 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`SingleNameBinding`] parse node.
+    pub fn single_name_binding(self) -> Rc<SingleNameBinding> {
+        SingleNameBinding::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`SpreadElement`] parse node.
+    pub fn spread_element(self) -> Rc<SpreadElement> {
+        SpreadElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`Statement`] parse node.
     pub fn statement(self) -> Rc<Statement> {
         Statement::parse(
@@ -990,6 +1138,18 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`SubstitutionTemplate`] parse node.
+    pub fn substitution_template(self) -> Rc<SubstitutionTemplate> {
+        SubstitutionTemplate::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.tagged_flag,
+        )
+        .unwrap()
+        .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`SuperCall`] parse node.
     pub fn super_call(self) -> Rc<SuperCall> {
         SuperCall::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -1006,6 +1166,30 @@ impl<'a> Maker<'a> {
             self.yield_flag,
             self.await_flag,
             self.return_flag,
+        )
+        .unwrap()
+        .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`TemplateLiteral`] parse node.
+    pub fn template_literal(self) -> Rc<TemplateLiteral> {
+        TemplateLiteral::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.tagged_flag,
+        )
+        .unwrap()
+        .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`TemplateSpans`] parse node.
+    pub fn template_spans(self) -> Rc<TemplateSpans> {
+        TemplateSpans::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.tagged_flag,
         )
         .unwrap()
         .0

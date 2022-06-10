@@ -13,7 +13,7 @@ fn create_native_error_object_01() {
     let message = "Great Googly Moogly!";
     let proto_id = IntrinsicId::RangeErrorPrototype;
 
-    let result = create_native_error_object(&mut agent, message, constructor, proto_id);
+    let result = create_native_error_object(&mut agent, message, constructor, proto_id, None);
 
     assert!(result.o.is_error_object());
     let msg_val = get(&mut agent, &result, &PropertyKey::from("message")).unwrap();
@@ -137,18 +137,26 @@ fn create_range_error_01() {
 fn create_syntax_error_object_01() {
     let mut agent = test_agent();
 
-    let result = create_syntax_error_object(&mut agent, "Happy Days");
+    let result = create_syntax_error_object(
+        &mut agent,
+        "Happy Days",
+        Some(Location { starting_line: 10, starting_column: 5, span: Span { starting_index: 232, length: 12 } }),
+    );
 
     assert!(result.o.is_error_object());
     assert_eq!(get(&mut agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
     assert_eq!(get(&mut agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    let loc_obj = Object::try_from(get(&mut agent, &result, &"location".into()).unwrap()).unwrap();
+    assert_eq!(get(&mut agent, &loc_obj, &"line".into()).unwrap(), ECMAScriptValue::from(10));
+    assert_eq!(get(&mut agent, &loc_obj, &"column".into()).unwrap(), ECMAScriptValue::from(5));
+    assert_eq!(get(&mut agent, &loc_obj, &"byte_length".into()).unwrap(), ECMAScriptValue::from(12));
 }
 
 #[test]
 fn create_syntax_error_01() {
     let mut agent = test_agent();
 
-    let result = create_syntax_error(&mut agent, "A");
+    let result = create_syntax_error(&mut agent, "A", None);
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
@@ -735,7 +743,7 @@ fn test_uri_error_constructor() {
 }
 
 #[test_case(|a: &mut Agent| create_type_error_object(a, "message 1") => "TypeError: message 1"; "type error")]
-#[test_case(|a: &mut Agent| create_syntax_error_object(a, "message 2") => "SyntaxError: message 2"; "syntax error")]
+#[test_case(|a: &mut Agent| create_syntax_error_object(a, "message 2", None) => "SyntaxError: message 2"; "syntax error")]
 fn unwind_any_error_value(maker: fn(&mut Agent) -> Object) -> String {
     let mut agent = test_agent();
     let errobj = maker(&mut agent);
@@ -743,7 +751,7 @@ fn unwind_any_error_value(maker: fn(&mut Agent) -> Object) -> String {
 }
 
 #[test_case(|a: &mut Agent| create_type_error(a, "blue") => "TypeError: blue"; "type error")]
-#[test_case(|a: &mut Agent| create_syntax_error(a, "ouch") => "SyntaxError: ouch"; "syntax error")]
+#[test_case(|a: &mut Agent| create_syntax_error(a, "ouch", None) => "SyntaxError: ouch"; "syntax error")]
 #[test_case(|_: &mut Agent| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
 fn unwind_any_error(maker: fn(&mut Agent) -> AbruptCompletion) -> String {
     let mut agent = test_agent();

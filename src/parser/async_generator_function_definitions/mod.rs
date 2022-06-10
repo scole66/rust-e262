@@ -16,6 +16,7 @@ pub struct AsyncGeneratorMethod {
     name: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorMethod {
@@ -57,16 +58,25 @@ impl PrettyPrint for AsyncGeneratorMethod {
 impl AsyncGeneratorMethod {
     // AsyncGeneratorMethod: No caching needed. Parent: MethodDefinition
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
-        let after_star = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (_, after_star) = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) =
+            scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorMethod { name, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorMethod { name, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -138,6 +148,7 @@ pub struct AsyncGeneratorDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorDeclaration {
@@ -201,10 +212,12 @@ impl AsyncGeneratorDeclaration {
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_func) =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {
@@ -215,13 +228,19 @@ impl AsyncGeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -258,6 +277,7 @@ pub struct AsyncGeneratorExpression {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorExpression {
@@ -315,21 +335,31 @@ impl IsFunctionDefinition for AsyncGeneratorExpression {
 impl AsyncGeneratorExpression {
     // No caching needed. Parent: PrimaryExpression.
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_func) =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_ident) = match BindingIdentifier::parse(parser, after_star, true, true) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_lp = scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) =
+            scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, true, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorExpression { ident, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorExpression { ident, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, _: ParseNodeKind) -> bool {

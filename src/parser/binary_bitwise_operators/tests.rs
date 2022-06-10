@@ -152,6 +152,19 @@ mod bitwise_and_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).bitwise_and_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a&b" => false; "bitwise and")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).bitwise_and_expression().is_named_function()
+    }
+
+    #[test_case("  a&b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise and")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).bitwise_and_expression().location()
+    }
 }
 
 #[test]
@@ -289,6 +302,19 @@ mod bitwise_xor_expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).bitwise_xor_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a^b" => false; "bitwise xor")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).bitwise_xor_expression().is_named_function()
+    }
+
+    #[test_case("  a^b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise xor")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).bitwise_xor_expression().location()
     }
 }
 
@@ -433,5 +459,18 @@ mod bitwise_or_expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).bitwise_or_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a|b" => false; "bitwise or")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).bitwise_or_expression().is_named_function()
+    }
+
+    #[test_case("  a|b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise or")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).bitwise_or_expression().location()
     }
 }

@@ -47,7 +47,7 @@ mod update_expression {
     fn preinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
@@ -57,7 +57,7 @@ mod update_expression {
     fn predec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
@@ -67,7 +67,7 @@ mod update_expression {
     fn postinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
@@ -77,7 +77,7 @@ mod update_expression {
     fn postdec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);
@@ -288,5 +288,21 @@ mod update_expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).update_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("--a" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).update_expression().is_named_function()
+    }
+
+    #[test_case("  a++" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postinc")]
+    #[test_case("  a--" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postdec")]
+    #[test_case("  ++a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "preinc")]
+    #[test_case("  --a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "predec")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).update_expression().location()
     }
 }

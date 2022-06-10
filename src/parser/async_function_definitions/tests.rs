@@ -96,7 +96,7 @@ fn async_function_declaration_test_err_03() {
         AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true),
         "‘function’ expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -275,6 +275,11 @@ mod async_function_declaration {
             .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("   async function abc() {}" => Location{ starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 23 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_declaration().location()
+    }
 }
 
 // ASYNC FUNCTION EXPRESSION
@@ -352,7 +357,7 @@ fn async_function_expression_test_err_02() {
 }
 #[test]
 fn async_function_expression_test_err_03() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 6);
+    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 7);
 }
 #[test]
 fn async_function_expression_test_err_05() {
@@ -462,6 +467,17 @@ mod async_function_expression {
         let mut errs = vec![];
         Maker::new(src).async_function_expression().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("async function a(){}" => true; "named")]
+    #[test_case("async function () {}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).async_function_expression().is_named_function()
+    }
+
+    #[test_case("    async function  elephant(a, b, c) { return a + b + c; }" => Location{ starting_line: 1, starting_column: 5, span: Span{ starting_index: 4, length: 55 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_expression().location()
     }
 }
 
@@ -719,6 +735,12 @@ mod async_function_body {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_function_body().contains_arguments()
     }
+
+    #[test_case("    " => Location{ starting_line: 1, starting_column: 1, span: Span{ starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("   return q;" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length:  9} }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_body().location()
+    }
 }
 
 // AWAIT EXPRESSION
@@ -788,5 +810,10 @@ mod await_expression {
     #[test_case("await a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).await_expression().contains_arguments()
+    }
+
+    #[test_case("   await forlorn_hope" => Location{ starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 18 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).await_expression().location()
     }
 }

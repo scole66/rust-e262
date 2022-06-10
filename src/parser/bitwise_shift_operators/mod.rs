@@ -94,7 +94,7 @@ impl ShiftExpression {
                 ScanGoal::InputElementDiv,
                 &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt],
             )
-            .and_then(|(shift_op, after_op)| {
+            .and_then(|(shift_op, _, after_op)| {
                 let make_se = match shift_op {
                     Punctuator::GtGt => ShiftExpression::SignedRightShift,
                     Punctuator::LtLt => ShiftExpression::LeftShift,
@@ -108,6 +108,15 @@ impl ShiftExpression {
             }
             (current, current_scan)
         })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ShiftExpression::AdditiveExpression(exp) => exp.location(),
+            ShiftExpression::LeftShift(left, right)
+            | ShiftExpression::SignedRightShift(left, right)
+            | ShiftExpression::UnsignedRightShift(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

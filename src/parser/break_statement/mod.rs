@@ -12,15 +12,15 @@ use std::io::Write;
 //      break [no LineTerminator here] LabelIdentifier[?Yield, ?Await] ;
 #[derive(Debug)]
 pub enum BreakStatement {
-    Bare,
-    Labelled(Rc<LabelIdentifier>),
+    Bare { location: Location },
+    Labelled { label: Rc<LabelIdentifier>, location: Location },
 }
 
 impl fmt::Display for BreakStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BreakStatement::Bare => write!(f, "break ;"),
-            BreakStatement::Labelled(label) => write!(f, "break {} ;", label),
+            BreakStatement::Bare { .. } => write!(f, "break ;"),
+            BreakStatement::Labelled { label, .. } => write!(f, "break {} ;", label),
         }
     }
 }
@@ -33,8 +33,8 @@ impl PrettyPrint for BreakStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BreakStatement: {}", first, self)?;
         match self {
-            BreakStatement::Bare => Ok(()),
-            BreakStatement::Labelled(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            BreakStatement::Bare { .. } => Ok(()),
+            BreakStatement::Labelled { label, .. } => label.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -45,7 +45,7 @@ impl PrettyPrint for BreakStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BreakStatement: {}", first, self)?;
         pprint_token(writer, "break", TokenType::Keyword, &successive, Spot::NotFinal)?;
-        if let BreakStatement::Labelled(node) = self {
+        if let BreakStatement::Labelled { label: node, .. } = self {
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
@@ -55,27 +55,36 @@ impl PrettyPrint for BreakStatement {
 impl BreakStatement {
     // no cache needed
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_break = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
+        let (break_loc, after_break) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
         scan_for_auto_semi(after_break, parser.source, ScanGoal::InputElementDiv)
-            .map(|after_semi| (Rc::new(BreakStatement::Bare), after_semi))
+            .map(|(semi_loc, after_semi)| {
+                (Rc::new(BreakStatement::Bare { location: break_loc.merge(&semi_loc) }), after_semi)
+            })
             .otherwise(|| {
                 let (li, after_li) = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
-                let after_semi = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
-                Ok((Rc::new(BreakStatement::Labelled(li)), after_semi))
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
+                Ok((Rc::new(BreakStatement::Labelled { label: li, location: break_loc.merge(&semi_loc) }), after_semi))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BreakStatement::Bare { location } | BreakStatement::Labelled { location, .. } => *location,
+        }
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            BreakStatement::Bare => false,
-            BreakStatement::Labelled(label) => !label_set.contains(&label.string_value()),
+            BreakStatement::Bare { .. } => false,
+            BreakStatement::Labelled { label, .. } => !label_set.contains(&label.string_value()),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BreakStatement::Bare => false,
-            BreakStatement::Labelled(label) => label.contains(kind),
+            BreakStatement::Bare { .. } => false,
+            BreakStatement::Labelled { label, .. } => label.contains(kind),
         }
     }
 
@@ -86,15 +95,16 @@ impl BreakStatement {
         //        function or static initialization block boundaries), within an IterationStatement or a
         //        SwitchStatement.
         match self {
-            BreakStatement::Bare => {
+            BreakStatement::Bare { .. } => {
                 if !within_breakable {
                     errs.push(create_syntax_error_object(
                         agent,
                         "break statement must lie within iteration or switch statement",
+                        Some(self.location()),
                     ));
                 }
             }
-            BreakStatement::Labelled(lbl) => lbl.early_errors(agent, errs, strict),
+            BreakStatement::Labelled { label, .. } => label.early_errors(agent, errs, strict),
         }
     }
 }

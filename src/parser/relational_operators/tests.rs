@@ -508,4 +508,29 @@ mod relational_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).relational_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a<b" => false; "lt")]
+    #[test_case("a<=b" => false; "le")]
+    #[test_case("a>b" => false; "gt")]
+    #[test_case("a>=b" => false; "ge")]
+    #[test_case("a in b" => false; "a in b")]
+    #[test_case("a instanceof b" => false; "instanceof")]
+    #[test_case("#a in b" => false; "privateid")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).relational_expression().is_named_function()
+    }
+
+    #[test_case("  a<b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "lt")]
+    #[test_case("  a<=b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "le")]
+    #[test_case("  a>b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "gt")]
+    #[test_case("  a>=b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "ge")]
+    #[test_case("  a in b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "a in b")]
+    #[test_case("  a instanceof b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 14 }}; "instanceof")]
+    #[test_case("  #a in b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "privateid")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).relational_expression().location()
+    }
 }

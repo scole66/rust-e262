@@ -78,7 +78,7 @@ impl ExponentiationExpression {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_op =
+                let (_, after_op) =
                     scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;
                 let (ee, after_ee) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::Exponentiation(ue, ee)), after_ee))
@@ -87,6 +87,13 @@ impl ExponentiationExpression {
                 let (unary, after_unary) = UnaryExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::UnaryExpression(unary)), after_unary))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ExponentiationExpression::UnaryExpression(exp) => exp.location(),
+            ExponentiationExpression::Exponentiation(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

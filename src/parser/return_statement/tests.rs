@@ -44,7 +44,7 @@ fn return_statement_test_err_01() {
 }
 #[test]
 fn return_statement_test_err_02() {
-    check_err(ReturnStatement::parse(&mut newparser("return ="), Scanner::new(), false, false), "‘;’ expected", 1, 7);
+    check_err(ReturnStatement::parse(&mut newparser("return ="), Scanner::new(), false, false), "‘;’ expected", 1, 8);
 }
 #[test]
 fn return_statement_test_err_03() {
@@ -52,7 +52,7 @@ fn return_statement_test_err_03() {
         ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false),
         "‘;’ expected",
         1,
-        9,
+        10,
     );
 }
 #[test]
@@ -115,5 +115,11 @@ mod return_statement {
     #[test_case("return a;" => false; "Exp (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).return_statement().contains_arguments()
+    }
+
+    #[test_case("  return;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "bare")]
+    #[test_case("  return  9;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "value")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).return_statement().location()
     }
 }

@@ -447,6 +447,44 @@ mod member_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).member_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a[b]" => false; "brackets")]
+    #[test_case("a.b" => false; "property id")]
+    #[test_case("a`${b}`" => false; "template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta")]
+    #[test_case("new a(b)" => false; "new me")]
+    #[test_case("a.#b" => false; "private id")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).member_expression().is_named_function()
+    }
+
+    #[test_case("a[b]" => false; "brackets")]
+    #[test_case("a.b" => false; "property id")]
+    #[test_case("a`${b}`" => false; "template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta")]
+    #[test_case("new a(b)" => false; "new me")]
+    #[test_case("a.#b" => false; "private id")]
+    #[test_case("beetle" => true; "id")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).member_expression().is_identifier_ref()
+    }
+
+    #[test_case("  a[b]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "brackets")]
+    #[test_case("  a.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "property id")]
+    #[test_case("  a`${b}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "template")]
+    #[test_case("  super.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "super prop")]
+    #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "meta")]
+    #[test_case("  new a(b)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "new me")]
+    #[test_case("  a.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "private id")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).member_expression().location()
+    }
 }
 
 // SUPER PROPERTY
@@ -454,7 +492,7 @@ mod member_expression {
 fn super_property_test_expression() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(*sp, SuperProperty::Expression(_)));
+    assert!(matches!(*sp, SuperProperty::Expression { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
@@ -468,7 +506,7 @@ fn super_property_test_expression() {
 fn super_property_test_ident() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super.bob"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(*sp, SuperProperty::IdentifierName(_)));
+    assert!(matches!(*sp, SuperProperty::IdentifierName { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super . bob", vec![]);
@@ -499,7 +537,7 @@ fn super_property_test_bad_following_token() {
         SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false),
         "one of [‘.’, ‘[’] expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -570,6 +608,12 @@ mod super_property {
     fn contains_arguments(src: &str) -> bool {
         SuperProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  super.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "ident")]
+    #[test_case("  super[a]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "expression")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).super_property().location()
+    }
 }
 
 // META PROPERTY
@@ -577,7 +621,7 @@ mod super_property {
 fn meta_property_test_newtarget() {
     let (mp, scanner) = check(MetaProperty::parse(&mut newparser("new.target"), Scanner::new()));
     chk_scan(&scanner, 10);
-    assert!(matches!(*mp, MetaProperty::NewTarget));
+    assert!(matches!(*mp, MetaProperty::NewTarget { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: new . target", vec![]);
     concise_check(&*mp, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
@@ -587,13 +631,13 @@ fn meta_property_test_newtarget() {
 fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
     let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
-    assert!(matches!(*mp, MetaProperty::ImportMeta(_)));
+    assert!(matches!(*mp, MetaProperty::ImportMeta { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
     concise_check(&*mp, "MetaProperty: import . meta", vec!["Keyword: import", "Punctuator: .", "Keyword: meta"]);
     match *mp {
-        MetaProperty::NewTarget => None,
-        MetaProperty::ImportMeta(goal) => Some(goal),
+        MetaProperty::NewTarget { .. } => None,
+        MetaProperty::ImportMeta { goal, .. } => Some(goal),
     }
 }
 #[test]
@@ -602,7 +646,7 @@ fn meta_property_test_nomatch_01() {
 }
 #[test]
 fn meta_property_test_nomatch_02() {
-    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 4);
+    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 5);
 }
 #[test]
 fn meta_property_test_nomatch_03() {
@@ -610,7 +654,7 @@ fn meta_property_test_nomatch_03() {
 }
 #[test]
 fn meta_property_test_nomatch_04() {
-    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 7);
+    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 8);
 }
 #[test]
 fn meta_property_test_nomatch_05() {
@@ -664,6 +708,12 @@ mod meta_property {
             .early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "new.target")]
+    #[test_case("  import.meta" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "import.meta")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).meta_property().location()
+    }
 }
 
 // ARGUMENTS
@@ -671,7 +721,7 @@ mod meta_property {
 fn arguments_test_onlyparens() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("()"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*args, Arguments::Empty));
+    assert!(matches!(*args, Arguments::Empty { .. }));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( )", vec![]);
     concise_check(&*args, "Arguments: ( )", vec!["Punctuator: (", "Punctuator: )"]);
@@ -680,7 +730,7 @@ fn arguments_test_onlyparens() {
 fn arguments_test_trailing_comma() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,)"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*args, Arguments::ArgumentListComma(_)));
+    assert!(matches!(*args, Arguments::ArgumentListComma(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
     concise_check(
@@ -693,7 +743,7 @@ fn arguments_test_trailing_comma() {
 fn arguments_test_arglist() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(*args, Arguments::ArgumentList(_)));
+    assert!(matches!(*args, Arguments::ArgumentList(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , b )", vec!["ArgumentList: a , b"]);
     concise_check(&*args, "Arguments: ( a , b )", vec!["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
@@ -809,6 +859,13 @@ mod arguments {
     #[test_case("(xyzzy,)" => false; "List-comma (no)")]
     fn contains_arguments(src: &str) -> bool {
         Arguments::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  ()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "empty")]
+    #[test_case("  (a,b)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "list")]
+    #[test_case("  (a,b,)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "list+comma")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arguments().location()
     }
 }
 
@@ -1045,7 +1102,7 @@ mod new_expression {
     fn new() {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(*ne, NewExpression::NewExpression(_)));
+        assert!(matches!(*ne, NewExpression::NewExpression(..)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", vec!["Keyword: new", "IdentifierName: bob"]);
@@ -1172,6 +1229,26 @@ mod new_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).new_expression().assignment_target_type(strict)
     }
+
+    #[test_case("  new x" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "new exp")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).new_expression().location()
+    }
+
+    #[test_case("new a" => false; "new exp")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).new_expression().is_named_function()
+    }
+
+    #[test_case("idref" => true; "Id Ref")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("new a" => false; "other new expr")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).new_expression().is_identifier_ref()
+    }
 }
 
 // CALL MEMBER EXPRESSION
@@ -1260,6 +1337,11 @@ mod call_member_expression {
     fn contains_arguments(src: &str) -> bool {
         CallMemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  abcd(xyz)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).call_member_expression().location()
+    }
 }
 
 // SUPER CALL
@@ -1271,7 +1353,7 @@ mod super_call {
     fn args() {
         let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(*sc.arguments, Arguments::Empty));
+        assert!(matches!(*sc.arguments, Arguments::Empty { .. }));
         format!("{:?}", sc);
         pretty_check(&*sc, "SuperCall: super ( )", vec!["Arguments: ( )"]);
         concise_check(&*sc, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
@@ -1328,6 +1410,11 @@ mod super_call {
     #[test_case("super()" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         SuperCall::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  super()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).super_call().location()
     }
 }
 
@@ -1411,6 +1498,11 @@ mod import_call {
     #[test_case("import(xyzzy)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         ImportCall::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  import(foo)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).import_call().location()
     }
 }
 
@@ -1834,6 +1926,18 @@ mod call_expression {
     fn assignment_target_type(src: &str) -> ATTKind {
         Maker::new(src).call_expression().assignment_target_type()
     }
+
+    #[test_case("  a()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "CallMemberExpression")]
+    #[test_case("  super()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "SuperCall")]
+    #[test_case("  import(a)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "ImportCall")]
+    #[test_case("  a()()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "CallExpression Arguments")]
+    #[test_case("  a()[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "CallExpression [ Expression ]")]
+    #[test_case("  a().a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "CallExpression . IdentifierName")]
+    #[test_case("  a()`${b}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "CallExpression TemplateLiteral")]
+    #[test_case("  a().#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "CallExpression . PrivateIdentifier")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).call_expression().location()
+    }
 }
 
 // OPTIONAL EXPRESSION
@@ -2035,6 +2139,16 @@ mod optional_expression {
     #[test_case("xyzzy?.[alice]?.[bob]" => false; "Opt OC (no)")]
     fn contains_arguments(src: &str) -> bool {
         OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  a?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "member exp")]
+    #[test_case("  a?.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "private member exp")]
+    #[test_case("  a()?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "call exp")]
+    #[test_case("  a()?.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "private call exp")]
+    #[test_case("  a?.b?.c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "optional exp")]
+    #[test_case("  a?.b?.#c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "private optional exp")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).optional_expression().location()
     }
 }
 
@@ -2489,6 +2603,20 @@ mod optional_chain {
     fn contains_arguments(src: &str) -> bool {
         OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  ?.()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "args")]
+    #[test_case("  ?.[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "expression")]
+    #[test_case("  ?.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "member")]
+    #[test_case("  ?.`${0}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "template")]
+    #[test_case("  ?.#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "private")]
+    #[test_case("  ?.z()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "chain args")]
+    #[test_case("  ?.z[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "chain expression")]
+    #[test_case("  ?.z.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "chain member")]
+    #[test_case("  ?.z`${0}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "chain template")]
+    #[test_case("  ?.z.#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "chain private")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).optional_chain().location()
+    }
 }
 
 // LEFT-HAND-SIDE EXPRESSION
@@ -2685,5 +2813,20 @@ mod left_hand_side_expression {
     #[test_case("a?.b" => false; "optional")]
     fn is_identifier_ref(src: &str) -> bool {
         Maker::new(src).left_hand_side_expression().is_identifier_ref()
+    }
+
+    #[test_case("  1" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "literal")]
+    #[test_case("  a()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "call expression")]
+    #[test_case("  a?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "optional expression")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).left_hand_side_expression().location()
+    }
+
+    #[test_case("1" => false; "literal")]
+    #[test_case("a()" => false; "call expression")]
+    #[test_case("a?.b" => false; "optional expression")]
+    #[test_case("function bob(){}" => true; "function")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).left_hand_side_expression().is_named_function()
     }
 }

@@ -14,6 +14,7 @@ use std::io::Write;
 pub struct WithStatement {
     expression: Rc<Expression>,
     statement: Rc<Statement>,
+    location: Location,
 }
 
 impl fmt::Display for WithStatement {
@@ -55,12 +56,25 @@ impl WithStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_with = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
-        let after_open = scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        Ok((Rc::new(WithStatement { expression: exp, statement: stmt }), after_stmt))
+        let (with_loc, after_with) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
+        let (_, after_open) =
+            scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (expression, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
+        let (_, after_close) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (statement, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+        Ok((
+            Rc::new({
+                let location = with_loc.merge(&statement.location());
+                WithStatement { expression, statement, location }
+            }),
+            after_stmt,
+        ))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -119,7 +133,11 @@ impl WithStatement {
         //  WithStatement : with ( Expression ) Statement
         //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.
         if strict {
-            errs.push(create_syntax_error_object(agent, "'with' statements not allowed in strict mode"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "'with' statements not allowed in strict mode",
+                Some(self.location()),
+            ));
         }
         self.expression.early_errors(agent, errs, strict);
         self.statement.early_errors(agent, errs, strict, within_iteration, within_switch);

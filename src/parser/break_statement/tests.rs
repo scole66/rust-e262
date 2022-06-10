@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -51,11 +51,11 @@ fn break_statement_test_err_01() {
 }
 #[test]
 fn break_statement_test_err_02() {
-    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn break_statement_test_err_03() {
-    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 8);
+    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
 }
 #[test]
 fn break_statement_test_prettyerrors_1() {
@@ -121,5 +121,11 @@ mod break_statement {
             within_breakable,
         );
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "no label")]
+    #[test_case("   break lbl;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "with label")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).break_statement().location()
     }
 }

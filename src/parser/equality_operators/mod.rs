@@ -97,7 +97,7 @@ impl EqualityExpression {
         let mut current = Rc::new(EqualityExpression::RelationalExpression(re1));
         let mut current_scanner = after_re1;
         loop {
-            let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+            let (op_token, _, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
             let make_ee = match op_token {
                 Token::Punctuator(Punctuator::EqEq) => EqualityExpression::Equal,
                 Token::Punctuator(Punctuator::BangEq) => EqualityExpression::NotEqual,
@@ -119,6 +119,16 @@ impl EqualityExpression {
             }
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            EqualityExpression::RelationalExpression(exp) => exp.location(),
+            EqualityExpression::Equal(left, right)
+            | EqualityExpression::NotEqual(left, right)
+            | EqualityExpression::StrictEqual(left, right)
+            | EqualityExpression::NotStrictEqual(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

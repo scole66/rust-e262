@@ -1,4 +1,5 @@
 pub mod ranges;
+use crate::parser::*;
 use crate::strings::JSString;
 use crate::values::number_to_string;
 use lazy_static::lazy_static;
@@ -143,8 +144,6 @@ impl fmt::Display for Keyword {
 pub struct IdentifierData {
     pub string_value: JSString,
     pub keyword_id: Option<Keyword>,
-    pub line: u32,
-    pub column: u32,
 }
 
 impl fmt::Display for IdentifierData {
@@ -1072,8 +1071,6 @@ fn identifier_internal(
         IdentifierData {
             string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
-            line: scanner.line,
-            column: scanner.column,
         },
         scanner_1,
     )))
@@ -1745,8 +1742,6 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 pub struct TemplateData {
     pub tv: Option<JSString>,
     pub trv: JSString,
-    pub starting_index: usize,
-    pub byte_length: usize,
 }
 
 impl fmt::Display for TemplateData {
@@ -2040,15 +2035,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                 TemplateStyle::NoSubOrHead => Token::NoSubstitutionTemplate,
                 TemplateStyle::MiddleOrTail => Token::TemplateTail,
             };
-            Some((
-                make_token(TemplateData {
-                    tv,
-                    trv,
-                    starting_index: scanner.start_idx,
-                    byte_length: after_trailing_quote.start_idx - scanner.start_idx,
-                }),
-                after_trailing_quote,
-            ))
+            Some((make_token(TemplateData { tv, trv }), after_trailing_quote))
         }
         None => {
             let pot_template_head = match_char(&after_chars, source, '$').and_then(|r| match_char(&r, source, '{'));
@@ -2058,15 +2045,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                         TemplateStyle::NoSubOrHead => Token::TemplateHead,
                         TemplateStyle::MiddleOrTail => Token::TemplateMiddle,
                     };
-                    Some((
-                        make_token(TemplateData {
-                            tv,
-                            trv,
-                            starting_index: scanner.start_idx,
-                            byte_length: after_template_head.start_idx - scanner.start_idx,
-                        }),
-                        after_template_head,
-                    ))
+                    Some((make_token(TemplateData { tv, trv }), after_template_head))
                 }
                 None => None,
             }
@@ -2079,26 +2058,19 @@ fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 }
 
 fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    match_char(scanner, source, '#').and_then(|s| {
-        match identifier_internal(&s, source) {
-            Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
-            Ok(Some((data, scan))) => {
-                // Keep the '#' as part of the string_value
-                let mut new_id = Vec::<u16>::with_capacity(data.string_value.len() + 1);
-                new_id.push('#' as u16);
-                new_id.extend(Vec::<u16>::from(data.string_value));
-                Some((
-                    Token::PrivateIdentifier(IdentifierData {
-                        keyword_id: data.keyword_id,
-                        line: data.line,
-                        column: data.column - 1,
-                        string_value: new_id.into(),
-                    }),
-                    scan,
-                ))
-            }
-            Ok(None) => None,
+    match_char(scanner, source, '#').and_then(|s| match identifier_internal(&s, source) {
+        Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
+        Ok(Some((data, scan))) => {
+            // Keep the '#' as part of the string_value
+            let mut new_id = Vec::<u16>::with_capacity(data.string_value.len() + 1);
+            new_id.push('#' as u16);
+            new_id.extend(Vec::<u16>::from(data.string_value));
+            Some((
+                Token::PrivateIdentifier(IdentifierData { keyword_id: data.keyword_id, string_value: new_id.into() }),
+                scan,
+            ))
         }
+        Ok(None) => None,
     })
 }
 
@@ -2299,31 +2271,27 @@ impl RegularExpressionData {
     }
 }
 
-pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
+pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Location, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {
-        Err(msg) => (Token::Error(msg), *scanner),
+        Err(msg) => (Token::Error(msg), Location::from(scanner), *scanner),
         Ok(after_skippable) => {
             if after_skippable.start_idx >= source.len() {
-                (Token::Eof, after_skippable)
+                (Token::Eof, Location::from(&after_skippable), after_skippable)
             } else {
-                let mut r = common_token(&after_skippable, source);
-                if r.is_none() {
-                    r = div_punctuator(&after_skippable, source, goal);
-                    if r.is_none() {
-                        r = right_brace_punctuator(&after_skippable, source, goal);
-                        if r.is_none() {
-                            r = regular_expression_literal(&after_skippable, source, goal);
-                            if r.is_none() {
-                                r = template_substitution_tail(&after_skippable, source, goal);
-                                if r.is_none() {
-                                    r = Some((Token::Error(String::from("Unrecognized Token")), after_skippable));
-                                }
-                            }
-                        }
-                    }
-                }
-                r.unwrap()
+                common_token(&after_skippable, source)
+                    .or_else(|| div_punctuator(&after_skippable, source, goal))
+                    .or_else(|| right_brace_punctuator(&after_skippable, source, goal))
+                    .or_else(|| regular_expression_literal(&after_skippable, source, goal))
+                    .or_else(|| template_substitution_tail(&after_skippable, source, goal))
+                    .map(|(token, after)| (token, Location::from((&after_skippable, &after)), after))
+                    .unwrap_or_else(|| {
+                        (
+                            Token::Error(String::from("Unrecognized Token")),
+                            Location::from(&after_skippable),
+                            after_skippable,
+                        )
+                    })
             }
         }
     }

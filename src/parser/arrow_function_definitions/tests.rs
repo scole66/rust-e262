@@ -137,6 +137,11 @@ mod arrow_function {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_function().contains_arguments()
     }
+
+    #[test_case("   (x,y) => { return x(y); }" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 25} }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_function().location()
+    }
 }
 
 // ARROW PARAMETERS
@@ -260,6 +265,12 @@ mod arrow_parameters {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_parameters().contains_arguments()
     }
+
+    #[test_case(" x" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 1 } }; "id")]
+    #[test_case(" (x, y)" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 6 } }; "formals")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_parameters().location()
+    }
 }
 
 // CONCISE BODY
@@ -277,7 +288,7 @@ fn concise_body_test_02() {
     let (node, scanner) = check(ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true));
     println!("node = {:?}", node);
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ConciseBody::Function(..)));
+    assert!(matches!(&*node, ConciseBody::Function { .. }));
     pretty_check(&*node, "ConciseBody: { q ; }", vec!["FunctionBody: q ;"]);
     concise_check(&*node, "ConciseBody: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
     format!("{:?}", node);
@@ -372,6 +383,12 @@ mod concise_body {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).concise_body().contains_arguments()
     }
+
+    #[test_case("  p+3" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 } }; "exp")]
+    #[test_case("  { return p+3; }" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 15 } }; "body")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).concise_body().location()
+    }
 }
 
 // EXPRESSION BODY
@@ -442,6 +459,11 @@ mod expression_body {
     #[test_case("a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).expression_body().contains_arguments()
+    }
+
+    #[test_case(" x+y" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 3 } }; "expr")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).expression_body().location()
     }
 }
 
@@ -528,5 +550,10 @@ mod arrow_formal_parameters {
     #[test_case("(a)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_formal_parameters().contains_arguments()
+    }
+
+    #[test_case("  ( a = arguments) " => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 16 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_formal_parameters().location()
     }
 }

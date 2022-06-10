@@ -17,13 +17,6 @@ pub struct ScriptRecord {
     pub compiled: Rc<Chunk>,
 }
 
-impl ScriptRecord {
-    #[cfg(test)]
-    pub fn new_empty(realm: Rc<RefCell<Realm>>) -> Self {
-        ScriptRecord { realm, ecmascript_code: Rc::new(Script(None)), compiled: Rc::new(Chunk::new("empty")) }
-    }
-}
-
 #[derive(Debug)]
 pub struct ModuleRecord {}
 

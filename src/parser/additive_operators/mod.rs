@@ -92,7 +92,7 @@ impl AdditiveExpression {
             ScanGoal::InputElementDiv,
             &[Punctuator::Plus, Punctuator::Minus],
         )
-        .and_then(|(token, after_op)| {
+        .and_then(|(token, _, after_op)| {
             MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag)
                 .map(|(node, after_node)| (token, node, after_node))
         }) {
@@ -103,6 +103,15 @@ impl AdditiveExpression {
             current_scanner = after_me;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(exp) => exp.location(),
+            AdditiveExpression::Add(left, right) | AdditiveExpression::Subtract(left, right) => {
+                left.location().merge(&right.location())
+            }
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

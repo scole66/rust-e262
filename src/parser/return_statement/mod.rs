@@ -11,15 +11,15 @@ use std::io::Write;
 //      return [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
 pub enum ReturnStatement {
-    Bare,
-    Expression(Rc<Expression>),
+    Bare { location: Location },
+    Expression { exp: Rc<Expression>, location: Location },
 }
 
 impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ReturnStatement::Bare => write!(f, "return ;"),
-            ReturnStatement::Expression(node) => write!(f, "return {} ;", node),
+            ReturnStatement::Bare { .. } => write!(f, "return ;"),
+            ReturnStatement::Expression { exp, .. } => write!(f, "return {} ;", exp),
         }
     }
 }
@@ -32,8 +32,8 @@ impl PrettyPrint for ReturnStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ReturnStatement: {}", first, self)?;
         match self {
-            ReturnStatement::Bare => Ok(()),
-            ReturnStatement::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ReturnStatement::Bare { .. } => Ok(()),
+            ReturnStatement::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -44,7 +44,7 @@ impl PrettyPrint for ReturnStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ReturnStatement: {}", first, self)?;
         pprint_token(writer, "return", TokenType::Keyword, &successive, Spot::NotFinal)?;
-        if let ReturnStatement::Expression(exp) = self {
+        if let ReturnStatement::Expression { exp, .. } = self {
             exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
@@ -53,20 +53,29 @@ impl PrettyPrint for ReturnStatement {
 
 impl ReturnStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_ret = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
+        let (ret_loc, after_ret) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
         scan_for_auto_semi(after_ret, parser.source, ScanGoal::InputElementRegExp)
-            .map(|after_semi| (Rc::new(ReturnStatement::Bare), after_semi))
+            .map(|(semi_loc, after_semi)| {
+                (Rc::new(ReturnStatement::Bare { location: ret_loc.merge(&semi_loc) }), after_semi)
+            })
             .otherwise(|| {
                 let (exp, after_exp) = Expression::parse(parser, after_ret, true, yield_flag, await_flag)?;
-                let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
-                Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
+                Ok((Rc::new(ReturnStatement::Expression { exp, location: ret_loc.merge(&semi_loc) }), after_semi))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ReturnStatement::Bare { location } | ReturnStatement::Expression { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ReturnStatement::Bare => false,
-            ReturnStatement::Expression(node) => node.contains(kind),
+            ReturnStatement::Bare { .. } => false,
+            ReturnStatement::Expression { exp, .. } => exp.contains(kind),
         }
     }
 
@@ -78,8 +87,8 @@ impl ReturnStatement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ReturnStatement::Bare => true,
-            ReturnStatement::Expression(node) => node.all_private_identifiers_valid(names),
+            ReturnStatement::Bare { .. } => true,
+            ReturnStatement::Expression { exp, .. } => exp.all_private_identifiers_valid(names),
         }
     }
 
@@ -95,15 +104,15 @@ impl ReturnStatement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ReturnStatement::Bare => false,
-            ReturnStatement::Expression(e) => e.contains_arguments(),
+            ReturnStatement::Bare { .. } => false,
+            ReturnStatement::Expression { exp, .. } => exp.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ReturnStatement::Bare => {}
-            ReturnStatement::Expression(exp) => exp.early_errors(agent, errs, strict),
+            ReturnStatement::Bare { .. } => {}
+            ReturnStatement::Expression { exp, .. } => exp.early_errors(agent, errs, strict),
         }
     }
 }

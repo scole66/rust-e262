@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED,
-    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER, UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -158,6 +155,11 @@ mod generator_method {
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).generator_method().private_bound_identifier().map(String::from)
     }
+
+    #[test_case("   *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_method().location()
+    }
 }
 
 // GENERATOR DECLARATION
@@ -259,7 +261,7 @@ fn generator_declaration_test_076() {
         GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false),
         "not an identifier",
         1,
-        11,
+        12,
     );
 }
 #[test]
@@ -395,6 +397,11 @@ mod generator_declaration {
         let mut errs = vec![];
         Maker::new(src).generator_declaration().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_declaration().location()
     }
 }
 
@@ -555,6 +562,17 @@ mod generator_expression {
         Maker::new(src).generator_expression().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("function *a(){}" => true; "named")]
+    #[test_case("function *(){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).generator_expression().is_named_function()
+    }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_expression().location()
+    }
 }
 
 // GENERATOR BODY
@@ -611,6 +629,24 @@ mod generator_body {
         Maker::new(src).generator_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("'one'; 3;" => false; "directive no strict")]
+    #[test_case("12;" => false; "no prologue")]
+    #[test_case("'a'; 'use strict';" => true; "good strict")]
+    #[test_case("'use\\x20strict';" => false; "bad strict")]
+    fn function_body_contains_use_strict(src: &str) -> bool {
+        Maker::new(src).generator_body().function_body_contains_use_strict()
+    }
+
+    #[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => svec(&["alpha", "BETA"]); "normal")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   yield 1;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_body().location()
+    }
 }
 
 // YIELD EXPRESSION
@@ -618,7 +654,7 @@ mod generator_body {
 fn yield_expression_test_01() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -627,7 +663,7 @@ fn yield_expression_test_01() {
 fn yield_expression_test_02() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield 5"), Scanner::new(), true, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*pn, YieldExpression::Expression(..)));
+    assert!(matches!(&*pn, YieldExpression::Expression { .. }));
     pretty_check(&*pn, "YieldExpression: yield 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield 5", vec!["Keyword: yield", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -636,7 +672,7 @@ fn yield_expression_test_02() {
 fn yield_expression_test_03() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *5"), Scanner::new(), true, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*pn, YieldExpression::From(..)));
+    assert!(matches!(&*pn, YieldExpression::From { .. }));
     pretty_check(&*pn, "YieldExpression: yield * 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield * 5", vec!["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -645,7 +681,7 @@ fn yield_expression_test_03() {
 fn yield_expression_test_04() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield \n*5"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -654,7 +690,7 @@ fn yield_expression_test_04() {
 fn yield_expression_test_05() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield @"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -663,7 +699,7 @@ fn yield_expression_test_05() {
 fn yield_expression_test_06() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *@"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -762,5 +798,12 @@ mod yield_expression {
     #[test_case("yield *a" => false; "yield from (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).yield_expression().contains_arguments()
+    }
+
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "simple")]
+    #[test_case("   yield 1" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 } }; "value")]
+    #[test_case("   yield *u" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "from")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_expression().location()
     }
 }

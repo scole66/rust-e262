@@ -178,6 +178,11 @@ mod labelled_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   a:b();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).labelled_statement().location()
+    }
 }
 
 // LABELLED ITEM
@@ -384,5 +389,10 @@ mod labelled_item {
     #[test_case("var a;" => svec(&["a"]); "statement")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_item().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   b();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).labelled_item().location()
     }
 }

@@ -12,14 +12,15 @@ use std::io::Write;
 // LexicalDeclaration[In, Yield, Await] :
 //      LetOrConst BindingList[?In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum LexicalDeclaration {
-    List(LetOrConst, Rc<BindingList>),
+pub struct LexicalDeclaration {
+    pub style: LetOrConst,
+    pub list: Rc<BindingList>,
+    location: Location,
 }
 
 impl fmt::Display for LexicalDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let LexicalDeclaration::List(loc, bl) = self;
-        write!(f, "{} {} ;", *loc, bl)
+        write!(f, "{} {} ;", self.style, self.list)
     }
 }
 
@@ -30,9 +31,8 @@ impl PrettyPrint for LexicalDeclaration {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LexicalDeclaration: {}", first, self)?;
-        let LexicalDeclaration::List(loc, bl) = self;
-        loc.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        bl.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.style.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.list.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -41,9 +41,8 @@ impl PrettyPrint for LexicalDeclaration {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LexicalDeclaration: {}", first, self)?;
-        let LexicalDeclaration::List(loc, bl) = self;
-        loc.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        bl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.style.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
@@ -56,15 +55,15 @@ impl LexicalDeclaration {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Self> {
-        let (kwd, after_tok) =
+        let (kwd, kwd_loc, after_tok) =
             scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
-        let loc = match kwd {
+        let style = match kwd {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
         };
-        let (bl, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        let after_semi = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
-        Ok((Rc::new(LexicalDeclaration::List(loc, bl)), after_semi))
+        let (list, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
+        Ok((Rc::new(LexicalDeclaration { style, list, location: kwd_loc.merge(&semi_loc) }), after_semi))
     }
 
     pub fn parse(
@@ -85,15 +84,16 @@ impl LexicalDeclaration {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
-        match self {
-            LexicalDeclaration::List(_, l) => l.bound_names(),
-        }
+        self.list.bound_names()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let LexicalDeclaration::List(loc, bl) = self;
-        loc.contains(kind) || bl.contains(kind)
+        self.style.contains(kind) || self.list.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -103,8 +103,7 @@ impl LexicalDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let LexicalDeclaration::List(_, node) = self;
-        node.all_private_identifiers_valid(names)
+        self.list.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -118,13 +117,11 @@ impl LexicalDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let LexicalDeclaration::List(_, bl) = self;
-        bl.contains_arguments()
+        self.list.contains_arguments()
     }
 
     pub fn is_constant_declaration(&self) -> bool {
-        let LexicalDeclaration::List(loc, _) = self;
-        loc.is_constant_declaration()
+        self.style.is_constant_declaration()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -132,13 +129,16 @@ impl LexicalDeclaration {
         //  LexicalDeclaration : LetOrConst BindingList ;
         //  * It is a Syntax Error if the BoundNames of BindingList contains "let".
         //  * It is a Syntax Error if the BoundNames of BindingList contains any duplicate entries.
-        let LexicalDeclaration::List(_, bl) = self;
-        let bn = bl.bound_names();
+        let bn = self.list.bound_names();
 
         let let_string = JSString::from("let");
         let counts = bn.into_iter().collect::<Counter<_>>();
         if counts[&let_string] > 0 {
-            errs.push(create_syntax_error_object(agent, "‘let’ is not a valid binding identifier"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "‘let’ is not a valid binding identifier",
+                Some(self.list.location()),
+            ));
         }
         let mut dup_ids = counts.into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| String::from(s)).collect::<Vec<_>>();
         if !dup_ids.is_empty() {
@@ -146,10 +146,11 @@ impl LexicalDeclaration {
             errs.push(create_syntax_error_object(
                 agent,
                 format!("Duplicate binding identifiers: ‘{}’", dup_ids.join("’, ‘")),
+                Some(self.list.location()),
             ));
         }
 
-        bl.early_errors(agent, errs, strict, self.is_constant_declaration());
+        self.list.early_errors(agent, errs, strict, self.is_constant_declaration());
     }
 }
 
@@ -263,12 +264,19 @@ impl BindingList {
         let mut current_scanner = after_lb;
         while let Ok((lb2, after_lb2)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
+                .and_then(|(_, after_tok)| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
         {
             current = Rc::new(BindingList::List(current, lb2));
             current_scanner = after_lb2;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BindingList::Item(item) => item.location(),
+            BindingList::List(list, item) => list.location().merge(&item.location()),
+        }
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -420,6 +428,14 @@ impl LexicalBinding {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            LexicalBinding::Identifier(id, None) => id.location(),
+            LexicalBinding::Identifier(id, Some(izer)) => id.location().merge(&izer.location()),
+            LexicalBinding::Pattern(pat, izer) => pat.location().merge(&izer.location()),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
             LexicalBinding::Identifier(bi, _) => bi.bound_names(),
@@ -481,7 +497,11 @@ impl LexicalBinding {
             }
             LexicalBinding::Identifier(idref, None) => {
                 if is_constant_declaration {
-                    errs.push(create_syntax_error_object(agent, "Missing initializer in const declaration"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Missing initializer in const declaration",
+                        Some(idref.location()),
+                    ));
                 }
                 idref.early_errors(agent, errs, strict);
             }
@@ -496,14 +516,14 @@ impl LexicalBinding {
 // VariableStatement[Yield, Await] :
 //      var VariableDeclarationList[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum VariableStatement {
-    Var(Rc<VariableDeclarationList>),
+pub struct VariableStatement {
+    list: Rc<VariableDeclarationList>,
+    location: Location,
 }
 
 impl fmt::Display for VariableStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let VariableStatement::Var(node) = self;
-        write!(f, "var {} ;", node)
+        write!(f, "var {} ;", self.list)
     }
 }
 
@@ -514,8 +534,7 @@ impl PrettyPrint for VariableStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}VariableStatement: {}", first, self)?;
-        let VariableStatement::Var(node) = self;
-        node.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.list.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -525,8 +544,7 @@ impl PrettyPrint for VariableStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}VariableStatement: {}", first, self)?;
         pprint_token(writer, "var", TokenType::Keyword, &successive, Spot::NotFinal)?;
-        let VariableStatement::Var(node) = self;
-        node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
@@ -534,20 +552,23 @@ impl PrettyPrint for VariableStatement {
 impl VariableStatement {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_var = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
-        let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
-        let after_semi = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
-        Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
+        let (var_loc, after_var) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+        let (list, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
+        Ok((Rc::new(VariableStatement { list, location: var_loc.merge(&semi_loc) }), after_semi))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        let VariableStatement::Var(node) = self;
-        node.bound_names()
+        self.list.bound_names()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let VariableStatement::Var(node) = self;
-        node.contains(kind)
+        self.list.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -557,8 +578,7 @@ impl VariableStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let VariableStatement::Var(node) = self;
-        node.all_private_identifiers_valid(names)
+        self.list.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -572,21 +592,18 @@ impl VariableStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let VariableStatement::Var(vdl) = self;
-        vdl.contains_arguments()
+        self.list.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let VariableStatement::Var(vdl) = self;
-        vdl.early_errors(agent, errs, strict);
+        self.list.early_errors(agent, errs, strict);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        let VariableStatement::Var(vdl) = self;
-        vdl.var_scoped_declarations()
+        self.list.var_scoped_declarations()
     }
 }
 
@@ -656,7 +673,7 @@ impl VariableDeclarationList {
         let mut current_scanner = after_dcl;
         while let Ok((next, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
+                |(_, after_comma)| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
             )
         {
             current = Rc::new(VariableDeclarationList::List(current, next));
@@ -980,6 +997,13 @@ impl BindingPattern {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            BindingPattern::Object(obp) => obp.location(),
+            BindingPattern::Array(abp) => abp.location(),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingPattern::Object(node) => node.bound_names(),
@@ -1039,22 +1063,22 @@ impl BindingPattern {
 //      { BindingPropertyList[?Yield, ?Await] , BindingRestProperty[?Yield, ?Await]opt }
 #[derive(Debug)]
 pub enum ObjectBindingPattern {
-    Empty,
-    RestOnly(Rc<BindingRestProperty>),
-    ListOnly(Rc<BindingPropertyList>),
-    ListRest(Rc<BindingPropertyList>, Option<Rc<BindingRestProperty>>),
+    Empty { location: Location },
+    RestOnly { brp: Rc<BindingRestProperty>, location: Location },
+    ListOnly { bpl: Rc<BindingPropertyList>, location: Location },
+    ListRest { bpl: Rc<BindingPropertyList>, brp: Option<Rc<BindingRestProperty>>, location: Location },
 }
 
 impl fmt::Display for ObjectBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ObjectBindingPattern::Empty => write!(f, "{{ }}"),
-            ObjectBindingPattern::RestOnly(node) => write!(f, "{{ {} }}", node),
-            ObjectBindingPattern::ListOnly(node) => write!(f, "{{ {} }}", node),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
-                write!(f, "{{ {} , {} }}", lst, rst)
+            ObjectBindingPattern::Empty { .. } => write!(f, "{{ }}"),
+            ObjectBindingPattern::RestOnly { brp, .. } => write!(f, "{{ {} }}", brp),
+            ObjectBindingPattern::ListOnly { bpl, .. } => write!(f, "{{ {} }}", bpl),
+            ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
+                write!(f, "{{ {} , {} }}", bpl, rst)
             }
-            ObjectBindingPattern::ListRest(lst, None) => write!(f, "{{ {} , }}", lst),
+            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => write!(f, "{{ {} , }}", bpl),
         }
     }
 }
@@ -1067,14 +1091,16 @@ impl PrettyPrint for ObjectBindingPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectBindingPattern: {}", first, self)?;
         match self {
-            ObjectBindingPattern::Empty => Ok(()),
-            ObjectBindingPattern::RestOnly(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ObjectBindingPattern::ListOnly(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
-                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            ObjectBindingPattern::Empty { .. } => Ok(()),
+            ObjectBindingPattern::RestOnly { brp, .. } => brp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectBindingPattern::ListOnly { bpl, .. } => bpl.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
+                bpl.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rst.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ObjectBindingPattern::ListRest(lst, None) => lst.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -1086,20 +1112,20 @@ impl PrettyPrint for ObjectBindingPattern {
         writeln!(writer, "{}ObjectBindingPattern: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            ObjectBindingPattern::Empty => {}
-            ObjectBindingPattern::RestOnly(node) => {
-                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            ObjectBindingPattern::Empty { .. } => {}
+            ObjectBindingPattern::RestOnly { brp, .. } => {
+                brp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ObjectBindingPattern::ListOnly(node) => {
-                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            ObjectBindingPattern::ListOnly { bpl, .. } => {
+                bpl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
-                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
+                bpl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 rst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ObjectBindingPattern::ListRest(lst, None) => {
-                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
         }
@@ -1112,9 +1138,11 @@ impl ObjectBindingPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ObjectBindingPattern), scanner)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(
-                |after_open| {
+                |(open_loc, after_open)| {
                     scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                        .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
+                        .map(|(close_loc, after_close)| {
+                            (Rc::new(ObjectBindingPattern::Empty { location: open_loc.merge(&close_loc) }), after_close)
+                        })
                         .otherwise(|| {
                             BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(
                                 |(brp, after_brp)| {
@@ -1124,7 +1152,15 @@ impl ObjectBindingPattern {
                                         ScanGoal::InputElementRegExp,
                                         Punctuator::RightBrace,
                                     )
-                                    .map(|after_close| (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close))
+                                    .map(|(close_loc, after_close)| {
+                                        (
+                                            Rc::new(ObjectBindingPattern::RestOnly {
+                                                brp,
+                                                location: open_loc.merge(&close_loc),
+                                            }),
+                                            after_close,
+                                        )
+                                    })
                                 },
                             )
                         })
@@ -1136,7 +1172,7 @@ impl ObjectBindingPattern {
                                     ScanGoal::InputElementRegExp,
                                     Punctuator::RightBrace,
                                 )
-                                .map(|after_close| (None, after_close))
+                                .map(|(close_loc, after_close)| (None, close_loc, after_close))
                                 .otherwise(|| {
                                     scan_for_punct(
                                         after_bpl,
@@ -1144,7 +1180,7 @@ impl ObjectBindingPattern {
                                         ScanGoal::InputElementRegExp,
                                         Punctuator::Comma,
                                     )
-                                    .and_then(|after_comma| {
+                                    .and_then(|(_, after_comma)| {
                                         let (brp, after_brp) = match BindingRestProperty::parse(
                                             parser,
                                             after_comma,
@@ -1160,13 +1196,24 @@ impl ObjectBindingPattern {
                                             ScanGoal::InputElementRegExp,
                                             Punctuator::RightBrace,
                                         )
-                                        .map(|after_final| (Some(brp), after_final))
+                                        .map(|(final_loc, after_final)| (Some(brp), final_loc, after_final))
                                     })
                                 }) {
-                                    Ok((None, after)) => Ok((Rc::new(ObjectBindingPattern::ListOnly(bpl)), after)),
-                                    Ok((Some(brp), after)) => {
-                                        Ok((Rc::new(ObjectBindingPattern::ListRest(bpl, brp)), after))
-                                    }
+                                    Ok((None, final_loc, after)) => Ok((
+                                        Rc::new(ObjectBindingPattern::ListOnly {
+                                            bpl,
+                                            location: open_loc.merge(&final_loc),
+                                        }),
+                                        after,
+                                    )),
+                                    Ok((Some(brp), final_loc, after)) => Ok((
+                                        Rc::new(ObjectBindingPattern::ListRest {
+                                            bpl,
+                                            brp,
+                                            location: open_loc.merge(&final_loc),
+                                        }),
+                                        after,
+                                    )),
                                     Err(e) => Err(e),
                                 },
                             )
@@ -1176,27 +1223,37 @@ impl ObjectBindingPattern {
         })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ObjectBindingPattern::Empty { location }
+            | ObjectBindingPattern::RestOnly { location, .. }
+            | ObjectBindingPattern::ListOnly { location, .. }
+            | ObjectBindingPattern::ListRest { location, .. } => *location,
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
-            ObjectBindingPattern::Empty => vec![],
-            ObjectBindingPattern::RestOnly(node) => node.bound_names(),
-            ObjectBindingPattern::ListOnly(node) => node.bound_names(),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
-                let mut names = lst.bound_names();
+            ObjectBindingPattern::Empty { .. } => vec![],
+            ObjectBindingPattern::RestOnly { brp, .. } => brp.bound_names(),
+            ObjectBindingPattern::ListOnly { bpl, .. } => bpl.bound_names(),
+            ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
+                let mut names = bpl.bound_names();
                 names.extend(rst.bound_names());
                 names
             }
-            ObjectBindingPattern::ListRest(lst, None) => lst.bound_names(),
+            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => bpl.bound_names(),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ObjectBindingPattern::Empty => false,
-            ObjectBindingPattern::RestOnly(node) => node.contains(kind),
-            ObjectBindingPattern::ListOnly(node) => node.contains(kind),
-            ObjectBindingPattern::ListRest(list, None) => list.contains(kind),
-            ObjectBindingPattern::ListRest(list, Some(n)) => list.contains(kind) || n.contains(kind),
+            ObjectBindingPattern::Empty { .. } => false,
+            ObjectBindingPattern::RestOnly { brp, .. } => brp.contains(kind),
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.contains(kind)
+            }
+            ObjectBindingPattern::ListRest { bpl, brp: Some(n), .. } => bpl.contains(kind) || n.contains(kind),
         }
     }
 
@@ -1208,9 +1265,9 @@ impl ObjectBindingPattern {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => true,
-            ObjectBindingPattern::ListOnly(node) | ObjectBindingPattern::ListRest(node, _) => {
-                node.all_private_identifiers_valid(names)
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => true,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
+                bpl.all_private_identifiers_valid(names)
             }
         }
     }
@@ -1227,21 +1284,24 @@ impl ObjectBindingPattern {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => false,
-            ObjectBindingPattern::ListOnly(bpl) | ObjectBindingPattern::ListRest(bpl, _) => bpl.contains_arguments(),
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
+                bpl.contains_arguments()
+            }
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ObjectBindingPattern::Empty => (),
-            ObjectBindingPattern::RestOnly(node) => node.early_errors(agent, errs, strict),
-            ObjectBindingPattern::ListOnly(node) => node.early_errors(agent, errs, strict),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
-                lst.early_errors(agent, errs, strict);
+            ObjectBindingPattern::Empty { .. } => (),
+            ObjectBindingPattern::RestOnly { brp, .. } => brp.early_errors(agent, errs, strict),
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.early_errors(agent, errs, strict)
+            }
+            ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
+                bpl.early_errors(agent, errs, strict);
                 rst.early_errors(agent, errs, strict);
             }
-            ObjectBindingPattern::ListRest(lst, None) => lst.early_errors(agent, errs, strict),
         }
     }
 }
@@ -1252,35 +1312,47 @@ impl ObjectBindingPattern {
 //      [ BindingElementList[?Yield, ?Await] , Elisionopt BindingRestElement[?Yield, ?Await]opt ]
 #[derive(Debug)]
 pub enum ArrayBindingPattern {
-    RestOnly(Option<Rc<Elisions>>, Option<Rc<BindingRestElement>>),
-    ListOnly(Rc<BindingElementList>),
-    ListRest(Rc<BindingElementList>, Option<Rc<Elisions>>, Option<Rc<BindingRestElement>>),
+    RestOnly {
+        elision: Option<Rc<Elisions>>,
+        bre: Option<Rc<BindingRestElement>>,
+        location: Location,
+    },
+    ListOnly {
+        bel: Rc<BindingElementList>,
+        location: Location,
+    },
+    ListRest {
+        bel: Rc<BindingElementList>,
+        elision: Option<Rc<Elisions>>,
+        bre: Option<Rc<BindingRestElement>>,
+        location: Location,
+    },
 }
 
 impl fmt::Display for ArrayBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
                 write!(f, "[ {} {} ]", elisions, node)
             }
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: None, .. } => {
                 write!(f, "[ {} ]", elisions)
             }
-            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: Some(node), .. } => {
                 write!(f, "[ {} ]", node)
             }
-            ArrayBindingPattern::RestOnly(None, None) => write!(f, "[ ]"),
-            ArrayBindingPattern::ListOnly(node) => write!(f, "[ {} ]", node),
-            ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: None, .. } => write!(f, "[ ]"),
+            ArrayBindingPattern::ListOnly { bel: node, .. } => write!(f, "[ {} ]", node),
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: Some(rst), .. } => {
                 write!(f, "[ {} , {} {} ]", lst, elisions, rst)
             }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: Some(rst), .. } => {
                 write!(f, "[ {} , {} ]", lst, rst)
             }
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: None, .. } => {
                 write!(f, "[ {} , {} ]", lst, elisions)
             }
-            ArrayBindingPattern::ListRest(lst, None, None) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: None, .. } => {
                 write!(f, "[ {} , ]", lst)
             }
         }
@@ -1295,32 +1367,36 @@ impl PrettyPrint for ArrayBindingPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayBindingPattern: {}", first, self)?;
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: None, .. } => {
                 elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: Some(node), .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::RestOnly(None, None) => Ok(()),
-            ArrayBindingPattern::ListOnly(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: None, .. } => Ok(()),
+            ArrayBindingPattern::ListOnly { bel: node, .. } => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: Some(rst), .. } => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rst.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: Some(rst), .. } => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rst.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: None, .. } => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::ListRest(lst, None, None) => lst.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: None, .. } => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -1332,37 +1408,37 @@ impl PrettyPrint for ArrayBindingPattern {
         writeln!(writer, "{}ArrayBindingPattern: {}", first, self)?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+            ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: None, .. } => {
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: Some(node), .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::RestOnly(None, None) => {}
-            ArrayBindingPattern::ListOnly(node) => {
+            ArrayBindingPattern::RestOnly { elision: None, bre: None, .. } => {}
+            ArrayBindingPattern::ListOnly { bel: node, .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: Some(rst), .. } => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: Some(rst), .. } => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 rst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: None, .. } => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArrayBindingPattern::ListRest(lst, None, None) => {
+            ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: None, .. } => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
@@ -1374,7 +1450,7 @@ impl PrettyPrint for ArrayBindingPattern {
 impl ArrayBindingPattern {
     // ArrayBindingPattern's only parent is BindingPattern. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_first =
+        let (first_loc, after_first) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
@@ -1384,10 +1460,13 @@ impl ArrayBindingPattern {
                     ScanGoal::InputElementRegExp,
                     &[Punctuator::RightBracket, Punctuator::Comma],
                 )
-                .and_then(|(punct_next, after_next)| match punct_next {
-                    Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
+                .and_then(|(punct_next, next_loc, after_next)| match punct_next {
+                    Punctuator::RightBracket => Ok((
+                        Rc::new(ArrayBindingPattern::ListOnly { bel, location: first_loc.merge(&next_loc) }),
+                        after_next,
+                    )),
                     _ => {
-                        let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
+                        let (elision, after_elisions) = match Elisions::parse(parser, after_next) {
                             Err(_) => (None, after_next),
                             Ok((e, s)) => (Some(e), s),
                         };
@@ -1402,9 +1481,15 @@ impl ArrayBindingPattern {
                             ScanGoal::InputElementRegExp,
                             Punctuator::RightBracket,
                         ) {
-                            Ok(after_close) => {
-                                Ok((Rc::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close))
-                            }
+                            Ok((close_loc, after_close)) => Ok((
+                                Rc::new(ArrayBindingPattern::ListRest {
+                                    bel,
+                                    elision,
+                                    bre,
+                                    location: first_loc.merge(&close_loc),
+                                }),
+                                after_close,
+                            )),
                             Err(pe) => {
                                 let mut err = Some(pe);
                                 if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
@@ -1417,7 +1502,7 @@ impl ArrayBindingPattern {
                 })
             })
             .otherwise(|| {
-                let (elisions, after_elisions) = match Elisions::parse(parser, after_first) {
+                let (elision, after_elisions) = match Elisions::parse(parser, after_first) {
                     Err(_) => (None, after_first),
                     Ok((e, s)) => (Some(e), s),
                 };
@@ -1427,7 +1512,10 @@ impl ArrayBindingPattern {
                         Ok((b, s)) => (Some(b), s, None),
                     };
                 match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
-                    Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close)),
+                    Ok((close_loc, after_close)) => Ok((
+                        Rc::new(ArrayBindingPattern::RestOnly { elision, bre, location: first_loc.merge(&close_loc) }),
+                        after_close,
+                    )),
                     Err(pe) => {
                         let mut err = Some(pe);
                         if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
@@ -1439,28 +1527,36 @@ impl ArrayBindingPattern {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ArrayBindingPattern::RestOnly { location, .. }
+            | ArrayBindingPattern::ListOnly { location, .. }
+            | ArrayBindingPattern::ListRest { location, .. } => *location,
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
-            ArrayBindingPattern::RestOnly(_, Some(node)) => node.bound_names(),
-            ArrayBindingPattern::RestOnly(_, None) => vec![],
-            ArrayBindingPattern::ListOnly(node) => node.bound_names(),
-            ArrayBindingPattern::ListRest(lst, _, Some(rst)) => {
+            ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.bound_names(),
+            ArrayBindingPattern::RestOnly { bre: None, .. } => vec![],
+            ArrayBindingPattern::ListOnly { bel: node, .. } => node.bound_names(),
+            ArrayBindingPattern::ListRest { bel: lst, bre: Some(rst), .. } => {
                 let mut names = lst.bound_names();
                 names.extend(rst.bound_names());
                 names
             }
-            ArrayBindingPattern::ListRest(lst, _, None) => lst.bound_names(),
+            ArrayBindingPattern::ListRest { bel: lst, bre: None, .. } => lst.bound_names(),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayBindingPattern::RestOnly(onode_a, onode_b) => {
+            ArrayBindingPattern::RestOnly { elision: onode_a, bre: onode_b, .. } => {
                 onode_a.as_ref().map_or(false, |node| node.contains(kind))
                     || onode_b.as_ref().map_or(false, |node| node.contains(kind))
             }
-            ArrayBindingPattern::ListOnly(node) => node.contains(kind),
-            ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
+            ArrayBindingPattern::ListOnly { bel: node, .. } => node.contains(kind),
+            ArrayBindingPattern::ListRest { bel: node, elision: onode_a, bre: onode_b, .. } => {
                 node.contains(kind)
                     || onode_a.as_ref().map_or(false, |node| node.contains(kind))
                     || onode_b.as_ref().map_or(false, |node| node.contains(kind))
@@ -1476,11 +1572,11 @@ impl ArrayBindingPattern {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrayBindingPattern::RestOnly(_, onode) => {
+            ArrayBindingPattern::RestOnly { bre: onode, .. } => {
                 onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
             }
-            ArrayBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
-            ArrayBindingPattern::ListRest(node, _, onode) => {
+            ArrayBindingPattern::ListOnly { bel: node, .. } => node.all_private_identifiers_valid(names),
+            ArrayBindingPattern::ListRest { bel: node, bre: onode, .. } => {
                 node.all_private_identifiers_valid(names)
                     && onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
             }
@@ -1499,9 +1595,11 @@ impl ArrayBindingPattern {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ArrayBindingPattern::RestOnly(_, obre) => obre.as_ref().map_or(false, |bre| bre.contains_arguments()),
-            ArrayBindingPattern::ListOnly(bel) => bel.contains_arguments(),
-            ArrayBindingPattern::ListRest(bel, _, obre) => {
+            ArrayBindingPattern::RestOnly { bre: obre, .. } => {
+                obre.as_ref().map_or(false, |bre| bre.contains_arguments())
+            }
+            ArrayBindingPattern::ListOnly { bel, .. } => bel.contains_arguments(),
+            ArrayBindingPattern::ListRest { bel, bre: obre, .. } => {
                 bel.contains_arguments() || obre.as_ref().map_or(false, |bre| bre.contains_arguments())
             }
         }
@@ -1509,14 +1607,15 @@ impl ArrayBindingPattern {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrayBindingPattern::RestOnly(_, Some(node)) => node.early_errors(agent, errs, strict),
-            ArrayBindingPattern::RestOnly(_, None) => (),
-            ArrayBindingPattern::ListOnly(node) => node.early_errors(agent, errs, strict),
-            ArrayBindingPattern::ListRest(lst, _, Some(rst)) => {
+            ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.early_errors(agent, errs, strict),
+            ArrayBindingPattern::RestOnly { bre: None, .. } => (),
+            ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, .. } => {
+                bel.early_errors(agent, errs, strict)
+            }
+            ArrayBindingPattern::ListRest { bel: lst, bre: Some(rst), .. } => {
                 lst.early_errors(agent, errs, strict);
                 rst.early_errors(agent, errs, strict);
             }
-            ArrayBindingPattern::ListRest(lst, _, None) => lst.early_errors(agent, errs, strict),
         }
     }
 }
@@ -1561,7 +1660,7 @@ impl PrettyPrint for BindingRestProperty {
 impl BindingRestProperty {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)
-            .and_then(|after_dots| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
+            .and_then(|(_, after_dots)| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
             .map(|(id, after_id)| (Rc::new(BindingRestProperty::Id(id)), after_id))
     }
 
@@ -1652,7 +1751,7 @@ impl BindingPropertyList {
         let mut current_scan = after_bp;
         while let Ok((bp2, after_bp2)) =
             scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
+                .and_then(|(_, after_token)| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
         {
             current = Rc::new(BindingPropertyList::List(current, bp2));
             current_scan = after_bp2;
@@ -1780,7 +1879,7 @@ impl BindingElementList {
         let mut current_scanner = after_elem;
         loop {
             match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_tok| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag))
+                .and_then(|(_, after_tok)| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag))
             {
                 Err(_) => {
                     break;
@@ -2015,7 +2114,7 @@ impl BindingProperty {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingProperty), scanner))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_token =
+                let (_, after_token) =
                     scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (be, after_be) = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
                 Ok((Rc::new(BindingProperty::Property(pn, be)), after_be))
@@ -2167,6 +2266,14 @@ impl BindingElement {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            BindingElement::Single(single) => single.location(),
+            BindingElement::Pattern(pat, Some(izer)) => pat.location().merge(&izer.location()),
+            BindingElement::Pattern(pat, None) => pat.location(),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingElement::Single(node) => node.bound_names(),
@@ -2315,6 +2422,13 @@ impl SingleNameBinding {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            SingleNameBinding::Id(ident, None) => ident.location(),
+            SingleNameBinding::Id(ident, Some(izer)) => ident.location().merge(&izer.location()),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         let SingleNameBinding::Id(ident, _) = self;
         ident.bound_names()
@@ -2377,15 +2491,15 @@ impl SingleNameBinding {
 //      ... BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingRestElement {
-    Identifier(Rc<BindingIdentifier>),
-    Pattern(Rc<BindingPattern>),
+    Identifier(Rc<BindingIdentifier>, Location),
+    Pattern(Rc<BindingPattern>, Location),
 }
 
 impl fmt::Display for BindingRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BindingRestElement::Identifier(node) => write!(f, "... {}", node),
-            BindingRestElement::Pattern(node) => write!(f, "... {}", node),
+            BindingRestElement::Identifier(node, ..) => write!(f, "... {}", node),
+            BindingRestElement::Pattern(node, ..) => write!(f, "... {}", node),
         }
     }
 }
@@ -2398,8 +2512,8 @@ impl PrettyPrint for BindingRestElement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BindingRestElement: {}", first, self)?;
         match self {
-            BindingRestElement::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            BindingRestElement::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Identifier(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Pattern(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -2411,23 +2525,28 @@ impl PrettyPrint for BindingRestElement {
         writeln!(writer, "{}BindingRestElement: {}", first, self)?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            BindingRestElement::Identifier(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),
-            BindingRestElement::Pattern(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Identifier(node, ..) => node.concise_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Pattern(node, ..) => node.concise_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
 
 impl BindingRestElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (tok_loc, after_tok) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
             .otherwise(|| {
-                BindingPattern::parse(parser, after_tok, yield_flag, await_flag)
-                    .map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp))
+                BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| {
+                    let location = tok_loc.merge(&bp.location());
+                    (Rc::new(BindingRestElement::Pattern(bp, location)), after_bp)
+                })
             })
             .otherwise(|| {
-                BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag)
-                    .map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi))
+                BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| {
+                    let location = tok_loc.merge(&bi.location());
+                    (Rc::new(BindingRestElement::Identifier(bi, location)), after_bi)
+                })
             })
     }
 
@@ -2443,17 +2562,23 @@ impl BindingRestElement {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            BindingRestElement::Identifier(_, location) | BindingRestElement::Pattern(_, location) => *location,
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
-            BindingRestElement::Identifier(node) => node.bound_names(),
-            BindingRestElement::Pattern(node) => node.bound_names(),
+            BindingRestElement::Identifier(node, ..) => node.bound_names(),
+            BindingRestElement::Pattern(node, ..) => node.bound_names(),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BindingRestElement::Identifier(node) => node.contains(kind),
-            BindingRestElement::Pattern(node) => node.contains(kind),
+            BindingRestElement::Identifier(node, ..) => node.contains(kind),
+            BindingRestElement::Pattern(node, ..) => node.contains(kind),
         }
     }
 
@@ -2465,8 +2590,8 @@ impl BindingRestElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            BindingRestElement::Identifier(_) => true,
-            BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
+            BindingRestElement::Identifier(..) => true,
+            BindingRestElement::Pattern(node, ..) => node.all_private_identifiers_valid(names),
         }
     }
 
@@ -2482,15 +2607,15 @@ impl BindingRestElement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            BindingRestElement::Identifier(_) => false,
-            BindingRestElement::Pattern(bp) => bp.contains_arguments(),
+            BindingRestElement::Identifier(..) => false,
+            BindingRestElement::Pattern(bp, ..) => bp.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BindingRestElement::Identifier(node) => node.early_errors(agent, errs, strict),
-            BindingRestElement::Pattern(node) => node.early_errors(agent, errs, strict),
+            BindingRestElement::Identifier(node, ..) => node.early_errors(agent, errs, strict),
+            BindingRestElement::Pattern(node, ..) => node.early_errors(agent, errs, strict),
         }
     }
 }

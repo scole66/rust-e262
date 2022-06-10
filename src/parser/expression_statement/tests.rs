@@ -27,6 +27,17 @@ fn expression_statement_test_02() {
     concise_error_validate(&*node);
 }
 #[test]
+fn expression_statement_test_03() {
+    let (node, scanner) =
+        check(ExpressionStatement::parse(&mut newparser("async\nfunction a(){}"), Scanner::new(), false, false));
+    chk_scan(&scanner, 5);
+    pretty_check(&*node, "ExpressionStatement: async ;", vec!["Expression: async"]);
+    concise_check(&*node, "ExpressionStatement: async ;", vec!["IdentifierName: async", "Punctuator: ;"]);
+    format!("{:?}", node);
+    pretty_error_validate(&*node);
+    concise_error_validate(&*node);
+}
+#[test]
 fn expression_statement_test_asi_01() {
     let (node, scanner) = check(ExpressionStatement::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
@@ -92,7 +103,7 @@ fn expression_statement_test_err_06() {
 }
 #[test]
 fn expression_statement_test_err_07() {
-    check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 2);
+    check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 3);
 }
 #[test_case("'string';" => Some(JSString::from("string")); "String Token")]
 #[test_case("a??b;" => None; "Not token")]
@@ -129,5 +140,10 @@ mod expression_statement {
     #[test_case("thing;", ParseNodeKind::Expression => true; "just a thing")]
     fn contains(src: &str, target: ParseNodeKind) -> bool {
         Maker::new(src).expression_statement().contains(target)
+    }
+
+    #[test_case("   a;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).expression_statement().location()
     }
 }

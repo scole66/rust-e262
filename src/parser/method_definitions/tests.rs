@@ -625,6 +625,16 @@ mod method_definition {
     fn special_method(src: &str) -> bool {
         Maker::new(src).method_definition().special_method()
     }
+
+    #[test_case("  a(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "standard method")]
+    #[test_case("  *a(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "generator")]
+    #[test_case("  async m(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "async fcn")]
+    #[test_case("  async *m(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 12 }}; "async gen")]
+    #[test_case("  get foo(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "getter")]
+    #[test_case("  set foo(val){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 14 }}; "setter")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).method_definition().location()
+    }
 }
 
 mod property_set_parameter_list {
@@ -692,5 +702,10 @@ mod property_set_parameter_list {
     #[test_case("[a]" => false; "complex")]
     fn is_simple_parameter_list(src: &str) -> bool {
         PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.is_simple_parameter_list()
+    }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "setter")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).property_set_parameter_list().location()
     }
 }

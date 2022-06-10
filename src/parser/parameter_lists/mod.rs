@@ -55,6 +55,10 @@ impl UniqueFormalParameters {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.formals.location()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.formals.contains(kind)
     }
@@ -89,7 +93,11 @@ impl UniqueFormalParameters {
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
         let bn = self.formals.bound_names();
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.formals.location()),
+            ));
         }
         self.formals.early_errors(agent, errs, strict, true);
     }
@@ -115,20 +123,20 @@ impl UniqueFormalParameters {
 //      FormalParameterList[?Yield, ?Await] , FunctionRestParameter[?Yield, ?Await]
 #[derive(Debug)]
 pub enum FormalParameters {
-    Empty,
+    Empty(Location),
     Rest(Rc<FunctionRestParameter>),
     List(Rc<FormalParameterList>),
-    ListComma(Rc<FormalParameterList>),
+    ListComma(Rc<FormalParameterList>, Location),
     ListRest(Rc<FormalParameterList>, Rc<FunctionRestParameter>),
 }
 
 impl fmt::Display for FormalParameters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FormalParameters::Empty => Ok(()),
+            FormalParameters::Empty(_) => Ok(()),
             FormalParameters::Rest(node) => node.fmt(f),
             FormalParameters::List(node) => node.fmt(f),
-            FormalParameters::ListComma(node) => write!(f, "{} ,", node),
+            FormalParameters::ListComma(node, _) => write!(f, "{} ,", node),
             FormalParameters::ListRest(list, rest) => {
                 write!(f, "{} , {}", list, rest)
             }
@@ -144,9 +152,9 @@ impl PrettyPrint for FormalParameters {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}FormalParameters: {}", first, self)?;
         match self {
-            FormalParameters::Empty => Ok(()),
+            FormalParameters::Empty(_) => Ok(()),
             FormalParameters::Rest(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            FormalParameters::List(node) | FormalParameters::ListComma(node) => {
+            FormalParameters::List(node) | FormalParameters::ListComma(node, _) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             FormalParameters::ListRest(list, rest) => {
@@ -165,10 +173,10 @@ impl PrettyPrint for FormalParameters {
             writeln!(w, "{}FormalParameters: {}", first, self).and(Ok(successive))
         };
         match self {
-            FormalParameters::Empty => Ok(()),
+            FormalParameters::Empty(_) => Ok(()),
             FormalParameters::Rest(node) => node.concise_with_leftpad(writer, pad, state),
             FormalParameters::List(node) => node.concise_with_leftpad(writer, pad, state),
-            FormalParameters::ListComma(node) => {
+            FormalParameters::ListComma(node, _) => {
                 let successive = header(writer)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::Final)
@@ -190,7 +198,7 @@ impl FormalParameters {
             Err(_) => (None, scanner),
             Ok((f, s)) => (Some(f), s),
         };
-        let (pot_comma, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
+        let (pot_comma, pot_loc, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
         let (has_comma, after_comma) = match pot_comma {
             Token::Punctuator(Punctuator::Comma) => (true, after_pot),
             _ => (false, after_fpl),
@@ -202,10 +210,15 @@ impl FormalParameters {
         };
         match (fpl, has_comma, frp) {
             (Some(pl), true, Some(rp)) => (Rc::new(FormalParameters::ListRest(pl, rp)), after_frp),
-            (Some(pl), true, None) => (Rc::new(FormalParameters::ListComma(pl)), after_comma),
+            (Some(pl), true, None) => {
+                let location = pl.location().merge(&pot_loc);
+                (Rc::new(FormalParameters::ListComma(pl, location)), after_comma)
+            }
             (Some(pl), false, _) => (Rc::new(FormalParameters::List(pl)), after_fpl),
             (None, false, Some(rp)) => (Rc::new(FormalParameters::Rest(rp)), after_frp),
-            (None, false, None) | (None, true, _) => (Rc::new(FormalParameters::Empty), scanner),
+            (None, false, None) | (None, true, _) => {
+                (Rc::new(FormalParameters::Empty(Location::from(scanner))), scanner)
+            }
         }
     }
 
@@ -221,12 +234,21 @@ impl FormalParameters {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            FormalParameters::ListComma(_, location) | FormalParameters::Empty(location) => *location,
+            FormalParameters::Rest(rest) => rest.location(),
+            FormalParameters::List(list) => list.location(),
+            FormalParameters::ListRest(list, rest) => list.location().merge(&rest.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            FormalParameters::Empty => false,
+            FormalParameters::Empty(_) => false,
             FormalParameters::Rest(node) => node.contains(kind),
             FormalParameters::List(node) => node.contains(kind),
-            FormalParameters::ListComma(node) => node.contains(kind),
+            FormalParameters::ListComma(node, _) => node.contains(kind),
             FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
         }
     }
@@ -239,10 +261,10 @@ impl FormalParameters {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            FormalParameters::Empty => true,
+            FormalParameters::Empty(_) => true,
             FormalParameters::Rest(node) => node.all_private_identifiers_valid(names),
             FormalParameters::List(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::ListComma(node) => node.all_private_identifiers_valid(names),
+            FormalParameters::ListComma(node, _) => node.all_private_identifiers_valid(names),
             FormalParameters::ListRest(list, rest) => {
                 list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names)
             }
@@ -261,9 +283,9 @@ impl FormalParameters {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            FormalParameters::Empty => false,
+            FormalParameters::Empty(_) => false,
             FormalParameters::Rest(frp) => frp.contains_arguments(),
-            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl) => fpl.contains_arguments(),
+            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => fpl.contains_arguments(),
             FormalParameters::ListRest(fpl, frp) => fpl.contains_arguments() || frp.contains_arguments(),
         }
     }
@@ -271,7 +293,7 @@ impl FormalParameters {
     pub fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         match self {
-            FormalParameters::Empty => {
+            FormalParameters::Empty(_) => {
                 // FormalParameters : [empty]
                 //  1. Return true.
                 true
@@ -283,7 +305,7 @@ impl FormalParameters {
                 //  1. Return false.
                 false
             }
-            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list) => {
+            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list, _) => {
                 // FormalParameters :
                 //      FormalParameterList
                 //      FormalParameterList ,
@@ -296,7 +318,7 @@ impl FormalParameters {
     pub fn bound_names(&self) -> Vec<JSString> {
         // Static Semantics: BoundNames
         match self {
-            FormalParameters::Empty => {
+            FormalParameters::Empty(_) => {
                 // FormalParameters : [empty]
                 //  1. Return a new empty List.
                 vec![]
@@ -316,7 +338,7 @@ impl FormalParameters {
                 //  1. Return BoundNames of FunctionRestParameter
                 function_rest_parameter.bound_names()
             }
-            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list) => {
+            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list, _) => {
                 // FormalParameters :
                 //      FormalParameterList
                 //      FormalParameterList ,
@@ -338,13 +360,17 @@ impl FormalParameters {
         if !dups_already_checked && (strict || !self.is_simple_parameter_list()) {
             let bn = self.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.location()),
+                ));
             }
         }
         match self {
-            FormalParameters::Empty => (),
+            FormalParameters::Empty(_) => (),
             FormalParameters::Rest(frp) => frp.early_errors(agent, errs, strict),
-            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl) => fpl.early_errors(agent, errs, strict),
+            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => fpl.early_errors(agent, errs, strict),
             FormalParameters::ListRest(fpl, frp) => {
                 fpl.early_errors(agent, errs, strict);
                 frp.early_errors(agent, errs, strict);
@@ -411,12 +437,19 @@ impl FormalParameterList {
         let mut current_scanner = after_fp;
         while let Ok((next, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
+                .and_then(|(_, after_comma)| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
         {
             current = Rc::new(FormalParameterList::List(current, next));
             current_scanner = after_next;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            FormalParameterList::Item(item) => item.location(),
+            FormalParameterList::List(list, item) => list.location().merge(&item.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -544,6 +577,10 @@ impl FunctionRestParameter {
         Ok((Rc::new(FunctionRestParameter { element }), after_bre))
     }
 
+    pub fn location(&self) -> Location {
+        self.element.location()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
     }
@@ -631,6 +668,10 @@ impl FormalParameter {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.element.location()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
