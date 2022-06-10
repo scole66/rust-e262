@@ -2142,6 +2142,14 @@ mod binding_element {
     fn location(src: &str) -> Location {
         Maker::new(src).binding_element().location()
     }
+
+    #[test_case("a" => false; "single; no init")]
+    #[test_case("a=1" => true; "single; with init")]
+    #[test_case("{a}" => false; "pattern, no init")]
+    #[test_case("{a}=b" => true; "pattern, with init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).binding_element().has_initializer()
+    }
 }
 
 // SINGLE NAME BINDING
@@ -2244,6 +2252,12 @@ mod single_name_binding {
     #[test_case("   x=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "nam plus initializer")]
     fn location(src: &str) -> Location {
         Maker::new(src).single_name_binding().location()
+    }
+
+    #[test_case("x" => false; "no init")]
+    #[test_case("x=a" => true; "with init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).single_name_binding().has_initializer()
     }
 }
 
