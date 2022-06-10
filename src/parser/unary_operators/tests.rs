@@ -457,4 +457,24 @@ mod unary_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).unary_expression().assignment_target_type(strict)
     }
+
+    #[test_case("-a" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).unary_expression().is_named_function()
+    }
+
+    #[test_case("  delete a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "delete")]
+    #[test_case("  void a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "void")]
+    #[test_case("  typeof a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "typeof kwd")]
+    #[test_case("  +a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "to-number")]
+    #[test_case("  -a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "negate")]
+    #[test_case("  ~a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "complement")]
+    #[test_case("  !a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "not")]
+    #[test_case("  await a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "await kwd")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).unary_expression().location()
+    }
 }

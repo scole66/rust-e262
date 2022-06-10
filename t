@@ -242,6 +242,9 @@ case $1 in
   Catch) data=($1 catch parser::try_statement) ;;
   Finally) data=($1 finally parser::try_statement) ;;
   CatchParameter) data=($1 catch_parameter parser::try_statement) ;;
+  UnaryExpression) data=($1 unary_expression parser::unary_operators) ;;
+  UpdateExpression) data=($1 update_expression parser::update_expressions) ;;
+  WithStatement) data=($1 with_statement parser::with_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
