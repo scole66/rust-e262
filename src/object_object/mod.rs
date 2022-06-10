@@ -36,7 +36,7 @@ fn object_prototype_value_of(
 //      3. Let O be ! ToObject(this value).
 //      4. Let isArray be ? IsArray(O).
 //      5. If isArray is true, let builtinTag be "Array".
-//      6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "FuncArgs".
+//      6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
 //      7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
 //      8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
 //      9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
