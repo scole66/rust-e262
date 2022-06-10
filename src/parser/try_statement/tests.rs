@@ -259,6 +259,13 @@ mod try_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).try_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   try {} catch {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "catch only")]
+    #[test_case("   try {} finally {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 17 } }; "finally only")]
+    #[test_case("   try {} catch {} finally {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 26 } }; "catch/finally")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).try_statement().location()
+    }
 }
 
 // CATCH
@@ -412,6 +419,11 @@ mod catch {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).catch().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("   catch(a){b(a);}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).catch().location()
+    }
 }
 
 // FINALLY
@@ -502,6 +514,11 @@ mod finally {
     #[test_case("finally { var baloon; }" => svec(&["baloon"]); "finally")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).finally().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   finally{b(a);}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).finally().location()
     }
 }
 
