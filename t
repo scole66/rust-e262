@@ -202,7 +202,7 @@ case $1 in
   FormalParameters) data=($1 formal_parameters parser::parameter_lists) ;;
   FormalParameterList) data=($1 formal_parameter_list parser::parameter_lists) ;;
   FunctionRestParameter) data=($1 function_rest_parameter parser::parameter_lists) ;;
-  FormalParameter) data=($1 formal_parameter parser::parameter_lists) ;;
+  FormalParameter) data=($1 formal_parameter:: parser::parameter_lists) ;;
   PrimaryExpression) data=($1 primary_expression parser::primary_expressions) ;;
   Elisions) data=($1 elision parser::primary_expressions) ;;
   SpreadElement) data=($1 spread_element parser::primary_expressions) ;;

@@ -463,6 +463,15 @@ mod formal_parameter_list {
     fn location(src: &str) -> Location {
         Maker::new(src).formal_parameter_list().location()
     }
+
+    #[test_case("x" => false; "item, no init")]
+    #[test_case("x=a" => true; "item, with init")]
+    #[test_case("x,y" => false; "list, no init")]
+    #[test_case("x=a,y" => true; "list, left init")]
+    #[test_case("x,y=a" => true; "list, right init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).formal_parameter_list().has_initializer()
+    }
 }
 
 // FUNCTION REST PARAMETER
@@ -537,71 +546,74 @@ mod function_rest_parameter {
 }
 
 // FORMAL PARAMETER
-#[test]
-fn formal_parameter_test_01() {
-    let (node, scanner) = check(FormalParameter::parse(&mut newparser("formal"), Scanner::new(), false, false));
-    chk_scan(&scanner, 6);
-    pretty_check(&*node, "FormalParameter: formal", vec!["BindingElement: formal"]);
-    concise_check(&*node, "IdentifierName: formal", vec![]);
-    format!("{:?}", node);
-}
-#[test]
-fn formal_parameter_test_err_01() {
-    check_err(
-        FormalParameter::parse(&mut newparser(""), Scanner::new(), false, false),
-        "BindingElement expected",
-        1,
-        1,
-    );
-}
-#[test]
-fn formal_parameter_test_prettyerrors_01() {
-    let (item, _) = FormalParameter::parse(&mut newparser("formal_parameter"), Scanner::new(), false, false).unwrap();
-    pretty_error_validate(&*item);
-}
-#[test]
-fn formal_parameter_test_conciseerrors_01() {
-    let (item, _) = FormalParameter::parse(&mut newparser("formal_parameter"), Scanner::new(), false, false).unwrap();
-    concise_error_validate(&*item);
-}
-#[test]
-fn formal_parameter_test_cache_01() {
-    let mut parser = newparser("a");
-    let (node, scanner) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
-    let (node2, scanner2) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
-    assert!(Rc::ptr_eq(&node, &node2));
-}
-#[test]
-fn formal_parameter_test_contains_01() {
-    let (item, _) = FormalParameter::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn formal_parameter_test_contains_02() {
-    let (item, _) = FormalParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test_case("a=b.#valid" => true; "valid")]
-#[test_case("a=b.#invalid" => false; "invalid")]
-fn formal_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
-#[test_case("a" => true; "simple")]
-#[test_case("[a]" => false; "complex")]
-fn formal_parameter_test_is_simple_parameter_list(src: &str) -> bool {
-    let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.is_simple_parameter_list()
-}
-#[test_case("a" => vec![JSString::from("a")]; "simple")]
-fn formal_parameter_test_bound_names(src: &str) -> Vec<JSString> {
-    let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.bound_names()
-}
 mod formal_parameter {
     use super::*;
     use test_case::test_case;
+
+    #[test]
+    fn formal_parameter_test_01() {
+        let (node, scanner) = check(FormalParameter::parse(&mut newparser("formal"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        pretty_check(&*node, "FormalParameter: formal", vec!["BindingElement: formal"]);
+        concise_check(&*node, "IdentifierName: formal", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn formal_parameter_test_err_01() {
+        check_err(
+            FormalParameter::parse(&mut newparser(""), Scanner::new(), false, false),
+            "BindingElement expected",
+            1,
+            1,
+        );
+    }
+    #[test]
+    fn formal_parameter_test_prettyerrors_01() {
+        let (item, _) =
+            FormalParameter::parse(&mut newparser("formal_parameter"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn formal_parameter_test_conciseerrors_01() {
+        let (item, _) =
+            FormalParameter::parse(&mut newparser("formal_parameter"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn formal_parameter_test_cache_01() {
+        let mut parser = newparser("a");
+        let (node, scanner) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
+    fn formal_parameter_test_contains_01() {
+        let (item, _) = FormalParameter::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.contains(ParseNodeKind::Literal), true);
+    }
+    #[test]
+    fn formal_parameter_test_contains_02() {
+        let (item, _) = FormalParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.contains(ParseNodeKind::Literal), false);
+    }
+    #[test_case("a=b.#valid" => true; "valid")]
+    #[test_case("a=b.#invalid" => false; "invalid")]
+    fn formal_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
+    #[test_case("a" => true; "simple")]
+    #[test_case("[a]" => false; "complex")]
+    fn formal_parameter_test_is_simple_parameter_list(src: &str) -> bool {
+        let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.is_simple_parameter_list()
+    }
+    #[test_case("a" => vec![JSString::from("a")]; "simple")]
+    fn formal_parameter_test_bound_names(src: &str) -> Vec<JSString> {
+        let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.bound_names()
+    }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -620,5 +632,11 @@ mod formal_parameter {
     #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1}}; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).formal_parameter().location()
+    }
+
+    #[test_case("a" => false; "no init")]
+    #[test_case("a=b" => true; "with init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).formal_parameter().has_initializer()
     }
 }
