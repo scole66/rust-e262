@@ -228,6 +228,20 @@ case $1 in
   ReturnStatement) data=($1 return_statement parser::return_statement) ;;
   Script) data=($1 script parser::scripts) ;;
   ScriptBody) data=($1 script_body parser::scripts) ;;
+  Statement) data=($1 statement parser::statements_and_declarations) ;;
+  Declaration) data=($1 declaration parser::statements_and_declarations) ;;
+  HoistableDeclaration) data=($1 hoistable_declaration parser::statements_and_declarations) ;;
+  BreakableStatement) data=($1 breakable_statement parser::statements_and_declarations) ;;
+  SwitchStatement) data=($1 switch_statement parser::switch_statement) ;;
+  CaseBlock) data=($1 case_block parser::switch_statement) ;;
+  CaseClauses) data=($1 case_clauses parser::switch_statement) ;;
+  CaseClause) data=($1 case_clause parser::switch_statement) ;;
+  DefaultClause) data=($1 default_clause parser::switch_statement) ;;
+  ThrowStatement) data=($1 throw_statement parser::throw_statement) ;;
+  TryStatement) data=($1 try_statement parser::try_statement) ;;
+  Catch) data=($1 catch parser::try_statement) ;;
+  Finally) data=($1 finally parser::try_statement) ;;
+  CatchParameter) data=($1 catch_parameter parser::try_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
