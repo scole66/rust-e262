@@ -85,6 +85,11 @@ mod unique_formal_parameters {
     fn location(src: &str) -> Location {
         Maker::new(src).unique_formal_parameters().location()
     }
+
+    #[test_case("a,b,c=1,d" => 2.0; "typical")]
+    fn unique_formal_parameters(src: &str) -> f64 {
+        Maker::new(src).unique_formal_parameters().expected_argument_count()
+    }
 }
 
 // FORMAL PARAMETERS
@@ -327,6 +332,15 @@ mod formal_parameters {
     fn location(src: &str) -> Location {
         Maker::new(src).formal_parameters().location()
     }
+
+    #[test_case("" => 0.0; "empty")]
+    #[test_case("...a" => 0.0; "rest only")]
+    #[test_case("a,b,c=0" => 2.0; "list only")]
+    #[test_case("a,b=0,c," => 1.0; "list-comma")]
+    #[test_case("a,b,c,...d" => 3.0; "list/rest")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).formal_parameters().expected_argument_count()
+    }
 }
 
 // FORMAL PARAMETER LIST
@@ -471,6 +485,15 @@ mod formal_parameter_list {
     #[test_case("x,y=a" => true; "list, right init")]
     fn has_initializer(src: &str) -> bool {
         Maker::new(src).formal_parameter_list().has_initializer()
+    }
+
+    #[test_case("z,y,x" => 3.0; "list, no initializers")]
+    #[test_case("x, y, z=1" => 2.0; "list, initializer in item")]
+    #[test_case("x, y=3, z" => 1.0; "list, initializer in list")]
+    #[test_case("x" => 1.0; "item, no init")]
+    #[test_case("x=3" => 0.0; "item, with init")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).formal_parameter_list().expected_argument_count()
     }
 }
 

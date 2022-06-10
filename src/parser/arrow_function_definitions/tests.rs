@@ -271,6 +271,12 @@ mod arrow_parameters {
     fn location(src: &str) -> Location {
         Maker::new(src).arrow_parameters().location()
     }
+
+    #[test_case("a" => 1.0; "identifier")]
+    #[test_case("(a, b, c)" => 3.0; "formals")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).arrow_parameters().expected_argument_count()
+    }
 }
 
 // CONCISE BODY
@@ -555,5 +561,10 @@ mod arrow_formal_parameters {
     #[test_case("  ( a = arguments) " => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 16 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).arrow_formal_parameters().location()
+    }
+
+    #[test_case("(a,b,...c)" => 2.0; "typical")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).arrow_formal_parameters().expected_argument_count()
     }
 }
