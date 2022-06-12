@@ -1222,17 +1222,13 @@ impl Declaration {
 
 impl LexicalDeclaration {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
-        let mut mark = None;
         let status = self.list.compile(chunk, strict)?;
-        if status.can_be_abrupt {
-            mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-        }
+        assert!(status.can_be_abrupt);
+        let mark = chunk.op_jump(Insn::JumpIfAbrupt);
         chunk.op(Insn::Pop);
         chunk.op(Insn::Empty);
-        if let Some(mark) = mark {
-            chunk.fixup(mark)?;
-        }
-        Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
+        chunk.fixup(mark).unwrap();
+        Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
     }
 }
 
@@ -1241,20 +1237,14 @@ impl BindingList {
         match self {
             BindingList::Item(item) => item.compile(chunk, strict),
             BindingList::List(lst, item) => {
-                let mut mark = None;
                 let status = lst.compile(chunk, strict)?;
-                if status.can_be_abrupt {
-                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                assert!(status.can_be_abrupt);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 let second_status = item.compile(chunk, strict)?;
-                if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
-                }
-                Ok(CompilerStatusFlags {
-                    can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
-                    can_be_reference: false,
-                })
+                assert!(second_status.can_be_abrupt);
+                chunk.fixup(mark)?;
+                Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
             }
         }
     }
@@ -1292,7 +1282,7 @@ impl LexicalBinding {
                                 chunk.op(Insn::Pop);
                                 // Stack: err ...
                                 let exit_tgt = Some(chunk.op_jump(Insn::Jump));
-                                chunk.fixup(normal)?;
+                                chunk.fixup(normal).unwrap();
                                 exit_tgt
                             } else {
                                 None
@@ -1304,7 +1294,7 @@ impl LexicalBinding {
                 chunk.op(Insn::InitializeReferencedBinding);
                 // Stack: empty ...
                 if let Some(mark) = exit_tgt {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags::new().abrupt())
             }
