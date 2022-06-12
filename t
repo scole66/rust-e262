@@ -68,9 +68,9 @@ case $1 in
   CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
   CompilerStatement) data=(parser::statements_and_declarations::Statement statement compiler) ;;
   CompilerDeclaration) data=(parser::statements_and_declarations::Declaration declaration compiler) ;;
-  CompilerLexicalDeclaration) data=(parser::statements_and_declarations::LexicalDeclaration lexical_declaration compiler) ;;
-  CompilerBindingList) data=(parser::statements_and_declarations::BindingList binding_list compiler) ;;
-  CompilerLexicalBinding) data=(parser::statements_and_declarations::LexicalBinding lexical_binding compiler) ;;
+  CompilerLexicalDeclaration) data=(parser::declarations_and_variables::LexicalDeclaration lexical_declaration compiler) ;;
+  CompilerBindingList) data=(parser::declarations_and_variables::BindingList binding_list compiler) ;;
+  CompilerLexicalBinding) data=(parser::declarations_and_variables::LexicalBinding lexical_binding compiler) ;;
   CompilerInitializer) data=(parser::primary_expressions::Initializer initializer compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
@@ -270,7 +270,9 @@ regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
 namelist=$(mktemp)
 report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
 
-echo "Testing ${file}::tests::${modname}"
+
+echo "Testing ${file}::tests::${modname}, and rendering"
+rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
 
 tst ${file}::tests::${modname}
 if [ $? -ne 0 ]; then

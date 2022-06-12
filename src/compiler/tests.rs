@@ -171,9 +171,10 @@ fn full_chunk(n: &str) -> Chunk {
 
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats.resize(65536 - slots_left, 7489305.0);
-    c.strings.resize(65536 - slots_left, JSString::from(""));
-    c.bigints.resize(65536 - slots_left, Rc::new(BigInt::from(783)));
+    const LIMIT: usize = 65536;
+    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
+    c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
+    c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     c
 }
 
@@ -1314,6 +1315,258 @@ mod statement {
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("class bob{}", true => panics "not yet implemented"; "class decl")]
+    #[test_case("function bob(){}", true => panics "not yet implemented"; "hoistable")]
+    #[test_case("const a=0;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+    ]); "strict lexical")]
+    #[test_case("const a=0;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+    ]); "non-strict lexical")]
+    fn compile(src: &str, strict: bool) -> Vec<String> {
+        let node = Maker::new(src).declaration();
+        let mut c = Chunk::new("x");
+        node.compile(&mut c, strict).unwrap();
+        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod lexical_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("let a;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY"
+    ]), true, false)); "strict; typical")]
+    #[test_case("let a;", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY"
+    ]), true, false)); "non-strict; typical")]
+    #[test_case("let a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "full string table")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).lexical_declaration();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod binding_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None =>  Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "strict item")]
+    #[test_case("a", false, None =>  Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "non-strict item")]
+    #[test_case("a,b", true, None =>  Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "strict list")]
+    #[test_case("a,b", false, None =>  Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "non-strict list")]
+    #[test_case("a,b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room on list")]
+    #[test_case("a,b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no room on item")]
+    #[test_case("a,b=@@@", true, None => serr("out of range integral type conversion attempted"); "branch too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).binding_list();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod lexical_binding {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "strict, no initializer")]
+    #[test_case("a", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+    ]), true, false)); "non-strict, no initializer")]
+    #[test_case("a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("a=function (){}", true, None => panics "not yet implemented"; "anonymous function")]
+    #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "string table full in initializer")]
+    #[test_case("a=b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "IRB"
+    ]), true, false)); "resolvable initializer; strict")]
+    #[test_case("a=b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "IRB"
+    ]), true, false)); "resolvable initializer; non-strict")]
+    #[test_case("a=0", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB"
+    ]), true, false)); "literal initializer; strict")]
+    #[test_case("a=0", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB"
+    ]), true, false)); "literal initializer; non-strict")]
+    #[test_case("{a}=b", true, None => panics "not yet implemented"; "pattern binding")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).lexical_binding();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod initializer {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("=a=b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "assignment expression as initializer; strict")]
+    #[test_case("=a=b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "assignment expression as initializer; non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).initializer();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
