@@ -827,7 +827,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err1/2 ...
         let exit1 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark)?;
+        chunk.fixup(mark).unwrap();
         // Stack: lval lref ...
         chunk.op(Insn::ToNumeric);
         let mark = chunk.op_jump(Insn::JumpIfNormal);
@@ -837,7 +837,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err ...
         let exit2 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark)?;
+        chunk.fixup(mark).unwrap();
         // Stack: oldValue lref ...
         chunk.op(Insn::Pop2Push3);
         // Stack: oldValue lref oldValue ...
@@ -848,8 +848,8 @@ impl UpdateExpression {
         chunk.op(Insn::UpdateEmpty);
         // Stack: oldValue/err ...
 
-        chunk.fixup(exit1)?;
-        chunk.fixup(exit2)?;
+        chunk.fixup(exit1).unwrap();
+        chunk.fixup(exit2).unwrap();
 
         Ok(CompilerStatusFlags::new().abrupt())
     }
@@ -1124,7 +1124,7 @@ impl AssignmentExpression {
                         // Stack: err
                         let mark2 = chunk.op_jump(Insn::Jump);
                         exits.push(mark2);
-                        chunk.fixup(close)?;
+                        chunk.fixup(close).unwrap();
                     }
                 }
                 // Stack: rval lref ...
@@ -1175,17 +1175,19 @@ impl StatementList {
             StatementList::List(sl, sli) => {
                 let mut mark = None;
                 let status = sl.compile(chunk, strict)?;
+                assert!(!status.can_be_reference);
                 if status.can_be_abrupt {
                     mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 let second_status = sli.compile(chunk, strict)?;
+                assert!(!second_status.can_be_reference);
                 chunk.op(Insn::UpdateEmpty);
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
                 Ok(CompilerStatusFlags {
                     can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
-                    can_be_reference: second_status.can_be_reference,
+                    can_be_reference: false,
                 })
             }
         }
