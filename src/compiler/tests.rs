@@ -789,9 +789,9 @@ mod update_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a++", true => svec(&[
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a++", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "DUP",
@@ -809,8 +809,8 @@ mod update_expression {
         "INCREMENT",
         "PUT_VALUE",
         "UPDATE_EMPTY",
-    ]); "post-increment, strict")]
-    #[test_case("a++", false => svec(&[
+    ]), true, false)); "post-increment, strict")]
+    #[test_case("a++", false, None => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "DUP",
@@ -828,8 +828,8 @@ mod update_expression {
         "INCREMENT",
         "PUT_VALUE",
         "UPDATE_EMPTY",
-    ]); "post-increment, non-strict")]
-    #[test_case("a--", true => svec(&[
+    ]), true, false)); "post-increment, non-strict")]
+    #[test_case("a--", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "DUP",
@@ -847,8 +847,8 @@ mod update_expression {
         "DECREMENT",
         "PUT_VALUE",
         "UPDATE_EMPTY",
-    ]); "post-decrement, strict")]
-    #[test_case("a--", false => svec(&[
+    ]), true, false)); "post-decrement, strict")]
+    #[test_case("a--", false, None => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "DUP",
@@ -866,16 +866,26 @@ mod update_expression {
         "DECREMENT",
         "PUT_VALUE",
         "UPDATE_EMPTY",
-    ]); "post-decrement, non-strict")]
-    #[test_case("++a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_INCREMENT"]); "pre-increment, strict")]
-    #[test_case("++a", false => svec(&["STRING 0 (a)", "RESOLVE", "PRE_INCREMENT"]); "pre-increment, non-strict")]
-    #[test_case("--a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_DECREMENT"]); "pre-decrement, strict")]
-    #[test_case("--a", false => svec(&["STRING 0 (a)", "RESOLVE", "PRE_DECREMENT"]); "pre-decrement, non-strict")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    ]), true, false)); "post-decrement, non-strict")]
+    #[test_case("++a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_INCREMENT"]), true, false)); "pre-increment, strict")]
+    #[test_case("++a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "PRE_INCREMENT"]), true, false)); "pre-increment, non-strict")]
+    #[test_case("--a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_DECREMENT"]), true, false)); "pre-decrement, strict")]
+    #[test_case("--a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "PRE_DECREMENT"]), true, false)); "pre-decrement, non-strict")]
+    #[test_case("++a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "pre-op, err in subexpr")]
+    #[test_case("a++", true, Some(0) => serr("Out of room for strings in this compilation unit"); "post-op, err in subexpr")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).update_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1126,9 +1136,9 @@ mod assignment_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a=6", true => svec(&[
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a=6", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "JUMP_IF_ABRUPT 5",
@@ -1136,8 +1146,8 @@ mod assignment_expression {
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"
-    ]); "strict assignment expr")]
-    #[test_case("a=6", false => svec(&[
+    ]), true, false)); "strict assignment expr")]
+    #[test_case("a=6", false, None => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "JUMP_IF_ABRUPT 5",
@@ -1145,12 +1155,62 @@ mod assignment_expression {
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"
-    ]); "non-strict assignment expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    ]), true, false)); "non-strict assignment expr")]
+    #[test_case("a=1", true, Some(0) => serr("Out of room for strings in this compilation unit"); "lhse errs")]
+    #[test_case("a=function(){}", true, None => panics "not yet implemented"; "anonymous func")]
+    #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "ae errs")]
+    #[test_case("a=b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "ae is reference; strict")]
+    #[test_case("a=b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "ae is reference; non-strict")]
+    #[test_case("a+=3", true, None => panics "not yet implemented"; "mutating assignment")]
+    #[test_case("a=@@@", true, None => serr("out of range integral type conversion attempted"); "ae is too big")]
+    #[test_case("1=0", true, None => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "FLOAT 1 (0)",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "lhse not abrupt")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).assignment_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1196,62 +1256,53 @@ mod expression_statement {
 
 mod statement_list {
     use super::*;
+    use test_case::test_case;
 
-    mod compile {
-        use super::*;
-        use test_case::test_case;
-
-        #[test_case("id;", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE", "GET_VALUE"]); "id-strict")]
-        #[test_case("id;", false => svec(&["STRING 0 (id)", "RESOLVE", "GET_VALUE"]); "id-non-strict")]
-        #[test_case("a; b;", true => svec(&[
-            "STRING 0 (a)", 
-            "STRICT_RESOLVE", 
-            "GET_VALUE", 
-            "JUMP_IF_ABRUPT 5", 
-            "STRING 1 (b)", 
-            "STRICT_RESOLVE", 
-            "GET_VALUE", 
-            "UPDATE_EMPTY"
-        ]); "strict list")]
-        #[test_case("a; b;", false => svec(&[
-            "STRING 0 (a)", 
-            "RESOLVE", 
-            "GET_VALUE", 
-            "JUMP_IF_ABRUPT 5", 
-            "STRING 1 (b)", 
-            "RESOLVE", 
-            "GET_VALUE", 
-            "UPDATE_EMPTY"
-        ]); "non-strict list")]
-        fn normal(src: &str, strict: bool) -> Vec<String> {
-            let node = Maker::new(src).statement_list();
-            let mut c = Chunk::new("x");
-            node.compile(&mut c, strict).unwrap();
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
-        }
-
-        #[test_case("a;3;" => "Out of room for strings in this compilation unit"; "err in list")]
-        #[test_case("true;b;" => "Out of room for strings in this compilation unit"; "err in item")]
-        fn full_chunk_errs(src: &str) -> String {
-            let node = Maker::new(src).statement_list();
-            let mut c = full_chunk("x");
-            node.compile(&mut c, true).unwrap_err().to_string()
-        }
-
-        #[test]
-        #[ignore] // blows out the stack
-        #[should_panic(expected = "Not yet implemented")]
-        fn long_jump() {
-            let mut source = String::with_capacity(32768 * 5 + 3 + 1);
-            source.push_str("a;{");
-            for _ in 0..32768 {
-                source.push_str("true;");
-            }
-            source.push('}');
-            let node = Maker::new(source.as_str()).statement_list();
-            let mut c = Chunk::new("x");
-            assert_eq!(node.compile(&mut c, true).unwrap_err().to_string(), "too far");
-        }
+    #[test_case("id;", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE", "GET_VALUE"]), true, false)); "id-strict")]
+    #[test_case("id;", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE", "GET_VALUE"]), true, false)); "id-non-strict")]
+    #[test_case("a; b;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "strict list")]
+    #[test_case("a; b;", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "non-strict list")]
+    #[test_case("a;3;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "err in list")]
+    #[test_case("true;b;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "err in item")]
+    #[test_case("a;@@@;", true, None => serr("out of range integral type conversion attempted"); "item is too big")]
+    #[test_case("1;b;", true, None => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "STRING 0 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "list can't return abruptly")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).statement_list();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 

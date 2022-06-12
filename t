@@ -64,7 +64,7 @@ case $1 in
   CompilerAssignmentExpression) data=(parser::assignment_operators::AssignmentExpression assignment_expression compiler) ;;
   CompilerExpression) data=(parser::comma_operator::Expression expression compiler) ;;
   CompilerExpressionStatement) data=(parser::expression_statement::ExpressionStatement expression_statement compiler) ;;
-  CompilerStatementList) data=(parser::block::StatementList statement_list compiler) ;;
+  CompilerStatementList) data=(parser::block::StatementList statement_list:: compiler) ;;
   CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
   CompilerStatement) data=(parser::statements_and_declarations::Statement statement compiler) ;;
   CompilerDeclaration) data=(parser::statements_and_declarations::Declaration declaration compiler) ;;
