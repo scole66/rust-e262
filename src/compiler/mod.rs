@@ -23,6 +23,7 @@ use super::parser::update_expressions::*;
 use super::scanner::*;
 use super::strings::*;
 use super::values::*;
+#[cfg(test)]
 use num::BigInt;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
@@ -213,6 +214,37 @@ impl PrimaryExpression {
     }
 }
 
+#[cfg(test)]
+fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
+    match *ch {
+        '@' => {
+            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
+            for _ in 0..32768 {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
+        '!' => {
+            // Fill the string table.
+            chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
+            chunk.op(Insn::False);
+        }
+        '#' => {
+            // Fill the float table.
+            chunk.floats.resize(65536, 10.1);
+            chunk.op(Insn::False);
+        }
+        '$' => {
+            // Fill the bigint table.
+            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+            chunk.op(Insn::False);
+        }
+        _ => (),
+    }
+}
+#[cfg(not(test))]
+fn compile_debug_lit(_: &mut Chunk, _: &char) {}
+
 impl Literal {
     /// Generate the code for Literal
     ///
@@ -251,35 +283,7 @@ impl Literal {
                 }
             }
             Literal::DebugLiteral { val: ch, .. } => {
-                if cfg!(test) {
-                    match *ch {
-                        '@' => {
-                            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
-                            for _ in 0..32768 {
-                                chunk.op(Insn::Nop);
-                            }
-                            chunk.op(Insn::False);
-                        }
-                        '!' => {
-                            // Fill the string table.
-                            chunk.strings.resize(65536, JSString::from(""));
-                            chunk.op(Insn::False);
-                        }
-                        '#' => {
-                            // Fill the float table.
-                            chunk.floats.resize(65536, 10.1);
-                            chunk.op(Insn::False);
-                        }
-                        '$' => {
-                            // Fill the bigint table.
-                            chunk
-                                .bigints
-                                .resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
-                            chunk.op(Insn::False);
-                        }
-                        _ => (),
-                    }
-                }
+                compile_debug_lit(chunk, ch);
             }
         }
         Ok(CompilerStatusFlags::new())
