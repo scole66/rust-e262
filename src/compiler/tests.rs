@@ -1420,7 +1420,7 @@ mod declaration {
     use test_case::test_case;
 
     #[test_case("class bob{}", true => panics "not yet implemented"; "class decl")]
-    #[test_case("function bob(){}", true => panics "not yet implemented"; "hoistable")]
+    #[test_case("function bob(){}", true => svec(&["EMPTY"]); "hoistable")]
     #[test_case("const a=0;", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
