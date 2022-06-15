@@ -3,7 +3,7 @@ use super::comparison::is_integral_number;
 use super::cr::Completion;
 use super::dtoa_r::{dtoa, dtoa_fixed, dtoa_precise};
 use super::errors::{create_range_error, create_type_error};
-use super::function_object::{create_builtin_function, Arguments};
+use super::function_object::{create_builtin_function, FuncArgs};
 use super::object::{
     define_property_or_throw, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete,
     ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible,
@@ -444,7 +444,7 @@ fn number_constructor_function(
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let n = if args.count() >= 1 {
         let value = args.next_arg();
         let prim = to_numeric(agent, value)?;
@@ -484,7 +484,7 @@ fn number_is_finite(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
         ECMAScriptValue::Number(n) => n.is_finite(),
@@ -503,7 +503,7 @@ fn number_is_integer(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(is_integral_number(&number)))
 }
@@ -524,7 +524,7 @@ fn number_is_nan(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
         ECMAScriptValue::Number(n) => n.is_nan(),
@@ -545,7 +545,7 @@ fn number_is_safe_integer(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
         ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9007199254740991.0,
@@ -640,7 +640,7 @@ fn number_prototype_to_exponential(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
 
     let value = this_number_value(agent, this_value)?;
@@ -750,7 +750,7 @@ fn number_prototype_to_fixed(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
     let value = this_number_value(agent, this_value)?;
     let fraction = to_integer_or_infinity(agent, fraction_digits)?;
@@ -883,7 +883,7 @@ fn number_prototype_to_precision(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let precision = args.next_arg();
     let value = this_number_value(agent, this_value)?;
     if precision.is_undefined() {
@@ -1127,7 +1127,7 @@ fn number_prototype_to_string(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
     let x = this_number_value(agent, this_value)?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(agent, radix)? };

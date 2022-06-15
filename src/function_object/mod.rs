@@ -266,22 +266,22 @@ pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
 // When you have
 // fn builtin_function(..., arguments: &[ECMAScriptValue]) -> ...
 // Then in your code you can say:
-//      let mut args = Arguments::from(arguments);
+//      let mut args = FuncArgs::from(arguments);
 //      let first_arg = args.next_arg();
 //      let second_arg = args.next_arg();
 // etc. If the args are there, you get them, if the arguments array is short, then you get undefined.
 // args.remaining() returns an iterator over the "rest" of the args (since "next_arg" won't tell if you've "gotten to the end")
-pub struct Arguments<'a> {
+pub struct FuncArgs<'a> {
     iterator: std::slice::Iter<'a, ECMAScriptValue>,
     count: usize,
 }
-impl<'a> From<&'a [ECMAScriptValue]> for Arguments<'a> {
+impl<'a> From<&'a [ECMAScriptValue]> for FuncArgs<'a> {
     fn from(source: &'a [ECMAScriptValue]) -> Self {
         let count = source.len();
         Self { iterator: source.iter(), count }
     }
 }
-impl<'a> Arguments<'a> {
+impl<'a> FuncArgs<'a> {
     pub fn next_arg(&mut self) -> ECMAScriptValue {
         self.iterator.next().cloned().unwrap_or(ECMAScriptValue::Undefined)
     }
