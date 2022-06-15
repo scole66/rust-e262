@@ -26,6 +26,7 @@ use super::parser::update_expressions::*;
 use super::scanner::*;
 use super::strings::*;
 use super::values::*;
+#[cfg(test)]
 use num::BigInt;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
@@ -228,6 +229,37 @@ impl PrimaryExpression {
     }
 }
 
+#[cfg(test)]
+fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
+    match *ch {
+        '@' => {
+            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
+            for _ in 0..32768 {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
+        '!' => {
+            // Fill the string table.
+            chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
+            chunk.op(Insn::False);
+        }
+        '#' => {
+            // Fill the float table.
+            chunk.floats.resize(65536, 10.1);
+            chunk.op(Insn::False);
+        }
+        '$' => {
+            // Fill the bigint table.
+            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+            chunk.op(Insn::False);
+        }
+        _ => (),
+    }
+}
+#[cfg(not(test))]
+fn compile_debug_lit(_: &mut Chunk, _: &char) {}
+
 impl Literal {
     /// Generate the code for Literal
     ///
@@ -266,35 +298,7 @@ impl Literal {
                 }
             }
             Literal::DebugLiteral { val: ch, .. } => {
-                if cfg!(test) {
-                    match *ch {
-                        '@' => {
-                            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
-                            for _ in 0..32768 {
-                                chunk.op(Insn::Nop);
-                            }
-                            chunk.op(Insn::False);
-                        }
-                        '!' => {
-                            // Fill the string table.
-                            chunk.strings.resize(65536, JSString::from(""));
-                            chunk.op(Insn::False);
-                        }
-                        '#' => {
-                            // Fill the float table.
-                            chunk.floats.resize(65536, 10.1);
-                            chunk.op(Insn::False);
-                        }
-                        '$' => {
-                            // Fill the bigint table.
-                            chunk
-                                .bigints
-                                .resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
-                            chunk.op(Insn::False);
-                        }
-                        _ => (),
-                    }
-                }
+                compile_debug_lit(chunk, ch);
             }
         }
         Ok(CompilerStatusFlags::new())
@@ -852,7 +856,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err1/2 ...
         let exit1 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark)?;
+        chunk.fixup(mark).unwrap();
         // Stack: lval lref ...
         chunk.op(Insn::ToNumeric);
         let mark = chunk.op_jump(Insn::JumpIfNormal);
@@ -862,7 +866,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err ...
         let exit2 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark)?;
+        chunk.fixup(mark).unwrap();
         // Stack: oldValue lref ...
         chunk.op(Insn::Pop2Push3);
         // Stack: oldValue lref oldValue ...
@@ -873,8 +877,8 @@ impl UpdateExpression {
         chunk.op(Insn::UpdateEmpty);
         // Stack: oldValue/err ...
 
-        chunk.fixup(exit1)?;
-        chunk.fixup(exit2)?;
+        chunk.fixup(exit1).unwrap();
+        chunk.fixup(exit2).unwrap();
 
         Ok(CompilerStatusFlags::new().abrupt())
     }
@@ -1162,7 +1166,7 @@ impl AssignmentExpression {
                         // Stack: err
                         let mark2 = chunk.op_jump(Insn::Jump);
                         exits.push(mark2);
-                        chunk.fixup(close)?;
+                        chunk.fixup(close).unwrap();
                     }
                 }
                 // Stack: rval lref ...
@@ -1220,17 +1224,19 @@ impl StatementList {
             StatementList::List(sl, sli) => {
                 let mut mark = None;
                 let status = sl.compile(chunk, strict, text)?;
+                assert!(!status.can_be_reference);
                 if status.can_be_abrupt {
                     mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 let second_status = sli.compile(chunk, strict, text)?;
+                assert!(!second_status.can_be_reference);
                 chunk.op(Insn::UpdateEmpty);
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
                 Ok(CompilerStatusFlags {
                     can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
-                    can_be_reference: second_status.can_be_reference,
+                    can_be_reference: false,
                 })
             }
         }
@@ -1282,17 +1288,13 @@ impl Declaration {
 
 impl LexicalDeclaration {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        let mut mark = None;
         let status = self.list.compile(chunk, strict, text)?;
-        if status.can_be_abrupt {
-            mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-        }
+        assert!(status.can_be_abrupt);
+        let mark = chunk.op_jump(Insn::JumpIfAbrupt);
         chunk.op(Insn::Pop);
         chunk.op(Insn::Empty);
-        if let Some(mark) = mark {
-            chunk.fixup(mark)?;
-        }
-        Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
+        chunk.fixup(mark).unwrap();
+        Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
     }
 }
 
@@ -1301,20 +1303,14 @@ impl BindingList {
         match self {
             BindingList::Item(item) => item.compile(chunk, strict, text),
             BindingList::List(lst, item) => {
-                let mut mark = None;
                 let status = lst.compile(chunk, strict, text)?;
-                if status.can_be_abrupt {
-                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                assert!(status.can_be_abrupt);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 let second_status = item.compile(chunk, strict, text)?;
-                if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
-                }
-                Ok(CompilerStatusFlags {
-                    can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
-                    can_be_reference: false,
-                })
+                assert!(second_status.can_be_abrupt);
+                chunk.fixup(mark)?;
+                Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
             }
         }
     }
@@ -1352,7 +1348,7 @@ impl LexicalBinding {
                                 chunk.op(Insn::Pop);
                                 // Stack: err ...
                                 let exit_tgt = Some(chunk.op_jump(Insn::Jump));
-                                chunk.fixup(normal)?;
+                                chunk.fixup(normal).unwrap();
                                 exit_tgt
                             } else {
                                 None
@@ -1364,7 +1360,7 @@ impl LexicalBinding {
                 chunk.op(Insn::InitializeReferencedBinding);
                 // Stack: empty ...
                 if let Some(mark) = exit_tgt {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags::new().abrupt())
             }
