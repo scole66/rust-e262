@@ -1,7 +1,7 @@
 use super::*;
 use crate::object::ordinary_object_create;
 use crate::reference::Base;
-use crate::tests::test_agent;
+use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;
 use test_case::test_case;
@@ -46,6 +46,7 @@ mod normal_completion {
         #[test_case(&JSString::from("a") => NormalCompletion::Value(ECMAScriptValue::from("a")); "jsstring ref")]
         #[test_case(100.0 => NormalCompletion::Value(ECMAScriptValue::from(100)); "float")]
         #[test_case(Rc::new(BigInt::from(12)) => NormalCompletion::Value(ECMAScriptValue::from(BigInt::from(12))); "bigint")]
+        #[test_case(BigInt::from(27) => NormalCompletion::Value(ECMAScriptValue::from(BigInt::from(27))); "bigint, no rc")]
         #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
@@ -211,4 +212,38 @@ mod abrupt_completion {
 #[test_case(Err(AbruptCompletion::Continue{value: NormalCompletion::Empty, target: Some("xyz".into())}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Continue{value: NormalCompletion::from(ECMAScriptValue::from(3)), target: Some("xyz".into())}); "Err Continue no value")]
 fn update_empty(new: FullCompletion, old: NormalCompletion) -> FullCompletion {
     super::update_empty(new, old)
+}
+
+mod throw_value {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(AbruptCompletion::Break{value: NormalCompletion::from(10), target: None} => serr("Break found when Throw expected"); "break completion")]
+    #[test_case(AbruptCompletion::Continue{ value: NormalCompletion::from(10), target: None} => serr("Continue found when Throw expected"); "continue completion")]
+    #[test_case(AbruptCompletion::Return{ value: 20.into() } => serr("Return found when Throw expected"); "return completion")]
+    #[test_case(AbruptCompletion::Throw{ value: 99.into() } => Ok(ThrowValue(99.into())); "throw completion")]
+    fn try_from_abrupt_completion(ac: AbruptCompletion) -> Result<ThrowValue, String> {
+        ThrowValue::try_from(ac).map_err(|err| err.to_string())
+    }
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", ThrowValue(99.into())), "");
+    }
+
+    #[test_case(ThrowValue("hi".into()), ThrowValue("hi".into()) => false; "equal")]
+    #[test_case(ThrowValue("hpi".into()), ThrowValue("hi".into()) => true; "not equal")]
+    fn ne(a: ThrowValue, b: ThrowValue) -> bool {
+        a != b
+    }
+}
+
+mod ecmascript_value {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ThrowValue("sentinel".into()) => ECMAScriptValue::from("sentinel"); "typical")]
+    fn from_throw_value(tv: ThrowValue) -> ECMAScriptValue {
+        ECMAScriptValue::from(tv)
+    }
 }

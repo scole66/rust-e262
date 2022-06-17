@@ -1,6 +1,6 @@
 use super::chunk::Chunk;
 use super::compiler::Insn;
-use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
+use super::cr::*;
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::*;
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
@@ -1308,8 +1308,9 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
     let result = script_evaluation(agent, x);
     match result {
         Ok(val) => Ok(val),
-        Err(AbruptCompletion::Throw { value }) => Err(ProcessError::RuntimeError { error: value }),
-        Err(_) => Err(ProcessError::InternalError { reason: "Impossible completion returned".to_string() }),
+        Err(e) => Err(ProcessError::RuntimeError {
+            error: ThrowValue::try_from(e).expect("Only ThrowCompletions come from script executions").into(),
+        }),
     }
 }
 
