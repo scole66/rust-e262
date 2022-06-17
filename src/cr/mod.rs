@@ -125,6 +125,7 @@ impl TryFrom<NormalCompletion> for Numeric {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ThrowValue(ECMAScriptValue);
 impl TryFrom<AbruptCompletion> for ThrowValue {
     type Error = anyhow::Error;
