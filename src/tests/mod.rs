@@ -11,6 +11,7 @@ use super::realm::IntrinsicId;
 use super::symbol_object::SymbolRegistry;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
+use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -564,6 +565,13 @@ pub fn sok<T>(msg: &str) -> Result<String, T> {
 
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
+}
+
+pub fn disasm_filt(s: String) -> Option<String> {
+    if s.starts_with('=') {
+        return None;
+    }
+    Some(s.split_whitespace().join(" "))
 }
 
 mod integration;

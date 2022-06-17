@@ -246,8 +246,23 @@ case $1 in
   UpdateExpression) data=($1 update_expression parser::update_expressions) ;;
   WithStatement) data=($1 with_statement parser::with_statement) ;;
 
+  Agent) data=($1 agent agent) ;;
+  WellKnownSymbols) data=($1 well_known_symbols agent) ;;
+  parse_script) data=($1 $1 agent) ;;
+  TopLevelLexDecl) data=($1 top_level_lex_decl agent) ;;
+  TopLevelFcnDef) data=($1 top_level_fcn_def agent) ;;
+  global_declaration_instantiation) data=($1 $1 agent) ;;
+  script_evaluation) data=($1 $1 agent) ;;
+  ProcessError) data=($1 process_error agent) ;;
+  process_ecmascript) data=($1 $1 agent) ;;
+
   *) echo "No type called $1"; exit ;;
 esac
+
+# Make sure we compile
+if ! cargo check --tests; then
+  exit
+fi
 
 file=${data[2]}
 modname=${data[1]}
