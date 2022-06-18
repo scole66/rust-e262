@@ -2,8 +2,7 @@ use super::*;
 use crate::chunk::Chunk;
 use crate::parser::testhelp::{svec, Maker};
 use crate::strings::JSString;
-use crate::tests::serr;
-use itertools::Itertools;
+use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;
 
@@ -153,13 +152,6 @@ mod compiler_status_flags {
 // complete the requested task! Checking that really feels like a later stage integration task. (Both the compiler and
 // the runtime executor need to be functioning. That's all probably based more or less on test-262.)
 
-fn disasm_filt(s: String) -> Option<String> {
-    if s.starts_with('=') {
-        return None;
-    }
-    Some(s.split_whitespace().join(" "))
-}
-
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
     c.floats = vec![56878142.0; 65536];
@@ -296,6 +288,52 @@ mod literal {
             let node = Maker::new(src).literal();
             let mut c = full_chunk("test");
             node.compile(&mut c).unwrap_err().to_string()
+        }
+
+        #[test]
+        fn debug_lots_of_noops() {
+            let node = Maker::new("@@@").literal();
+            let mut c = Chunk::new("debug_lots_of_noops");
+            node.compile(&mut c).unwrap();
+            assert_eq!(c.opcodes.len(), 32769);
+            assert_eq!(c.opcodes[0], Insn::Nop.into());
+            for x in 1..32768 {
+                assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
+            }
+        }
+
+        #[test]
+        fn filled_string_table() {
+            let node = Maker::new("@@!").literal();
+            let mut c = Chunk::new("filled_string_table");
+            node.compile(&mut c).unwrap();
+            // The point of this literal is to fill the string table -- such that the call to add a string to the table
+            // will fail. So that's what we test.
+            assert!(c.add_to_string_pool("test".into()).is_err())
+        }
+
+        #[test]
+        fn filled_float_table() {
+            let node = Maker::new("@@#").literal();
+            let mut c = Chunk::new("filled_float_table");
+            node.compile(&mut c).unwrap();
+            assert!(c.add_to_float_pool(0.0).is_err());
+        }
+
+        #[test]
+        fn filled_bigint_table() {
+            let node = Maker::new("@@$").literal();
+            let mut c = Chunk::new("filled_float_table");
+            node.compile(&mut c).unwrap();
+            assert!(c.add_to_bigint_pool(Rc::new(BigInt::from(882))).is_err());
+        }
+
+        #[test]
+        fn mystery_debug() {
+            let node = Maker::new("@@z").literal();
+            let mut c = Chunk::new("mystery_debug");
+            node.compile(&mut c).unwrap();
+            assert!(c.opcodes.is_empty());
         }
     }
 }

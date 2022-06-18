@@ -11,6 +11,7 @@ use super::realm::IntrinsicId;
 use super::symbol_object::SymbolRegistry;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
+use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -52,6 +53,20 @@ where
         MockWriter { writer, count: 0, target: errat, error_generated: false }
     }
 }
+
+pub fn display_error_validate(item: impl fmt::Display) {
+    let mut target = 1;
+    loop {
+        let mut writer = MockWriter::new(Vec::new(), target);
+        let result = write!(&mut writer, "{item}");
+        assert!(result.is_err() || !writer.error_generated);
+        if !writer.error_generated {
+            break;
+        }
+        target += 1;
+    }
+}
+
 pub fn printer_validate<U>(func: U)
 where
     U: Fn(&mut MockWriter<Vec<u8>>) -> IoResult<()>,
@@ -564,6 +579,13 @@ pub fn sok<T>(msg: &str) -> Result<String, T> {
 
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
+}
+
+pub fn disasm_filt(s: String) -> Option<String> {
+    if s.starts_with('=') {
+        return None;
+    }
+    Some(s.split_whitespace().join(" "))
 }
 
 mod integration;

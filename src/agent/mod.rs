@@ -1,6 +1,6 @@
 use super::chunk::Chunk;
 use super::compiler::Insn;
-use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
+use super::cr::*;
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::*;
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
@@ -1160,7 +1160,7 @@ pub fn global_declaration_instantiation(
             )
         })
         .cloned()
-        .map(|decl| TopLevelFcnDef::try_from(decl).unwrap())
+        .map(|decl| TopLevelFcnDef::try_from(decl).expect("Decl already filtered to convertable type"))
     {
         let func_name = match &d {
             TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
@@ -1201,8 +1201,10 @@ pub fn global_declaration_instantiation(
             }
         }
     }
-    let lex_declarations =
-        script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
+    let lex_declarations = script
+        .lexically_scoped_declarations()
+        .into_iter()
+        .map(|d| TopLevelLexDecl::try_from(d).expect("Only classes & lexical decls at global scope"));
     let private_env = None;
     for d in lex_declarations {
         let (names, is_constant) = match &d {
@@ -1308,8 +1310,9 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
     let result = script_evaluation(agent, x);
     match result {
         Ok(val) => Ok(val),
-        Err(AbruptCompletion::Throw { value }) => Err(ProcessError::RuntimeError { error: value }),
-        Err(_) => Err(ProcessError::InternalError { reason: "Impossible completion returned".to_string() }),
+        Err(e) => Err(ProcessError::RuntimeError {
+            error: ThrowValue::try_from(e).expect("Only ThrowCompletions come from script executions").into(),
+        }),
     }
 }
 

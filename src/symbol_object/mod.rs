@@ -426,7 +426,7 @@ fn symbol_constructor_function(
     if new_target.is_some() {
         Err(create_type_error(agent, "Symbol is not a constructor"))
     } else {
-        let mut args = Arguments::from(arguments);
+        let mut args = FuncArgs::from(arguments);
         let description = args.next_arg();
         let desc_string = match description {
             ECMAScriptValue::Undefined => None,
@@ -472,7 +472,7 @@ fn symbol_for(
     // +------------+----------+--------------------------------------------------+
     // | [[Symbol]] | a Symbol | A symbol that can be retrieved from any realm.   |
     // +------------+----------+--------------------------------------------------+
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let key = args.next_arg();
     let string_key = to_string(agent, key)?;
     let gsm = agent.global_symbol_registry();
@@ -507,7 +507,7 @@ fn symbol_key_for(
     //      a. If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
     //  3. Assert: GlobalSymbolRegistry does not currently contain an entry for sym.
     //  4. Return undefined.
-    let mut args = Arguments::from(arguments);
+    let mut args = FuncArgs::from(arguments);
     let sym = args.next_arg();
     if let ECMAScriptValue::Symbol(sym) = sym {
         let gsm = agent.global_symbol_registry();
