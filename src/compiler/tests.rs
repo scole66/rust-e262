@@ -2,8 +2,7 @@ use super::*;
 use crate::chunk::Chunk;
 use crate::parser::testhelp::{svec, Maker};
 use crate::strings::JSString;
-use crate::tests::serr;
-use itertools::Itertools;
+use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;
 
@@ -149,13 +148,6 @@ mod compiler_status_flags {
 // opcodes output match what we wanted the opcodes to be. They do not test whether we chose the right opcodes to
 // complete the requested task! Checking that really feels like a later stage integration task. (Both the compiler and
 // the runtime executor need to be functioning. That's all probably based more or less on test-262.)
-
-fn disasm_filt(s: String) -> Option<String> {
-    if s.starts_with('=') {
-        return None;
-    }
-    Some(s.split_whitespace().join(" "))
-}
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);

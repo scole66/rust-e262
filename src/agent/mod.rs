@@ -1160,7 +1160,7 @@ pub fn global_declaration_instantiation(
             )
         })
         .cloned()
-        .map(|decl| TopLevelFcnDef::try_from(decl).unwrap())
+        .map(|decl| TopLevelFcnDef::try_from(decl).expect("Decl already filtered to convertable type"))
     {
         let func_name = match &d {
             TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
@@ -1201,8 +1201,10 @@ pub fn global_declaration_instantiation(
             }
         }
     }
-    let lex_declarations =
-        script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
+    let lex_declarations = script
+        .lexically_scoped_declarations()
+        .into_iter()
+        .map(|d| TopLevelLexDecl::try_from(d).expect("Only classes & lexical decls at global scope"));
     let private_env = None;
     for d in lex_declarations {
         let (names, is_constant) = match &d {
