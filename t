@@ -1,10 +1,10 @@
 source $HOME/*/rust-e262/funcs.sh
 
-all=false
+uncovered=--uncovered
 name=
 while [ $# -gt 0 ]; do
   case "$1" in
-    --all) all=true ;;
+    --all) uncovered= ;;
     *) name="$1" ;;
   esac
   shift
@@ -305,10 +305,5 @@ if [ $? -ne 0 ]; then
   exit
 fi
 
-if $all; then
-  uncovered=
-else
-  uncovered=--uncovered
-fi
 report --name-allowlist=$namelist $uncovered --demangled
 rm -f $namelist
