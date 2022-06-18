@@ -84,6 +84,13 @@ case $name in
   CompilerInitializer) data=(parser::primary_expressions::Initializer initializer compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
+  RefResult) data=($name ref_result compiler) ;;
+  AbruptResult) data=($name abrupt_result compiler) ;;
+  AlwaysAbruptResult) data=($name always_abrupt_result compiler) ;;
+  AlwaysRefResult) data=($name always_ref_result compiler) ;;
+  AlwaysAbruptRefResult) data=($name always_abrupt_ref_result compiler) ;;
+  NeverAbruptRefResult) data=($name never_abrupt_ref_result compiler) ;;
+
   ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
   ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
   ConciseBody) data=($name concise_body parser::arrow_function_definitions) ;;

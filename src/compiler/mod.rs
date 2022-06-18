@@ -221,7 +221,7 @@ impl AbruptResult {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CompilerStatusFlags {
     pub can_be_abrupt: AbruptResult,
     pub can_be_reference: RefResult,
