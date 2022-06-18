@@ -143,20 +143,163 @@ impl fmt::Display for Insn {
     }
 }
 
+/// A compilation might leave a value on the runtime stack that could be a reference. We want to communicate back to the
+/// parent compilation step about whether that's possible or not. The values are "Might leave a reference on top of the
+/// stack" and "Will never leave a reference on the top of the stack".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefResult {
+    Maybe,
+    Never,
+}
+
+impl Default for RefResult {
+    fn default() -> Self {
+        Self::Never
+    }
+}
+
+impl From<bool> for RefResult {
+    fn from(src: bool) -> Self {
+        if src {
+            RefResult::Maybe
+        } else {
+            RefResult::Never
+        }
+    }
+}
+
+/// A compilation might leave a value on top of the runtime stack that could be an error. We want to communicate back to
+/// the parent compilation step about whether that's possible or not. The values are "Might leave an abrupt completion
+/// on top of the stack" and "Will never leave an abrupt completion on top of the stack".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AbruptResult {
+    Maybe,
+    Never,
+}
+
+impl Default for AbruptResult {
+    fn default() -> Self {
+        Self::Never
+    }
+}
+
+impl From<CompilerStatusFlags> for AbruptResult {
+    fn from(src: CompilerStatusFlags) -> Self {
+        src.can_be_abrupt
+    }
+}
+
+impl From<bool> for AbruptResult {
+    fn from(src: bool) -> Self {
+        if src {
+            AbruptResult::Maybe
+        } else {
+            AbruptResult::Never
+        }
+    }
+}
+
+impl From<NeverAbruptRefResult> for AbruptResult {
+    fn from(_: NeverAbruptRefResult) -> Self {
+        AbruptResult::Never
+    }
+}
+
+impl From<AlwaysAbruptResult> for AbruptResult {
+    fn from(_: AlwaysAbruptResult) -> Self {
+        AbruptResult::Maybe
+    }
+}
+
+impl AbruptResult {
+    fn maybe_abrupt(&self) -> bool {
+        *self == AbruptResult::Maybe
+    }
+    fn maybe_ref(&self) -> bool {
+        false
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CompilerStatusFlags {
-    pub can_be_abrupt: bool,
-    pub can_be_reference: bool,
+    pub can_be_abrupt: AbruptResult,
+    pub can_be_reference: RefResult,
 }
 impl CompilerStatusFlags {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn abrupt(self) -> Self {
-        Self { can_be_abrupt: true, ..self }
+    pub fn abrupt(self, potentially_abrupt: bool) -> Self {
+        Self { can_be_abrupt: potentially_abrupt.into(), ..self }
     }
-    pub fn reference(self) -> Self {
-        Self { can_be_reference: true, ..self }
+    pub fn reference(self, potentially_reference: bool) -> Self {
+        Self { can_be_reference: potentially_reference.into(), ..self }
+    }
+    pub fn maybe_abrupt(&self) -> bool {
+        self.can_be_abrupt == AbruptResult::Maybe
+    }
+    pub fn maybe_ref(&self) -> bool {
+        self.can_be_reference == RefResult::Maybe
+    }
+}
+
+impl From<AbruptResult> for CompilerStatusFlags {
+    fn from(src: AbruptResult) -> Self {
+        Self { can_be_abrupt: src, ..Default::default() }
+    }
+}
+
+impl From<RefResult> for CompilerStatusFlags {
+    fn from(src: RefResult) -> Self {
+        Self { can_be_reference: src, ..Default::default() }
+    }
+}
+
+#[derive(Debug)]
+pub struct AlwaysAbruptResult {}
+impl From<AlwaysAbruptResult> for CompilerStatusFlags {
+    fn from(_: AlwaysAbruptResult) -> Self {
+        Self::new().abrupt(true)
+    }
+}
+impl AlwaysAbruptResult {
+    fn maybe_abrupt(&self) -> bool {
+        true
+    }
+    fn maybe_ref(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Debug)]
+pub struct AlwaysRefResult {}
+impl From<AlwaysRefResult> for CompilerStatusFlags {
+    fn from(_: AlwaysRefResult) -> Self {
+        Self::new().reference(true)
+    }
+}
+
+#[derive(Debug)]
+pub struct AlwaysAbruptRefResult {}
+impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
+    fn from(_: AlwaysAbruptRefResult) -> Self {
+        Self::new().reference(true).abrupt(true)
+    }
+}
+
+#[derive(Debug)]
+pub struct NeverAbruptRefResult {}
+impl From<NeverAbruptRefResult> for CompilerStatusFlags {
+    fn from(_: NeverAbruptRefResult) -> Self {
+        Self::new()
+    }
+}
+impl NeverAbruptRefResult {
+    fn maybe_abrupt(&self) -> bool {
+        false
+    }
+    fn maybe_ref(&self) -> bool {
+        false
     }
 }
 
@@ -164,7 +307,7 @@ impl IdentifierReference {
     /// Generate the code for IdentifierReference
     ///
     /// See [IdentifierReference Evaluation](https://tc39.es/ecma262/#sec-identifiers-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptRefResult> {
         // Runtime Semantics: Evaluation
         //  IdentifierReference : Identifier
         //      1. Return ? ResolveBinding(StringValue of Identifier).
@@ -186,7 +329,7 @@ impl IdentifierReference {
         })?;
         chunk.op_plus_arg(Insn::String, string_id);
         chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-        Ok(CompilerStatusFlags::new().abrupt().reference())
+        Ok(AlwaysAbruptRefResult {})
     }
 }
 
@@ -197,17 +340,19 @@ impl PrimaryExpression {
     /// * [Evaluation of the `this` keyword](https://tc39.es/ecma262/#sec-this-keyword-runtime-semantics-evaluation)
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
-            PrimaryExpression::IdentifierReference { node: id } => id.compile(chunk, strict),
+            PrimaryExpression::IdentifierReference { node: id } => {
+                id.compile(chunk, strict).map(CompilerStatusFlags::from)
+            }
             PrimaryExpression::This { .. } => {
                 // Runtime Semantics: Evaluation
                 //  PrimaryExpression : this
                 //      1. Return ? ResolveThisBinding().
                 chunk.op(Insn::This);
-                Ok(CompilerStatusFlags::new().abrupt())
+                Ok(CompilerStatusFlags::new().abrupt(true))
             }
-            PrimaryExpression::Literal { node: lit } => lit.compile(chunk),
+            PrimaryExpression::Literal { node: lit } => lit.compile(chunk).map(CompilerStatusFlags::from),
             PrimaryExpression::Parenthesized { node: exp } => exp.compile(chunk, strict),
-            PrimaryExpression::ObjectLiteral { node: ol } => ol.compile(chunk, strict),
+            PrimaryExpression::ObjectLiteral { node: ol } => ol.compile(chunk, strict).map(CompilerStatusFlags::from),
             _ => todo!(),
         }
     }
@@ -217,7 +362,7 @@ impl Literal {
     /// Generate the code for Literal
     ///
     /// See [Evaluation for Literal](https://tc39.es/ecma262/#sec-literals-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         match self {
             Literal::NullLiteral { .. } => {
                 // Literal : NullLiteral
@@ -282,7 +427,7 @@ impl Literal {
                 }
             }
         }
-        Ok(CompilerStatusFlags::new())
+        Ok(NeverAbruptRefResult {})
     }
 }
 
@@ -303,11 +448,11 @@ impl ParenthesizedExpression {
 }
 
 impl ObjectLiteral {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             ObjectLiteral::Empty { .. } => {
                 chunk.op(Insn::Object);
-                Ok(CompilerStatusFlags::new())
+                Ok(AbruptResult::Never)
             }
             ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
                 // Stack: ...
@@ -320,38 +465,27 @@ impl ObjectLiteral {
 }
 
 impl PropertyDefinitionList {
-    pub fn property_definition_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn property_definition_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.property_definition_evaluation(chunk, strict),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
                 let mut exit = None;
                 let first = pdl.property_definition_evaluation(chunk, strict)?;
-                if first.can_be_abrupt {
+                if first == AbruptResult::Maybe {
                     exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 let second = pd.property_definition_evaluation(chunk, strict)?;
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags {
-                    can_be_abrupt: first.can_be_abrupt || second.can_be_abrupt,
-                    can_be_reference: second.can_be_reference,
-                })
+                Ok(AbruptResult::from(first == AbruptResult::Maybe || second == AbruptResult::Maybe))
             }
         }
     }
 }
 
 impl PropertyDefinition {
-    pub fn property_definition_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn property_definition_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             PropertyDefinition::IdentifierReference(idr) => {
                 // Stack: obj ...
@@ -362,10 +496,9 @@ impl PropertyDefinition {
 
                 // Following is unwrapped: idr compilation only fails if the string table is full and we can't insert,
                 // but since we _just_ inserted this string, above, it will never have a problem.
-                let status = idr.compile(chunk, strict).unwrap();
+                idr.compile(chunk, strict).expect("Compilation cannot fail as string is already stored.");
                 // idr always returns a reference (it's in the name), so don't bother with the logic of when it would
                 // otherwise be false.
-                assert!(status.can_be_reference);
 
                 // Stack: ref name obj ...
                 chunk.op(Insn::GetValue);
@@ -375,30 +508,30 @@ impl PropertyDefinition {
                 chunk.op_plus_arg(Insn::Unwind, 2);
                 // Stack: err ...
                 let escape = chunk.op_jump(Insn::Jump);
-                chunk.fixup(isok).unwrap(); // two instructions is never gonna be too far.
-                                            // Stack: value name obj ...
+                chunk.fixup(isok).expect("Jump is too short to overflow.");
+                // Stack: value name obj ...
                 chunk.op(Insn::CreateDataProperty);
                 // Stack: obj ...
-                chunk.fixup(escape).unwrap(); // one instruction. won't overrun.
-                Ok(CompilerStatusFlags::new().abrupt())
+                chunk.fixup(escape).expect("Jump is too short to overflow.");
+                Ok(AbruptResult::Maybe)
             }
             PropertyDefinition::CoverInitializedName(_) => unreachable!(),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
-                let mut exit_status = CompilerStatusFlags::new();
+                let mut exit_status = AbruptResult::Never;
                 let mut exits = Vec::with_capacity(2);
                 let is_proto_setter = pn.is_literal_proto();
                 // Stack: obj ...
                 if !is_proto_setter {
                     let status = pn.compile(chunk, strict)?;
                     // Stack: propKey obj ...
-                    if status.can_be_abrupt {
+                    if status == AbruptResult::Maybe {
                         let mark = chunk.op_jump(Insn::JumpIfNormal);
                         // Stack: err obj ...
                         chunk.op_plus_arg(Insn::Unwind, 1);
                         // Stack: err ...
                         exits.push(chunk.op_jump(Insn::Jump));
-                        chunk.fixup(mark).unwrap();
-                        exit_status = exit_status.abrupt();
+                        chunk.fixup(mark).expect("Jump is too short to overflow.");
+                        exit_status = AbruptResult::Maybe;
                     }
                 }
                 // Stack: propKey obj ...
@@ -406,19 +539,19 @@ impl PropertyDefinition {
                     todo!();
                 } else {
                     let status = ae.compile(chunk, strict)?;
-                    if status.can_be_reference {
+                    if status.maybe_ref() {
                         // Stack: exprValueRef propKey obj ...
                         chunk.op(Insn::GetValue);
                     }
-                    if status.can_be_abrupt || status.can_be_reference {
+                    if status.maybe_abrupt() || status.maybe_ref() {
                         // Stack: propValue propKey obj ...
                         let mark = chunk.op_jump(Insn::JumpIfNormal);
                         // Stack: err propKey obj ...
                         chunk.op_plus_arg(Insn::Unwind, 2);
                         // Stack: err ...
                         exits.push(chunk.op_jump(Insn::Jump));
-                        chunk.fixup(mark).unwrap();
-                        exit_status = exit_status.abrupt();
+                        chunk.fixup(mark).expect("Jump is too short to overflow.");
+                        exit_status = AbruptResult::Maybe;
                     }
                 }
                 if is_proto_setter {
@@ -439,16 +572,16 @@ impl PropertyDefinition {
                 // Stack: obj ...
                 let status = ae.compile(chunk, strict)?;
                 // Stack: exprValue obj ...
-                if status.can_be_reference {
+                if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.can_be_abrupt || status.can_be_reference {
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
                     let close = chunk.op_jump(Insn::JumpIfNormal);
                     // Stack: err obj ...
                     chunk.op_plus_arg(Insn::Unwind, 1);
                     // Stack: err ...
                     let exit = Some(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(close).unwrap();
+                    chunk.fixup(close).expect("Jump is too short to overflow.");
                     exit
                 } else {
                     None
@@ -457,19 +590,19 @@ impl PropertyDefinition {
                 chunk.op(Insn::CopyDataProps);
                 // Stack: obj ...
                 if let Some(mark) = exit {
-                    chunk.fixup(mark).unwrap();
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
-                Ok(CompilerStatusFlags::new().abrupt())
+                Ok(AbruptResult::Maybe)
             }
         }
     }
 }
 
 impl PropertyName {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
-            PropertyName::LiteralPropertyName(lpn) => lpn.compile(chunk),
-            PropertyName::ComputedPropertyName(cpn) => cpn.compile(chunk, strict),
+            PropertyName::LiteralPropertyName(lpn) => lpn.compile(chunk).map(AbruptResult::from),
+            PropertyName::ComputedPropertyName(cpn) => cpn.compile(chunk, strict).map(AbruptResult::from),
         }
     }
 
@@ -482,23 +615,23 @@ impl PropertyName {
 }
 
 impl LiteralPropertyName {
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         match self {
             LiteralPropertyName::IdentifierName { data: id, .. } => {
                 let idx = chunk.add_to_string_pool(id.string_value.clone())?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(CompilerStatusFlags::new())
+                Ok(NeverAbruptRefResult {})
             }
             LiteralPropertyName::StringLiteral { data: st, .. } => {
                 let idx = chunk.add_to_string_pool(st.value.clone())?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(CompilerStatusFlags::new())
+                Ok(NeverAbruptRefResult {})
             }
             LiteralPropertyName::NumericLiteral { data: n, .. } => {
-                let name = JSString::try_from(ECMAScriptValue::from(n)).unwrap();
+                let name = JSString::try_from(ECMAScriptValue::from(n)).expect("Numbers always have string forms.");
                 let idx = chunk.add_to_string_pool(name)?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(CompilerStatusFlags::new())
+                Ok(NeverAbruptRefResult {})
             }
         }
     }
@@ -513,15 +646,15 @@ impl LiteralPropertyName {
 }
 
 impl ComputedPropertyName {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptResult> {
         let mut exits = vec![];
         // Stack: ...
         let status = self.ae.compile(chunk, strict)?;
         // Stack: exprValue ...
-        if status.can_be_reference {
+        if status.maybe_ref() {
             chunk.op(Insn::GetValue);
         }
-        if status.can_be_abrupt || status.can_be_reference {
+        if status.maybe_abrupt() || status.maybe_ref() {
             let mark = chunk.op_jump(Insn::JumpIfAbrupt);
             exits.push(mark);
         }
@@ -530,9 +663,9 @@ impl ComputedPropertyName {
         // Stack:: key ...
 
         for mark in exits {
-            chunk.fixup(mark).unwrap();
+            chunk.fixup(mark).expect("Jump is too short to overflow.");
         }
-        Ok(CompilerStatusFlags::new().abrupt())
+        Ok(AlwaysAbruptResult {})
     }
 }
 
@@ -542,14 +675,14 @@ impl MemberExpression {
         chunk: &mut Chunk,
         identifier_name: &IdentifierData,
         strict: bool,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    ) -> anyhow::Result<AlwaysRefResult> {
         // Stack: base ...
         let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
         chunk.op_plus_arg(Insn::String, idx);
         // Stack: name base ...
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref
-        Ok(CompilerStatusFlags::new().reference())
+        Ok(AlwaysRefResult {})
     }
 
     /// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
@@ -557,23 +690,23 @@ impl MemberExpression {
         chunk: &mut Chunk,
         expression: &Rc<Expression>,
         strict: bool,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    ) -> anyhow::Result<AlwaysAbruptRefResult> {
         let mut exits = vec![];
         // Stack: base ...
         let state = expression.compile(chunk, strict)?;
         // Stack: propertyNameReference/error1 base ...
-        if state.can_be_reference {
+        if state.maybe_ref() {
             chunk.op(Insn::GetValue);
         }
         // Stack: propertyNameValue/error1/error2 base ...
-        if state.can_be_abrupt || state.can_be_reference {
+        if state.maybe_abrupt() || state.maybe_ref() {
             let norm = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: error1/error2 base ...
             chunk.op_plus_arg(Insn::Unwind, 1);
             // stack: error1/error2 ...
             let exit = chunk.op_jump(Insn::Jump);
             exits.push(exit);
-            chunk.fixup(norm).unwrap();
+            chunk.fixup(norm).expect("Jump is too short to overflow.");
         }
         // Stack: nameValue base ...
         chunk.op(Insn::ToPropertyKey);
@@ -582,16 +715,16 @@ impl MemberExpression {
         chunk.op_plus_arg(Insn::Unwind, 1);
         let exit = chunk.op_jump(Insn::Jump);
         exits.push(exit);
-        chunk.fixup(norm).unwrap();
+        chunk.fixup(norm).expect("Jump is too short to overflow.");
 
         // Stack: key base ...
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref ...
 
         for exit in exits {
-            chunk.fixup(exit).unwrap();
+            chunk.fixup(exit).expect("Jump is too short to overflow.");
         }
-        Ok(CompilerStatusFlags::new().abrupt().reference())
+        Ok(AlwaysAbruptRefResult {})
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
@@ -601,44 +734,40 @@ impl MemberExpression {
                 let mut mark = None;
                 let mut might_be_abrupt = false;
                 let status = me.compile(chunk, strict)?;
-                if status.can_be_reference {
+                if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                if status.can_be_abrupt || status.can_be_reference {
+                if status.maybe_abrupt() || status.maybe_ref() {
                     mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     might_be_abrupt = true;
                 }
-                let status = Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
                 if let Some(mark) = mark {
-                    chunk.fixup(mark).unwrap();
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
-                Ok(CompilerStatusFlags {
-                    can_be_abrupt: status.can_be_abrupt || might_be_abrupt,
-                    can_be_reference: true,
-                })
+                Ok(CompilerStatusFlags::new().abrupt(might_be_abrupt).reference(true))
             }
             MemberExpression::Expression(me, exp, ..) => {
                 // Stack: ...
                 let status = me.compile(chunk, strict)?;
                 // Stack: base/err ...
-                if status.can_be_reference {
+                if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.can_be_abrupt || status.can_be_reference {
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
                 } else {
                     None
                 };
                 // Stack: base ...
-                let status = Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
+                Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
                 // expressions are always: abrupt/ref, so we can avoid further boolean logic.
-                assert!(status.can_be_abrupt && status.can_be_reference);
 
                 // Stack: ref/err ...
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags::new().abrupt().reference())
+                Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
             }
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),
@@ -661,7 +790,7 @@ impl NewExpression {
 impl CallExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
-            CallExpression::CallMemberExpression(cme) => cme.compile(chunk, strict),
+            CallExpression::CallMemberExpression(cme) => cme.compile(chunk, strict).map(CompilerStatusFlags::from),
             CallExpression::SuperCall(_) => todo!(),
             CallExpression::ImportCall(_) => todo!(),
             CallExpression::CallExpressionArguments(_, _) => todo!(),
@@ -674,38 +803,39 @@ impl CallExpression {
 }
 
 impl CallMemberExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptResult> {
+        // On return: top of stack might be an abrupt completion, but will never be a reference.
         let mut exits = vec![];
         // Stack: ...
         let status = self.member_expression.compile(chunk, strict)?;
         // Stack: ref/err ...
         chunk.op(Insn::Dup);
         // Stack: ref/err ref/err ...
-        if status.can_be_reference {
+        if status.maybe_ref() {
             chunk.op(Insn::GetValue);
         }
-        if status.can_be_abrupt || status.can_be_reference {
+        if status.maybe_abrupt() || status.maybe_ref() {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: err err ...
             chunk.op_plus_arg(Insn::Unwind, 1);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy).unwrap();
+            chunk.fixup(happy).expect("Jump is too short to overflow.");
         }
         // Stack: func ref ...
         let arg_status = self.arguments.argument_list_evaluation(chunk, strict)?;
         // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 func ref ...
         // or: Stack: err func ref ...
-        if arg_status.can_be_abrupt {
+        if arg_status == AbruptResult::Maybe {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
             chunk.op_plus_arg(Insn::Unwind, 2);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy).unwrap();
+            chunk.fixup(happy).expect("Jump is too short to overflow.");
         }
         chunk.op(Insn::Call);
         for mark in exits {
             chunk.fixup(mark)?;
         }
-        Ok(CompilerStatusFlags::new().abrupt())
+        Ok(AlwaysAbruptResult {})
     }
 }
 
@@ -720,16 +850,16 @@ impl LeftHandSideExpression {
 }
 
 impl Arguments {
-    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             Arguments::Empty { .. } => {
                 let index = chunk.add_to_float_pool(0.0)?;
                 chunk.op_plus_arg(Insn::Float, index);
-                Ok(CompilerStatusFlags::new())
+                Ok(AbruptResult::Never)
             }
             Arguments::ArgumentList(al, _) | Arguments::ArgumentListComma(al, _) => {
                 let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict)?;
-                let exit = if status.can_be_abrupt {
+                let exit = if status == AbruptResult::Maybe {
                     // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
                     // or Stack: err ...
                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
@@ -739,64 +869,53 @@ impl Arguments {
                 let index = chunk.add_to_float_pool(arg_list_len as f64)?;
                 chunk.op_plus_arg(Insn::Float, index);
                 if let Some(mark) = exit {
-                    chunk.fixup(mark).unwrap();
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
+                Ok(status)
             }
         }
     }
 }
 
 impl ArgumentList {
-    pub fn argument_list_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-    ) -> anyhow::Result<(u16, CompilerStatusFlags)> {
+    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<(u16, AbruptResult)> {
         match self {
             ArgumentList::FallThru(item) => {
                 // Stack: ...
                 let status = item.compile(chunk, strict)?;
                 // Stack: ref/err ...
-                if status.can_be_reference {
+                if status.can_be_reference == RefResult::Maybe {
                     chunk.op(Insn::GetValue);
                 }
                 // Stack val/err ...
                 Ok((
                     1,
-                    CompilerStatusFlags {
-                        can_be_abrupt: status.can_be_abrupt || status.can_be_reference,
-                        can_be_reference: false,
-                    },
+                    (status.can_be_abrupt == AbruptResult::Maybe || status.can_be_reference == RefResult::Maybe).into(),
                 ))
             }
             ArgumentList::Dots(_) => todo!(),
             ArgumentList::ArgumentList(lst, item) => {
                 // Stack: ...
                 let (prev_count, status) = lst.argument_list_evaluation(chunk, strict)?;
-                assert!(!status.can_be_reference);
                 // Stack: val(N) val(N-1) ... val(0) ...
                 // or err ...
-                let exit = if status.can_be_abrupt { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status == AbruptResult::Maybe { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let status2 = item.compile(chunk, strict)?;
                 // Stack: val/err val(n) val(n-1) ... val(0) ...
-                if status2.can_be_reference {
+                if status2.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                if status2.can_be_reference || status2.can_be_abrupt {
+                if status2.maybe_ref() || status2.maybe_abrupt() {
                     let happy = chunk.op_jump(Insn::JumpIfNormal);
                     chunk.op_plus_arg(Insn::Unwind, prev_count);
-                    chunk.fixup(happy).unwrap();
+                    chunk.fixup(happy).expect("Jump is too short to overflow.");
                 }
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
                 Ok((
                     prev_count + 1,
-                    CompilerStatusFlags {
-                        can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference,
-                        can_be_reference: false,
-                    },
+                    (status == AbruptResult::Maybe || status2.maybe_abrupt() || status2.maybe_ref()).into(),
                 ))
             }
             ArgumentList::ArgumentListDots(_, _) => todo!(),
@@ -810,10 +929,10 @@ impl UpdateExpression {
         strict: bool,
         exp: &Rc<LeftHandSideExpression>,
         insn: Insn,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Stack: ...
         let status = exp.compile(chunk, strict)?;
-        assert!(status.can_be_reference); // Early errors eliminate non-refs
+        assert!(status.maybe_ref()); // Early errors eliminate non-refs
 
         // Stack: lref/err1 ...
         chunk.op(Insn::Dup);
@@ -827,7 +946,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err1/2 ...
         let exit1 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark).unwrap();
+        chunk.fixup(mark).expect("Jump is too short to overflow.");
         // Stack: lval lref ...
         chunk.op(Insn::ToNumeric);
         let mark = chunk.op_jump(Insn::JumpIfNormal);
@@ -837,7 +956,7 @@ impl UpdateExpression {
         chunk.op(Insn::Pop);
         // Stack: err ...
         let exit2 = chunk.op_jump(Insn::Jump);
-        chunk.fixup(mark).unwrap();
+        chunk.fixup(mark).expect("Jump is too short to overflow.");
         // Stack: oldValue lref ...
         chunk.op(Insn::Pop2Push3);
         // Stack: oldValue lref oldValue ...
@@ -848,10 +967,10 @@ impl UpdateExpression {
         chunk.op(Insn::UpdateEmpty);
         // Stack: oldValue/err ...
 
-        chunk.fixup(exit1).unwrap();
-        chunk.fixup(exit2).unwrap();
+        chunk.fixup(exit1).expect("Jump is too short to overflow.");
+        chunk.fixup(exit2).expect("Jump is too short to overflow.");
 
-        Ok(CompilerStatusFlags::new().abrupt())
+        Ok(AlwaysAbruptResult {})
     }
 
     fn pre_op(
@@ -859,21 +978,29 @@ impl UpdateExpression {
         strict: bool,
         exp: &Rc<UnaryExpression>,
         insn: Insn,
-    ) -> anyhow::Result<CompilerStatusFlags> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Stack: ...
         exp.compile(chunk, strict)?;
         // Stack: exp/err
         chunk.op(insn);
-        Ok(CompilerStatusFlags::new().abrupt())
+        Ok(AlwaysAbruptResult {})
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict),
-            UpdateExpression::PostIncrement { lhs: exp, .. } => Self::post_op(chunk, strict, exp, Insn::Increment),
-            UpdateExpression::PostDecrement { lhs: exp, .. } => Self::post_op(chunk, strict, exp, Insn::Decrement),
-            UpdateExpression::PreIncrement { ue: exp, .. } => Self::pre_op(chunk, strict, exp, Insn::PreIncrement),
-            UpdateExpression::PreDecrement { ue: exp, .. } => Self::pre_op(chunk, strict, exp, Insn::PreDecrement),
+            UpdateExpression::PostIncrement { lhs: exp, .. } => {
+                Self::post_op(chunk, strict, exp, Insn::Increment).map(CompilerStatusFlags::from)
+            }
+            UpdateExpression::PostDecrement { lhs: exp, .. } => {
+                Self::post_op(chunk, strict, exp, Insn::Decrement).map(CompilerStatusFlags::from)
+            }
+            UpdateExpression::PreIncrement { ue: exp, .. } => {
+                Self::pre_op(chunk, strict, exp, Insn::PreIncrement).map(CompilerStatusFlags::from)
+            }
+            UpdateExpression::PreDecrement { ue: exp, .. } => {
+                Self::pre_op(chunk, strict, exp, Insn::PreDecrement).map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -885,20 +1012,32 @@ impl UnaryExpression {
             chunk: &mut Chunk,
             strict: bool,
             insn: Insn,
-        ) -> anyhow::Result<CompilerStatusFlags> {
+        ) -> anyhow::Result<AlwaysAbruptResult> {
             exp.compile(chunk, strict)?;
             chunk.op(insn);
-            Ok(CompilerStatusFlags::new().abrupt())
+            Ok(AlwaysAbruptResult {})
         }
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict),
-            UnaryExpression::Delete { ue, .. } => unary_op(ue, chunk, strict, Insn::Delete),
-            UnaryExpression::Void { ue, .. } => unary_op(ue, chunk, strict, Insn::Void),
-            UnaryExpression::Typeof { ue, .. } => unary_op(ue, chunk, strict, Insn::TypeOf),
-            UnaryExpression::NoOp { ue, .. } => unary_op(ue, chunk, strict, Insn::UnaryPlus),
-            UnaryExpression::Negate { ue, .. } => unary_op(ue, chunk, strict, Insn::UnaryMinus),
-            UnaryExpression::Complement { ue, .. } => unary_op(ue, chunk, strict, Insn::UnaryComplement),
-            UnaryExpression::Not { ue, .. } => unary_op(ue, chunk, strict, Insn::UnaryNot),
+            UnaryExpression::Delete { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::Delete).map(CompilerStatusFlags::from)
+            }
+            UnaryExpression::Void { ue, .. } => unary_op(ue, chunk, strict, Insn::Void).map(CompilerStatusFlags::from),
+            UnaryExpression::Typeof { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::TypeOf).map(CompilerStatusFlags::from)
+            }
+            UnaryExpression::NoOp { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::UnaryPlus).map(CompilerStatusFlags::from)
+            }
+            UnaryExpression::Negate { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::UnaryMinus).map(CompilerStatusFlags::from)
+            }
+            UnaryExpression::Complement { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::UnaryComplement).map(CompilerStatusFlags::from)
+            }
+            UnaryExpression::Not { ue, .. } => {
+                unary_op(ue, chunk, strict, Insn::UnaryNot).map(CompilerStatusFlags::from)
+            }
             UnaryExpression::Await(_) => todo!(),
         }
     }
@@ -909,11 +1048,11 @@ macro_rules! compile_binary_expression {
         // Stack: ...
         let left_status = $left.compile($chunk, $strict)?;
         // Stack: err/ref/val ...
-        if left_status.can_be_reference {
+        if left_status.maybe_ref() {
             $chunk.op(Insn::GetValue);
         }
         // Stack: err/val
-        let first_exit = if left_status.can_be_reference || left_status.can_be_abrupt {
+        let first_exit = if left_status.maybe_ref() || left_status.maybe_abrupt() {
             Some($chunk.op_jump(Insn::JumpIfAbrupt))
         } else {
             None
@@ -921,17 +1060,17 @@ macro_rules! compile_binary_expression {
         // Stack: val
         let right_status = $right.compile($chunk, $strict)?;
         // Stack: err/ref/val val ...
-        if right_status.can_be_reference {
+        if right_status.maybe_ref() {
             $chunk.op(Insn::GetValue);
         }
         // Stack: err/val val ...
-        let second_exit = if right_status.can_be_reference || right_status.can_be_abrupt {
+        let second_exit = if right_status.maybe_ref() || right_status.maybe_abrupt() {
             let nearby = $chunk.op_jump(Insn::JumpIfNormal);
             // Stack: err val ...
             $chunk.op_plus_arg(Insn::Unwind, 1);
             // Stack: err ...
             let exit = $chunk.op_jump(Insn::Jump);
-            $chunk.fixup(nearby).unwrap();
+            $chunk.fixup(nearby).expect("Jump is too short to overflow.");
             Some(exit)
         } else {
             None
@@ -943,9 +1082,9 @@ macro_rules! compile_binary_expression {
             $chunk.fixup(mark)?;
         }
         if let Some(mark) = second_exit {
-            $chunk.fixup(mark).unwrap();
+            $chunk.fixup(mark).expect("Jump is too short to overflow.");
         }
-        Ok(CompilerStatusFlags::new().abrupt())
+        Ok(AlwaysAbruptResult {})
     }};
 }
 
@@ -955,6 +1094,7 @@ impl ExponentiationExpression {
             ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict),
             ExponentiationExpression::Exponentiation(left, right) => {
                 compile_binary_expression!(chunk, strict, left, right, Insn::Exponentiate)
+                    .map(CompilerStatusFlags::from)
             }
         }
     }
@@ -976,6 +1116,7 @@ impl MultiplicativeExpression {
                         MultiplicativeOperator::Modulo => Insn::Modulo,
                     }
                 )
+                .map(CompilerStatusFlags::from)
             }
         }
     }
@@ -985,9 +1126,11 @@ impl AdditiveExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
-            AdditiveExpression::Add(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Add),
+            AdditiveExpression::Add(left, right) => {
+                compile_binary_expression!(chunk, strict, left, right, Insn::Add).map(CompilerStatusFlags::from)
+            }
             AdditiveExpression::Subtract(left, right) => {
-                compile_binary_expression!(chunk, strict, left, right, Insn::Subtract)
+                compile_binary_expression!(chunk, strict, left, right, Insn::Subtract).map(CompilerStatusFlags::from)
             }
         }
     }
@@ -1102,7 +1245,7 @@ impl AssignmentExpression {
                 //      f. Return rval.
                 let mut exits = vec![];
                 let status = lhse.compile(chunk, strict)?;
-                if status.can_be_abrupt {
+                if status.maybe_abrupt() {
                     let mark = chunk.op_jump(Insn::JumpIfAbrupt);
                     exits.push(mark);
                 }
@@ -1112,10 +1255,10 @@ impl AssignmentExpression {
                 } else {
                     let status = ae.compile(chunk, strict)?;
                     // Stack: rref lref ...
-                    if status.can_be_reference {
+                    if status.maybe_ref() {
                         chunk.op(Insn::GetValue);
                     }
-                    if status.can_be_abrupt || status.can_be_reference {
+                    if status.maybe_abrupt() || status.maybe_ref() {
                         let close = chunk.op_jump(Insn::JumpIfNormal);
                         // (haven't jumped) Stack: err lref
                         chunk.op(Insn::Swap);
@@ -1124,7 +1267,7 @@ impl AssignmentExpression {
                         // Stack: err
                         let mark2 = chunk.op_jump(Insn::Jump);
                         exits.push(mark2);
-                        chunk.fixup(close).unwrap();
+                        chunk.fixup(close).expect("Jump is too short to overflow.");
                     }
                 }
                 // Stack: rval lref ...
@@ -1138,7 +1281,7 @@ impl AssignmentExpression {
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags::new().abrupt())
+                Ok(AlwaysAbruptResult {}.into())
             }
             _ => todo!(),
         }
@@ -1156,46 +1299,38 @@ impl Expression {
 }
 
 impl ExpressionStatement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         let status = self.exp.compile(chunk, strict)?;
-        if status.can_be_reference {
+        if status.maybe_ref() {
             chunk.op(Insn::GetValue);
         }
-        Ok(CompilerStatusFlags {
-            can_be_abrupt: status.can_be_abrupt || status.can_be_reference,
-            can_be_reference: false,
-        })
+        Ok((status.maybe_abrupt() || status.maybe_ref()).into())
     }
 }
 
 impl StatementList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             StatementList::Item(sli) => sli.compile(chunk, strict),
             StatementList::List(sl, sli) => {
                 let mut mark = None;
                 let status = sl.compile(chunk, strict)?;
-                assert!(!status.can_be_reference);
-                if status.can_be_abrupt {
+                if status == AbruptResult::Maybe {
                     mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 let second_status = sli.compile(chunk, strict)?;
-                assert!(!second_status.can_be_reference);
                 chunk.op(Insn::UpdateEmpty);
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags {
-                    can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
-                    can_be_reference: false,
-                })
+                Ok((status == AbruptResult::Maybe || second_status == AbruptResult::Maybe).into())
             }
         }
     }
 }
 
 impl StatementListItem {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             StatementListItem::Statement(stmt) => stmt.compile(chunk, strict),
             StatementListItem::Declaration(decl) => decl.compile(chunk, strict),
@@ -1204,7 +1339,7 @@ impl StatementListItem {
 }
 
 impl Statement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict),
             _ => todo!(),
@@ -1213,47 +1348,44 @@ impl Statement {
 }
 
 impl Declaration {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             Declaration::Class(_) => todo!(),
             Declaration::Hoistable(_) => todo!(),
-            Declaration::Lexical(lex) => lex.compile(chunk, strict),
+            Declaration::Lexical(lex) => lex.compile(chunk, strict).map(AbruptResult::from),
         }
     }
 }
 
 impl LexicalDeclaration {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
-        let status = self.list.compile(chunk, strict)?;
-        assert!(status.can_be_abrupt);
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptResult> {
+        self.list.compile(chunk, strict)?;
         let mark = chunk.op_jump(Insn::JumpIfAbrupt);
         chunk.op(Insn::Pop);
         chunk.op(Insn::Empty);
-        chunk.fixup(mark).unwrap();
-        Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
+        chunk.fixup(mark).expect("Jump is too short to overflow.");
+        Ok(AlwaysAbruptResult {})
     }
 }
 
 impl BindingList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             BindingList::Item(item) => item.compile(chunk, strict),
             BindingList::List(lst, item) => {
-                let status = lst.compile(chunk, strict)?;
-                assert!(status.can_be_abrupt);
+                lst.compile(chunk, strict)?;
                 let mark = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
-                let second_status = item.compile(chunk, strict)?;
-                assert!(second_status.can_be_abrupt);
+                item.compile(chunk, strict)?;
                 chunk.fixup(mark)?;
-                Ok(CompilerStatusFlags { can_be_abrupt: true, can_be_reference: false })
+                Ok(AlwaysAbruptResult {})
             }
         }
     }
 }
 
 impl LexicalBinding {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             LexicalBinding::Identifier(bi, init) => {
                 let id = chunk.add_to_string_pool(bi.string_value())?;
@@ -1272,11 +1404,11 @@ impl LexicalBinding {
                         } else {
                             let status = izer.compile(chunk, strict)?;
                             // Stack: rref lhs ...
-                            if status.can_be_reference {
+                            if status.maybe_ref() {
                                 chunk.op(Insn::GetValue);
                                 // Stack: value lhs ...
                             }
-                            if status.can_be_abrupt || status.can_be_reference {
+                            if status.maybe_abrupt() || status.maybe_ref() {
                                 let normal = chunk.op_jump(Insn::JumpIfNormal);
                                 // Stack: err lhs ...
                                 chunk.op(Insn::Swap);
@@ -1284,7 +1416,7 @@ impl LexicalBinding {
                                 chunk.op(Insn::Pop);
                                 // Stack: err ...
                                 let exit_tgt = Some(chunk.op_jump(Insn::Jump));
-                                chunk.fixup(normal).unwrap();
+                                chunk.fixup(normal).expect("Jump is too short to overflow.");
                                 exit_tgt
                             } else {
                                 None
@@ -1296,9 +1428,9 @@ impl LexicalBinding {
                 chunk.op(Insn::InitializeReferencedBinding);
                 // Stack: empty ...
                 if let Some(mark) = exit_tgt {
-                    chunk.fixup(mark).unwrap();
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
-                Ok(CompilerStatusFlags::new().abrupt())
+                Ok(AlwaysAbruptResult {})
             }
             LexicalBinding::Pattern(_, _) => todo!(),
         }
@@ -1312,16 +1444,16 @@ impl Initializer {
 }
 
 impl Script {
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AbruptResult> {
         match &self.body {
-            None => Ok(CompilerStatusFlags::new()),
+            None => Ok(AbruptResult::Never),
             Some(sb) => sb.compile(chunk),
         }
     }
 }
 
 impl ScriptBody {
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AbruptResult> {
         let strict = self.contains_use_strict();
         self.statement_list.compile(chunk, strict)
     }
