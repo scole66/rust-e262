@@ -237,7 +237,7 @@ mod parse_script {
     fn parse_error(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let starting_realm = agent.current_realm_record().unwrap();
-        let errs = super::parse_script(&mut agent, src, starting_realm.clone()).unwrap_err();
+        let errs = super::parse_script(&mut agent, src, starting_realm).unwrap_err();
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -246,24 +246,24 @@ mod top_level_lex_decl {
     use super::*;
     use test_case::test_case;
 
-    fn make_class_decl() -> (Option<Rc<ClassDeclaration>>, Option<Rc<LexicalDeclaration>>, DeclPart) {
+    type MakerResult = (Option<Rc<ClassDeclaration>>, Option<Rc<LexicalDeclaration>>, DeclPart);
+
+    fn make_class_decl() -> MakerResult {
         let cd = Maker::new("class alice {}").class_declaration();
         (Some(cd.clone()), None, DeclPart::ClassDeclaration(cd))
     }
-    fn make_lex_decl() -> (Option<Rc<ClassDeclaration>>, Option<Rc<LexicalDeclaration>>, DeclPart) {
+    fn make_lex_decl() -> MakerResult {
         let ld = Maker::new("let alice = 999;").lexical_declaration();
         (None, Some(ld.clone()), DeclPart::LexicalDeclaration(ld))
     }
-    fn make_func_decl() -> (Option<Rc<ClassDeclaration>>, Option<Rc<LexicalDeclaration>>, DeclPart) {
+    fn make_func_decl() -> MakerResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
         (None, None, DeclPart::FunctionDeclaration(fd))
     }
     #[test_case(make_class_decl => Ok((true, false)); "class")]
     #[test_case(make_lex_decl => Ok((false, true)); "lexical")]
     #[test_case(make_func_decl => serr("Not a top-level lexical decl"); "function")]
-    fn try_from(
-        maker: fn() -> (Option<Rc<ClassDeclaration>>, Option<Rc<LexicalDeclaration>>, DeclPart),
-    ) -> Result<(bool, bool), String> {
+    fn try_from(maker: fn() -> MakerResult) -> Result<(bool, bool), String> {
         let (maybe_cd, maybe_ld, dp) = maker();
         TopLevelLexDecl::try_from(dp)
             .map(|tlld| match (tlld, maybe_cd, maybe_ld) {
@@ -288,7 +288,7 @@ mod top_level_fcn_def {
     #[test]
     fn clone() {
         let fd = Maker::new("function alice(x) { return x * 2; }").function_declaration();
-        let tlfd1 = TopLevelFcnDef::Function(fd.clone());
+        let tlfd1 = TopLevelFcnDef::Function(fd);
         let tlfd2 = tlfd1.clone();
 
         match (tlfd1, tlfd2) {
@@ -299,73 +299,39 @@ mod top_level_fcn_def {
         }
     }
 
-    fn make_func_decl() -> (
+    type MakerResult = (
         Option<Rc<FunctionDeclaration>>,
         Option<Rc<GeneratorDeclaration>>,
         Option<Rc<AsyncFunctionDeclaration>>,
         Option<Rc<AsyncGeneratorDeclaration>>,
         VarScopeDecl,
-    ) {
+    );
+
+    fn make_func_decl() -> MakerResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
         (Some(fd.clone()), None, None, None, VarScopeDecl::FunctionDeclaration(fd))
     }
-    fn make_gen_decl() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_gen_decl() -> MakerResult {
         let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
         (None, Some(gd.clone()), None, None, VarScopeDecl::GeneratorDeclaration(gd))
     }
-    fn make_async_decl() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_async_decl() -> MakerResult {
         let afd = Maker::new("async function alice(bob) { return charlie(bob); }").async_function_declaration();
         (None, None, Some(afd.clone()), None, VarScopeDecl::AsyncFunctionDeclaration(afd))
     }
-    fn make_async_gen_decl() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_async_gen_decl() -> MakerResult {
         let agd = Maker::new("async function *alice(bob) { return charlie(bob); }").async_generator_declaration();
         (None, None, None, Some(agd.clone()), VarScopeDecl::AsyncGeneratorDeclaration(agd))
     }
-    fn make_var_decl() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_var_decl() -> MakerResult {
         let vd = Maker::new("alice").variable_declaration();
         (None, None, None, None, VarScopeDecl::VariableDeclaration(vd))
     }
-    fn make_for_binding() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_for_binding() -> MakerResult {
         let fb = Maker::new("alice").for_binding();
         (None, None, None, None, VarScopeDecl::ForBinding(fb))
     }
-    fn make_binding_id() -> (
-        Option<Rc<FunctionDeclaration>>,
-        Option<Rc<GeneratorDeclaration>>,
-        Option<Rc<AsyncFunctionDeclaration>>,
-        Option<Rc<AsyncGeneratorDeclaration>>,
-        VarScopeDecl,
-    ) {
+    fn make_binding_id() -> MakerResult {
         let bi = Maker::new("alice").binding_identifier();
         (None, None, None, None, VarScopeDecl::BindingIdentifier(bi))
     }
@@ -376,15 +342,7 @@ mod top_level_fcn_def {
     #[test_case(make_var_decl => serr("Not a top-level function def"); "Var decl")]
     #[test_case(make_for_binding => serr("Not a top-level function def"); "for binding")]
     #[test_case(make_binding_id => serr("Not a top-level function def"); "binding id")]
-    fn try_from(
-        maker: fn() -> (
-            Option<Rc<FunctionDeclaration>>,
-            Option<Rc<GeneratorDeclaration>>,
-            Option<Rc<AsyncFunctionDeclaration>>,
-            Option<Rc<AsyncGeneratorDeclaration>>,
-            VarScopeDecl,
-        ),
-    ) -> Result<bool, String> {
+    fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
         let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
         TopLevelFcnDef::try_from(vsd)
             .map(|tlfd| match (tlfd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
