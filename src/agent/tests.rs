@@ -356,6 +356,82 @@ mod top_level_fcn_def {
     }
 }
 
+mod top_level_var_decl {
+    use super::*;
+    use test_case::test_case;
+
+    type MakerResult =
+        (Option<Rc<VariableDeclaration>>, Option<Rc<ForBinding>>, Option<Rc<BindingIdentifier>>, VarScopeDecl);
+    fn make_func_decl() -> MakerResult {
+        let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
+        (None, None, None, VarScopeDecl::FunctionDeclaration(fd))
+    }
+    fn make_gen_decl() -> MakerResult {
+        let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
+        (None, None, None, VarScopeDecl::GeneratorDeclaration(gd))
+    }
+    fn make_async_decl() -> MakerResult {
+        let afd = Maker::new("async function alice(bob) { return charlie(bob); }").async_function_declaration();
+        (None, None, None, VarScopeDecl::AsyncFunctionDeclaration(afd))
+    }
+    fn make_async_gen_decl() -> MakerResult {
+        let agd = Maker::new("async function *alice(bob) { return charlie(bob); }").async_generator_declaration();
+        (None, None, None, VarScopeDecl::AsyncGeneratorDeclaration(agd))
+    }
+    fn make_var_decl() -> MakerResult {
+        let vd = Maker::new("alice").variable_declaration();
+        (Some(vd.clone()), None, None, VarScopeDecl::VariableDeclaration(vd))
+    }
+    fn make_for_binding() -> MakerResult {
+        let fb = Maker::new("alice").for_binding();
+        (None, Some(fb.clone()), None, VarScopeDecl::ForBinding(fb))
+    }
+    fn make_binding_id() -> MakerResult {
+        let bi = Maker::new("alice").binding_identifier();
+        (None, None, Some(bi.clone()), VarScopeDecl::BindingIdentifier(bi))
+    }
+
+    #[test_case(make_func_decl => serr("FunctionDeclaration seen when top-level var decl expected"); "Function decl")]
+    #[test_case(make_gen_decl => serr("GeneratorDeclaration seen when top-level var decl expected"); "Generator decl")]
+    #[test_case(make_async_decl => serr("AsyncFunctionDeclaration seen when top-level var decl expected"); "Async Function decl")]
+    #[test_case(make_async_gen_decl => serr("AsyncGeneratorDeclaration seen when top-level var decl expected"); "Async Generator decl")]
+    #[test_case(make_var_decl => Ok(true); "Var decl")]
+    #[test_case(make_for_binding => Ok(true); "for binding")]
+    #[test_case(make_binding_id => Ok(true); "binding id")]
+    fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
+        let (maybe_vd, maybe_fb, maybe_bi, vsd) = maker();
+        TopLevelVarDecl::try_from(vsd)
+            .map(|tlvd| match (tlvd, maybe_vd, maybe_fb, maybe_bi) {
+                (TopLevelVarDecl::VarDecl(vd1), Some(vd2), _, _) => Rc::ptr_eq(&vd1, &vd2),
+                (TopLevelVarDecl::ForBinding(fb1), _, Some(fb2), _) => Rc::ptr_eq(&fb1, &fb2),
+                (TopLevelVarDecl::BindingId(bi1), _, _, Some(bi2)) => Rc::ptr_eq(&bi1, &bi2),
+                _ => false,
+            })
+            .map_err(|err| err.to_string())
+    }
+}
+
+mod global_declaration_instantiation {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("var a" => Ok(()); "one simple var-declared variable")]
+    #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
+    #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
+    #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
+    fn global_declaration_instantiation(src: &str) -> Result<(), String> {
+        let mut agent = test_agent();
+        let script = Maker::new(src).script();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        global_env.create_global_var_binding(&mut agent, "already_var_declared".into(), false).unwrap();
+        global_env.create_mutable_binding(&mut agent, "existing_mutable".into(), false).unwrap();
+
+        let result = super::global_declaration_instantiation(&mut agent, script, global_env);
+
+        result.map_err(|err| unwind_any_error(&mut agent, err))
+    }
+}
+
 mod script_evaluation {
     use super::*;
     use test_case::test_case;

@@ -10,9 +10,11 @@ use super::object::{
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;
-use super::parser::declarations_and_variables::LexicalDeclaration;
+use super::parser::declarations_and_variables::*;
 use super::parser::function_definitions::FunctionDeclaration;
 use super::parser::generator_function_definitions::GeneratorDeclaration;
+use super::parser::identifiers::*;
+use super::parser::iteration_statements::*;
 use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
@@ -1118,6 +1120,33 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
         }
     }
 }
+enum TopLevelVarDecl {
+    VarDecl(Rc<VariableDeclaration>),
+    ForBinding(Rc<ForBinding>),
+    BindingId(Rc<BindingIdentifier>),
+}
+impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
+    type Error = anyhow::Error;
+    fn try_from(value: VarScopeDecl) -> Result<Self, Self::Error> {
+        match value {
+            VarScopeDecl::VariableDeclaration(vd) => Ok(Self::VarDecl(vd)),
+            VarScopeDecl::ForBinding(fb) => Ok(Self::ForBinding(fb)),
+            VarScopeDecl::BindingIdentifier(bi) => Ok(Self::BindingId(bi)),
+            VarScopeDecl::FunctionDeclaration(_) => {
+                Err(anyhow!("FunctionDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::GeneratorDeclaration(_) => {
+                Err(anyhow!("GeneratorDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::AsyncFunctionDeclaration(_) => {
+                Err(anyhow!("AsyncFunctionDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::AsyncGeneratorDeclaration(_) => {
+                Err(anyhow!("AsyncGeneratorDeclaration seen when top-level var decl expected"))
+            }
+        }
+    }
+}
 
 pub fn global_declaration_instantiation(
     agent: &mut Agent,
@@ -1147,21 +1176,7 @@ pub fn global_declaration_instantiation(
     let var_declarations = script.var_scoped_declarations();
     let mut functions_to_initialize = vec![];
     let mut declared_function_names = vec![];
-    for d in var_declarations
-        .iter()
-        .rev()
-        .filter(|pn| {
-            matches!(
-                pn,
-                VarScopeDecl::FunctionDeclaration(_)
-                    | VarScopeDecl::GeneratorDeclaration(_)
-                    | VarScopeDecl::AsyncFunctionDeclaration(_)
-                    | VarScopeDecl::AsyncGeneratorDeclaration(_)
-            )
-        })
-        .cloned()
-        .map(|decl| TopLevelFcnDef::try_from(decl).expect("Decl already filtered to convertable type"))
-    {
+    for d in var_declarations.iter().rev().cloned().filter_map(|decl| TopLevelFcnDef::try_from(decl).ok()) {
         let func_name = match &d {
             TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
             TopLevelFcnDef::Generator(gd) => gd.bound_names()[0].clone(),
@@ -1178,17 +1193,11 @@ pub fn global_declaration_instantiation(
         }
     }
     let mut declared_var_names = vec![];
-    for d in var_declarations.into_iter().filter(|pn| {
-        matches!(
-            pn,
-            VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_)
-        )
-    }) {
+    for d in var_declarations.into_iter().filter_map(|pn| TopLevelVarDecl::try_from(pn).ok()) {
         for vn in match d {
-            VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
-            VarScopeDecl::ForBinding(fb) => fb.bound_names(),
-            VarScopeDecl::BindingIdentifier(bi) => bi.bound_names(),
-            _ => unreachable!(),
+            TopLevelVarDecl::VarDecl(vd) => vd.bound_names(),
+            TopLevelVarDecl::ForBinding(fb) => fb.bound_names(),
+            TopLevelVarDecl::BindingId(bi) => bi.bound_names(),
         } {
             if !declared_function_names.contains(&vn) {
                 let vn_definable = env.can_declare_global_var(agent, &vn)?;
@@ -1201,10 +1210,8 @@ pub fn global_declaration_instantiation(
             }
         }
     }
-    let lex_declarations = script
-        .lexically_scoped_declarations()
-        .into_iter()
-        .map(|d| TopLevelLexDecl::try_from(d).expect("Only classes & lexical decls at global scope"));
+    let lex_declarations =
+        script.lexically_scoped_declarations().into_iter().filter_map(|d| TopLevelLexDecl::try_from(d).ok());
     let private_env = None;
     for d in lex_declarations {
         let (names, is_constant) = match &d {
