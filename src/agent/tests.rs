@@ -331,17 +331,12 @@ mod top_level_fcn_def {
         let fb = Maker::new("alice").for_binding();
         (None, None, None, None, VarScopeDecl::ForBinding(fb))
     }
-    //fn make_binding_id() -> MakerResult {
-    //    let bi = Maker::new("alice").binding_identifier();
-    //    (None, None, None, None, VarScopeDecl::BindingIdentifier(bi))
-    //}
     #[test_case(make_func_decl => Ok(true); "Function decl")]
     #[test_case(make_gen_decl => Ok(true); "Generator decl")]
     #[test_case(make_async_decl => Ok(true); "Async Function decl")]
     #[test_case(make_async_gen_decl => Ok(true); "Async Generator decl")]
     #[test_case(make_var_decl => serr("Not a top-level function def"); "Var decl")]
     #[test_case(make_for_binding => serr("Not a top-level function def"); "for binding")]
-    //#[test_case(make_binding_id => serr("Not a top-level function def"); "binding id")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
         let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
         TopLevelFcnDef::try_from(vsd)
@@ -360,11 +355,10 @@ mod top_level_var_decl {
     use super::*;
     use test_case::test_case;
 
-    type MakerResult =
-        (Option<Rc<VariableDeclaration>>, Option<Rc<ForBinding>>, VarScopeDecl);
+    type MakerResult = (Option<Rc<VariableDeclaration>>, Option<Rc<ForBinding>>, VarScopeDecl);
     fn make_func_decl() -> MakerResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
-        (None, None,  VarScopeDecl::FunctionDeclaration(fd))
+        (None, None, VarScopeDecl::FunctionDeclaration(fd))
     }
     fn make_gen_decl() -> MakerResult {
         let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
