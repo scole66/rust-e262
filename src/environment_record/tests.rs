@@ -150,6 +150,11 @@ mod declarative_environment_record {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         assert_ne!(format!("{:?}", der), "");
     }
+    #[test]
+    fn fancy_debug() {
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        assert_ne!(format!("{:#?}", der), "");
+    }
 
     #[test]
     fn has_binding() {
@@ -381,6 +386,14 @@ mod declarative_environment_record {
 
         let val_from_outer = outer.get_binding_value(&mut agent, &JSString::from("sentinel"), true).unwrap();
         assert_eq!(val_from_outer, ECMAScriptValue::from("very unique string"));
+    }
+
+    #[test]
+    #[should_panic(expected="unreachable")]
+    fn get_this_binding() {
+        let mut agent = test_agent();
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        der.get_this_binding(&mut agent).unwrap();
     }
 }
 
@@ -889,6 +902,16 @@ mod object_environment_record {
         let val_from_outer = outer.get_binding_value(&mut agent, &JSString::from("sentinel"), true).unwrap();
         assert_eq!(val_from_outer, ECMAScriptValue::from("very unique string"));
     }
+
+    #[test]
+    #[should_panic(expected="unreachable")]
+    fn get_this_binding() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
+        oer.get_this_binding(&mut agent).unwrap();
+    }
 }
 
 mod binding_status {
@@ -1009,6 +1032,17 @@ mod global_environment_record {
         let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
 
         assert_ne!(format!("{:?}", ger), "");
+    }
+
+    #[test]
+    fn fancy_debug() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
+
+        assert_ne!(format!("{:#?}", ger), "");
     }
 
     mod has_binding {
