@@ -410,6 +410,7 @@ mod global_declaration_instantiation {
     #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
     #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
     #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((set(&["a", "item"]), set(&["b", "c"]))); "many")]
+    #[test_case("class bob{}" => Ok((set(&[]), set(&["bob"]))); "a class")]
     #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
     #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]

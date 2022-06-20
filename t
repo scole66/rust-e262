@@ -279,7 +279,7 @@ case $name in
 esac
 
 # Make sure we compile
-if ! cargo check --tests; then
+if ! cargo check --profile coverage --tests; then
   exit
 fi
 
@@ -308,18 +308,18 @@ case $typename in
     ;;
 esac
 
-namelist=$(mktemp)
-report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
 
-
-echo "Testing ${file}::tests::${modname}, and rendering"
-rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
+echo "Testing ${file}::tests::${modname}"
 
 tst ${file}::tests::${modname}
 if [ $? -ne 0 ]; then
-  rm -f $namelist
   exit
 fi
+
+namelist=$(mktemp)
+report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
+echo "Renderng:"
+rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
 
 report --name-allowlist=$namelist $uncovered --demangled
 rm -f $namelist
