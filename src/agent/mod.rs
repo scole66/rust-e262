@@ -1178,16 +1178,13 @@ pub fn global_declaration_instantiation(
         }
     }
     let mut declared_var_names = vec![];
-    for d in var_declarations.into_iter().filter(|pn| {
-        matches!(
-            pn,
-            VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_)
-        )
-    }) {
+    for d in var_declarations
+        .into_iter()
+        .filter(|pn| matches!(pn, VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_)))
+    {
         for vn in match d {
             VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
             VarScopeDecl::ForBinding(fb) => fb.bound_names(),
-            VarScopeDecl::BindingIdentifier(bi) => bi.bound_names(),
             _ => unreachable!(),
         } {
             if !declared_function_names.contains(&vn) {
