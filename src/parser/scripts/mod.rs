@@ -3,7 +3,6 @@ use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::declarations_and_variables::VariableDeclaration;
 use super::function_definitions::FunctionDeclaration;
 use super::generator_function_definitions::GeneratorDeclaration;
-use super::identifiers::BindingIdentifier;
 use super::iteration_statements::ForBinding;
 use super::scanner::{Scanner, StringToken};
 use super::statements_and_declarations::{DeclPart, HoistableDeclPart};
@@ -73,7 +72,6 @@ where
 pub enum VarScopeDecl {
     VariableDeclaration(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),
-    BindingIdentifier(Rc<BindingIdentifier>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
     AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
@@ -98,7 +96,6 @@ impl fmt::Display for VarScopeDecl {
             VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
             VarScopeDecl::VariableDeclaration(vd) => vd.fmt(f),
             VarScopeDecl::ForBinding(fb) => fb.fmt(f),
-            VarScopeDecl::BindingIdentifier(bi) => bi.fmt(f),
         }
     }
 }
