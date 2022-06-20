@@ -13,7 +13,6 @@ use super::parser::class_definitions::ClassDeclaration;
 use super::parser::declarations_and_variables::*;
 use super::parser::function_definitions::FunctionDeclaration;
 use super::parser::generator_function_definitions::GeneratorDeclaration;
-use super::parser::identifiers::*;
 use super::parser::iteration_statements::*;
 use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
@@ -1123,7 +1122,6 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
 enum TopLevelVarDecl {
     VarDecl(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),
-    BindingId(Rc<BindingIdentifier>),
 }
 impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
     type Error = anyhow::Error;
@@ -1131,7 +1129,6 @@ impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
         match value {
             VarScopeDecl::VariableDeclaration(vd) => Ok(Self::VarDecl(vd)),
             VarScopeDecl::ForBinding(fb) => Ok(Self::ForBinding(fb)),
-            VarScopeDecl::BindingIdentifier(bi) => Ok(Self::BindingId(bi)),
             VarScopeDecl::FunctionDeclaration(_) => {
                 Err(anyhow!("FunctionDeclaration seen when top-level var decl expected"))
             }
@@ -1197,7 +1194,6 @@ pub fn global_declaration_instantiation(
         for vn in match d {
             TopLevelVarDecl::VarDecl(vd) => vd.bound_names(),
             TopLevelVarDecl::ForBinding(fb) => fb.bound_names(),
-            TopLevelVarDecl::BindingId(bi) => bi.bound_names(),
         } {
             if !declared_function_names.contains(&vn) {
                 let vn_definable = env.can_declare_global_var(agent, &vn)?;

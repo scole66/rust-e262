@@ -1454,6 +1454,17 @@ impl GlobalEnvironmentRecord {
             name,
         }
     }
+
+    #[cfg(test)]
+    pub fn var_decls(&self) -> Vec<JSString> {
+        let var_names = self.var_names.borrow();
+        var_names.iter().cloned().collect::<Vec<JSString>>()
+    }
+    #[cfg(test)]
+    pub fn lex_decls(&self) -> Vec<JSString> {
+        let bindings = self.declarative_record.bindings.borrow();
+        bindings.keys().cloned().collect::<Vec<_>>()
+    }
 }
 
 // GetIdentifierReference ( env, name, strict )

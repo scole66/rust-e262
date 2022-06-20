@@ -28,7 +28,6 @@ mod var_scope_decl {
     #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
     #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
     #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
     fn display(part: VarScopeDecl) -> String {
         part.to_string()
     }
@@ -39,7 +38,6 @@ mod var_scope_decl {
     #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
     #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
     #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
     fn string_from(part: VarScopeDecl) -> String {
         String::from(&part)
     }
@@ -50,7 +48,6 @@ mod var_scope_decl {
     #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
     #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
     #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => with |s| assert_ne!(s, ""); "ident")]
     fn debug(part: VarScopeDecl) -> String {
         format!("{:?}", part)
     }

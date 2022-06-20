@@ -23,6 +23,7 @@ case $name in
   ArrayIndex) data=($name array_index values) ;;
   ValuesJSString) data=(strings::JSString jsstring values) ;;
   ValuesOption) data=(core::option::Option option_object values) ;;
+  Valuesf64) data=(f64 f64ish values) ;;
   SymbolObject) data=($name symbol_object symbol_object) ;;
   SymbolRegistry) data=($name symbol_registry symbol_object) ;;
   ( create_symbol_object \
@@ -286,19 +287,26 @@ file=${data[2]}
 modname=${data[1]}
 typename=${data[0]}
 
-typeparts=($(echo $typename | tr : ' '))
-mangled=
-for part in ${typeparts[@]}; do
-  mangled=${mangled}${#part}${part}
-done
-
 fileparts=($(echo $file | tr : ' '))
 filemangled=
 for part in ${fileparts[@]}; do
   filemangled=${filemangled}${#part}${part}
 done
 
-regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
+case $typename in
+  f64)
+    regex="_3res${filemangled}d"
+    ;;
+  *)
+    typeparts=($(echo $typename | tr : ' '))
+    mangled=
+    for part in ${typeparts[@]}; do
+      mangled=${mangled}${#part}${part}
+    done
+
+    regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
+    ;;
+esac
 
 namelist=$(mktemp)
 report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist

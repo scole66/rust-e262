@@ -331,17 +331,17 @@ mod top_level_fcn_def {
         let fb = Maker::new("alice").for_binding();
         (None, None, None, None, VarScopeDecl::ForBinding(fb))
     }
-    fn make_binding_id() -> MakerResult {
-        let bi = Maker::new("alice").binding_identifier();
-        (None, None, None, None, VarScopeDecl::BindingIdentifier(bi))
-    }
+    //fn make_binding_id() -> MakerResult {
+    //    let bi = Maker::new("alice").binding_identifier();
+    //    (None, None, None, None, VarScopeDecl::BindingIdentifier(bi))
+    //}
     #[test_case(make_func_decl => Ok(true); "Function decl")]
     #[test_case(make_gen_decl => Ok(true); "Generator decl")]
     #[test_case(make_async_decl => Ok(true); "Async Function decl")]
     #[test_case(make_async_gen_decl => Ok(true); "Async Generator decl")]
     #[test_case(make_var_decl => serr("Not a top-level function def"); "Var decl")]
     #[test_case(make_for_binding => serr("Not a top-level function def"); "for binding")]
-    #[test_case(make_binding_id => serr("Not a top-level function def"); "binding id")]
+    //#[test_case(make_binding_id => serr("Not a top-level function def"); "binding id")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
         let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
         TopLevelFcnDef::try_from(vsd)
@@ -361,34 +361,30 @@ mod top_level_var_decl {
     use test_case::test_case;
 
     type MakerResult =
-        (Option<Rc<VariableDeclaration>>, Option<Rc<ForBinding>>, Option<Rc<BindingIdentifier>>, VarScopeDecl);
+        (Option<Rc<VariableDeclaration>>, Option<Rc<ForBinding>>, VarScopeDecl);
     fn make_func_decl() -> MakerResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
-        (None, None, None, VarScopeDecl::FunctionDeclaration(fd))
+        (None, None,  VarScopeDecl::FunctionDeclaration(fd))
     }
     fn make_gen_decl() -> MakerResult {
         let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
-        (None, None, None, VarScopeDecl::GeneratorDeclaration(gd))
+        (None, None, VarScopeDecl::GeneratorDeclaration(gd))
     }
     fn make_async_decl() -> MakerResult {
         let afd = Maker::new("async function alice(bob) { return charlie(bob); }").async_function_declaration();
-        (None, None, None, VarScopeDecl::AsyncFunctionDeclaration(afd))
+        (None, None, VarScopeDecl::AsyncFunctionDeclaration(afd))
     }
     fn make_async_gen_decl() -> MakerResult {
         let agd = Maker::new("async function *alice(bob) { return charlie(bob); }").async_generator_declaration();
-        (None, None, None, VarScopeDecl::AsyncGeneratorDeclaration(agd))
+        (None, None, VarScopeDecl::AsyncGeneratorDeclaration(agd))
     }
     fn make_var_decl() -> MakerResult {
         let vd = Maker::new("alice").variable_declaration();
-        (Some(vd.clone()), None, None, VarScopeDecl::VariableDeclaration(vd))
+        (Some(vd.clone()), None, VarScopeDecl::VariableDeclaration(vd))
     }
     fn make_for_binding() -> MakerResult {
         let fb = Maker::new("alice").for_binding();
-        (None, Some(fb.clone()), None, VarScopeDecl::ForBinding(fb))
-    }
-    fn make_binding_id() -> MakerResult {
-        let bi = Maker::new("alice").binding_identifier();
-        (None, None, Some(bi.clone()), VarScopeDecl::BindingIdentifier(bi))
+        (None, Some(fb.clone()), VarScopeDecl::ForBinding(fb))
     }
 
     #[test_case(make_func_decl => serr("FunctionDeclaration seen when top-level var decl expected"); "Function decl")]
@@ -397,14 +393,12 @@ mod top_level_var_decl {
     #[test_case(make_async_gen_decl => serr("AsyncGeneratorDeclaration seen when top-level var decl expected"); "Async Generator decl")]
     #[test_case(make_var_decl => Ok(true); "Var decl")]
     #[test_case(make_for_binding => Ok(true); "for binding")]
-    #[test_case(make_binding_id => Ok(true); "binding id")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
-        let (maybe_vd, maybe_fb, maybe_bi, vsd) = maker();
+        let (maybe_vd, maybe_fb, vsd) = maker();
         TopLevelVarDecl::try_from(vsd)
-            .map(|tlvd| match (tlvd, maybe_vd, maybe_fb, maybe_bi) {
-                (TopLevelVarDecl::VarDecl(vd1), Some(vd2), _, _) => Rc::ptr_eq(&vd1, &vd2),
-                (TopLevelVarDecl::ForBinding(fb1), _, Some(fb2), _) => Rc::ptr_eq(&fb1, &fb2),
-                (TopLevelVarDecl::BindingId(bi1), _, _, Some(bi2)) => Rc::ptr_eq(&bi1, &bi2),
+            .map(|tlvd| match (tlvd, maybe_vd, maybe_fb) {
+                (TopLevelVarDecl::VarDecl(vd1), Some(vd2), _) => Rc::ptr_eq(&vd1, &vd2),
+                (TopLevelVarDecl::ForBinding(fb1), _, Some(fb2)) => Rc::ptr_eq(&fb1, &fb2),
                 _ => false,
             })
             .map_err(|err| err.to_string())
@@ -415,20 +409,37 @@ mod global_declaration_instantiation {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("var a" => Ok(()); "one simple var-declared variable")]
+    #[test_case("var a" => Ok((set(&["a"]), set(&[]))); "one simple var-declared variable")]
     #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
     #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
     #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
-    fn global_declaration_instantiation(src: &str) -> Result<(), String> {
+    #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
+    #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
+    #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((set(&["a", "item"]), set(&["b", "c"]))); "many")]
+    #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
+    #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
+    #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
+    #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
+    fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
         let mut agent = test_agent();
         let script = Maker::new(src).script();
         let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         global_env.create_global_var_binding(&mut agent, "already_var_declared".into(), false).unwrap();
         global_env.create_mutable_binding(&mut agent, "existing_mutable".into(), false).unwrap();
 
-        let result = super::global_declaration_instantiation(&mut agent, script, global_env);
+        let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
+        let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        result.map_err(|err| unwind_any_error(&mut agent, err))
+        let result = super::global_declaration_instantiation(&mut agent, script, global_env.clone());
+
+        result.map_err(|err| unwind_any_error(&mut agent, err)).map(|_| {
+            let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
+            let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
+
+            let new_vardecl = after_vardecl.difference(&prior_vardecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            let new_lexdecl = after_lexdecl.difference(&prior_lexdecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            (new_vardecl, new_lexdecl)
+        })
     }
 }
 

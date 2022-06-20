@@ -10,7 +10,6 @@ use super::object::{
 use super::realm::IntrinsicId;
 use super::symbol_object::SymbolRegistry;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
-use ahash::RandomState;
 use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
@@ -136,7 +135,7 @@ pub fn unwind_range_error_object(agent: &mut Agent, err: Object) -> String {
     unwind_error_object(agent, "RangeError", err)
 }
 
-pub fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
+pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
     let mut s = factory.build_hasher();
     t.hash(&mut s);
     s.finish()

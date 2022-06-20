@@ -387,6 +387,12 @@ fn symbol_hash() {
     assert_eq!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s2));
     assert_ne!(s1, s3);
     assert_ne!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s3));
+
+    let f2 = std::collections::hash_map::RandomState::new();
+    assert_eq!(s1, s2);
+    assert_eq!(calculate_hash(&f2, &s1), calculate_hash(&f2, &s2));
+    assert_ne!(s1, s3);
+    assert_ne!(calculate_hash(&f2, &s1), calculate_hash(&f2, &s3));
 }
 #[test]
 fn symbol_new() {
@@ -1820,5 +1826,16 @@ mod option_object {
         let val = maker(&mut agent);
         let result: anyhow::Result<Option<Object>> = val.try_into();
         result.map_err(|e| e.to_string())
+    }
+}
+
+mod f64ish {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ECMAScriptValue::Undefined => serr("Value not an f64"); "undefined")]
+    #[test_case(ECMAScriptValue::from(99) => Ok(99.0); "number")]
+    fn try_from(src: impl TryInto<f64, Error = anyhow::Error>) -> Result<f64, String> {
+        src.try_into().map_err(|err| err.to_string())
     }
 }
