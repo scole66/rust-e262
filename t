@@ -23,6 +23,7 @@ case $name in
   ArrayIndex) data=($name array_index values) ;;
   ValuesJSString) data=(strings::JSString jsstring values) ;;
   ValuesOption) data=(core::option::Option option_object values) ;;
+  Valuesf64) data=(f64 f64ish values) ;;
   SymbolObject) data=($name symbol_object symbol_object) ;;
   SymbolRegistry) data=($name symbol_registry symbol_object) ;;
   ( create_symbol_object \
@@ -268,6 +269,7 @@ case $name in
   parse_script) data=($name $name agent) ;;
   TopLevelLexDecl) data=($name top_level_lex_decl agent) ;;
   TopLevelFcnDef) data=($name top_level_fcn_def agent) ;;
+  TopLevelVarDecl) data=($name top_level_var_decl agent) ;;
   global_declaration_instantiation) data=($name $name agent) ;;
   script_evaluation) data=($name $name agent) ;;
   ProcessError) data=($name process_error agent) ;;
@@ -277,7 +279,7 @@ case $name in
 esac
 
 # Make sure we compile
-if ! cargo check --tests; then
+if ! cargo check --profile coverage --tests; then
   exit
 fi
 
@@ -285,32 +287,39 @@ file=${data[2]}
 modname=${data[1]}
 typename=${data[0]}
 
-typeparts=($(echo $typename | tr : ' '))
-mangled=
-for part in ${typeparts[@]}; do
-  mangled=${mangled}${#part}${part}
-done
-
 fileparts=($(echo $file | tr : ' '))
 filemangled=
 for part in ${fileparts[@]}; do
   filemangled=${filemangled}${#part}${part}
 done
 
-regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
+case $typename in
+  f64)
+    regex="_3res${filemangled}d"
+    ;;
+  *)
+    typeparts=($(echo $typename | tr : ' '))
+    mangled=
+    for part in ${typeparts[@]}; do
+      mangled=${mangled}${#part}${part}
+    done
 
-namelist=$(mktemp)
-report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
+    regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
+    ;;
+esac
 
 
-echo "Testing ${file}::tests::${modname}, and rendering"
-rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
+echo "Testing ${file}::tests::${modname}"
 
 tst ${file}::tests::${modname}
 if [ $? -ne 0 ]; then
-  rm -f $namelist
   exit
 fi
+
+namelist=$(mktemp)
+report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
+echo "Renderng:"
+rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
 
 report --name-allowlist=$namelist $uncovered --demangled
 rm -f $namelist
