@@ -389,7 +389,7 @@ mod declarative_environment_record {
     }
 
     #[test]
-    #[should_panic(expected="unreachable")]
+    #[should_panic(expected = "unreachable")]
     fn get_this_binding() {
         let mut agent = test_agent();
         let der = DeclarativeEnvironmentRecord::new(None, "test");
@@ -904,7 +904,7 @@ mod object_environment_record {
     }
 
     #[test]
-    #[should_panic(expected="unreachable")]
+    #[should_panic(expected = "unreachable")]
     fn get_this_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
