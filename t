@@ -275,6 +275,18 @@ case $name in
   ProcessError) data=($name process_error agent) ;;
   process_ecmascript) data=($name $name agent) ;;
 
+  Removability) data=($name removability environment_record) ;;
+  Strictness) data=($name strictness environment_record) ;;
+  Mutability) data=($name mutability environment_record) ;;
+  Binding) data=($name binding:: environment_record) ;;
+  DeclarativeEnvironmentRecord) data=($name declarative_environment_record environment_record) ;;
+  ObjectEnvironmentRecord) data=($name object_environment_record environment_record) ;;
+  BindingStatus) data=($name binding_status environment_record) ;;
+  FunctionEnvironmentRecord) data=($name function_environment_record environment_record) ;;
+  GlobalEnvironmentRecord) data=($name global_environment_record environment_record) ;;
+  get_identifier_reference) data=($name $name environment_record) ;;
+  PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
+
   *) echo "No type called $name"; exit ;;
 esac
 
@@ -318,7 +330,7 @@ fi
 
 namelist=$(mktemp)
 report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
-echo "Renderng:"
+echo "Rendering:"
 rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
 
 report --name-allowlist=$namelist $uncovered --demangled
