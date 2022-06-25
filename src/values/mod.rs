@@ -1214,4 +1214,4 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
 }
 
 #[cfg(test)]
-mod tests;
+pub mod tests;

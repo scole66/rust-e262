@@ -862,30 +862,35 @@ impl Agent {
         let reference = expr?;
         match reference {
             NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
-            NormalCompletion::Reference(r) if r.is_unresolvable_reference() => Ok(true.into()),
-            NormalCompletion::Reference(r) if r.is_property_reference() => {
-                if r.is_super_reference() {
+            NormalCompletion::Reference(r) => match *r {
+                Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
+                Reference { base: Base::Value(_), this_value: Some(_), .. } => {
                     Err(create_reference_error(self, "super properties not deletable"))
-                } else {
-                    let base_obj = to_object(self, ECMAScriptValue::try_from(r.base).unwrap())?;
-                    let delete_status = base_obj.o.delete(self, &r.referenced_name.try_into().unwrap())?;
-                    if !delete_status && r.strict {
+                }
+                Reference { base: Base::Value(val), referenced_name, strict, this_value: None } => {
+                    let base_obj = to_object(self, val)?;
+                    let delete_status = base_obj
+                        .o
+                        .delete(self, &referenced_name.try_into().expect("Property name will never be private"))?;
+                    if !delete_status && strict {
                         Err(create_type_error(self, "property not deletable"))
                     } else {
                         Ok(delete_status.into())
                     }
                 }
-            }
-            NormalCompletion::Reference(r) => {
-                let base: Rc<dyn EnvironmentRecord> = r.base.try_into().unwrap();
-                let delete_status = base.delete_binding(self, &r.referenced_name.try_into().unwrap())?;
-                Ok(delete_status.into())
-            }
+                Reference { base: Base::Environment(base), referenced_name, .. } => {
+                    let delete_status = base.delete_binding(
+                        self,
+                        &referenced_name.try_into().expect("Property name will never be private"),
+                    )?;
+                    Ok(delete_status.into())
+                }
+            },
         }
     }
 
     fn void_operator(&mut self, expr: FullCompletion) -> FullCompletion {
-        get_value(self, expr).map(NormalCompletion::from)?;
+        get_value(self, expr)?;
         Ok(ECMAScriptValue::Undefined.into())
     }
 

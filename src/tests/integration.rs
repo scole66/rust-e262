@@ -1,5 +1,4 @@
 use super::*;
-use crate::agent::*;
 use crate::tests::{serr, vok};
 use crate::values::*;
 use num::BigInt;

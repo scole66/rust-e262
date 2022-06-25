@@ -1148,7 +1148,7 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
 
     target
 }
-fn make_tostring_getter_error(agent: &mut Agent) -> Object {
+pub fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     // valueOf returns 123456; tostring is a getter that errors
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
