@@ -556,8 +556,8 @@ pub fn make_toprimitive_throw_obj(agent: &mut Agent) -> Object {
         0_f64,
         "[Symbol toPrimitive]".into(),
         BUILTIN_FUNCTION_SLOTS,
-        Some(realm.clone()),
-        Some(function_proto.clone()),
+        Some(realm),
+        Some(function_proto),
         None,
     );
     define_property_or_throw(
