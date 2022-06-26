@@ -145,23 +145,23 @@ mod agent {
         }
 
         #[test]
-        fn multiple_ec_stack() {
-            let mut agent = test_agent();
-            let first_realm = agent.current_realm_record().unwrap();
-            let second_realm = create_realm(&mut agent);
-            // build a new EC, and add it to the EC stack
-            let sr = ScriptRecord {
-                realm: Rc::clone(&second_realm),
-                ecmascript_code: Maker::new("").script(),
-                compiled: Rc::new(Chunk::new("test")),
-            };
-            let test_ec =
-                ExecutionContext::new(None, Rc::clone(&second_realm), Some(ScriptOrModule::Script(Rc::new(sr))));
-            agent.push_execution_context(test_ec);
+        fn stacked() {
+            let mut a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+            let first_realm = create_named_realm(&mut a, "first");
+            let first_context = ExecutionContext::new(None, first_realm, None);
+            a.push_execution_context(first_context);
 
-            let result = agent.current_realm_record().unwrap();
-            assert!(Rc::ptr_eq(&result, &second_realm));
-            assert!(!Rc::ptr_eq(&result, &first_realm));
+            let second_realm = create_named_realm(&mut a, "second");
+            let second_context = ExecutionContext::new(None, second_realm, None);
+            a.push_execution_context(second_context);
+
+            let current = a.current_realm_record().unwrap();
+            assert_eq!(get_realm_name(&mut a, &*current.borrow()), "second");
+
+            a.pop_execution_context();
+
+            let current = a.current_realm_record().unwrap();
+            assert_eq!(get_realm_name(&mut a, &*current.borrow()), "first");
         }
     }
 
@@ -424,6 +424,36 @@ mod agent {
         let rval = make_rval(&mut agent);
         agent.apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(&mut agent, ac))
     }
+
+    #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
+    #[test_case(WksId::HasInstance => "Symbol.hasInstance"; "Symbol.hasInstance")]
+    #[test_case(WksId::IsConcatSpreadable => "Symbol.isConcatSpreadable"; "Symbol.isConcatSpreadable")]
+    #[test_case(WksId::Iterator => "Symbol.iterator"; "Symbol.iterator")]
+    #[test_case(WksId::Match => "Symbol.match"; "Symbol.match")]
+    #[test_case(WksId::MatchAll => "Symbol.matchAll"; "Symbol.matchAll")]
+    #[test_case(WksId::Replace => "Symbol.replace"; "Symbol.replace")]
+    #[test_case(WksId::Search => "Symbol.search"; "Symbol.search")]
+    #[test_case(WksId::Species => "Symbol.species"; "Symbol.species")]
+    #[test_case(WksId::Split => "Symbol.split"; "Symbol.split")]
+    #[test_case(WksId::ToPrimitive => "Symbol.toPrimitive"; "Symbol.toPrimitive")]
+    #[test_case(WksId::ToStringTag => "Symbol.toStringTag"; "Symbol.toStringTag")]
+    #[test_case(WksId::Unscopables => "Symbol.unscopables"; "Symbol.unscopables")]
+    fn wks(id: WksId) -> String {
+        let agent = test_agent();
+        String::from(agent.wks(id).description().unwrap())
+    }
+
+    #[test]
+    fn prepare_for_execution() {
+        let mut agent = test_agent();
+        let chunk = Rc::new(Chunk::new("test sentinel"));
+
+        agent.prepare_for_execution(0, Rc::clone(&chunk));
+
+        assert_eq!(agent.execution_context_stack[0].pc, 0);
+        assert!(agent.execution_context_stack[0].stack.is_empty());
+        assert_eq!(agent.execution_context_stack[0].chunk.as_ref().unwrap().name, "test sentinel");
+    }
 }
 
 #[test]
@@ -447,76 +477,6 @@ fn wksid_clone() {
     let w2 = w1.clone();
 
     assert_eq!(w1, w2);
-}
-
-#[test]
-fn wks_descriptions() {
-    let agent = test_agent();
-    let symbols = vec![
-        WksId::AsyncIterator,
-        WksId::HasInstance,
-        WksId::IsConcatSpreadable,
-        WksId::Iterator,
-        WksId::Match,
-        WksId::MatchAll,
-        WksId::Replace,
-        WksId::Search,
-        WksId::Species,
-        WksId::Split,
-        WksId::ToPrimitive,
-        WksId::ToStringTag,
-        WksId::Unscopables,
-    ];
-    let descriptions = vec![
-        "Symbol.asyncIterator",
-        "Symbol.hasInstance",
-        "Symbol.isConcatSpreadable",
-        "Symbol.iterator",
-        "Symbol.match",
-        "Symbol.matchAll",
-        "Symbol.replace",
-        "Symbol.search",
-        "Symbol.species",
-        "Symbol.split",
-        "Symbol.toPrimitive",
-        "Symbol.toStringTag",
-        "Symbol.unscopables",
-    ];
-    for (id, expected) in symbols.iter().zip(descriptions) {
-        let desc = agent.wks(*id).description().unwrap();
-        assert_eq!(desc, JSString::from(expected));
-    }
-}
-
-mod current_realm_record {
-    use super::*;
-
-    #[test]
-    fn empty() {
-        let a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
-        let realm = a.current_realm_record();
-
-        assert!(realm.is_none());
-    }
-    #[test]
-    fn stacked() {
-        let mut a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
-        let first_realm = create_named_realm(&mut a, "first");
-        let first_context = ExecutionContext::new(None, first_realm, None);
-        a.push_execution_context(first_context);
-
-        let second_realm = create_named_realm(&mut a, "second");
-        let second_context = ExecutionContext::new(None, second_realm, None);
-        a.push_execution_context(second_context);
-
-        let current = a.current_realm_record().unwrap();
-        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "second");
-
-        a.pop_execution_context();
-
-        let current = a.current_realm_record().unwrap();
-        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "first");
-    }
 }
 
 mod well_known_symbols {
