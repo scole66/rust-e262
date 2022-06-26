@@ -517,7 +517,7 @@ impl LexicalBinding {
 //      var VariableDeclarationList[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
 pub struct VariableStatement {
-    list: Rc<VariableDeclarationList>,
+    pub list: Rc<VariableDeclarationList>,
     location: Location,
 }
 

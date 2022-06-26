@@ -478,6 +478,17 @@ mod literal {
                 assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
             }
         }
+        #[test]
+        fn debug_many_noops() {
+            let node = Maker::new("@@3").literal();
+            let mut c = Chunk::new("debug_lots_of_noops");
+            node.compile(&mut c).unwrap();
+            assert_eq!(c.opcodes.len(), 32766);
+            assert_eq!(c.opcodes[0], Insn::Nop.into());
+            for x in 1..32765 {
+                assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
+            }
+        }
 
         #[test]
         fn filled_string_table() {
@@ -1825,6 +1836,154 @@ mod initializer {
     ]), true, false)); "assignment expression as initializer; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).initializer();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("var a;", true, None => Ok((svec(&["EMPTY"]), false, false)); "just one")]
+    #[test_case("var x, y=67+b, c='hi';", true, None => Ok((svec(&[
+        "EMPTY",
+        "POP",
+        "STRING 0 (y)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 20",
+        "FLOAT 0 (67)",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "ADD",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 3 (hi)",
+        "PUT_VALUE"
+    ]), true, false)); "something complex")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_declaration_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["EMPTY"]), false, false)); "id/strict")]
+    #[test_case("a, b", true, None => Ok((svec(&["EMPTY", "POP", "EMPTY"]), false, false)); "2 ids/strict")]
+    #[test_case("a=1, b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "first item compile fail")]
+    #[test_case("a, b=1", true, Some(0) => serr("Out of room for strings in this compilation unit"); "second item compile fail")]
+    #[test_case("a=b,c=d", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 17",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 3 (d)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE"
+    ]), true, false)); "list with refs")]
+    #[test_case("a=c, b=@@3", true, None => serr("out of range integral type conversion attempted"); "second item too large")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_declaration_list();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["EMPTY"]), false, false)); "id/strict")]
+    #[test_case("a=3", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (3)",
+        "PUT_VALUE",
+    ]), true, false)); "id lit init/strict")]
+    #[test_case("a=3", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (3)",
+        "PUT_VALUE",
+    ]), true, false)); "id lit init/non-strict")]
+    #[test_case("a=b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]), true, false)); "id ref init/strict")]
+    #[test_case("a=0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "string exhaustion")]
+    #[test_case("a=function(){}", true, None => panics "not yet implemented"; "anonymous func")]
+    #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "izer compilation fails")]
+    #[test_case("a=@@@", true, None => serr("out of range integral type conversion attempted"); "izer too big")]
+    #[test_case("[a]=b", true, None => panics "not yet implemented"; "pattern assignment")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)

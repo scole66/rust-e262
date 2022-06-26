@@ -83,6 +83,9 @@ case $name in
   CompilerBindingList) data=(parser::declarations_and_variables::BindingList binding_list compiler) ;;
   CompilerLexicalBinding) data=(parser::declarations_and_variables::LexicalBinding lexical_binding compiler) ;;
   CompilerInitializer) data=(parser::primary_expressions::Initializer initializer compiler) ;;
+  CompilerVariableStatement) data=(parser::declarations_and_variables::VariableStatement variable_statement compiler) ;;
+  CompilerVariableDeclarationList) data=(parser::declarations_and_variables::VariableDeclarationList variable_declaration_list compiler) ;;
+  CompilerVariableDeclaration) data=(parser::declarations_and_variables::VariableDeclaration variable_declaration:: compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
   RefResult) data=($name ref_result compiler) ;;

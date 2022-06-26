@@ -369,6 +369,13 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
             }
             chunk.op(Insn::False);
         }
+        '3' => {
+            // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
+            for _ in 0..32768 - 3 {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
         '!' => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
@@ -1346,7 +1353,19 @@ impl Statement {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict),
-            _ => todo!(),
+            Statement::Block(_) => todo!(),
+            Statement::Variable(var_statement) => var_statement.compile(chunk, strict),
+            Statement::Empty(_) => todo!(),
+            Statement::If(_) => todo!(),
+            Statement::Breakable(_) => todo!(),
+            Statement::Continue(_) => todo!(),
+            Statement::Break(_) => todo!(),
+            Statement::Return(_) => todo!(),
+            Statement::With(_) => todo!(),
+            Statement::Labelled(_) => todo!(),
+            Statement::Throw(_) => todo!(),
+            Statement::Try(_) => todo!(),
+            Statement::Debugger(_) => todo!(),
         }
     }
 }
@@ -1444,6 +1463,105 @@ impl LexicalBinding {
 impl Initializer {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         self.ae.compile(chunk, strict)
+    }
+}
+
+impl VariableStatement {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: Evaluation
+        //      VariableStatement : var VariableDeclarationList ;
+        //  1. Let next be the result of evaluating VariableDeclarationList.
+        //  2. ReturnIfAbrupt(next).
+        //  3. Return empty.
+
+        // Stack: ...
+        self.list.compile(chunk, strict)
+        // Stack: empty/err ...
+    }
+}
+
+impl VariableDeclarationList {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
+        match self {
+            VariableDeclarationList::Item(item) => item.compile(chunk, strict),
+            VariableDeclarationList::List(list, item) => {
+                // Runtime Semantics: Evaluation
+                //      VariableDeclarationList : VariableDeclarationList , VariableDeclaration
+                //  1. Let next be the result of evaluating VariableDeclarationList.
+                //  2. ReturnIfAbrupt(next).
+                //  3. Return the result of evaluating VariableDeclaration.
+
+                // Stack: ...
+                let first = list.compile(chunk, strict)?; // Stack: empty/err ...
+                let tgt = if first.maybe_abrupt() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt)) // Stack: empty ...
+                } else {
+                    None
+                };
+                chunk.op(Insn::Pop); // Stack: ...
+                let second = item.compile(chunk, strict)?; // Stack: empty/err ...
+                if let Some(tgt) = tgt {
+                    chunk.fixup(tgt)?; // Stack: empty/err ...
+                }
+                Ok((first.maybe_abrupt() || second.maybe_abrupt()).into())
+            }
+        }
+    }
+}
+
+impl VariableDeclaration {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: Evaluation
+        match self {
+            VariableDeclaration::Identifier(_, None) => {
+                // VariableDeclaration : BindingIdentifier
+                //  1. Return empty.
+
+                // Stack: ...
+                chunk.op(Insn::Empty); // Stack: empty ...
+                Ok(AbruptResult::Never)
+            }
+            VariableDeclaration::Identifier(id, Some(izer)) => {
+                // VariableDeclaration : BindingIdentifier Initializer
+                //  1. Let bindingId be StringValue of BindingIdentifier.
+                //  2. Let lhs be ? ResolveBinding(bindingId).
+                //  3. If IsAnonymousFunctionDefinition(Initializer) is true, then
+                //      a. Let value be ? NamedEvaluation of Initializer with argument bindingId.
+                //  4. Else,
+                //      a. Let rhs be the result of evaluating Initializer.
+                //      b. Let value be ? GetValue(rhs).
+                //  5. Perform ? PutValue(lhs, value).
+                //  6. Return empty.
+
+                let mut exits = vec![];
+                // Stack: ...
+                let idx = chunk.add_to_string_pool(id.string_value())?;
+                chunk.op_plus_arg(Insn::String, idx); // Stack: bindingId ...
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }); // Stack: lhs/err ...
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt)); // Stack: lhs ...
+                if izer.is_anonymous_function_definition() {
+                    todo!();
+                } else {
+                    let izer_flags = izer.compile(chunk, strict)?; // Stack: rhs/rref/err lhs ...
+                    if izer_flags.maybe_ref() {
+                        chunk.op(Insn::GetValue); // Stack: rhs/err lhs ...
+                    }
+                    if izer_flags.maybe_abrupt() || izer_flags.maybe_ref() {
+                        let ok_tgt = chunk.op_jump(Insn::JumpIfNormal); // Stack: err lhs ...
+                        chunk.op_plus_arg(Insn::Unwind, 1); // Stack: err ...
+                        exits.push(chunk.op_jump(Insn::Jump));
+                        chunk.fixup(ok_tgt).expect("Jump too short to overflow.");
+                    }
+                }
+                // Stack: rhs lhs ...
+                chunk.op(Insn::PutValue); // Stack: err/empty ...
+                for exit in exits {
+                    chunk.fixup(exit)?;
+                }
+                Ok(AbruptResult::Maybe)
+            }
+            VariableDeclaration::Pattern(_, _) => todo!(),
+        }
     }
 }
 
