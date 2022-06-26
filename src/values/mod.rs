@@ -933,7 +933,8 @@ pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Comp
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
 pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
-    Ok(to_core_int(agent, 4294967296.0, argument)? as u32)
+    let i = to_core_int(agent, 4294967296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
 // ToInt16 ( argument )
@@ -966,7 +967,8 @@ pub fn to_int16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Comp
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
 pub fn to_uint16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
-    Ok(to_core_int(agent, 65536.0, argument)? as u16)
+    let i = to_core_int(agent, 65536.0, argument)? as i64;
+    Ok((if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
 // ToInt8 ( argument )
@@ -994,7 +996,8 @@ pub fn to_int8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Compl
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
 pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
-    Ok(to_core_int(agent, 256.0, argument)? as u8)
+    let i = to_core_int(agent, 256.0, argument)? as i64;
+    Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
 // ToString ( argument )

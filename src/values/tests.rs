@@ -1582,6 +1582,7 @@ mod to_uint32 {
     #[test_case(-0.0 => Ok(0); "neg zero")]
     #[test_case(4294967295.0 => Ok(0xFFFFFFFF); "upper limit")]
     #[test_case(4294967296.0 => Ok(0); "rollover")]
+    #[test_case(-300.0 => Ok(4294966996); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
         let mut agent = test_agent();
@@ -1619,6 +1620,7 @@ mod to_uint16 {
     #[test_case(-0.0 => Ok(0); "neg zero")]
     #[test_case(65535.0 => Ok(0xFFFF); "upper limit")]
     #[test_case(65536.0 => Ok(0); "rollover")]
+    #[test_case(-300.0 => Ok(65236); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u16, String> {
         let mut agent = test_agent();
@@ -1656,6 +1658,7 @@ mod to_uint8 {
     #[test_case(-0.0 => Ok(0); "neg zero")]
     #[test_case(255.0 => Ok(0xFF); "upper limit")]
     #[test_case(256.0 => Ok(0); "rollover")]
+    #[test_case(-200.0 => Ok(56); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
         let mut agent = test_agent();
