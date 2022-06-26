@@ -2,7 +2,7 @@ use crate::object::Object;
 use crate::reference::Reference;
 use crate::strings::JSString;
 use crate::values::{ECMAScriptValue, Numeric, PropertyKey};
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -122,6 +122,25 @@ impl TryFrom<NormalCompletion> for Numeric {
         let v: ECMAScriptValue = src.try_into()?;
         let numeric: Numeric = v.try_into()?;
         Ok(numeric)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ThrowValue(ECMAScriptValue);
+impl TryFrom<AbruptCompletion> for ThrowValue {
+    type Error = anyhow::Error;
+    fn try_from(value: AbruptCompletion) -> Result<Self, Self::Error> {
+        match value {
+            AbruptCompletion::Break { .. } => bail!("Break found when Throw expected"),
+            AbruptCompletion::Continue { .. } => bail!("Continue found when Throw expected"),
+            AbruptCompletion::Return { .. } => bail!("Return found when Throw expected"),
+            AbruptCompletion::Throw { value } => Ok(Self(value)),
+        }
+    }
+}
+impl From<ThrowValue> for ECMAScriptValue {
+    fn from(tv: ThrowValue) -> Self {
+        tv.0
     }
 }
 

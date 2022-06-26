@@ -3,7 +3,6 @@ use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::declarations_and_variables::VariableDeclaration;
 use super::function_definitions::FunctionDeclaration;
 use super::generator_function_definitions::GeneratorDeclaration;
-use super::identifiers::BindingIdentifier;
 use super::iteration_statements::ForBinding;
 use super::scanner::{Scanner, StringToken};
 use super::statements_and_declarations::{DeclPart, HoistableDeclPart};
@@ -73,7 +72,6 @@ where
 pub enum VarScopeDecl {
     VariableDeclaration(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),
-    BindingIdentifier(Rc<BindingIdentifier>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
     AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
@@ -98,7 +96,6 @@ impl fmt::Display for VarScopeDecl {
             VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
             VarScopeDecl::VariableDeclaration(vd) => vd.fmt(f),
             VarScopeDecl::ForBinding(fb) => fb.fmt(f),
-            VarScopeDecl::BindingIdentifier(bi) => bi.fmt(f),
         }
     }
 }
@@ -206,7 +203,7 @@ impl Script {
 
     /// Return a list of parse nodes for the lexically declared identifiers contained within the children of this node.
     ///
-    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scipe are treated as though
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
     /// they are declared var-style, and as such won't be reflected here.
     ///
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
@@ -354,7 +351,7 @@ impl ScriptBody {
 
     /// Return a list of parse nodes for the lexically declared identifiers contained within the children of this node.
     ///
-    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scipe are treated as though
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
     /// they are declared var-style, and as such won't be reflected here.
     ///
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.

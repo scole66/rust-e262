@@ -1,16 +1,12 @@
-use super::agent::Agent;
+use super::agent::*;
 use super::cr::{AbruptCompletion, Completion};
 use super::errors::create_type_error;
-use super::object::{
-    get, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
-    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys,
-    ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
-};
+use super::function_object::*;
+use super::object::*;
 use super::realm::IntrinsicId;
 use super::symbol_object::SymbolRegistry;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
-use ahash::RandomState;
+use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -52,6 +48,20 @@ where
         MockWriter { writer, count: 0, target: errat, error_generated: false }
     }
 }
+
+pub fn display_error_validate(item: impl fmt::Display) {
+    let mut target = 1;
+    loop {
+        let mut writer = MockWriter::new(Vec::new(), target);
+        let result = write!(&mut writer, "{item}");
+        assert!(result.is_err() || !writer.error_generated);
+        if !writer.error_generated {
+            break;
+        }
+        target += 1;
+    }
+}
+
 pub fn printer_validate<U>(func: U)
 where
     U: Fn(&mut MockWriter<Vec<u8>>) -> IoResult<()>,
@@ -121,7 +131,7 @@ pub fn unwind_range_error_object(agent: &mut Agent, err: Object) -> String {
     unwind_error_object(agent, "RangeError", err)
 }
 
-pub fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
+pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
     let mut s = factory.build_hasher();
     t.hash(&mut s);
     s.finish()
@@ -532,6 +542,38 @@ pub fn faux_errors(
     Err(create_type_error(agent, "Test Sentinel"))
 }
 
+pub fn make_toprimitive_throw_obj(agent: &mut Agent) -> Object {
+    let realm = agent.current_realm_record().unwrap();
+    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
+    let target = ordinary_object_create(agent, Some(object_prototype), &[]);
+    let to_prim_sym = agent.wks(WksId::ToPrimitive);
+    let key = PropertyKey::from(to_prim_sym);
+    let fcn = create_builtin_function(
+        agent,
+        faux_errors,
+        false,
+        0_f64,
+        "[Symbol toPrimitive]".into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm),
+        Some(function_proto),
+        None,
+    );
+    define_property_or_throw(
+        agent,
+        &target,
+        key,
+        PotentialPropertyDescriptor::new()
+            .value(ECMAScriptValue::from(fcn))
+            .writable(true)
+            .configurable(true)
+            .enumerable(false),
+    )
+    .unwrap();
+    target
+}
+
 use crate::object::define_property_or_throw;
 use crate::realm::{create_realm, Realm};
 
@@ -564,6 +606,13 @@ pub fn sok<T>(msg: &str) -> Result<String, T> {
 
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
+}
+
+pub fn disasm_filt(s: String) -> Option<String> {
+    if s.starts_with('=') {
+        return None;
+    }
+    Some(s.split_whitespace().join(" "))
 }
 
 mod integration;

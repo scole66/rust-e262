@@ -1,9 +1,10 @@
+#![allow(clippy::clone_on_copy)]
+
 use super::*;
 use crate::chunk::Chunk;
 use crate::parser::testhelp::{svec, Maker};
 use crate::strings::JSString;
-use crate::tests::serr;
-use itertools::Itertools;
+use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;
 
@@ -102,12 +103,13 @@ mod insn {
 
 mod compiler_status_flags {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn default() {
         let csf = CompilerStatusFlags::default();
-        assert_eq!(csf.can_be_reference, false);
-        assert_eq!(csf.can_be_abrupt, false);
+        assert_eq!(csf.can_be_reference, RefResult::Never);
+        assert_eq!(csf.can_be_abrupt, AbruptResult::Never);
     }
 
     #[test]
@@ -118,7 +120,7 @@ mod compiler_status_flags {
     #[test]
     #[allow(clippy::clone_on_copy)]
     fn clone() {
-        let csf1 = CompilerStatusFlags { can_be_abrupt: false, can_be_reference: true };
+        let csf1 = CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe };
         let csf2 = csf1.clone();
         assert_eq!(csf1.can_be_abrupt, csf2.can_be_abrupt);
         assert_eq!(csf1.can_be_reference, csf2.can_be_reference);
@@ -132,16 +134,193 @@ mod compiler_status_flags {
         assert_eq!(csf1.can_be_reference, csf2.can_be_reference);
     }
 
+    #[test_case(true => true; "abrupt")]
+    #[test_case(false => false; "not abrupt")]
+    fn abrupt(a: bool) -> bool {
+        let csf = CompilerStatusFlags::new().abrupt(a);
+        csf.maybe_abrupt()
+    }
+
+    #[test_case(true => true; "maybe a ref")]
+    #[test_case(false => false; "never a ref")]
+    fn reference(r: bool) -> bool {
+        let csf = CompilerStatusFlags::new().reference(r);
+        csf.maybe_ref()
+    }
+
+    #[test_case(AlwaysAbruptResult{} => CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never }; "AlwaysAbruptResult")]
+    #[test_case(NeverAbruptRefResult{} => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Never }; "NeverAbruptRefResult")]
+    #[test_case(AbruptResult::Maybe => CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never }; "AbruptResult::Maybe")]
+    #[test_case(AbruptResult::Never => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Never }; "AbruptResult::Never")]
+    #[test_case(AlwaysAbruptRefResult{} => CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Maybe }; "AlwaysAbruptRefResult")]
+    #[test_case(AlwaysRefResult{} => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe }; "AlwaysRefResult")]
+    #[test_case(RefResult::Maybe => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe }; "RefResult::Maybe")]
+    #[test_case(RefResult::Never => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Never }; "RefResult::Never")]
+    fn from(item: impl Into<CompilerStatusFlags>) -> CompilerStatusFlags {
+        item.into()
+    }
+
+    #[test_case(CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never },
+        CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe } => false; "ne")]
+    #[test_case(CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never },
+        CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never } => true; "eq")]
+    fn eq(left: CompilerStatusFlags, right: CompilerStatusFlags) -> bool {
+        left == right
+    }
+
+    #[test_case(CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never },
+        CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe } => true; "ne")]
+    #[test_case(CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never },
+        CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never } => false; "eq")]
+    fn ne(left: CompilerStatusFlags, right: CompilerStatusFlags) -> bool {
+        left != right
+    }
+}
+
+mod ref_result {
+    use super::*;
+    use test_case::test_case;
+
     #[test]
-    fn abrupt() {
-        let csf = CompilerStatusFlags::new().abrupt();
-        assert_eq!(csf.can_be_abrupt, true);
+    fn default() {
+        let result = RefResult::default();
+        assert!(matches!(result, RefResult::Never));
+    }
+
+    #[test_case(true => RefResult::Maybe; "maybe")]
+    #[test_case(false => RefResult::Never; "never")]
+    fn from_bool(src: bool) -> RefResult {
+        RefResult::from(src)
     }
 
     #[test]
-    fn reference() {
-        let csf = CompilerStatusFlags::new().reference();
-        assert_eq!(csf.can_be_reference, true);
+    fn debug() {
+        assert_ne!(format!("{:?}", RefResult::Maybe), "");
+    }
+
+    #[test_case(RefResult::Maybe, RefResult::Maybe => true; "eq")]
+    #[test_case(RefResult::Never, RefResult::Maybe => false; "ne")]
+    fn eq(left: RefResult, right: RefResult) -> bool {
+        left == right
+    }
+
+    #[test]
+    fn clone() {
+        let rr1 = RefResult::Maybe;
+        let rr2 = rr1.clone();
+
+        assert_eq!(rr1, rr2);
+    }
+}
+
+mod abrupt_result {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", AbruptResult::Maybe), "");
+    }
+
+    #[test_case(AbruptResult::Maybe, AbruptResult::Maybe => true; "eq")]
+    #[test_case(AbruptResult::Maybe, AbruptResult::Never => false; "ne")]
+    fn eq(left: AbruptResult, right: AbruptResult) -> bool {
+        left == right
+    }
+
+    #[test]
+    fn clone() {
+        let ar1 = AbruptResult::Maybe;
+        let ar2 = ar1.clone();
+
+        assert_eq!(ar1, ar2);
+    }
+
+    #[test]
+    fn default() {
+        assert_eq!(AbruptResult::default(), AbruptResult::Never);
+    }
+
+    #[test_case(AbruptResult::Maybe => true; "maybe")]
+    #[test_case(AbruptResult::Never => false; "never")]
+    fn maybe_abrupt(item: AbruptResult) -> bool {
+        item.maybe_abrupt()
+    }
+
+    #[test_case(AbruptResult::Maybe => false; "maybe")]
+    #[test_case(AbruptResult::Never => false; "never")]
+    fn maybe_ref(item: AbruptResult) -> bool {
+        item.maybe_ref()
+    }
+
+    #[test_case(NeverAbruptRefResult{} => AbruptResult::Never; "NeverAbruptRefResult")]
+    #[test_case(true => AbruptResult::Maybe; "true val")]
+    #[test_case(false => AbruptResult::Never; "false val")]
+    #[test_case(AlwaysAbruptResult{} => AbruptResult::Maybe; "AlwaysAbruptResult")]
+    #[test_case(CompilerStatusFlags::new() => AbruptResult::Never; "CSF; not abrupt")]
+    #[test_case(CompilerStatusFlags::new().abrupt(true) => AbruptResult::Maybe; "CSF; maybe abrupt")]
+    fn from(item: impl Into<AbruptResult>) -> AbruptResult {
+        item.into()
+    }
+}
+
+mod always_abrupt_result {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", AlwaysAbruptResult {}), "");
+    }
+
+    #[test]
+    fn maybe_ref() {
+        let item = AlwaysAbruptResult {};
+        assert!(!item.maybe_ref());
+    }
+
+    #[test]
+    fn maybe_abrupt() {
+        let item = AlwaysAbruptResult {};
+        assert!(item.maybe_abrupt());
+    }
+}
+
+mod always_ref_result {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", AlwaysRefResult {}), "");
+    }
+}
+
+mod always_abrupt_ref_result {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", AlwaysAbruptRefResult {}), "");
+    }
+}
+
+mod never_abrupt_ref_result {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", NeverAbruptRefResult {}), "");
+    }
+
+    #[test]
+    fn maybe_ref() {
+        let item = NeverAbruptRefResult {};
+        assert!(!item.maybe_ref());
+    }
+
+    #[test]
+    fn maybe_abrupt() {
+        let item = NeverAbruptRefResult {};
+        assert!(!item.maybe_abrupt());
     }
 }
 
@@ -149,13 +328,6 @@ mod compiler_status_flags {
 // opcodes output match what we wanted the opcodes to be. They do not test whether we chose the right opcodes to
 // complete the requested task! Checking that really feels like a later stage integration task. (Both the compiler and
 // the runtime executor need to be functioning. That's all probably based more or less on test-262.)
-
-fn disasm_filt(s: String) -> Option<String> {
-    if s.starts_with('=') {
-        return None;
-    }
-    Some(s.split_whitespace().join(" "))
-}
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
@@ -306,6 +478,17 @@ mod literal {
                 assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
             }
         }
+        #[test]
+        fn debug_many_noops() {
+            let node = Maker::new("@@3").literal();
+            let mut c = Chunk::new("debug_lots_of_noops");
+            node.compile(&mut c).unwrap();
+            assert_eq!(c.opcodes.len(), 32766);
+            assert_eq!(c.opcodes[0], Insn::Nop.into());
+            for x in 1..32765 {
+                assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
+            }
+        }
 
         #[test]
         fn filled_string_table() {
@@ -409,8 +592,8 @@ mod property_definition_list {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -473,8 +656,8 @@ mod property_definition {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -496,8 +679,8 @@ mod property_name {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -538,8 +721,8 @@ mod literal_property_name {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -562,8 +745,8 @@ mod computed_property_name {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -646,8 +829,8 @@ mod member_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -690,8 +873,8 @@ mod call_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -718,8 +901,8 @@ mod call_member_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -786,8 +969,8 @@ mod arguments {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -823,8 +1006,8 @@ mod argument_list {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
                     count,
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -927,8 +1110,8 @@ mod update_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -972,8 +1155,8 @@ mod unary_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1252,8 +1435,8 @@ mod assignment_expression {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1344,8 +1527,8 @@ mod statement_list {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1478,8 +1661,8 @@ mod lexical_declaration {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1537,8 +1720,8 @@ mod binding_list {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1609,8 +1792,8 @@ mod lexical_binding {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
@@ -1659,8 +1842,156 @@ mod initializer {
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.can_be_abrupt,
-                    status.can_be_reference,
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("var a;", true, None => Ok((svec(&["EMPTY"]), false, false)); "just one")]
+    #[test_case("var x, y=67+b, c='hi';", true, None => Ok((svec(&[
+        "EMPTY",
+        "POP",
+        "STRING 0 (y)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 20",
+        "FLOAT 0 (67)",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "ADD",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 3 (hi)",
+        "PUT_VALUE"
+    ]), true, false)); "something complex")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_declaration_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["EMPTY"]), false, false)); "id/strict")]
+    #[test_case("a, b", true, None => Ok((svec(&["EMPTY", "POP", "EMPTY"]), false, false)); "2 ids/strict")]
+    #[test_case("a=1, b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "first item compile fail")]
+    #[test_case("a, b=1", true, Some(0) => serr("Out of room for strings in this compilation unit"); "second item compile fail")]
+    #[test_case("a=b,c=d", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 17",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 3 (d)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE"
+    ]), true, false)); "list with refs")]
+    #[test_case("a=c, b=@@3", true, None => serr("out of range integral type conversion attempted"); "second item too large")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_declaration_list();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod variable_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["EMPTY"]), false, false)); "id/strict")]
+    #[test_case("a=3", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (3)",
+        "PUT_VALUE",
+    ]), true, false)); "id lit init/strict")]
+    #[test_case("a=3", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (3)",
+        "PUT_VALUE",
+    ]), true, false)); "id lit init/non-strict")]
+    #[test_case("a=b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]), true, false)); "id ref init/strict")]
+    #[test_case("a=0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "string exhaustion")]
+    #[test_case("a=function(){}", true, None => panics "not yet implemented"; "anonymous func")]
+    #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "izer compilation fails")]
+    #[test_case("a=@@@", true, None => serr("out of range integral type conversion attempted"); "izer too big")]
+    #[test_case("[a]=b", true, None => panics "not yet implemented"; "pattern assignment")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).variable_declaration();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())

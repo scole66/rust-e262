@@ -12,6 +12,7 @@ use super::parser::class_definitions::*;
 use super::parser::declarations_and_variables::*;
 use super::parser::function_definitions::*;
 use super::parser::generator_function_definitions::*;
+use super::parser::iteration_statements::*;
 use super::parser::scripts::*;
 use super::parser::statements_and_declarations::*;
 use super::parser::*;
@@ -901,30 +902,35 @@ impl Agent {
         let reference = expr?;
         match reference {
             NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
-            NormalCompletion::Reference(r) if r.is_unresolvable_reference() => Ok(true.into()),
-            NormalCompletion::Reference(r) if r.is_property_reference() => {
-                if r.is_super_reference() {
+            NormalCompletion::Reference(r) => match *r {
+                Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
+                Reference { base: Base::Value(_), this_value: Some(_), .. } => {
                     Err(create_reference_error(self, "super properties not deletable"))
-                } else {
-                    let base_obj = to_object(self, ECMAScriptValue::try_from(r.base).unwrap())?;
-                    let delete_status = base_obj.o.delete(self, &r.referenced_name.try_into().unwrap())?;
-                    if !delete_status && r.strict {
+                }
+                Reference { base: Base::Value(val), referenced_name, strict, this_value: None } => {
+                    let base_obj = to_object(self, val)?;
+                    let delete_status = base_obj
+                        .o
+                        .delete(self, &referenced_name.try_into().expect("Property name will never be private"))?;
+                    if !delete_status && strict {
                         Err(create_type_error(self, "property not deletable"))
                     } else {
                         Ok(delete_status.into())
                     }
                 }
-            }
-            NormalCompletion::Reference(r) => {
-                let base: Rc<dyn EnvironmentRecord> = r.base.try_into().unwrap();
-                let delete_status = base.delete_binding(self, &r.referenced_name.try_into().unwrap())?;
-                Ok(delete_status.into())
-            }
+                Reference { base: Base::Environment(base), referenced_name, .. } => {
+                    let delete_status = base.delete_binding(
+                        self,
+                        &referenced_name.try_into().expect("Property name will never be private"),
+                    )?;
+                    Ok(delete_status.into())
+                }
+            },
         }
     }
 
     fn void_operator(&mut self, expr: FullCompletion) -> FullCompletion {
-        get_value(self, expr).map(NormalCompletion::from)?;
+        get_value(self, expr)?;
         Ok(ECMAScriptValue::Undefined.into())
     }
 
@@ -1237,6 +1243,31 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
         }
     }
 }
+enum TopLevelVarDecl {
+    VarDecl(Rc<VariableDeclaration>),
+    ForBinding(Rc<ForBinding>),
+}
+impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
+    type Error = anyhow::Error;
+    fn try_from(value: VarScopeDecl) -> Result<Self, Self::Error> {
+        match value {
+            VarScopeDecl::VariableDeclaration(vd) => Ok(Self::VarDecl(vd)),
+            VarScopeDecl::ForBinding(fb) => Ok(Self::ForBinding(fb)),
+            VarScopeDecl::FunctionDeclaration(_) => {
+                Err(anyhow!("FunctionDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::GeneratorDeclaration(_) => {
+                Err(anyhow!("GeneratorDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::AsyncFunctionDeclaration(_) => {
+                Err(anyhow!("AsyncFunctionDeclaration seen when top-level var decl expected"))
+            }
+            VarScopeDecl::AsyncGeneratorDeclaration(_) => {
+                Err(anyhow!("AsyncGeneratorDeclaration seen when top-level var decl expected"))
+            }
+        }
+    }
+}
 
 pub fn global_declaration_instantiation(
     agent: &mut Agent,
@@ -1266,21 +1297,7 @@ pub fn global_declaration_instantiation(
     let var_declarations = script.var_scoped_declarations();
     let mut functions_to_initialize = vec![];
     let mut declared_function_names = vec![];
-    for d in var_declarations
-        .iter()
-        .rev()
-        .filter(|pn| {
-            matches!(
-                pn,
-                VarScopeDecl::FunctionDeclaration(_)
-                    | VarScopeDecl::GeneratorDeclaration(_)
-                    | VarScopeDecl::AsyncFunctionDeclaration(_)
-                    | VarScopeDecl::AsyncGeneratorDeclaration(_)
-            )
-        })
-        .cloned()
-        .map(|decl| TopLevelFcnDef::try_from(decl).unwrap())
-    {
+    for d in var_declarations.iter().rev().cloned().filter_map(|decl| TopLevelFcnDef::try_from(decl).ok()) {
         let func_name = match &d {
             TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
             TopLevelFcnDef::Generator(gd) => gd.bound_names()[0].clone(),
@@ -1297,17 +1314,10 @@ pub fn global_declaration_instantiation(
         }
     }
     let mut declared_var_names = vec![];
-    for d in var_declarations.into_iter().filter(|pn| {
-        matches!(
-            pn,
-            VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_)
-        )
-    }) {
+    for d in var_declarations.into_iter().filter_map(|pn| TopLevelVarDecl::try_from(pn).ok()) {
         for vn in match d {
-            VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
-            VarScopeDecl::ForBinding(fb) => fb.bound_names(),
-            VarScopeDecl::BindingIdentifier(bi) => bi.bound_names(),
-            _ => unreachable!(),
+            TopLevelVarDecl::VarDecl(vd) => vd.bound_names(),
+            TopLevelVarDecl::ForBinding(fb) => fb.bound_names(),
         } {
             if !declared_function_names.contains(&vn) {
                 let vn_definable = env.can_declare_global_var(agent, &vn)?;
@@ -1321,7 +1331,7 @@ pub fn global_declaration_instantiation(
         }
     }
     let lex_declarations =
-        script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
+        script.lexically_scoped_declarations().into_iter().filter_map(|d| TopLevelLexDecl::try_from(d).ok());
     let private_env = None;
     for d in lex_declarations {
         let (names, is_constant) = match &d {
@@ -1427,8 +1437,9 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
     let result = script_evaluation(agent, x);
     match result {
         Ok(val) => Ok(val),
-        Err(AbruptCompletion::Throw { value }) => Err(ProcessError::RuntimeError { error: value }),
-        Err(_) => Err(ProcessError::InternalError { reason: "Impossible completion returned".to_string() }),
+        Err(e) => Err(ProcessError::RuntimeError {
+            error: ThrowValue::try_from(e).expect("Only ThrowCompletions come from script executions").into(),
+        }),
     }
 }
 
