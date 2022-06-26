@@ -1,9 +1,5 @@
 use super::*;
-use crate::cr::NormalCompletion;
-use crate::object::{call, construct, get, has_own_property, AccessorProperty, PropertyKind};
-use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_type_error};
-use crate::values::{to_object, Symbol};
+use crate::tests::*;
 use test_case::test_case;
 
 #[test]

@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -379,17 +379,17 @@ mod member_expression {
 
     const IMPORT_META_ERR: &str = "import.meta allowed only in Module code";
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
-    #[test_case("package[0]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (id bad)")]
-    #[test_case("a[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (exp bad)")]
-    #[test_case("package.a", true => set(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
-    #[test_case("package``", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
-    #[test_case("a`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (templ bad)")]
-    #[test_case("super.package", true => set(&[]); "super property")]
-    #[test_case("import.meta", true => set(&[IMPORT_META_ERR]); "meta property")]
-    #[test_case("new package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
-    #[test_case("new a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
-    #[test_case("package.#a", true => set(&[PACKAGE_NOT_ALLOWED]); "private id")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
+    #[test_case("package[0]", true => sset(&[PACKAGE_NOT_ALLOWED]); "array syntax (id bad)")]
+    #[test_case("a[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "array syntax (exp bad)")]
+    #[test_case("package.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
+    #[test_case("package``", true => sset(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
+    #[test_case("a`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "templ syntax (templ bad)")]
+    #[test_case("super.package", true => sset(&[]); "super property")]
+    #[test_case("import.meta", true => sset(&[IMPORT_META_ERR]); "meta property")]
+    #[test_case("new package(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
+    #[test_case("new a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
+    #[test_case("package.#a", true => sset(&[PACKAGE_NOT_ALLOWED]); "private id")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -590,8 +590,8 @@ mod super_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("super.package", true => set(&[]); "super.member")]
-    #[test_case("super[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
+    #[test_case("super.package", true => sset(&[]); "super.member")]
+    #[test_case("super[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -697,7 +697,7 @@ mod meta_property {
     use test_case::test_case;
 
     #[test_case("new.target", ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
-    #[test_case("import.meta", ParseGoal::Script => set(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
+    #[test_case("import.meta", ParseGoal::Script => sset(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
     #[test_case("import.meta", ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
     fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
         let mut agent = test_agent();
@@ -840,8 +840,8 @@ mod arguments {
     }
 
     #[test_case("()", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list")]
-    #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list")]
+    #[test_case("(package,)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1052,12 +1052,12 @@ mod argument_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "one expression")]
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread expression")]
-    #[test_case("package,0", true => set(&[PACKAGE_NOT_ALLOWED]); "list; head bad")]
-    #[test_case("0,package", true => set(&[PACKAGE_NOT_ALLOWED]); "list; tail bad")]
-    #[test_case("package,...a", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
-    #[test_case("0,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "one expression")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "spread expression")]
+    #[test_case("package,0", true => sset(&[PACKAGE_NOT_ALLOWED]); "list; head bad")]
+    #[test_case("0,package", true => sset(&[PACKAGE_NOT_ALLOWED]); "list; tail bad")]
+    #[test_case("package,...a", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
+    #[test_case("0,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1196,8 +1196,8 @@ mod new_expression {
     fn is_object_or_array_literal(src: &str) -> bool {
         NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
     }
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "exp")]
-    #[test_case("new package", true => set(&[PACKAGE_NOT_ALLOWED]); "new exp")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp")]
+    #[test_case("new package", true => sset(&[PACKAGE_NOT_ALLOWED]); "new exp")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1319,8 +1319,8 @@ mod call_member_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
-    #[test_case("a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args bad")]
+    #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
+    #[test_case("a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "args bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1395,7 +1395,7 @@ mod super_call {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("super(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1483,7 +1483,7 @@ mod import_call {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("import(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1859,17 +1859,17 @@ mod call_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
     }
 
-    #[test_case("package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "cover exp")]
-    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "super call")]
-    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "import call")]
-    #[test_case("package(0)(1)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
-    #[test_case("a(0)(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
-    #[test_case("package(0)[a]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; id bad")]
-    #[test_case("a(0)[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; exp bad")]
-    #[test_case("package(0).id", true => set(&[PACKAGE_NOT_ALLOWED]); "call id")]
-    #[test_case("package(0).#id", true => set(&[PACKAGE_NOT_ALLOWED]); "call private")]
-    #[test_case("package(0)`${0}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
-    #[test_case("a(0)`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
+    #[test_case("package(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "cover exp")]
+    #[test_case("super(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "super call")]
+    #[test_case("import(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "import call")]
+    #[test_case("package(0)(1)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
+    #[test_case("a(0)(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
+    #[test_case("package(0)[a]", true => sset(&[PACKAGE_NOT_ALLOWED]); "call array; id bad")]
+    #[test_case("a(0)[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "call array; exp bad")]
+    #[test_case("package(0).id", true => sset(&[PACKAGE_NOT_ALLOWED]); "call id")]
+    #[test_case("package(0).#id", true => sset(&[PACKAGE_NOT_ALLOWED]); "call private")]
+    #[test_case("package(0)`${0}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
+    #[test_case("a(0)`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2102,12 +2102,12 @@ mod optional_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
     }
 
-    #[test_case("package?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; exp bad")]
-    #[test_case("a?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; opt bad")]
-    #[test_case("package()?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; call bad")]
-    #[test_case("a()?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; opt bad")]
-    #[test_case("package?.a?.(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
-    #[test_case("a?.b?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
+    #[test_case("package?.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp opt; exp bad")]
+    #[test_case("a?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp opt; opt bad")]
+    #[test_case("package()?.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "call opt; call bad")]
+    #[test_case("a()?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call opt; opt bad")]
+    #[test_case("package?.a?.(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
+    #[test_case("a?.b?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2545,16 +2545,16 @@ mod optional_chain {
 
     const TEMPLATE_NOT_ALLOWED: &str = "Template literal not allowed here";
 
-    #[test_case("?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args")]
-    #[test_case("?.[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "expression")]
+    #[test_case("?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "args")]
+    #[test_case("?.[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "expression")]
     #[test_case("?.package", true => AHashSet::<String>::new(); "ident")]
-    #[test_case("?.`${package}`", true => set(&[PACKAGE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "template lit")]
+    #[test_case("?.`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "template lit")]
     #[test_case("?.#package", true => AHashSet::<String>::new(); "private")]
-    #[test_case("?.(package)(interface)", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
-    #[test_case("?.(package)[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain expression")]
-    #[test_case("?.(package).interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
-    #[test_case("?.(package)`${interface}`", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
-    #[test_case("?.(package).#interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain private")]
+    #[test_case("?.(package)(interface)", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
+    #[test_case("?.(package)[interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain expression")]
+    #[test_case("?.(package).interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
+    #[test_case("?.(package)`${interface}`", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
+    #[test_case("?.(package).#interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "chain private")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2744,9 +2744,9 @@ mod left_hand_side_expression {
             .is_object_or_array_literal()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "new expression")]
-    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "call expression")]
-    #[test_case("package?.()", true => set(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expression")]
+    #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "call expression")]
+    #[test_case("package?.()", true => sset(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

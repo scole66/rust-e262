@@ -1,6 +1,6 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::prettyprint::testhelp::*;
 
 mod debugger_statement {
     use super::*;

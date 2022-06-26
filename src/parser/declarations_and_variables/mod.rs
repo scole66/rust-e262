@@ -1,9 +1,4 @@
-use super::identifiers::BindingIdentifier;
-use super::primary_expressions::{Elisions, Initializer, PropertyName};
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
-use super::scripts::VarScopeDecl;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use counter::Counter;
 use std::fmt;
 use std::io::Result as IoResult;

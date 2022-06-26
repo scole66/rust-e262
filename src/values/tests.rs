@@ -1,15 +1,5 @@
 use super::*;
-use crate::agent::WksId;
-use crate::arrays::array_create;
-use crate::errors::create_type_error;
-use crate::errors::unwind_any_error;
-use crate::function_object::create_builtin_function;
-use crate::object::{
-    create_data_property, define_property_or_throw, get_agentless, ordinary_object_create, PotentialPropertyDescriptor,
-    BUILTIN_FUNCTION_SLOTS,
-};
-use crate::realm::IntrinsicId;
-use crate::tests::{calculate_hash, printer_validate, serr, sok, test_agent, unwind_type_error};
+use crate::tests::*;
 use ahash::RandomState;
 use num::bigint::BigInt;
 use regex::Regex;

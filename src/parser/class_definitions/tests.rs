@@ -1,13 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD,
-    DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER,
-    PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR,
-    SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_AWAIT,
-    UNEXPECTED_SUPER,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -139,8 +133,8 @@ mod class_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
-    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -244,8 +238,8 @@ mod class_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
-    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -429,14 +423,14 @@ mod class_tail {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{ a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "no heritage")]
-    #[test_case("extends package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "has heritage")]
-    #[test_case("extends package {}" => set(&[PACKAGE_NOT_ALLOWED]); "heritage, no body")]
-    #[test_case("extends Boolean { constructor() { super(); }}" => set(&[]); "super with extends")]
-    #[test_case("{ constructor() { super(); }}" => set(&[PARENTLESS_SUPER]); "super without extends")]
-    #[test_case("{ constructor(){} }" => set(&[]); "constructor without super")]
-    #[test_case("{ a(){} }" => set(&[]); "no constructor")]
-    #[test_case("{}" => set(&[]); "no body")]
+    #[test_case("{ a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "no heritage")]
+    #[test_case("extends package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "has heritage")]
+    #[test_case("extends package {}" => sset(&[PACKAGE_NOT_ALLOWED]); "heritage, no body")]
+    #[test_case("extends Boolean { constructor() { super(); }}" => sset(&[]); "super with extends")]
+    #[test_case("{ constructor() { super(); }}" => sset(&[PARENTLESS_SUPER]); "super without extends")]
+    #[test_case("{ constructor(){} }" => sset(&[]); "constructor without super")]
+    #[test_case("{ a(){} }" => sset(&[]); "no constructor")]
+    #[test_case("{}" => sset(&[]); "no body")]
 
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
@@ -515,8 +509,8 @@ mod class_heritage {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("extends package" => set(&[PACKAGE_NOT_ALLOWED]); "err")]
-    #[test_case("extends Boolean" => set(&[]); "ok")]
+    #[test_case("extends package" => sset(&[PACKAGE_NOT_ALLOWED]); "err")]
+    #[test_case("extends Boolean" => sset(&[]); "ok")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -589,23 +583,23 @@ mod class_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";" => set(&[]); "empty")]
-    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "one field")]
-    #[test_case("constructor(){this.stage=1;} constructor(){this.stage=2;}" => set(&[DUPLICATE_CONSTRUCTOR]); "duplicate constructor")]
-    #[test_case("#a; #a;" => set(&[PRIVATE_A_ALREADY_DEFN]); "duplicate private id")]
-    #[test_case("get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[]); "getter/setter ok")]
-    #[test_case("static get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[PREV_STATIC_GETTER]); "static getter / nonstatic setter")]
-    #[test_case("get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[PREV_GETTER]); "nonstatic getter / static setter")]
-    #[test_case("static get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[]); "static getter / static setter")]
-    #[test_case("set #a(val){this.val=val;} get #a(){this.val=val;}" => set(&[]); "setter/getter ok")]
-    #[test_case("static set #a(val){return this.val;} get #a(){this.val=val;}" => set(&[PREV_STATIC_SETTER]); "static setter / nonstatic getter")]
-    #[test_case("set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[PREV_SETTER]); "nonstatic setter / static getter")]
-    #[test_case("static set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[]); "static setter / static getter")]
-    #[test_case("get #a(){return this.val;} #a(){}" => set(&[PREV_GETTER]); "nonstatic getter / method")]
-    #[test_case("static get #a(){return this.val;} #a(){}" => set(&[PREV_STATIC_GETTER]); "static getter / method")]
-    #[test_case("set #a(val){this.val=val;} #a(){}" => set(&[PREV_SETTER]); "setter / method")]
-    #[test_case("static set #a(val){this.val=val;} #a(){}" => set(&[PREV_STATIC_SETTER]); "static setter / method")]
-    #[test_case("static #a(){} get #a(){return this.val;}" => set(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
+    #[test_case(";" => sset(&[]); "empty")]
+    #[test_case("[package];" => sset(&[PACKAGE_NOT_ALLOWED]); "one field")]
+    #[test_case("constructor(){this.stage=1;} constructor(){this.stage=2;}" => sset(&[DUPLICATE_CONSTRUCTOR]); "duplicate constructor")]
+    #[test_case("#a; #a;" => sset(&[PRIVATE_A_ALREADY_DEFN]); "duplicate private id")]
+    #[test_case("get #a(){return this.val;} set #a(val){this.val=val;}" => sset(&[]); "getter/setter ok")]
+    #[test_case("static get #a(){return this.val;} set #a(val){this.val=val;}" => sset(&[PREV_STATIC_GETTER]); "static getter / nonstatic setter")]
+    #[test_case("get #a(){return this.val;} static set #a(val){this.val=val;}" => sset(&[PREV_GETTER]); "nonstatic getter / static setter")]
+    #[test_case("static get #a(){return this.val;} static set #a(val){this.val=val;}" => sset(&[]); "static getter / static setter")]
+    #[test_case("set #a(val){this.val=val;} get #a(){this.val=val;}" => sset(&[]); "setter/getter ok")]
+    #[test_case("static set #a(val){return this.val;} get #a(){this.val=val;}" => sset(&[PREV_STATIC_SETTER]); "static setter / nonstatic getter")]
+    #[test_case("set #a(val){return this.val;} static get #a(){this.val=val;}" => sset(&[PREV_SETTER]); "nonstatic setter / static getter")]
+    #[test_case("static set #a(val){return this.val;} static get #a(){this.val=val;}" => sset(&[]); "static setter / static getter")]
+    #[test_case("get #a(){return this.val;} #a(){}" => sset(&[PREV_GETTER]); "nonstatic getter / method")]
+    #[test_case("static get #a(){return this.val;} #a(){}" => sset(&[PREV_STATIC_GETTER]); "static getter / method")]
+    #[test_case("set #a(val){this.val=val;} #a(){}" => sset(&[PREV_SETTER]); "setter / method")]
+    #[test_case("static set #a(val){this.val=val;} #a(){}" => sset(&[PREV_STATIC_SETTER]); "static setter / method")]
+    #[test_case("static #a(){} get #a(){return this.val;}" => sset(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -783,10 +777,10 @@ mod class_element_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "item (errs)")]
-    #[test_case("a=10;" => set(&[]); "item (ok)")]
-    #[test_case("a=package; b=implements;" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
-    #[test_case("a=10; b=20;" => set(&[]); "list (ok)")]
+    #[test_case("a=package;" => sset(&[PACKAGE_NOT_ALLOWED]); "item (errs)")]
+    #[test_case("a=10;" => sset(&[]); "item (ok)")]
+    #[test_case("a=package; b=implements;" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
+    #[test_case("a=10; b=20;" => sset(&[]); "list (ok)")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1088,20 +1082,20 @@ mod class_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";" => set(&[]); "empty")]
-    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "field def")]
-    #[test_case("static a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "static field")]
-    #[test_case("a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
-    #[test_case("static a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "static method def")]
-    #[test_case("static { package; }" => set(&[PACKAGE_NOT_ALLOWED]); "static block")]
-    #[test_case("constructor(){super();}" => set(&[]); "constructor with super")]
-    #[test_case("other(){super();}" => set(&[BAD_SUPER]); "other with super")]
-    #[test_case("get constructor(){}" => set(&[SPECIAL_CONSTRUCTOR]); "constructor special")]
-    #[test_case("static thing(){super();}" => set(&[BAD_SUPER]); "static super")]
-    #[test_case("static prototype(){ return a }" => set(&[STATIC_PROTO]); "static prototype")]
-    #[test_case("constructor;" => set(&[CONSTRUCTOR_FIELD]); "constructor field")]
-    #[test_case("static prototype;" => set(&[STATIC_PROTO]); "static proto field")]
-    #[test_case("static constructor;" => set(&[CONSTRUCTOR_FIELD]); "static constructor field")]
+    #[test_case(";" => sset(&[]); "empty")]
+    #[test_case("[package];" => sset(&[PACKAGE_NOT_ALLOWED]); "field def")]
+    #[test_case("static a=package;" => sset(&[PACKAGE_NOT_ALLOWED]); "static field")]
+    #[test_case("a(){package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "method def")]
+    #[test_case("static a(){package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "static method def")]
+    #[test_case("static { package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "static block")]
+    #[test_case("constructor(){super();}" => sset(&[]); "constructor with super")]
+    #[test_case("other(){super();}" => sset(&[BAD_SUPER]); "other with super")]
+    #[test_case("get constructor(){}" => sset(&[SPECIAL_CONSTRUCTOR]); "constructor special")]
+    #[test_case("static thing(){super();}" => sset(&[BAD_SUPER]); "static super")]
+    #[test_case("static prototype(){ return a }" => sset(&[STATIC_PROTO]); "static prototype")]
+    #[test_case("constructor;" => sset(&[CONSTRUCTOR_FIELD]); "constructor field")]
+    #[test_case("static prototype;" => sset(&[STATIC_PROTO]); "static proto field")]
+    #[test_case("static constructor;" => sset(&[CONSTRUCTOR_FIELD]); "static constructor field")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1318,10 +1312,10 @@ mod field_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("[package]=implements" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "with izer")]
-    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "without izer")]
-    #[test_case("a=arguments" => set(&[UNEXPECTED_ARGS]); "args in izer")]
-    #[test_case("a=super()" => set(&[UNEXPECTED_SUPER]); "super in izer")]
+    #[test_case("[package]=implements" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "with izer")]
+    #[test_case("[package]" => sset(&[PACKAGE_NOT_ALLOWED]); "without izer")]
+    #[test_case("a=arguments" => sset(&[UNEXPECTED_ARGS]); "args in izer")]
+    #[test_case("a=super()" => sset(&[UNEXPECTED_SUPER]); "super in izer")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1444,10 +1438,10 @@ mod class_element_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("bob" => set(&[]); "utterly normal")]
-    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "bad property name")]
-    #[test_case("#constructor" => set(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
-    #[test_case("#private" => set(&[]); "simple private")]
+    #[test_case("bob" => sset(&[]); "utterly normal")]
+    #[test_case("[package]" => sset(&[PACKAGE_NOT_ALLOWED]); "bad property name")]
+    #[test_case("#constructor" => sset(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
+    #[test_case("#private" => sset(&[]); "simple private")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1526,8 +1520,8 @@ mod class_static_block {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("static {}" => set(&[]); "empty")]
-    #[test_case("static {package;}" => set(&[PACKAGE_NOT_ALLOWED]); "something")]
+    #[test_case("static {}" => sset(&[]); "empty")]
+    #[test_case("static {package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "something")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1576,16 +1570,16 @@ mod class_static_block_body {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "yes")]
-    #[test_case("p;" => set(&[]); "no")]
-    #[test_case("let a; const a=0;" => set(&[A_ALREADY_DEFN]); "duplicate lexicals")]
-    #[test_case("let a; function a(){}" => set(&[A_ALREADY_DEFN]); "var/lex clash")]
-    #[test_case("a: a: ;" => set(&[DUPLICATE_LABELS]); "duplicate labels")]
-    #[test_case("break foo;" => set(&[UNDEFINED_BREAK]); "undefined break")]
-    #[test_case("while (1) continue foo;" => set(&[UNDEF_CONT_TGT]); "undefined continue")]
-    #[test_case("let x = arguments;" => set(&[UNEXPECTED_ARGS]); "has arguments")]
-    #[test_case("super();" => set(&[UNEXPECTED_SUPER]); "super call")]
-    #[test_case("await a();" => set(&[UNEXPECTED_AWAIT]); "await expr")]
+    #[test_case("package;" => sset(&[PACKAGE_NOT_ALLOWED]); "yes")]
+    #[test_case("p;" => sset(&[]); "no")]
+    #[test_case("let a; const a=0;" => sset(&[A_ALREADY_DEFN]); "duplicate lexicals")]
+    #[test_case("let a; function a(){}" => sset(&[A_ALREADY_DEFN]); "var/lex clash")]
+    #[test_case("a: a: ;" => sset(&[DUPLICATE_LABELS]); "duplicate labels")]
+    #[test_case("break foo;" => sset(&[UNDEFINED_BREAK]); "undefined break")]
+    #[test_case("while (1) continue foo;" => sset(&[UNDEF_CONT_TGT]); "undefined continue")]
+    #[test_case("let x = arguments;" => sset(&[UNEXPECTED_ARGS]); "has arguments")]
+    #[test_case("super();" => sset(&[UNEXPECTED_SUPER]); "super call")]
+    #[test_case("await a();" => sset(&[UNEXPECTED_AWAIT]); "await expr")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1640,9 +1634,9 @@ mod class_static_block_statement_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
-    #[test_case("0;" => set(&[]); "normal")]
-    #[test_case("" => set(&[]); "empty")]
+    #[test_case("package;" => sset(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    #[test_case("0;" => sset(&[]); "normal")]
+    #[test_case("" => sset(&[]); "empty")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

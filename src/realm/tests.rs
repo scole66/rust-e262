@@ -1,5 +1,5 @@
 use super::*;
-use crate::tests::{calculate_hash, test_agent, unwind_type_error};
+use crate::tests::*;
 use ahash::RandomState;
 
 const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[

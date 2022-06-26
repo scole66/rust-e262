@@ -1,7 +1,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::clone_on_copy)]
 use super::*;
-use crate::tests::serr;
+use crate::tests::*;
 use ahash::RandomState;
 use num::traits::Zero;
 use std::hash::{BuildHasher, Hash, Hasher};

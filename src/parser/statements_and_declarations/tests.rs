@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -508,20 +505,20 @@ fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
 mod statement {
     use super::*;
     use test_case::test_case;
-    #[test_case("{package;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BlockStatement")]
-    #[test_case("var package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
-    #[test_case(";", true, false => set(&[]); "EmptyStatement")]
-    #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
-    #[test_case("if (package);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "IfStatement")]
-    #[test_case("for(package=0;;);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakableStatement")]
-    #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
-    #[test_case("break package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]
-    #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
-    #[test_case("with (package) {}", true, false => set(&[WITH_NOT_ALLOWED, PACKAGE_NOT_ALLOWED]); "WithStatement")]
-    #[test_case("package: implements;", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
-    #[test_case("throw package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
-    #[test_case("try {} catch (package) {}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "TryStatement")]
-    #[test_case("debugger;", true, false => set(&[]); "DebuggerStatement")]
+    #[test_case("{package;}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "BlockStatement")]
+    #[test_case("var package;", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
+    #[test_case(";", true, false => sset(&[]); "EmptyStatement")]
+    #[test_case("package;", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
+    #[test_case("if (package);", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "IfStatement")]
+    #[test_case("for(package=0;;);", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "BreakableStatement")]
+    #[test_case("continue package;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
+    #[test_case("break package;", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]
+    #[test_case("return package;", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
+    #[test_case("with (package) {}", true, false => sset(&[WITH_NOT_ALLOWED, PACKAGE_NOT_ALLOWED]); "WithStatement")]
+    #[test_case("package: implements;", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
+    #[test_case("throw package;", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
+    #[test_case("try {} catch (package) {}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "TryStatement")]
+    #[test_case("debugger;", true, false => sset(&[]); "DebuggerStatement")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -779,9 +776,9 @@ mod declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "HoistableDeclaration")]
-    #[test_case("class package{}", true => set(&[PACKAGE_NOT_ALLOWED]); "ClassDeclaration")]
-    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
+    #[test_case("function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "HoistableDeclaration")]
+    #[test_case("class package{}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ClassDeclaration")]
+    #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1033,10 +1030,10 @@ mod hoistable_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionDeclaration")]
-    #[test_case("function *package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "GeneratorDeclaration")]
-    #[test_case("async function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionDeclaration")]
-    #[test_case("async function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
+    #[test_case("function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionDeclaration")]
+    #[test_case("function *package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "GeneratorDeclaration")]
+    #[test_case("async function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionDeclaration")]
+    #[test_case("async function *package(){}", true => panics "not yet implemented" /* sset(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1189,8 +1186,8 @@ mod breakable_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("while(package);", true => set(&[PACKAGE_NOT_ALLOWED]); "IterationStatement")]
-    #[test_case("switch(package){}", true => set(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
+    #[test_case("while(package);", true => sset(&[PACKAGE_NOT_ALLOWED]); "IterationStatement")]
+    #[test_case("switch(package){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

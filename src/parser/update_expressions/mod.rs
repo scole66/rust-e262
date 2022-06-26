@@ -1,8 +1,4 @@
-use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;

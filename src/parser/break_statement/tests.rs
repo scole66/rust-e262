@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // BREAK STATEMENT
@@ -108,9 +108,9 @@ mod break_statement {
 
     const ILLEGAL_BREAK: &str = "break statement must lie within iteration or switch statement";
 
-    #[test_case("break;", true, true => set(&[]); "simple break; ok")]
-    #[test_case("break;", true, false => set(&[ILLEGAL_BREAK]); "break not in a good spot")]
-    #[test_case("break package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
+    #[test_case("break;", true, true => sset(&[]); "simple break; ok")]
+    #[test_case("break;", true, false => sset(&[ILLEGAL_BREAK]); "break not in a good spot")]
+    #[test_case("break package;", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
     fn early_errors(src: &str, strict: bool, within_breakable: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

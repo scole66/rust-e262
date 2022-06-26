@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -239,11 +236,11 @@ mod if_statement {
 
     const LABELLED_FUNCTION_NOT_ALLOWED: &str = "Labelled functions not allowed in modern ECMAScript code";
 
-    #[test_case("if (package) interface;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "if (Expression) Statement")]
-    #[test_case("if (package) interface; else implements;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "if (Expression) Statement else Statement")]
-    #[test_case("if (a) bob: function f(){}", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (no else)")]
-    #[test_case("if (a) alpha; else b: function f(){}", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (in else clause)")]
-    #[test_case("if (a) b: function f(){} else c;", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled fucntion (in then clause)")]
+    #[test_case("if (package) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "if (Expression) Statement")]
+    #[test_case("if (package) interface; else implements;", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "if (Expression) Statement else Statement")]
+    #[test_case("if (a) bob: function f(){}", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (no else)")]
+    #[test_case("if (a) alpha; else b: function f(){}", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (in else clause)")]
+    #[test_case("if (a) b: function f(){} else c;", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled fucntion (in then clause)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

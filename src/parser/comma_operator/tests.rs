@@ -1,7 +1,7 @@
-use super::testhelp::{check, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -79,8 +79,8 @@ mod expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
-    #[test_case("package,implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "Expression , AssignmentExpression")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
+    #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "Expression , AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

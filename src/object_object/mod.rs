@@ -1,15 +1,4 @@
-use crate::agent::{Agent, WksId};
-use crate::cr::Completion;
-use crate::errors::create_type_error;
-use crate::function_object::{create_builtin_function, FuncArgs};
-use crate::object::{
-    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get,
-    ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level, to_property_descriptor,
-    EnumerationStyle, IntegrityLevel, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
-};
-use crate::realm::{IntrinsicId, Realm};
-use crate::strings::JSString;
-use crate::values::{to_object, to_property_key, ECMAScriptValue, PropertyKey};
+use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 

@@ -1,14 +1,4 @@
-use super::agent::Agent;
-use super::cr::Completion;
-use super::errors::create_type_error;
-use super::object::{
-    ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get,
-    ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible,
-    ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData,
-    InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BOOLEAN_OBJECT_SLOTS,
-};
-use super::realm::IntrinsicId;
-use super::values::{ECMAScriptValue, PropertyKey};
+use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 

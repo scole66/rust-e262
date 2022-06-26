@@ -1,7 +1,5 @@
 use super::*;
-use crate::environment_record::ObjectEnvironmentRecord;
-use crate::object::DeadObject;
-use crate::parser::testhelp::{set as sset, *};
+use crate::parser::testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 use lazy_static::lazy_static;

@@ -1,9 +1,7 @@
 #![allow(clippy::clone_on_copy)]
 
 use super::*;
-use crate::chunk::Chunk;
-use crate::parser::testhelp::{svec, Maker};
-use crate::strings::JSString;
+use crate::parser::testhelp::*;
 use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;

@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -497,23 +497,23 @@ mod primary_expression {
             .is_object_or_array_literal()
     }
 
-    #[test_case("this", true => set(&[]); "this")]
-    #[test_case("a", true => set(&[]); "simple identifier")]
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
-    #[test_case("yield", false => set(&[]); "yield/non-strict")]
-    #[test_case("3", true => set(&[]); "literal")]
-    #[test_case("[]", true => set(&[]); "ArrayLiteral")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
-    #[test_case("{b(a=super()){}}", true => set(&["'super' keyword unexpected here"]); "ObjectLiteral with error")]
-    #[test_case("function eval(){}", true => set(&["identifier not allowed in strict mode: eval"]); "FunctionExpression")]
-    #[test_case("class package {}", true => set(&[PACKAGE_NOT_ALLOWED]); "ClassExpression")]
-    #[test_case("function *package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "GeneratorExpression")]
-    #[test_case("async function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionExpression")]
+    #[test_case("this", true => sset(&[]); "this")]
+    #[test_case("a", true => sset(&[]); "simple identifier")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
+    #[test_case("yield", false => sset(&[]); "yield/non-strict")]
+    #[test_case("3", true => sset(&[]); "literal")]
+    #[test_case("[]", true => sset(&[]); "ArrayLiteral")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
+    #[test_case("{b(a=super()){}}", true => sset(&["'super' keyword unexpected here"]); "ObjectLiteral with error")]
+    #[test_case("function eval(){}", true => sset(&["identifier not allowed in strict mode: eval"]); "FunctionExpression")]
+    #[test_case("class package {}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ClassExpression")]
+    #[test_case("function *package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "GeneratorExpression")]
+    #[test_case("async function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionExpression")]
     #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
-    #[test_case("/a/", true => set(&[]); "RegularExpressionLiteral")]
-    #[test_case("/a/xx", true => set(&["Unknown regex flag ‘x’ in flags ‘xx’"]); "RegularExpressionLiteral with errors")]
-    #[test_case("`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "TemplateLiteral")]
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "ParenthesizedExpression")]
+    #[test_case("/a/", true => sset(&[]); "RegularExpressionLiteral")]
+    #[test_case("/a/xx", true => sset(&["Unknown regex flag ‘x’ in flags ‘xx’"]); "RegularExpressionLiteral with errors")]
+    #[test_case("`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "TemplateLiteral")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -972,7 +972,7 @@ mod spread_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... AssignmentExpression")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1324,18 +1324,18 @@ mod element_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression: err")]
-    #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentExpression: err")]
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "SpreadElement: err")]
-    #[test_case(",...package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision SpreadElement: err")]
-    #[test_case("package,b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: list err")]
-    #[test_case("a,package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: expression err")]
-    #[test_case("package,,b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: list err")]
-    #[test_case("a,,package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: expression err")]
-    #[test_case("package,...b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: list err")]
-    #[test_case("a,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: element err")]
-    #[test_case("package,,...b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: list err")]
-    #[test_case("a,,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: element err")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression: err")]
+    #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentExpression: err")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "SpreadElement: err")]
+    #[test_case(",...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision SpreadElement: err")]
+    #[test_case("package,b", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: list err")]
+    #[test_case("a,package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: expression err")]
+    #[test_case("package,,b", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: list err")]
+    #[test_case("a,,package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: expression err")]
+    #[test_case("package,...b", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: list err")]
+    #[test_case("a,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: element err")]
+    #[test_case("package,,...b", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: list err")]
+    #[test_case("a,,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: element err")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1607,8 +1607,8 @@ mod array_literal {
     use test_case::test_case;
 
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList")]
-    #[test_case("[package,,]", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList")]
+    #[test_case("[package,,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1705,7 +1705,7 @@ mod initializer {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("=package", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1782,8 +1782,8 @@ mod cover_initialized_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a=package", true => set(&[PACKAGE_NOT_ALLOWED]); "exp errs")]
-    #[test_case("package=3", true => set(&[PACKAGE_NOT_ALLOWED]); "id errs")]
+    #[test_case("a=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp errs")]
+    #[test_case("package=3", true => sset(&[PACKAGE_NOT_ALLOWED]); "id errs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1869,7 +1869,7 @@ mod computed_property_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentExpression ]")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentExpression ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2100,8 +2100,8 @@ mod property_name {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[]); "LiteralPropertyName")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
+    #[test_case("package", true => sset(&[]); "LiteralPropertyName")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2348,13 +2348,13 @@ mod property_definition {
     const UNEXPECTED_PRIVATE: &str = "Private identifier unexpected here";
     const UNEXPECTED_SUPER: &str = "'super' keyword unexpected here";
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
-    #[test_case("package=b", true => set(&[PACKAGE_NOT_ALLOWED, BAD_DESTRUCTURE]); "cover init")]
-    #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "property name")]
-    #[test_case("[package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread element")]
-    #[test_case("a(b=super()){}", true => set(&[UNEXPECTED_SUPER]); "HasDirectSuper of MethodDefinition")]
-    #[test_case("#a(){}", true => set(&[UNEXPECTED_PRIVATE]); "unexpected private id in MethodDef")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "identifier")]
+    #[test_case("package=b", true => sset(&[PACKAGE_NOT_ALLOWED, BAD_DESTRUCTURE]); "cover init")]
+    #[test_case("[package]:interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "property name")]
+    #[test_case("[package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "method def")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "spread element")]
+    #[test_case("a(b=super()){}", true => sset(&[UNEXPECTED_SUPER]); "HasDirectSuper of MethodDefinition")]
+    #[test_case("#a(){}", true => sset(&[UNEXPECTED_PRIVATE]); "unexpected private id in MethodDef")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2510,9 +2510,9 @@ mod property_definition_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("[package]:3", true => set(&[PACKAGE_NOT_ALLOWED]); "item")]
-    #[test_case("[package]:3,b", true => set(&[PACKAGE_NOT_ALLOWED]); "list head")]
-    #[test_case("a,[package]:3", true => set(&[PACKAGE_NOT_ALLOWED]); "list tail")]
+    #[test_case("[package]:3", true => sset(&[PACKAGE_NOT_ALLOWED]); "item")]
+    #[test_case("[package]:3,b", true => sset(&[PACKAGE_NOT_ALLOWED]); "list head")]
+    #[test_case("a,[package]:3", true => sset(&[PACKAGE_NOT_ALLOWED]); "list tail")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2695,10 +2695,10 @@ mod object_literal {
     const DUP_PROTO: &str = "Duplicate __proto__ fields are not allowed in object literals";
 
     #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("{a:package}", true => set(&[PACKAGE_NOT_ALLOWED]); "list")]
-    #[test_case("{a:package,}", true => set(&[PACKAGE_NOT_ALLOWED]); "trailing comma")]
-    #[test_case("{__proto__:a,__proto__:b}", true => set(&[DUP_PROTO]); "duplicate proto")]
-    #[test_case("{__proto__:a,__proto__:b,}", true => set(&[DUP_PROTO]); "duplicate proto; trailing comma")]
+    #[test_case("{a:package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "list")]
+    #[test_case("{a:package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "trailing comma")]
+    #[test_case("{__proto__:a,__proto__:b}", true => sset(&[DUP_PROTO]); "duplicate proto")]
+    #[test_case("{__proto__:a,__proto__:b,}", true => sset(&[DUP_PROTO]); "duplicate proto; trailing comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2789,7 +2789,7 @@ mod parenthesized_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2955,13 +2955,13 @@ mod template_middle_list {
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
-    #[test_case("}${package", true, false => set(&[PACKAGE_NOT_ALLOWED]); "mid exp; exp bad")]
-    #[test_case("}\\u{}${0", true, false => set(&[RE_ESCAPE_ONE]); "mid exp; mid bad")]
-    #[test_case("}\\u{}${0", true, true => set(&[]); "mid exp; mid bad, but tagged")]
-    #[test_case("}list${package}${3", true, false => set(&[PACKAGE_NOT_ALLOWED]); "list mid exp; list bad")]
-    #[test_case("}list${1}\\u{}${3", true, false => set(&[RE_ESCAPE_ONE]); "list mid exp; mid bad")]
-    #[test_case("}list${1}\\u{}${3", true, true => set(&[]); "list mid exp; mid bad, but tagged")]
-    #[test_case("}list${1}${package", true, false => set(&[PACKAGE_NOT_ALLOWED]); "list mid exp; exp bad")]
+    #[test_case("}${package", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "mid exp; exp bad")]
+    #[test_case("}\\u{}${0", true, false => sset(&[RE_ESCAPE_ONE]); "mid exp; mid bad")]
+    #[test_case("}\\u{}${0", true, true => sset(&[]); "mid exp; mid bad, but tagged")]
+    #[test_case("}list${package}${3", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "list mid exp; list bad")]
+    #[test_case("}list${1}\\u{}${3", true, false => sset(&[RE_ESCAPE_ONE]); "list mid exp; mid bad")]
+    #[test_case("}list${1}\\u{}${3", true, true => sset(&[]); "list mid exp; mid bad, but tagged")]
+    #[test_case("}list${1}${package", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "list mid exp; exp bad")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -3078,11 +3078,11 @@ mod template_spans {
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
-    #[test_case("}\\u{}`", true, false => set(&[RE_ESCAPE_ONE]); "tail; tail bad")]
-    #[test_case("}\\u{}`", true, true => set(&[]); "tail; tail bad, but tagged")]
-    #[test_case("}\\u{}${0}`", true, false => set(&[RE_ESCAPE_ONE]); "list tail; list bad")]
-    #[test_case("}${0}\\u{}`", true, false => set(&[RE_ESCAPE_ONE]); "list tail; tail bad")]
-    #[test_case("}${0}\\u{}`", true, true => set(&[]); "list tail; tail bad, but tagged")]
+    #[test_case("}\\u{}`", true, false => sset(&[RE_ESCAPE_ONE]); "tail; tail bad")]
+    #[test_case("}\\u{}`", true, true => sset(&[]); "tail; tail bad, but tagged")]
+    #[test_case("}\\u{}${0}`", true, false => sset(&[RE_ESCAPE_ONE]); "list tail; list bad")]
+    #[test_case("}${0}\\u{}`", true, false => sset(&[RE_ESCAPE_ONE]); "list tail; tail bad")]
+    #[test_case("}${0}\\u{}`", true, true => sset(&[]); "list tail; tail bad, but tagged")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -3203,9 +3203,9 @@ mod substitution_template {
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
     const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
 
-    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, false => set(&[PACKAGE_NOT_ALLOWED, RE_ESCAPE_ONE, RE_ESCAPE_TWO]); "TemplateHead Expression TemplateSpans")]
-    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, true => set(&[PACKAGE_NOT_ALLOWED]); "tagged")]
-    #[test_case("`\\u{99}${package}\\u{98}`", true, false => set(&[PACKAGE_NOT_ALLOWED]); "not tagged, but no unicode errs")]
+    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, false => sset(&[PACKAGE_NOT_ALLOWED, RE_ESCAPE_ONE, RE_ESCAPE_TWO]); "TemplateHead Expression TemplateSpans")]
+    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "tagged")]
+    #[test_case("`\\u{99}${package}\\u{98}`", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "not tagged, but no unicode errs")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -3339,10 +3339,10 @@ mod template_literal {
 
         const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
 
-        #[test_case("``", true, false => set(&[]); "no-substitution template ok")]
-        #[test_case("`\\u{`", true, false => set(&[RE_ESCAPE_TWO]); "no-substitution bad escape")]
-        #[test_case("`\\u{`", true, true => set(&[]); "no-substitution bad escape; tagged")]
-        #[test_case("`${package}`", true, false => set(&[PACKAGE_NOT_ALLOWED]); "substitution template")]
+        #[test_case("``", true, false => sset(&[]); "no-substitution template ok")]
+        #[test_case("`\\u{`", true, false => sset(&[RE_ESCAPE_TWO]); "no-substitution bad escape")]
+        #[test_case("`\\u{`", true, true => sset(&[]); "no-substitution bad escape; tagged")]
+        #[test_case("`${package}`", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "substitution template")]
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let mut errs = vec![];
@@ -3373,7 +3373,7 @@ mod template_literal {
             let err_set = AHashSet::<String>::from_iter(
                 errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())),
             );
-            assert_eq!(err_set, set(&["Template literal too complex"]));
+            assert_eq!(err_set, sset(&["Template literal too complex"]));
         }
     }
 
@@ -3943,15 +3943,15 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         .unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression")]
-    #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
-    #[test_case("()", true => set(&[]); "Empty")]
-    #[test_case("(...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "rest id")]
-    #[test_case("(...{package=a})", true => set(&[PACKAGE_NOT_ALLOWED]); "rest pattern")]
-    #[test_case("(package, ...a)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; exp bad")]
-    #[test_case("(a, ...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; id bad")]
-    #[test_case("(package, ...{a=b})", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; exp bad")]
-    #[test_case("(a, ...{package=b})", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; pat bad")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "Expression")]
+    #[test_case("(package,)", true => sset(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
+    #[test_case("()", true => sset(&[]); "Empty")]
+    #[test_case("(...package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "rest id")]
+    #[test_case("(...{package=a})", true => sset(&[PACKAGE_NOT_ALLOWED]); "rest pattern")]
+    #[test_case("(package, ...a)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest id; exp bad")]
+    #[test_case("(a, ...package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest id; id bad")]
+    #[test_case("(package, ...{a=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; exp bad")]
+    #[test_case("(a, ...{package=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; pat bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
