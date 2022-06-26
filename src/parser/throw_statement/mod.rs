@@ -7,7 +7,7 @@ use std::io::Write;
 //      throw [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
 pub struct ThrowStatement {
-    exp: Rc<Expression>,
+    pub exp: Rc<Expression>,
     location: Location,
 }
 

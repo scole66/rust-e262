@@ -60,6 +60,7 @@ mod insn {
     #[test_case(Insn::Modulo => "MODULO"; "Modulo instruction")]
     #[test_case(Insn::Add => "ADD"; "Add instruction")]
     #[test_case(Insn::Subtract => "SUBTRACT"; "Subtract instruction")]
+    #[test_case(Insn::Throw => "THROW"; "Throw instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -1581,13 +1582,61 @@ mod statement {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-    ]); "strict stmt")]
+    ]); "strict expr stmt")]
     #[test_case("a;", false => svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
-    ]); "non-strict stmt")]
-    #[test_case("debugger;", true => panics "not yet implemented"; "other")]
+    ]); "non-strict expr stmt")]
+    #[test_case("{}", true => panics "not yet implemented"; "block")]
+    #[test_case("var a=b;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]); "strict var stmt")]
+    #[test_case("var a=b;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]); "non-strict var stmt")]
+    #[test_case(";", true => panics "not yet implemented"; "empty")]
+    #[test_case("if (true) a=3;", true => panics "not yet implemented"; "if statement")]
+    #[test_case("for (i=0;i<10;i++) log(i);", true => panics "not yet implemented"; "breakable statement")]
+    #[test_case("continue;", true => panics "not yet implemented"; "continue statement")]
+    #[test_case("break;", true => panics "not yet implemented"; "break statement")]
+    #[test_case("return;", true => panics "not yet implemented"; "return statement")]
+    #[test_case("with (a) {}", true => panics "not yet implemented"; "with statement")]
+    #[test_case("a: b();", true => panics "not yet implemented"; "labelled statement")]
+    #[test_case("throw a;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]); "strict throw")]
+    #[test_case("throw a;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]); "non-strict throw")]
+    #[test_case("try {} catch {}", true => panics "not yet implemented"; "try statement")]
+    #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
         let mut c = Chunk::new("x");
@@ -1982,6 +2031,45 @@ mod variable_declaration {
     #[test_case("[a]=b", true, None => panics "not yet implemented"; "pattern assignment")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).variable_declaration();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod throw_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("throw 'a';", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "THROW"
+    ]), true, false)); "Throw literal")]
+    #[test_case("throw a;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]), true, false)); "Throw reference")]
+    #[test_case("throw a;", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]), true, false)); "Throw ref/non-strict")]
+    #[test_case("throw a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "exp compile fail")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).throw_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict, src)

@@ -772,6 +772,17 @@ impl Agent {
                 Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
                 Insn::Add => self.binary_operation(index, BinOp::Add),
                 Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
+                Insn::Throw => {
+                    // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
+                    let exp: ECMAScriptValue = self.execution_context_stack[index]
+                        .stack
+                        .pop()
+                        .expect("Throw requires an argument")
+                        .expect("Throw requires a NormalCompletion")
+                        .try_into()
+                        .expect("Throw requires a value");
+                    self.execution_context_stack[index].stack.push(Err(AbruptCompletion::Throw { value: exp }));
+                }
             }
         }
         self.execution_context_stack[index]
