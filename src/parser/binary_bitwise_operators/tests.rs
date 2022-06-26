@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -112,8 +112,8 @@ mod bitwise_and_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package&interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise and")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package&interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -263,8 +263,8 @@ mod bitwise_xor_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package^interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise xor")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package^interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise xor")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -420,8 +420,8 @@ mod bitwise_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package|interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise or")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package|interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

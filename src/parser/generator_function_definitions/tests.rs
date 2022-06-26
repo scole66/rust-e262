@@ -124,13 +124,13 @@ mod generator_method {
         Maker::new(src).generator_method().has_direct_super()
     }
 
-    #[test_case("*[package](implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("*a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("*a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("*a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("*a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("*a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
-    #[test_case("*a(b){super(b);}", false => set(&[UNEXPECTED_SUPER]); "direct super")]
+    #[test_case("*[package](implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("*a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("*a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("*a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("*a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("*a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("*a(b){super(b);}", false => sset(&[UNEXPECTED_SUPER]); "direct super")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -379,19 +379,19 @@ mod generator_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
-    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
-    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
-    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
-    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
-    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -543,19 +543,19 @@ mod generator_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
-    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
-    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
-    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
-    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
-    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -622,7 +622,7 @@ mod generator_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "statements")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -781,9 +781,9 @@ mod yield_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield exp")]
-    #[test_case("yield", true => set(&[]); "no expresion")]
-    #[test_case("yield *package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield from")]
+    #[test_case("yield package", true => sset(&[PACKAGE_NOT_ALLOWED]); "yield exp")]
+    #[test_case("yield", true => sset(&[]); "no expresion")]
+    #[test_case("yield *package", true => sset(&[PACKAGE_NOT_ALLOWED]); "yield from")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

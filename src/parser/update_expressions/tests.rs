@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // UPDATE EXPRESSION
@@ -237,15 +237,15 @@ mod update_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
-    #[test_case("package++", true => set(&[PACKAGE_NOT_ALLOWED]); "post-inc, simple")]
-    #[test_case("a(b)++", true => set(&["Invalid target for update"]); "post-inc, complex")]
-    #[test_case("package--", true => set(&[PACKAGE_NOT_ALLOWED]); "post-dec, simple")]
-    #[test_case("a(b)--", true => set(&["Invalid target for update"]); "post-dec, complex")]
-    #[test_case("++package", true => set(&[PACKAGE_NOT_ALLOWED]); "pre-inc, simple")]
-    #[test_case("++a(b)", true => set(&["Invalid target for update"]); "pre-inc, complex")]
-    #[test_case("--package", true => set(&[PACKAGE_NOT_ALLOWED]); "pre-dec, simple")]
-    #[test_case("--a(b)", true => set(&["Invalid target for update"]); "pre-dec, complex")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
+    #[test_case("package++", true => sset(&[PACKAGE_NOT_ALLOWED]); "post-inc, simple")]
+    #[test_case("a(b)++", true => sset(&["Invalid target for update"]); "post-inc, complex")]
+    #[test_case("package--", true => sset(&[PACKAGE_NOT_ALLOWED]); "post-dec, simple")]
+    #[test_case("a(b)--", true => sset(&["Invalid target for update"]); "post-dec, complex")]
+    #[test_case("++package", true => sset(&[PACKAGE_NOT_ALLOWED]); "pre-inc, simple")]
+    #[test_case("++a(b)", true => sset(&["Invalid target for update"]); "pre-inc, complex")]
+    #[test_case("--package", true => sset(&[PACKAGE_NOT_ALLOWED]); "pre-dec, simple")]
+    #[test_case("--a(b)", true => sset(&["Invalid target for update"]); "pre-dec, complex")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

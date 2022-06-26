@@ -1,7 +1,4 @@
-use super::additive_operators::AdditiveExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;

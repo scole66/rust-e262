@@ -1,14 +1,5 @@
 use super::*;
-use crate::cr::Completion;
-use crate::errors::{create_type_error, create_type_error_object, unwind_any_error};
-use crate::execution_context::ExecutionContext;
-use crate::object::{
-    create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject,
-    PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
-};
-use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
-use crate::values::{to_number, to_string};
+use crate::tests::*;
 
 mod prototype {
     use super::*;

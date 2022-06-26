@@ -1,7 +1,4 @@
-use super::relational_operators::RelationalExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;

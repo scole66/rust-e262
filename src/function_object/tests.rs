@@ -1,7 +1,6 @@
 use super::*;
-use crate::parser::testhelp::Maker;
-use crate::tests::test_agent;
-use crate::values::ECMAScriptValue;
+use crate::parser::testhelp::*;
+use crate::tests::*;
 
 mod arguments {
     use super::*;

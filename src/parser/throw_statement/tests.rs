@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // THROW STATEMENT
@@ -61,7 +61,7 @@ mod throw_statement {
         Maker::new(src).throw_statement().all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("throw package;", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("throw package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

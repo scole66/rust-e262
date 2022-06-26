@@ -22,6 +22,10 @@ impl JSString {
         self.s.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.s.is_empty()
+    }
+
     pub fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
         let mut new_vec = Vec::with_capacity(self.len() + tail.len());

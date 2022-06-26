@@ -1,18 +1,4 @@
-use super::agent::*;
-use super::cr::{AbruptCompletion, Completion};
-use super::function_object::{create_builtin_function, FuncArgs};
-use super::object::{
-    define_property_or_throw, get, get_agentless, ordinary_create_from_constructor, ordinary_define_own_property,
-    ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
-    ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions,
-    ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
-};
-use super::parser::*;
-use super::realm::IntrinsicId;
-use super::realm::Realm;
-use super::strings::JSString;
-use super::values::{to_string, ECMAScriptValue, PropertyKey};
+use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -380,9 +366,9 @@ pub fn error_prototype_tostring(
         let name = if name_prop.is_undefined() { JSString::from("Error") } else { to_string(agent, name_prop)? };
         let msg_prop = get(agent, &o, &PropertyKey::from("message"))?;
         let msg = if msg_prop.is_undefined() { JSString::from("") } else { to_string(agent, msg_prop)? };
-        if name.len() == 0 {
+        if name.is_empty() {
             Ok(ECMAScriptValue::from(msg))
-        } else if msg.len() == 0 {
+        } else if msg.is_empty() {
             Ok(ECMAScriptValue::from(name))
         } else {
             Ok(ECMAScriptValue::from(name.concat(": ").concat(msg)))

@@ -1,43 +1,12 @@
-use super::scanner;
-use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
-use super::strings::JSString;
+use super::*;
 use ahash::AHashMap;
 use ahash::RandomState;
-use arrow_function_definitions::{ArrowFormalParameters, ExpressionBody};
-use assignment_operators::AssignmentExpression;
-use async_arrow_function_definitions::CoverCallExpressionAndAsyncArrowHead;
-use async_function_definitions::AsyncFunctionBody;
-use async_generator_function_definitions::AsyncGeneratorBody;
-use binary_bitwise_operators::BitwiseORExpression;
-use binary_logical_operators::CoalesceExpression;
-use block::{Block, StatementList};
-use class_definitions::ClassTail;
-use comma_operator::Expression;
 use counter::Counter;
-use declarations_and_variables::{
-    BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding,
-    VariableDeclarationList,
-};
-use function_definitions::{FunctionBody, FunctionDeclaration};
-use generator_function_definitions::GeneratorBody;
-use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
-use iteration_statements::ForBinding;
-use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
-use method_definitions::MethodDefinition;
-use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
-use primary_expressions::{
-    CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName,
-    TemplateLiteral,
-};
-use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
-use try_statement::CatchParameter;
-use unary_operators::UnaryExpression;
-use update_expressions::UpdateExpression;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ParseGoal {
@@ -678,10 +647,6 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 // 3. Otherwise, return a List of one or more SyntaxError objects representing the parsing errors and/or early errors.
 //    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
 //    implementation-defined, but at least one must be present.
-use super::agent::Agent;
-use super::errors::create_syntax_error_object;
-use super::object::Object;
-use scripts::Script;
 
 pub enum ParsedText {
     Errors(Vec<Object>),
@@ -784,6 +749,49 @@ pub mod try_statement;
 pub mod unary_operators;
 pub mod update_expressions;
 pub mod with_statement;
+
+pub use additive_operators::*;
+pub use arrow_function_definitions::*;
+pub use assignment_operators::*;
+pub use async_arrow_function_definitions::*;
+pub use async_function_definitions::*;
+pub use async_generator_function_definitions::*;
+pub use binary_bitwise_operators::*;
+pub use binary_logical_operators::*;
+pub use bitwise_shift_operators::*;
+pub use block::*;
+pub use break_statement::*;
+pub use class_definitions::*;
+pub use comma_operator::*;
+pub use conditional_operator::*;
+pub use continue_statement::*;
+pub use debugger_statement::*;
+pub use declarations_and_variables::*;
+pub use empty_statement::*;
+pub use equality_operators::*;
+pub use exponentiation_operator::*;
+pub use expression_statement::*;
+pub use function_definitions::*;
+pub use generator_function_definitions::*;
+pub use identifiers::*;
+pub use if_statement::*;
+pub use iteration_statements::*;
+pub use labelled_statements::*;
+pub use left_hand_side_expressions::*;
+pub use method_definitions::*;
+pub use multiplicative_operators::*;
+pub use parameter_lists::*;
+pub use primary_expressions::*;
+pub use relational_operators::*;
+pub use return_statement::*;
+pub use scripts::*;
+pub use statements_and_declarations::*;
+pub use switch_statement::*;
+pub use throw_statement::*;
+pub use try_statement::*;
+pub use unary_operators::*;
+pub use update_expressions::*;
+pub use with_statement::*;
 
 #[cfg(test)]
 pub mod testhelp;

@@ -1,14 +1,4 @@
-use super::agent::{Agent, WksId};
-use super::bigint_object::create_bigint_object;
-use super::boolean_object::create_boolean_object;
-use super::cr::Completion;
-use super::dtoa_r::dtoa;
-use super::errors::{create_range_error, create_type_error};
-use super::number_object::create_number_object;
-use super::object::{call, get, get_method, to_callable, to_constructor, Object};
-use super::string_object::create_string_object;
-use super::strings::JSString;
-use super::symbol_object::create_symbol_object;
+use super::*;
 use anyhow::anyhow;
 use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
@@ -719,7 +709,7 @@ impl From<ECMAScriptValue> for bool {
             ECMAScriptValue::Undefined | ECMAScriptValue::Null => false,
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
-            ECMAScriptValue::String(s) => s.len() > 0,
+            ECMAScriptValue::String(s) => !s.is_empty(),
             ECMAScriptValue::Symbol(_) => true,
             ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
             ECMAScriptValue::Object(_) => true,

@@ -1,28 +1,4 @@
-use super::chunk::Chunk;
-use super::compiler::Insn;
-use super::cr::*;
-use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
-use super::errors::*;
-use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
-use super::object::{
-    call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor,
-};
-use super::parser::async_function_definitions::AsyncFunctionDeclaration;
-use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::parser::class_definitions::ClassDeclaration;
-use super::parser::declarations_and_variables::*;
-use super::parser::function_definitions::FunctionDeclaration;
-use super::parser::generator_function_definitions::GeneratorDeclaration;
-use super::parser::iteration_statements::*;
-use super::parser::scripts::{Script, VarScopeDecl};
-use super::parser::statements_and_declarations::DeclPart;
-use super::parser::{parse_text, ParseGoal, ParsedText};
-use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
-use super::strings::JSString;
-use super::values::*;
-use crate::object::create_data_property_or_throw;
-use crate::symbol_object::SymbolRegistry;
+use super::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;

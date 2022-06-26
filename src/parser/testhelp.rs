@@ -1,55 +1,4 @@
 use super::*;
-use additive_operators::AdditiveExpression;
-use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
-use assignment_operators::*;
-use async_arrow_function_definitions::*;
-use async_function_definitions::*;
-use async_generator_function_definitions::*;
-use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
-use binary_logical_operators::{
-    CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression,
-};
-use bitwise_shift_operators::ShiftExpression;
-use block::{Block, BlockStatement, StatementList, StatementListItem};
-use break_statement::*;
-use class_definitions::*;
-use comma_operator::Expression;
-use conditional_operator::ConditionalExpression;
-use continue_statement::*;
-use debugger_statement::*;
-use declarations_and_variables::*;
-use empty_statement::*;
-use equality_operators::EqualityExpression;
-use exponentiation_operator::ExponentiationExpression;
-use expression_statement::ExpressionStatement;
-use function_definitions::*;
-use generator_function_definitions::{
-    GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression,
-};
-use identifiers::{BindingIdentifier, IdentifierReference};
-use if_statement::IfStatement;
-use iteration_statements::{
-    DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement,
-};
-use labelled_statements::{LabelledItem, LabelledStatement};
-use left_hand_side_expressions::*;
-use method_definitions::*;
-use multiplicative_operators::MultiplicativeExpression;
-use parameter_lists::{
-    FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters,
-};
-use primary_expressions::*;
-use relational_operators::RelationalExpression;
-use return_statement::ReturnStatement;
-use scripts::{Script, ScriptBody};
-use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
-use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
-use throw_statement::ThrowStatement;
-use try_statement::{Catch, CatchParameter, Finally, TryStatement};
-use unary_operators::UnaryExpression;
-use update_expressions::UpdateExpression;
-use with_statement::WithStatement;
-
 use ahash::AHashSet;
 use std::fmt;
 
@@ -91,7 +40,7 @@ where
     );
     assert_eq!(format!("{}", pe), msg.into());
 }
-pub fn set(items: &[&str]) -> AHashSet<String> {
+pub fn sset(items: &[&str]) -> AHashSet<String> {
     AHashSet::from_iter(items.iter().map(|&x| String::from(x)))
 }
 
