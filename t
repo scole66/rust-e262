@@ -77,7 +77,7 @@ case $name in
   CompilerExpressionStatement) data=(parser::expression_statement::ExpressionStatement expression_statement compiler) ;;
   CompilerStatementList) data=(parser::block::StatementList statement_list:: compiler) ;;
   CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
-  CompilerStatement) data=(parser::statements_and_declarations::Statement statement compiler) ;;
+  CompilerStatement) data=(parser::statements_and_declarations::Statement statement:: compiler) ;;
   CompilerDeclaration) data=(parser::statements_and_declarations::Declaration declaration compiler) ;;
   CompilerLexicalDeclaration) data=(parser::declarations_and_variables::LexicalDeclaration lexical_declaration compiler) ;;
   CompilerBindingList) data=(parser::declarations_and_variables::BindingList binding_list compiler) ;;
@@ -86,6 +86,7 @@ case $name in
   CompilerVariableStatement) data=(parser::declarations_and_variables::VariableStatement variable_statement compiler) ;;
   CompilerVariableDeclarationList) data=(parser::declarations_and_variables::VariableDeclarationList variable_declaration_list compiler) ;;
   CompilerVariableDeclaration) data=(parser::declarations_and_variables::VariableDeclaration variable_declaration:: compiler) ;;
+  CompilerThrowStatement) data=(parser::throw_statement::ThrowStatement throw_statement compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
   RefResult) data=($name ref_result compiler) ;;

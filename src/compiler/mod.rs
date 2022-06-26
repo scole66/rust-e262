@@ -61,6 +61,7 @@ pub enum Insn {
     Modulo,
     Add,
     Subtract,
+    Throw,
 }
 
 impl fmt::Display for Insn {
@@ -116,6 +117,7 @@ impl fmt::Display for Insn {
             Insn::Modulo => "MODULO",
             Insn::Add => "ADD",
             Insn::Subtract => "SUBTRACT",
+            Insn::Throw => "THROW",
         })
     }
 }
@@ -1379,7 +1381,7 @@ impl Statement {
             Statement::Return(_) => todo!(),
             Statement::With(_) => todo!(),
             Statement::Labelled(_) => todo!(),
-            Statement::Throw(_) => todo!(),
+            Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::Try(_) => todo!(),
             Statement::Debugger(_) => todo!(),
         }
@@ -1578,6 +1580,32 @@ impl VariableDeclaration {
             }
             VariableDeclaration::Pattern(_, _) => todo!(),
         }
+    }
+}
+
+impl ThrowStatement {
+    /// Compile the ThrowStatement production
+    ///
+    /// The instruction sequence will always leave a Throw completion on the stack.
+    ///
+    /// See [ThrowStatement evaluation](https://tc39.es/ecma262/#sec-throw-statement-runtime-semantics-evaluation) in ECMA-262.
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        // ThrowStatement : throw Expression ;
+        // 1. Let exprRef be the result of evaluating Expression.
+        // 2. Let exprValue be ? GetValue(exprRef).
+        // 3. Return ThrowCompletion(exprValue).
+        let status = self.exp.compile(chunk, strict, text)?; // Stack: exp/ref/err ...
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue); // Stack: exp/err ...
+        }
+        let abort_target =
+            if status.maybe_abrupt() || status.maybe_ref() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::Throw);
+        if let Some(tgt) = abort_target {
+            chunk.fixup(tgt).expect("Jump too short to overflow");
+        }
+        Ok(AlwaysAbruptResult {})
     }
 }
 

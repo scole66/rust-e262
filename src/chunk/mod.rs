@@ -134,6 +134,7 @@ impl Chunk {
             | Insn::Modulo
             | Insn::Add
             | Insn::Subtract
+            | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
                 let arg = self.opcodes[idx] as i16;
