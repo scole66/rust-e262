@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // RELATIONAL EXPRESSION
@@ -433,20 +433,20 @@ mod relational_expression {
         item.all_private_identifiers_valid(&[JSString::from("#other"), JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package<3", true => set(&[PACKAGE_NOT_ALLOWED]); "left lt right; left bad")]
-    #[test_case("3<package", true => set(&[PACKAGE_NOT_ALLOWED]); "left lt right; right bad")]
-    #[test_case("package>3", true => set(&[PACKAGE_NOT_ALLOWED]); "left gt right; left bad")]
-    #[test_case("3>package", true => set(&[PACKAGE_NOT_ALLOWED]); "left gt right; right bad")]
-    #[test_case("package<=3", true => set(&[PACKAGE_NOT_ALLOWED]); "left le right; left bad")]
-    #[test_case("3<=package", true => set(&[PACKAGE_NOT_ALLOWED]); "left le right; right bad")]
-    #[test_case("package>=3", true => set(&[PACKAGE_NOT_ALLOWED]); "left ge right; left bad")]
-    #[test_case("3>=package", true => set(&[PACKAGE_NOT_ALLOWED]); "left ge right; right bad")]
-    #[test_case("package instanceof 3", true => set(&[PACKAGE_NOT_ALLOWED]); "left instanceof right; left bad")]
-    #[test_case("3 instanceof package", true => set(&[PACKAGE_NOT_ALLOWED]); "left instanceof right; right bad")]
-    #[test_case("package in 3", true => set(&[PACKAGE_NOT_ALLOWED]); "left in right; left bad")]
-    #[test_case("3 in package", true => set(&[PACKAGE_NOT_ALLOWED]); "left in right; right bad")]
-    #[test_case("#a in package", true => set(&[PACKAGE_NOT_ALLOWED]); "privateid")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package<3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left lt right; left bad")]
+    #[test_case("3<package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left lt right; right bad")]
+    #[test_case("package>3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left gt right; left bad")]
+    #[test_case("3>package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left gt right; right bad")]
+    #[test_case("package<=3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left le right; left bad")]
+    #[test_case("3<=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left le right; right bad")]
+    #[test_case("package>=3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ge right; left bad")]
+    #[test_case("3>=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ge right; right bad")]
+    #[test_case("package instanceof 3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left instanceof right; left bad")]
+    #[test_case("3 instanceof package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left instanceof right; right bad")]
+    #[test_case("package in 3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left in right; left bad")]
+    #[test_case("3 in package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left in right; right bad")]
+    #[test_case("#a in package", true => sset(&[PACKAGE_NOT_ALLOWED]); "privateid")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

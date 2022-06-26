@@ -1,11 +1,5 @@
 use super::*;
-use crate::environment_record::{DeclarativeEnvironmentRecord, GlobalEnvironmentRecord};
-use crate::object::{
-    define_property_or_throw, get, ordinary_object_create, private_field_add, PotentialPropertyDescriptor,
-};
-use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_reference_error, unwind_type_error};
-use crate::values::{PrivateName, PropertyKey};
+use crate::tests::*;
 use std::rc::Rc;
 
 mod base {

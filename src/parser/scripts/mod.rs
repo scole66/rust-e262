@@ -1,13 +1,4 @@
-use super::async_function_definitions::AsyncFunctionDeclaration;
-use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::declarations_and_variables::VariableDeclaration;
-use super::function_definitions::FunctionDeclaration;
-use super::generator_function_definitions::GeneratorDeclaration;
-use super::iteration_statements::ForBinding;
-use super::scanner::{Scanner, StringToken};
-use super::statements_and_declarations::{DeclPart, HoistableDeclPart};
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use ahash::AHashSet;
 use std::fmt;
 use std::hash::Hash;

@@ -1,11 +1,4 @@
-use super::class_definitions::ClassElementName;
-use super::function_definitions::FunctionBody;
-use super::identifiers::BindingIdentifier;
-use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
-use super::scanner::Scanner;
-use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashSet;
 use std::fmt;
 use std::io::Result as IoResult;

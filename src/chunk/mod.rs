@@ -1,5 +1,4 @@
-use crate::compiler::{Insn, Opcode};
-use crate::strings::JSString;
+use super::*;
 use anyhow::anyhow;
 use num::bigint::BigInt;
 use std::rc::Rc;

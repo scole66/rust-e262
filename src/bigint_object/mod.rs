@@ -1,5 +1,4 @@
-use super::agent::Agent;
-use super::object::Object;
+use super::*;
 use num::BigInt;
 use std::rc::Rc;
 

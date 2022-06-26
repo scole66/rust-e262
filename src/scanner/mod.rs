@@ -1,7 +1,5 @@
 pub mod ranges;
-use crate::parser::*;
-use crate::strings::JSString;
-use crate::values::number_to_string;
+use super::*;
 use lazy_static::lazy_static;
 use num::bigint::BigInt;
 use regex::Regex;

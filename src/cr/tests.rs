@@ -1,6 +1,4 @@
 use super::*;
-use crate::object::ordinary_object_create;
-use crate::reference::Base;
 use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;

@@ -1,6 +1,4 @@
 use super::*;
-use crate::environment_record::ObjectEnvironmentRecord;
-use crate::object::DeadObject;
 use crate::parser::testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
@@ -552,8 +550,8 @@ mod parse_script {
         );
     }
 
-    #[test_case("for [i=0, i<10, i++] {}" => set(&["1:5: ‘(’ expected"]); "parse time syntax")]
-    #[test_case("break lbl;" => set(&["undefined break target detected"]); "early error syntax")]
+    #[test_case("for [i=0, i<10, i++] {}" => sset(&["1:5: ‘(’ expected"]); "parse time syntax")]
+    #[test_case("break lbl;" => sset(&["undefined break target detected"]); "early error syntax")]
     fn parse_error(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let starting_realm = agent.current_realm_record().unwrap();
@@ -723,14 +721,14 @@ mod global_declaration_instantiation {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("var a" => Ok((set(&["a"]), set(&[]))); "one simple var-declared variable")]
+    #[test_case("var a" => Ok((sset(&["a"]), sset(&[]))); "one simple var-declared variable")]
     #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
     #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
     #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
     #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
     #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
-    #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((set(&["a", "item"]), set(&["b", "c"]))); "many")]
-    #[test_case("class bob{}" => Ok((set(&[]), set(&["bob"]))); "a class")]
+    #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
+    #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
     #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
     #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]

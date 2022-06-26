@@ -3,10 +3,6 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 
-use std::env;
-use std::fs;
-use std::io::{self, Write};
-
 mod agent;
 mod arrays;
 mod bigint_object;
@@ -33,13 +29,37 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use agent::{process_ecmascript, Agent};
-use parser::{parse_text, ParseGoal, ParsedText};
-use prettyprint::PrettyPrint;
+pub use crate::agent::*;
+pub use crate::arrays::*;
+pub use crate::bigint_object::*;
+pub use crate::boolean_object::*;
+pub use crate::chunk::*;
+pub use crate::comparison::*;
+pub use crate::compiler::*;
+pub use crate::cr::*;
+pub use crate::dtoa_r::*;
+pub use crate::environment_record::*;
+pub use crate::errors::*;
+pub use crate::execution_context::*;
+pub use crate::function_object::*;
+pub use crate::number_object::*;
+pub use crate::object::*;
+pub use crate::object_object::*;
+pub use crate::parser::*;
+pub use crate::prettyprint::*;
+pub use crate::realm::*;
+pub use crate::reference::*;
+pub use crate::scanner::*;
+pub use crate::string_object::*;
+pub use crate::strings::*;
+pub use crate::symbol_object::*;
+pub use crate::values::*;
+
 use std::cell::RefCell;
+use std::env;
+use std::fs;
+use std::io::{self, Write};
 use std::rc::Rc;
-use symbol_object::SymbolRegistry;
-use values::to_string;
 
 #[derive(Debug)]
 struct VM {

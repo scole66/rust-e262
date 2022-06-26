@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -229,9 +226,9 @@ mod try_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("try{package;}catch(implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch")]
-    #[test_case("try{package;}finally{implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
-    #[test_case("try{package;}catch(implements){}finally{interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
+    #[test_case("try{package;}catch(implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch")]
+    #[test_case("try{package;}finally{implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
+    #[test_case("try{package;}catch(implements){}finally{interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -393,11 +390,11 @@ mod catch {
 
     const A_ALREADY_DEFINED: &str = "‘a’ already defined";
 
-    #[test_case("catch(package){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "catch ( CatchParameter ) Block")]
-    #[test_case("catch{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "catch Block")]
-    #[test_case("catch({a,b,a}){}", true => set(&[A_ALREADY_DEFINED]); "duplicates in parameter")]
-    #[test_case("catch({a,b}){let a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
-    #[test_case("catch({a,b}){var a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in var")]
+    #[test_case("catch(package){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "catch ( CatchParameter ) Block")]
+    #[test_case("catch{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "catch Block")]
+    #[test_case("catch({a,b,a}){}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in parameter")]
+    #[test_case("catch({a,b}){let a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
+    #[test_case("catch({a,b}){var a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in var")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -497,7 +494,7 @@ mod finally {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("finally{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
+    #[test_case("finally{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -598,8 +595,8 @@ mod catch_parameter {
         Maker::new(src).catch_parameter().bound_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

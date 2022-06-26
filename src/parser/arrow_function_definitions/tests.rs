@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -118,12 +118,12 @@ mod arrow_function {
     const ILLEGAL_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
     const A_DUPLICATED: &str = "‘a’ already defined";
 
-    #[test_case("package => implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
-    #[test_case("(a=yield b) => a", false => set(&[ILLEGAL_YIELD]); "Yield in params")]
-    #[test_case("(a=await b) => a", false => set(&[ILLEGAL_AWAIT]); "Await in params")]
-    #[test_case("(...a) => { 'use strict'; }", false => set(&[ILLEGAL_USE_STRICT]); "complex params")]
-    #[test_case("a => { let a; }", false => set(&[A_DUPLICATED]); "param/lex clash")]
-    #[test_case("package => { 'use strict'; implements; }", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "strict mode trigger")]
+    #[test_case("package => implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
+    #[test_case("(a=yield b) => a", false => sset(&[ILLEGAL_YIELD]); "Yield in params")]
+    #[test_case("(a=await b) => a", false => sset(&[ILLEGAL_AWAIT]); "Await in params")]
+    #[test_case("(...a) => { 'use strict'; }", false => sset(&[ILLEGAL_USE_STRICT]); "complex params")]
+    #[test_case("a => { let a; }", false => sset(&[A_DUPLICATED]); "param/lex clash")]
+    #[test_case("package => { 'use strict'; implements; }", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "strict mode trigger")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -250,8 +250,8 @@ mod arrow_parameters {
         Maker::new(src).arrow_parameters().is_simple_parameter_list()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrowFormalParameters")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrowFormalParameters")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -373,8 +373,8 @@ mod concise_body {
         Maker::new(src).concise_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionBody")]
-    #[test_case("{ package; }", true => set(&[PACKAGE_NOT_ALLOWED]); "{ FunctionBody }")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ExpressionBody")]
+    #[test_case("{ package; }", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ FunctionBody }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -453,7 +453,7 @@ mod expression_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -544,7 +544,7 @@ mod arrow_formal_parameters {
         Maker::new(src).arrow_formal_parameters().is_simple_parameter_list()
     }
 
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( UniqueFormalParameters )")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "( UniqueFormalParameters )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

@@ -1,5 +1,5 @@
 use super::*;
-use crate::values::*;
+use crate::*;
 use ahash::AHasher;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

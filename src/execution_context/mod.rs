@@ -1,12 +1,4 @@
-use super::agent::Agent;
-use super::chunk::Chunk;
-use super::cr::{Completion, FullCompletion, NormalCompletion};
-use super::environment_record::{get_identifier_reference, EnvironmentRecord, PrivateEnvironmentRecord};
-use super::object::Object;
-use super::parser::scripts::Script;
-use super::realm::Realm;
-use super::strings::JSString;
-use super::values::ECMAScriptValue;
+use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 

@@ -1,6 +1,4 @@
 use super::*;
-use crate::tests::{serr, vok};
-use crate::values::*;
 use num::BigInt;
 
 mod update_expression {

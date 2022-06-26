@@ -1,7 +1,7 @@
-use super::testhelp::{check, expected_scan, newparser, set, sv, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_data, concise_error_validate, pretty_data, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 const INVALID_LHS: &str = "Invalid left-hand side in assignment";
@@ -338,43 +338,43 @@ mod assignment_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
-    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
-    #[test_case("package=>interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
+    #[test_case("yield package", true => sset(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
+    #[test_case("package=>interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
     #[test_case("async package=>interface", true => panics "not yet implemented"; "AsyncArrowFunction")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
-    #[test_case("package*=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
-    #[test_case("package/=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression /= AssignmentExpression (divide)")]
-    #[test_case("package%=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression %= AssignmentExpression (modulo)")]
-    #[test_case("package+=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression += AssignmentExpression (add)")]
-    #[test_case("package-=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression -= AssignmentExpression (subtract)")]
-    #[test_case("package<<=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
-    #[test_case("package>>=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
-    #[test_case("package>>>=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
-    #[test_case("package&=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
-    #[test_case("package^=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
-    #[test_case("package|=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
-    #[test_case("package**=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
-    #[test_case("package&&=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
-    #[test_case("package||=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
-    #[test_case("package??=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
-    #[test_case("[package]=[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPattern = AssignmentExpression")]
-    #[test_case("(a=>a)=b", true => set(&[INVALID_LHS]); "LHS must be simple (assignment)")]
-    #[test_case("(a=>a)*=b", true => set(&[INVALID_LHS]); "LHS must be simple (multiplication)")]
-    #[test_case("(a=>a)/=b", true => set(&[INVALID_LHS]); "LHS must be simple (division)")]
-    #[test_case("(a=>a)%=b", true => set(&[INVALID_LHS]); "LHS must be simple (modulo)")]
-    #[test_case("(a=>a)+=b", true => set(&[INVALID_LHS]); "LHS must be simple (add)")]
-    #[test_case("(a=>a)-=b", true => set(&[INVALID_LHS]); "LHS must be simple (subtract)")]
-    #[test_case("(a=>a)<<=b", true => set(&[INVALID_LHS]); "LHS must be simple (lsh)")]
-    #[test_case("(a=>a)>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (rsh)")]
-    #[test_case("(a=>a)>>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (ursh)")]
-    #[test_case("(a=>a)&=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise and)")]
-    #[test_case("(a=>a)^=b", true => set(&[INVALID_LHS]); "LHS must be simple (xor)")]
-    #[test_case("(a=>a)|=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise or)")]
-    #[test_case("(a=>a)**=b", true => set(&[INVALID_LHS]); "LHS must be simple (exponentiation)")]
-    #[test_case("(a=>a)&&=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical and)")]
-    #[test_case("(a=>a)||=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical or)")]
-    #[test_case("(a=>a)??=b", true => set(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
+    #[test_case("package*=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
+    #[test_case("package/=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression /= AssignmentExpression (divide)")]
+    #[test_case("package%=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression %= AssignmentExpression (modulo)")]
+    #[test_case("package+=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression += AssignmentExpression (add)")]
+    #[test_case("package-=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression -= AssignmentExpression (subtract)")]
+    #[test_case("package<<=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
+    #[test_case("package>>=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
+    #[test_case("package>>>=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
+    #[test_case("package&=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
+    #[test_case("package^=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
+    #[test_case("package|=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
+    #[test_case("package**=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
+    #[test_case("package&&=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
+    #[test_case("package||=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
+    #[test_case("package??=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
+    #[test_case("[package]=[interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPattern = AssignmentExpression")]
+    #[test_case("(a=>a)=b", true => sset(&[INVALID_LHS]); "LHS must be simple (assignment)")]
+    #[test_case("(a=>a)*=b", true => sset(&[INVALID_LHS]); "LHS must be simple (multiplication)")]
+    #[test_case("(a=>a)/=b", true => sset(&[INVALID_LHS]); "LHS must be simple (division)")]
+    #[test_case("(a=>a)%=b", true => sset(&[INVALID_LHS]); "LHS must be simple (modulo)")]
+    #[test_case("(a=>a)+=b", true => sset(&[INVALID_LHS]); "LHS must be simple (add)")]
+    #[test_case("(a=>a)-=b", true => sset(&[INVALID_LHS]); "LHS must be simple (subtract)")]
+    #[test_case("(a=>a)<<=b", true => sset(&[INVALID_LHS]); "LHS must be simple (lsh)")]
+    #[test_case("(a=>a)>>=b", true => sset(&[INVALID_LHS]); "LHS must be simple (rsh)")]
+    #[test_case("(a=>a)>>>=b", true => sset(&[INVALID_LHS]); "LHS must be simple (ursh)")]
+    #[test_case("(a=>a)&=b", true => sset(&[INVALID_LHS]); "LHS must be simple (bitwise and)")]
+    #[test_case("(a=>a)^=b", true => sset(&[INVALID_LHS]); "LHS must be simple (xor)")]
+    #[test_case("(a=>a)|=b", true => sset(&[INVALID_LHS]); "LHS must be simple (bitwise or)")]
+    #[test_case("(a=>a)**=b", true => sset(&[INVALID_LHS]); "LHS must be simple (exponentiation)")]
+    #[test_case("(a=>a)&&=b", true => sset(&[INVALID_LHS]); "LHS must be simple (logical and)")]
+    #[test_case("(a=>a)||=b", true => sset(&[INVALID_LHS]); "LHS must be simple (logical or)")]
+    #[test_case("(a=>a)??=b", true => sset(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -663,8 +663,8 @@ mod assignment_pattern {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrayAssignmentPattern")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrayAssignmentPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -789,10 +789,10 @@ mod object_assignment_pattern {
     }
 
     #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("{...package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentRestProperty }")]
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList }")]
-    #[test_case("{package,}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList , } (trailing comma)")]
-    #[test_case("{package,...interface}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "{ AssignmentPropertyList , AssignmentRestProperty }")]
+    #[test_case("{...package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentRestProperty }")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList }")]
+    #[test_case("{package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList , } (trailing comma)")]
+    #[test_case("{package,...interface}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "{ AssignmentPropertyList , AssignmentRestProperty }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -970,13 +970,13 @@ mod array_assignment_pattern {
 
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
     #[test_case("[,]", true => AHashSet::<String>::new(); "[ Elision ]")]
-    #[test_case("[...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentRestElement ]")]
-    #[test_case("[,...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ Elision AssignmentRestElement ]")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList ]")]
-    #[test_case("[package,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , ] (trailing comma)")]
-    #[test_case("[package,,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , Elision ]")]
-    #[test_case("[package,...interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , AssignmentRestElement ]")]
-    #[test_case("[package,,...interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
+    #[test_case("[...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentRestElement ]")]
+    #[test_case("[,...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ Elision AssignmentRestElement ]")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList ]")]
+    #[test_case("[package,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , ] (trailing comma)")]
+    #[test_case("[package,,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , Elision ]")]
+    #[test_case("[package,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , AssignmentRestElement ]")]
+    #[test_case("[package,,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1066,8 +1066,8 @@ mod assignment_rest_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
-    #[test_case("...{a}", true => set(&["`...` must be followed by an assignable reference in assignment contexts"]); "assignable refs")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
+    #[test_case("...{a}", true => sset(&["`...` must be followed by an assignable reference in assignment contexts"]); "assignable refs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1147,8 +1147,8 @@ mod assignment_property_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
-    #[test_case("package,interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPropertyList , AssignmentProperty")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
+    #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPropertyList , AssignmentProperty")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1231,8 +1231,8 @@ mod assignment_element_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
-    #[test_case("package,interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentElementList , AssignmentElisionElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
+    #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentElementList , AssignmentElisionElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1312,8 +1312,8 @@ mod assignment_elision_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
-    #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
+    #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1406,11 +1406,11 @@ mod assignment_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("eval", true => set(&["Identifier eval is an invalid left-hand-side"]); "IdentifierReference (eval)")]
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "IdentifierReference (package)")]
-    #[test_case("eval=interface", true => set(&["Identifier eval is an invalid left-hand-side", INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer (eval)")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer")]
-    #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "PropertyName : AssignmentElement")]
+    #[test_case("eval", true => sset(&["Identifier eval is an invalid left-hand-side"]); "IdentifierReference (eval)")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "IdentifierReference (package)")]
+    #[test_case("eval=interface", true => sset(&["Identifier eval is an invalid left-hand-side", INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer (eval)")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer")]
+    #[test_case("[package]:interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "PropertyName : AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1498,8 +1498,8 @@ mod assignment_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "DestructuringAssignmentTarget Initializer")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "DestructuringAssignmentTarget Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1566,7 +1566,7 @@ mod assignment_rest_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1646,9 +1646,9 @@ mod destructuring_assignment_target {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "lhs")]
-    #[test_case("(a=>a)", true => set(&[INVALID_LHS]); "not simple")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "lhs")]
+    #[test_case("(a=>a)", true => sset(&[INVALID_LHS]); "not simple")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

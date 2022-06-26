@@ -1,11 +1,4 @@
-use super::agent::*;
-use super::cr::*;
-use super::errors::*;
-use super::function_object::*;
-use super::object::*;
-use super::realm::*;
-use super::strings::*;
-use super::values::*;
+use super::*;
 use bimap::BiMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -582,6 +575,9 @@ impl SymbolRegistry {
     }
     pub fn len(&self) -> usize {
         self.symbols.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.symbols.is_empty()
     }
 }
 

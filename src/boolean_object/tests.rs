@@ -1,7 +1,5 @@
-use super::super::object::{ordinary_object_create, PropertyKind};
-use super::super::tests::{test_agent, unwind_type_error};
 use super::*;
-use crate::realm::IntrinsicId;
+use crate::tests::*;
 
 #[test]
 fn create_boolean_object_01() {

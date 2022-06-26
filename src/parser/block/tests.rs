@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED,
-    LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -90,7 +87,7 @@ mod block_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "Block")]
+    #[test_case("{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "Block")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -258,10 +255,10 @@ mod block {
             .collect::<Vec<String>>()
     }
 
-    #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
-    #[test_case("{}", true => set(&[]); "{ } (empty)")]
-    #[test_case("{ let a = 10; const a = 20; }", true => set(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]
-    #[test_case("{ var x; print(x); let x = 27; }", true => set(&[LEX_DUPED_BY_VAR]); "Name declared both lex & var")]
+    #[test_case("{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
+    #[test_case("{}", true => sset(&[]); "{ } (empty)")]
+    #[test_case("{ let a = 10; const a = 20; }", true => sset(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]
+    #[test_case("{ var x; print(x); let x = 27; }", true => sset(&[LEX_DUPED_BY_VAR]); "Name declared both lex & var")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -519,8 +516,8 @@ mod statement_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementListItem")]
-    #[test_case("package;implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "StatementList StatementListItem")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "StatementListItem")]
+    #[test_case("package;implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "StatementList StatementListItem")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -772,8 +769,8 @@ mod statement_list_item {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Declaration")]
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
+    #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Declaration")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

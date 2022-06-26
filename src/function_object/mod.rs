@@ -1,22 +1,4 @@
-use super::agent::Agent;
-use super::cr::Completion;
-use super::environment_record::{EnvironmentRecord, PrivateEnvironmentRecord};
-use super::execution_context::ExecutionContext;
-use super::object::{
-    define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
-    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys,
-    ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface,
-    InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
-};
-use super::parser::async_function_definitions::AsyncFunctionDeclaration;
-use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::parser::function_definitions::FunctionDeclaration;
-use super::parser::generator_function_definitions::GeneratorDeclaration;
-use super::parser::parameter_lists::FormalParameters;
-use super::parser::scripts::Script;
-use super::realm::Realm;
-use super::strings::JSString;
-use super::values::{ECMAScriptValue, PrivateName, PropertyKey, Symbol};
+use super::*;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;

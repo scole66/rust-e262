@@ -1,11 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR,
-    PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::scanner::StringDelimiter;
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 const UNDEF_BREAK: &str = "undefined break target detected";
@@ -134,13 +130,13 @@ mod script {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("" => set(&[]); "emptyness")]
-    #[test_case("0;" => set(&[]); "Statement")]
-    #[test_case("'use strict'; package;" => set(&[PACKAGE_NOT_ALLOWED]); "strict expression")]
-    #[test_case("package;" => set(&[]); "non-strict")]
-    #[test_case("let x; const x=10;" => set(&[DUPLICATE_LEXICAL]); "lex duplicated")]
-    #[test_case("let x; var x=10;" => set(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
-    #[test_case("break a;" => set(&[UNDEF_BREAK]); "undefined break target")]
+    #[test_case("" => sset(&[]); "emptyness")]
+    #[test_case("0;" => sset(&[]); "Statement")]
+    #[test_case("'use strict'; package;" => sset(&[PACKAGE_NOT_ALLOWED]); "strict expression")]
+    #[test_case("package;" => sset(&[]); "non-strict")]
+    #[test_case("let x; const x=10;" => sset(&[DUPLICATE_LEXICAL]); "lex duplicated")]
+    #[test_case("let x; var x=10;" => sset(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
+    #[test_case("break a;" => sset(&[UNDEF_BREAK]); "undefined break target")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -272,15 +268,15 @@ mod script_body {
     const NEWTARG_DISALLOWED: &str = "`new.target` not allowed in top-level code";
     const DUPLICATE_LABELS: &str = "duplicate labels detected";
 
-    #[test_case("super();", false => set(&[SUPER_DISALLOWED]); "disallowed super")]
-    #[test_case("super();", true => set(&[]); "allowed super")]
-    #[test_case("new.target;", false => set(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
-    #[test_case("new.target;", true => set(&[]); "allowed new.target")]
-    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
-    #[test_case(";", false => set(&[]); "empty stmt")]
-    #[test_case("t:{t:;}", false => set(&[DUPLICATE_LABELS]); "duplicate labels")]
-    #[test_case("continue bob;", false => set(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
-    #[test_case("a.#mystery;", false => set(&["invalid private identifier detected"]); "invalid private id")]
+    #[test_case("super();", false => sset(&[SUPER_DISALLOWED]); "disallowed super")]
+    #[test_case("super();", true => sset(&[]); "allowed super")]
+    #[test_case("new.target;", false => sset(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
+    #[test_case("new.target;", true => sset(&[]); "allowed new.target")]
+    #[test_case("break a;", false => sset(&[UNDEF_BREAK]); "undefined break")]
+    #[test_case(";", false => sset(&[]); "empty stmt")]
+    #[test_case("t:{t:;}", false => sset(&[DUPLICATE_LABELS]); "duplicate labels")]
+    #[test_case("continue bob;", false => sset(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
+    #[test_case("a.#mystery;", false => sset(&["invalid private identifier detected"]); "invalid private id")]
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

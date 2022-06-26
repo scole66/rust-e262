@@ -1,12 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, expected_scan, newparser, set, sv, svec, Maker, IMPLEMENTS_NOT_ALLOWED,
-    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{
-    concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate,
-};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -293,10 +288,10 @@ mod iteration_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("do package; while(implements);", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "DoWhileStatement")]
-    #[test_case("while (package) implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "WhileStatement")]
-    #[test_case("for(;;)package;", true => set(&[PACKAGE_NOT_ALLOWED]); "ForStatement")]
-    #[test_case("for(let package in b);", true => set(&[PACKAGE_NOT_ALLOWED]); "ForInOfStatement")]
+    #[test_case("do package; while(implements);", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "DoWhileStatement")]
+    #[test_case("while (package) implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "WhileStatement")]
+    #[test_case("for(;;)package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "ForStatement")]
+    #[test_case("for(let package in b);", true => sset(&[PACKAGE_NOT_ALLOWED]); "ForInOfStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -494,7 +489,7 @@ mod do_while_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("do package; while(implements);", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "do Statement while ( Expression ) ;")]
+    #[test_case("do package; while(implements);", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "do Statement while ( Expression ) ;")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -629,7 +624,7 @@ mod while_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("while(package)implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "while ( Expression ) Statement")]
+    #[test_case("while(package)implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "while ( Expression ) Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1528,23 +1523,23 @@ mod for_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("for (package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ; Expression3 ) Statement")]
-    #[test_case("for (; implements; interface) private;", true => set(&[ IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ; Expression3 ) Statement")]
-    #[test_case("for (package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;; Expression3 ) Statement")]
-    #[test_case("for (package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ;) Statement")]
-    #[test_case("for (; ; interface) private;", true => set(&[ INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (;; Expression3 ) Statement")]
-    #[test_case("for (package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;;) Statement")]
-    #[test_case("for (; implements; ) private;", true => set(&[ IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ;) Statement")]
-    #[test_case("for (; ; ) private;", true => set(&[ PRIVATE_NOT_ALLOWED]); "for (;;) Statement")]
-    #[test_case("for (var package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ; Expression2 ) Statement")]
-    #[test_case("for (var package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ; Expression2 ) Statement")]
-    #[test_case("for (var package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ;  ) Statement")]
-    #[test_case("for (var package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ;  ) Statement")]
-    #[test_case("for (let package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ; Expression2 ) Statement")]
-    #[test_case("for (let package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ; Expression2 ) Statement")]
-    #[test_case("for (let package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ;  ) Statement")]
-    #[test_case("for (let package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ;  ) Statement")]
-    #[test_case("for (let a;;) { var a; }", false => set(&[A_LEXVARCLASH]); "lex/var clash")]
+    #[test_case("for (package; implements; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ; Expression3 ) Statement")]
+    #[test_case("for (; implements; interface) private;", true => sset(&[ IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ; Expression3 ) Statement")]
+    #[test_case("for (package; ; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;; Expression3 ) Statement")]
+    #[test_case("for (package; implements; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ;) Statement")]
+    #[test_case("for (; ; interface) private;", true => sset(&[ INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (;; Expression3 ) Statement")]
+    #[test_case("for (package; ; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;;) Statement")]
+    #[test_case("for (; implements; ) private;", true => sset(&[ IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ;) Statement")]
+    #[test_case("for (; ; ) private;", true => sset(&[ PRIVATE_NOT_ALLOWED]); "for (;;) Statement")]
+    #[test_case("for (var package; implements; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ; Expression2 ) Statement")]
+    #[test_case("for (var package; ; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ; Expression2 ) Statement")]
+    #[test_case("for (var package; implements; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ;  ) Statement")]
+    #[test_case("for (var package; ; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ;  ) Statement")]
+    #[test_case("for (let package; implements; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ; Expression2 ) Statement")]
+    #[test_case("for (let package; ; interface) private;", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ; Expression2 ) Statement")]
+    #[test_case("for (let package; implements; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ;  ) Statement")]
+    #[test_case("for (let package; ; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ;  ) Statement")]
+    #[test_case("for (let a;;) { var a; }", false => sset(&[A_LEXVARCLASH]); "lex/var clash")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2429,30 +2424,30 @@ mod for_in_of_statement {
     const A_DUPLICATED: &str = "‘a’ already defined";
     const INVALID: &str = "Invalid assignment target";
 
-    #[test_case("for (let let in a);", false => set(&[BAD_LET]); "bad let; in form")]
-    #[test_case("for (let let of a);", false => set(&[BAD_LET]); "bad let; of form")]
-    #[test_case("for await (let let of a);", false => set(&[BAD_LET]); "bad let; await form")]
-    #[test_case("for (let a in b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; in form")]
-    #[test_case("for (let a of b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; of form")]
-    #[test_case("for await (let a of b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; await form")]
-    #[test_case("for (let [a, a, a, a] in b);", false => set(&[A_DUPLICATED]); "duplicate decls - in")]
-    #[test_case("for (let [a, a, a, a] of b);", false => set(&[A_DUPLICATED]); "duplicate decls - of")]
-    #[test_case("for await (let [a, a, a, a] of b);", false => set(&[A_DUPLICATED]); "duplicate decls - await")]
-    #[test_case("for ((3+4) in a);", false => set(&[INVALID]); "invalid lhs - in")]
-    #[test_case("for ((3+4) of a);", false => set(&[INVALID]); "invalid lhs - of")]
-    #[test_case("for await ((3+4) of a);", false => set(&[INVALID]); "invalid lhs - await")]
-    #[test_case("for (package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression in Expression ) Statement")]
-    #[test_case("for ({package} in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern in Expression ) Statement")]
-    #[test_case("for (var package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding in Expression ) Statement")]
-    #[test_case("for (let package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration in Expression ) Statement")]
-    #[test_case("for (package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
-    #[test_case("for ({package} of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern of AssignmentExpresion ) Statement")]
-    #[test_case("for (var package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding of AssignmentExpresion ) Statement")]
-    #[test_case("for (let package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration of AssignmentExpresion ) Statement")]
-    #[test_case("for await (package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
-    #[test_case("for await ({package} of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( AssignmentPattern of AssignmentExpresion ) Statement")]
-    #[test_case("for await (var package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( var ForBinding of AssignmentExpresion ) Statement")]
-    #[test_case("for await (let package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( ForDeclaration of AssignmentExpresion ) Statement")]
+    #[test_case("for (let let in a);", false => sset(&[BAD_LET]); "bad let; in form")]
+    #[test_case("for (let let of a);", false => sset(&[BAD_LET]); "bad let; of form")]
+    #[test_case("for await (let let of a);", false => sset(&[BAD_LET]); "bad let; await form")]
+    #[test_case("for (let a in b) { var a, x; }", false => sset(&[A_LEXVARCLASH]); "var shadow; in form")]
+    #[test_case("for (let a of b) { var a, x; }", false => sset(&[A_LEXVARCLASH]); "var shadow; of form")]
+    #[test_case("for await (let a of b) { var a, x; }", false => sset(&[A_LEXVARCLASH]); "var shadow; await form")]
+    #[test_case("for (let [a, a, a, a] in b);", false => sset(&[A_DUPLICATED]); "duplicate decls - in")]
+    #[test_case("for (let [a, a, a, a] of b);", false => sset(&[A_DUPLICATED]); "duplicate decls - of")]
+    #[test_case("for await (let [a, a, a, a] of b);", false => sset(&[A_DUPLICATED]); "duplicate decls - await")]
+    #[test_case("for ((3+4) in a);", false => sset(&[INVALID]); "invalid lhs - in")]
+    #[test_case("for ((3+4) of a);", false => sset(&[INVALID]); "invalid lhs - of")]
+    #[test_case("for await ((3+4) of a);", false => sset(&[INVALID]); "invalid lhs - await")]
+    #[test_case("for (package in implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression in Expression ) Statement")]
+    #[test_case("for ({package} in implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern in Expression ) Statement")]
+    #[test_case("for (var package in implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding in Expression ) Statement")]
+    #[test_case("for (let package in implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration in Expression ) Statement")]
+    #[test_case("for (package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
+    #[test_case("for ({package} of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern of AssignmentExpresion ) Statement")]
+    #[test_case("for (var package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding of AssignmentExpresion ) Statement")]
+    #[test_case("for (let package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration of AssignmentExpresion ) Statement")]
+    #[test_case("for await (package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
+    #[test_case("for await ({package} of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( AssignmentPattern of AssignmentExpresion ) Statement")]
+    #[test_case("for await (var package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( var ForBinding of AssignmentExpresion ) Statement")]
+    #[test_case("for await (let package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( ForDeclaration of AssignmentExpresion ) Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2623,7 +2618,7 @@ mod for_declaration {
         Maker::new(src).for_declaration().bound_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 
-    #[test_case("let package", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("let package", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2728,8 +2723,8 @@ mod for_binding {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
-    #[test_case("[a, package]", true => set(&[PACKAGE_NOT_ALLOWED]); "pattern")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "identifier")]
+    #[test_case("[a, package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "pattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

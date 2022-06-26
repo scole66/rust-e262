@@ -1,11 +1,7 @@
-use super::scanner::StringDelimiter;
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -214,18 +210,18 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
-    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
-    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function a(b){let b=3;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
-    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
-    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
-    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
-    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => sset(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => sset(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(b){let b=3;}", true => sset(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => sset(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => sset(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -355,18 +351,18 @@ mod function_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
-    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
-    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function a(a,b){let b=3;let c=10;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
-    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
-    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
-    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
-    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => sset(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => sset(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(a,b){let b=3;let c=10;}", true => sset(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => sset(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => sset(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -459,12 +455,12 @@ mod function_body {
     const UNDEF_BREAK: &str = "undefined break target detected";
     const UNDEF_CONTINUE: &str = "undefined continue target detected";
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionStatementList")]
-    #[test_case("let b; let b;", false => set(&[B_ALREADY_DEFINED]); "duplicate lexical bindings")]
-    #[test_case("var b; var c; let b; let a;", false => set(&[B_ALREADY_LEX]); "var/lex name clash")]
-    #[test_case("a:a:a:;", false => set(&[DUP_LABLES]); "duplicate labels")]
-    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
-    #[test_case("while (1) continue a;", false => set(&[UNDEF_CONTINUE]); "undefined continue")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionStatementList")]
+    #[test_case("let b; let b;", false => sset(&[B_ALREADY_DEFINED]); "duplicate lexical bindings")]
+    #[test_case("var b; var c; let b; let a;", false => sset(&[B_ALREADY_LEX]); "var/lex name clash")]
+    #[test_case("a:a:a:;", false => sset(&[DUP_LABLES]); "duplicate labels")]
+    #[test_case("break a;", false => sset(&[UNDEF_BREAK]); "undefined break")]
+    #[test_case("while (1) continue a;", false => sset(&[UNDEF_CONTINUE]); "undefined continue")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -580,8 +576,8 @@ mod function_statement_list {
         Maker::new(src).function_statement_list().contains_undefined_continue_target(&[], &[])
     }
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
-    #[test_case("", true => set(&[]); "[empty]")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
+    #[test_case("", true => sset(&[]); "[empty]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

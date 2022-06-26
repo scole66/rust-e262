@@ -1,15 +1,4 @@
-use super::agent::{Agent, WksId};
-use super::comparison::is_extensible;
-use super::cr::Completion;
-use super::errors::{create_reference_error, create_type_error};
-use super::function_object::ThisMode;
-use super::object::{
-    define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object,
-    PotentialPropertyDescriptor,
-};
-use super::reference::{Base, Reference};
-use super::strings::JSString;
-use super::values::{to_boolean, ECMAScriptValue, PrivateName, PropertyKey};
+use super::*;
 use ahash::{AHashMap, AHashSet, RandomState};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};

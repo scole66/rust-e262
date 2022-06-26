@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED,
-    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -119,9 +116,9 @@ mod switch_statement {
     const B_DUPLEX: &str = "‘b’ may not be declared both lexically and var-style";
     const B_ALREADY: &str = "‘b’ already defined";
 
-    #[test_case("switch (package) { default: implements; }", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "switch (Expression) CaseBlock")]
-    #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => set(&[B_ALREADY]); "duplicate lexicals")]
-    #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => set(&[B_DUPLEX]); "lex/var dups")]
+    #[test_case("switch (package) { default: implements; }", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "switch (Expression) CaseBlock")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => sset(&[B_ALREADY]); "duplicate lexicals")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => sset(&[B_DUPLEX]); "lex/var dups")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -382,12 +379,12 @@ mod case_block {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{}", true, false => set(&[]); "empty")]
-    #[test_case("{ case package: ;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "cases only")]
-    #[test_case("{ default: package;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "default only")]
-    #[test_case("{ case package:; default:implements; case interface:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "before+default+after")]
-    #[test_case("{ case package:; default: implements;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
-    #[test_case("{ default:package; case implements:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
+    #[test_case("{}", true, false => sset(&[]); "empty")]
+    #[test_case("{ case package: ;}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "cases only")]
+    #[test_case("{ default: package;}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "default only")]
+    #[test_case("{ case package:; default:implements; case interface:;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "before+default+after")]
+    #[test_case("{ case package:; default: implements;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
+    #[test_case("{ default:package; case implements:;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -552,10 +549,10 @@ mod case_clauses {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
-    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
-    #[test_case("case implements: package; continue; case interface: break;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
-    #[test_case("case implements: package; continue; case interface: break;", false, true => set(&[]); "not strict; in iter; list")]
+    #[test_case("case implements: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => sset(&[]); "not strict; in iter")]
+    #[test_case("case implements: package; continue; case interface: break;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
+    #[test_case("case implements: package; continue; case interface: break;", false, true => sset(&[]); "not strict; in iter; list")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -691,9 +688,9 @@ mod case_clause {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("case package:", true, false => set(&[PACKAGE_NOT_ALLOWED]); "empty")]
-    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
-    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    #[test_case("case package:", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "empty")]
+    #[test_case("case implements: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -819,9 +816,9 @@ mod default_clause {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("default:", true, false => set(&[]); "empty")]
-    #[test_case("default: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
-    #[test_case("default: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    #[test_case("default:", true, false => sset(&[]); "empty")]
+    #[test_case("default: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
+    #[test_case("default: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

@@ -1,5 +1,5 @@
 use super::*;
-use crate::parser::testhelp::svec;
+use crate::parser::testhelp::*;
 use std::ops::Deref;
 
 mod chunk {

@@ -1,8 +1,5 @@
 use super::*;
-use crate::object::{call, construct, get, invoke, ordinary_object_create, AccessorProperty, PropertyKind};
-use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_range_error, unwind_type_error};
-use crate::values::Symbol;
+use crate::tests::*;
 use num::BigInt;
 
 #[test]

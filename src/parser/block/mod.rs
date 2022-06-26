@@ -1,8 +1,4 @@
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::scripts::VarScopeDecl;
-use super::statements_and_declarations::{DeclPart, Declaration, Statement};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashSet;
 use std::fmt;
 use std::io::Result as IoResult;
