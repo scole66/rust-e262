@@ -432,7 +432,7 @@ mod primary_expression {
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
-            node.compile(&mut c, strict).unwrap();
+            node.compile(&mut c, strict, src).unwrap();
             c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
         }
     }
@@ -535,7 +535,7 @@ mod parenthesized_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).parenthesized_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -550,7 +550,7 @@ mod object_literal {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).object_literal();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -588,7 +588,7 @@ mod property_definition_list {
     fn compile(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition_list();
         let mut c = Chunk::new("x");
-        node.property_definition_evaluation(&mut c, strict)
+        node.property_definition_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -652,7 +652,7 @@ mod property_definition {
         } else {
             Chunk::new("x")
         };
-        node.property_definition_evaluation(&mut c, strict)
+        node.property_definition_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -675,7 +675,7 @@ mod property_name {
         let node = Maker::new(src).property_name();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -741,7 +741,7 @@ mod computed_property_name {
         let node = Maker::new(src).computed_property_name();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -825,7 +825,7 @@ mod member_expression {
         let node = Maker::new(src).member_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -847,7 +847,7 @@ mod new_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).new_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -869,7 +869,7 @@ mod call_expression {
         let node = Maker::new(src).call_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -897,7 +897,7 @@ mod call_member_expression {
         let node = Maker::new(src).call_member_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -941,7 +941,7 @@ mod left_hand_side_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).left_hand_side_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -965,7 +965,7 @@ mod arguments {
         let node = Maker::new(src).arguments();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.argument_list_evaluation(&mut c, strict)
+        node.argument_list_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1001,7 +1001,7 @@ mod argument_list {
         let node = Maker::new(src).argument_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.argument_list_evaluation(&mut c, strict)
+        node.argument_list_evaluation(&mut c, strict, src)
             .map(|(count, status)| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1106,7 +1106,7 @@ mod update_expression {
         let node = Maker::new(src).update_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1151,7 +1151,7 @@ mod unary_expression {
         let node = Maker::new(src).unary_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1173,7 +1173,7 @@ mod exponentiation_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).exponentiation_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1190,7 +1190,7 @@ mod multiplicative_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).multiplicative_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1206,7 +1206,7 @@ mod additive_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).additive_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1221,7 +1221,7 @@ mod shift_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).shift_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1236,7 +1236,7 @@ mod relational_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).relational_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1251,7 +1251,7 @@ mod equality_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).equality_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1266,7 +1266,7 @@ mod bitwise_and_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).bitwise_and_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1281,7 +1281,7 @@ mod bitwise_xor_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).bitwise_xor_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1296,7 +1296,7 @@ mod bitwise_or_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).bitwise_or_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1311,7 +1311,7 @@ mod logical_and_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).logical_and_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1326,7 +1326,7 @@ mod logical_or_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).logical_or_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1341,7 +1341,7 @@ mod short_circuit_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).short_circuit_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1356,7 +1356,7 @@ mod conditional_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).conditional_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1431,7 +1431,7 @@ mod assignment_expression {
         let node = Maker::new(src).assignment_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1453,7 +1453,7 @@ mod expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1470,7 +1470,7 @@ mod expression_statement {
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).expression_statement();
             let mut c = Chunk::new("x");
-            node.compile(&mut c, strict).unwrap();
+            node.compile(&mut c, strict, src).unwrap();
             c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
@@ -1478,7 +1478,7 @@ mod expression_statement {
         fn error(src: &str) -> String {
             let node = Maker::new(src).expression_statement();
             let mut c = full_chunk("x");
-            node.compile(&mut c, true).unwrap_err().to_string()
+            node.compile(&mut c, true, src).unwrap_err().to_string()
         }
     }
 }
@@ -1523,7 +1523,7 @@ mod statement_list {
         let node = Maker::new(src).statement_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1570,7 +1570,7 @@ mod statement_list_item {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement_list_item();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1593,7 +1593,7 @@ mod statement {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1625,7 +1625,7 @@ mod declaration {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).declaration();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
+        node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1657,7 +1657,7 @@ mod lexical_declaration {
         let node = Maker::new(src).lexical_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1716,7 +1716,7 @@ mod binding_list {
         let node = Maker::new(src).binding_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1788,7 +1788,7 @@ mod lexical_binding {
         let node = Maker::new(src).lexical_binding();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1838,7 +1838,7 @@ mod initializer {
         let node = Maker::new(src).initializer();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1885,7 +1885,7 @@ mod variable_statement {
         let node = Maker::new(src).variable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1934,7 +1934,7 @@ mod variable_declaration_list {
         let node = Maker::new(src).variable_declaration_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1986,7 +1986,7 @@ mod variable_declaration {
         let node = Maker::new(src).variable_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict)
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2011,7 +2011,7 @@ mod script {
     fn compile(src: &str) -> Vec<String> {
         let node = Maker::new(src).script();
         let mut c = Chunk::new("x");
-        node.compile(&mut c).unwrap();
+        node.compile(&mut c, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -2035,7 +2035,7 @@ mod script_body {
     fn compile(src: &str) -> Vec<String> {
         let node = Maker::new(src).script_body();
         let mut c = Chunk::new("x");
-        node.compile(&mut c).unwrap();
+        node.compile(&mut c, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }

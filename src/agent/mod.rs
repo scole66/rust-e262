@@ -1082,7 +1082,7 @@ pub fn parse_script(
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk).unwrap();
+            script.compile(&mut chunk, source_text).unwrap();
             for line in chunk.disassemble() {
                 println!("{line}");
             }
