@@ -60,6 +60,9 @@ mod insn {
     #[test_case(Insn::Modulo => "MODULO"; "Modulo instruction")]
     #[test_case(Insn::Add => "ADD"; "Add instruction")]
     #[test_case(Insn::Subtract => "SUBTRACT"; "Subtract instruction")]
+    #[test_case(Insn::LeftShift => "LSH"; "LeftShift instruction")]
+    #[test_case(Insn::UnsignedRightShift => "URSH"; "UnsignedRightShift instruction")]
+    #[test_case(Insn::SignedRightShift => "SRSH"; "SignedRightShift instruction")]
     #[test_case(Insn::Throw => "THROW"; "Throw instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
@@ -1214,14 +1217,84 @@ mod shift_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a<<2", true => panics "not yet implemented"; "shift expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<<2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "LSH"
+    ]), true, false)); "left shift, strict")]
+    #[test_case("a<<2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "LSH"
+    ]), true, false)); "left shift, non-strict")]
+    #[test_case("a>>2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "SRSH"
+    ]), true, false)); "signed right shift, strict")]
+    #[test_case("a>>2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "SRSH"
+    ]), true, false)); "signed right shift, non-strict")]
+    #[test_case("a>>>2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "URSH"
+    ]), true, false)); "unsigned right shift, strict")]
+    #[test_case("a>>>2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "URSH"
+    ]), true, false)); "unsigned right shift, non-strict")]
+    #[test_case("2>>4", true, None => Ok((svec(&[
+        "FLOAT 0 (2)",
+        "FLOAT 1 (4)",
+        "SRSH"
+    ]), true, false)); "nothing that can throw")]
+    #[test_case("2>>a", true, None => Ok((svec(&[
+        "FLOAT 0 (2)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "SRSH"
+    ]), true, false)); "can throw from right")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).shift_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 

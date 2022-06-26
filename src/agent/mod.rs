@@ -772,6 +772,9 @@ impl Agent {
                 Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
                 Insn::Add => self.binary_operation(index, BinOp::Add),
                 Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
+                Insn::LeftShift => self.binary_operation(index, BinOp::LeftShift),
+                Insn::SignedRightShift => self.binary_operation(index, BinOp::SignedRightShift),
+                Insn::UnsignedRightShift => self.binary_operation(index, BinOp::UnsignedRightShift),
                 Insn::Throw => {
                     // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
                     let exp: ECMAScriptValue = self.execution_context_stack[index]
@@ -953,9 +956,24 @@ impl Agent {
             (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => {
                 Ok(NormalCompletion::from(left - right))
             }
-            (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => {
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to Int32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum << shift_count))
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => {
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to Int32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum >> shift_count))
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => {
+                let lnum = to_uint32(self, left).expect("Numbers are always convertable to Uint32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum >> shift_count))
+            }
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
                 todo!()
             }
