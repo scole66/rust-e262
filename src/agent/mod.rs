@@ -2,7 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
-use num::{BigUint, Zero};
+use num::{BigInt, BigUint, Zero};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -1008,9 +1008,17 @@ impl Agent {
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => {
                 Ok(NormalCompletion::from(&*left - &*right))
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => bigint_leftshift(&*left, &*right)
+                .map_err(|err| create_range_error(self, err.to_string()))
+                .map(NormalCompletion::from),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => {
+                bigint_rightshift(&*left, &*right)
+                    .map_err(|err| create_range_error(self, err.to_string()))
+                    .map(NormalCompletion::from)
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => {
+                Err(create_type_error(self, "BigInts have no unsigned right shift, use >> instead"))
+            }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
                 todo!()
             }
@@ -1326,6 +1334,22 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
         Err(e) => Err(ProcessError::RuntimeError {
             error: ThrowValue::try_from(e).expect("Only ThrowCompletions come from script executions").into(),
         }),
+    }
+}
+
+pub fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+    if right < &BigInt::zero() {
+        bigint_rightshift(left, &-right)
+    } else {
+        Ok(left << u32::try_from(right)?)
+    }
+}
+
+pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+    if right < &BigInt::zero() {
+        bigint_leftshift(left, &-right)
+    } else {
+        Ok(left >> u32::try_from(right)?)
     }
 }
 
