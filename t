@@ -303,6 +303,8 @@ case $name in
   script_evaluation) data=($name $name agent) ;;
   ProcessError) data=($name process_error agent) ;;
   process_ecmascript) data=($name $name agent) ;;
+  bigint_leftshift) data=($name $name agent) ;;
+  bigint_rightshift) data=($name $name agent) ;;
 
   Removability) data=($name removability environment_record) ;;
   Strictness) data=($name strictness environment_record) ;;

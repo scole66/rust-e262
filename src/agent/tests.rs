@@ -7,6 +7,8 @@ use num::BigInt;
 use regex::Regex;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
+use test_case::test_case;
 
 mod agent {
     use super::*;
@@ -325,15 +327,23 @@ mod agent {
     #[test_case(|_| ECMAScriptValue::from(2.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::LeftShift
-                => panics "not yet implemented"; "left shift")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
+                => Ok(NormalCompletion::from(16.0)); "left shift")]
+    #[test_case(|_| ECMAScriptValue::from(16.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::SignedRightShift
-                => panics "not yet implemented"; "signed right shift")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
+                => Ok(NormalCompletion::from(2)); "signed right shift")]
+    #[test_case(|_| ECMAScriptValue::from(-16.0),
+                |_| ECMAScriptValue::from(3.0),
+                BinOp::SignedRightShift
+                => Ok(NormalCompletion::from(-2)); "signed right shift (negative)")]
+    #[test_case(|_| ECMAScriptValue::from(16.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::UnsignedRightShift
-                => panics "not yet implemented"; "unsigned right shift")]
+                => Ok(NormalCompletion::from(2)); "unsigned right shift")]
+    #[test_case(|_| ECMAScriptValue::from(-16.0),
+                |_| ECMAScriptValue::from(3.0),
+                BinOp::UnsignedRightShift
+                => Ok(NormalCompletion::from(536870910)); "unsigned right shift (negative)")]
     #[test_case(|_| ECMAScriptValue::from(2.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::BitwiseAnd
@@ -385,15 +395,23 @@ mod agent {
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::LeftShift
-                => panics "not yet implemented"; "left shift (bigint)")]
+                => Ok(NormalCompletion::from(BigInt::from(16))); "left shift (bigint)")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
+                |_| ECMAScriptValue::from(BigInt::from_str("689674891678594267895287496789").unwrap()),
+                BinOp::LeftShift
+                => serr("RangeError: out of range conversion regarding big integer attempted"); "left shift (bigint) (too big)")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(16)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::SignedRightShift
-                => panics "not yet implemented"; "signed right shift (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
+                => Ok(NormalCompletion::from(BigInt::from(2))); "signed right shift (bigint)")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(16)),
+                |_| ECMAScriptValue::from(BigInt::from_str("-3267891568973452345").unwrap()),
+                BinOp::SignedRightShift
+                => serr("RangeError: out of range conversion regarding big integer attempted"); "signed right shift (bigint) (too big)")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(8)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::UnsignedRightShift
-                => panics "not yet implemented"; "unsigned right shift (bigint)")]
+                => serr("TypeError: BigInts have no unsigned right shift, use >> instead"); "unsigned right shift (bigint)")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseAnd
@@ -803,4 +821,19 @@ mod process_ecmascript {
         let result = super::process_ecmascript(&mut agent, src);
         result.map_err(|e| format!("{e}"))
     }
+}
+
+#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
+#[test_case(BigInt::from(10), BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
+#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
+    super::bigint_leftshift(&left, &right).map_err(|e| e.to_string())
+}
+
+#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
+#[test_case(BigInt::from(10), BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
+#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFF_u64) => Ok(BigInt::from(0)); "underflow")]
+#[test_case(BigInt::from(10), BigInt::from(-0xFFFFFFFFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
+    super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
 }

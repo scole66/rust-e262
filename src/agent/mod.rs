@@ -2,7 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
-use num::{BigUint, Zero};
+use num::{BigInt, BigUint, Zero};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -772,6 +772,9 @@ impl Agent {
                 Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
                 Insn::Add => self.binary_operation(index, BinOp::Add),
                 Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
+                Insn::LeftShift => self.binary_operation(index, BinOp::LeftShift),
+                Insn::SignedRightShift => self.binary_operation(index, BinOp::SignedRightShift),
+                Insn::UnsignedRightShift => self.binary_operation(index, BinOp::UnsignedRightShift),
                 Insn::Throw => {
                     // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
                     let exp: ECMAScriptValue = self.execution_context_stack[index]
@@ -953,9 +956,24 @@ impl Agent {
             (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => {
                 Ok(NormalCompletion::from(left - right))
             }
-            (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => {
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to Int32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum << shift_count))
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => {
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to Int32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum >> shift_count))
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => {
+                let lnum = to_uint32(self, left).expect("Numbers are always convertable to Uint32");
+                let rnum = to_uint32(self, right).expect("Numbers are always convertable to Uint32");
+                let shift_count = rnum % 32;
+                Ok(NormalCompletion::from(lnum >> shift_count))
+            }
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
                 todo!()
             }
@@ -990,9 +1008,17 @@ impl Agent {
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => {
                 Ok(NormalCompletion::from(&*left - &*right))
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => bigint_leftshift(&*left, &*right)
+                .map_err(|err| create_range_error(self, err.to_string()))
+                .map(NormalCompletion::from),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => {
+                bigint_rightshift(&*left, &*right)
+                    .map_err(|err| create_range_error(self, err.to_string()))
+                    .map(NormalCompletion::from)
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => {
+                Err(create_type_error(self, "BigInts have no unsigned right shift, use >> instead"))
+            }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
                 todo!()
             }
@@ -1308,6 +1334,25 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
         Err(e) => Err(ProcessError::RuntimeError {
             error: ThrowValue::try_from(e).expect("Only ThrowCompletions come from script executions").into(),
         }),
+    }
+}
+
+pub fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+    if right < &BigInt::zero() {
+        bigint_rightshift(left, &-right)
+    } else {
+        Ok(left << u32::try_from(right)?)
+    }
+}
+
+pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+    if right < &BigInt::zero() {
+        bigint_leftshift(left, &-right)
+    } else {
+        Ok(match u32::try_from(right) {
+            Ok(shift_amt) => left >> shift_amt,
+            Err(_) => BigInt::zero(),
+        })
     }
 }
 

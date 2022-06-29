@@ -134,6 +134,9 @@ impl Chunk {
             | Insn::Modulo
             | Insn::Add
             | Insn::Subtract
+            | Insn::LeftShift
+            | Insn::SignedRightShift
+            | Insn::UnsignedRightShift
             | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {

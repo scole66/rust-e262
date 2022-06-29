@@ -61,6 +61,9 @@ pub enum Insn {
     Modulo,
     Add,
     Subtract,
+    LeftShift,
+    SignedRightShift,
+    UnsignedRightShift,
     Throw,
 }
 
@@ -117,6 +120,9 @@ impl fmt::Display for Insn {
             Insn::Modulo => "MODULO",
             Insn::Add => "ADD",
             Insn::Subtract => "SUBTRACT",
+            Insn::LeftShift => "LSH",
+            Insn::SignedRightShift => "SRSH",
+            Insn::UnsignedRightShift => "URSH",
             Insn::Throw => "THROW",
         })
     }
@@ -1169,7 +1175,18 @@ impl ShiftExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.compile(chunk, strict, text),
-            _ => todo!(),
+            ShiftExpression::LeftShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::LeftShift)
+                    .map(CompilerStatusFlags::from)
+            }
+            ShiftExpression::SignedRightShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::SignedRightShift)
+                    .map(CompilerStatusFlags::from)
+            }
+            ShiftExpression::UnsignedRightShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::UnsignedRightShift)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
