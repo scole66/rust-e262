@@ -1349,7 +1349,10 @@ pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow
     if right < &BigInt::zero() {
         bigint_leftshift(left, &-right)
     } else {
-        Ok(left >> u32::try_from(right)?)
+        Ok(match u32::try_from(right) {
+            Ok(shift_amt) => left >> shift_amt,
+            Err(_) => BigInt::zero(),
+        })
     }
 }
 
