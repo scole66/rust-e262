@@ -3,6 +3,7 @@ use ahash::{AHashMap, AHashSet, RandomState};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
+use std::cell::Cell;
 
 // Environment Records
 //
@@ -122,6 +123,9 @@ pub trait EnvironmentRecord: Debug {
     fn with_base_object(&self) -> Option<Object>;
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>>;
     fn get_this_binding(&self, _agent: &mut Agent) -> Completion<ECMAScriptValue> {
+        unreachable!()
+    }
+    fn bind_this_value(&self, _agent: &mut Agent, _val: ECMAScriptValue) -> Completion<ECMAScriptValue>{
         unreachable!()
     }
 }
@@ -711,7 +715,7 @@ impl ObjectEnvironmentRecord {
 // |                       |                       | newTarget parameter. Otherwise, its value is undefined.           |
 // +-----------------------+-----------------------+-------------------------------------------------------------------+
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum BindingStatus {
     Lexical,
     Initialized,
@@ -720,8 +724,8 @@ pub enum BindingStatus {
 
 pub struct FunctionEnvironmentRecord {
     base: DeclarativeEnvironmentRecord,
-    this_value: ECMAScriptValue,
-    this_binding_status: BindingStatus,
+    this_value: RefCell<ECMAScriptValue>,
+    this_binding_status: Cell<BindingStatus>,
     function_object: Object,
     new_target: Option<Object>,
     name: String,
@@ -732,8 +736,8 @@ impl fmt::Debug for FunctionEnvironmentRecord {
         if f.alternate() {
             f.debug_struct("FunctionEnvironmentRecord")
                 .field("base", &self.base)
-                .field("this_value", &self.this_value)
-                .field("this_binding_status", &self.this_binding_status)
+                .field("this_value", &self.this_value.borrow())
+                .field("this_binding_status", &self.this_binding_status.get())
                 .field("function_object", &self.function_object)
                 .field("new_target", &self.new_target)
                 .field("name", &self.name)
@@ -786,7 +790,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //
     //  1. If envRec.[[ThisBindingStatus]] is lexical, return false; otherwise, return true.
     fn has_this_binding(&self) -> bool {
-        self.this_binding_status != BindingStatus::Lexical
+        self.this_binding_status.get() != BindingStatus::Lexical
     }
 
     // HasSuperBinding ( )
@@ -797,7 +801,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //  1. If envRec.[[ThisBindingStatus]] is lexical, return false.
     //  2. If envRec.[[FunctionObject]].[[HomeObject]] has the value undefined, return false; otherwise, return true.
     fn has_super_binding(&self) -> bool {
-        if self.this_binding_status == BindingStatus::Lexical {
+        if self.this_binding_status.get() == BindingStatus::Lexical {
             false
         } else {
             let fo = self.function_object.o.to_function_obj().unwrap();
@@ -818,10 +822,31 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //  2. If envRec.[[ThisBindingStatus]] is uninitialized, throw a ReferenceError exception.
     //  3. Return envRec.[[ThisValue]].
     fn get_this_binding(&self, agent: &mut Agent) -> Completion<ECMAScriptValue> {
-        if self.this_binding_status == BindingStatus::Uninitialized {
+        if self.this_binding_status.get() == BindingStatus::Uninitialized {
             Err(create_reference_error(agent, "This binding uninitialized"))
         } else {
-            Ok(self.this_value.clone())
+            Ok(self.this_value.borrow().clone())
+        }
+    }
+
+    // BindThisValue ( V )
+    //
+    // The BindThisValue concrete method of a function Environment Record envRec takes argument V (an ECMAScript
+    // language value). It performs the following steps when called:
+    //
+    //  1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
+    //  2. If envRec.[[ThisBindingStatus]] is initialized, throw a ReferenceError exception.
+    //  3. Set envRec.[[ThisValue]] to V.
+    //  4. Set envRec.[[ThisBindingStatus]] to initialized.
+    //  5. Return V.
+    fn bind_this_value(&self, agent: &mut Agent, val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        assert_ne!(self.this_binding_status.get(), BindingStatus::Lexical);
+        if self.this_binding_status.get() == BindingStatus::Initialized {
+            Err(create_reference_error(agent, "This value already bound"))
+        } else {
+            *self.this_value.borrow_mut() = val.clone();
+            self.this_binding_status.set(BindingStatus::Initialized);
+            Ok(val)
         }
     }
 }
@@ -847,27 +872,6 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
 // following algorithms:
 
 impl FunctionEnvironmentRecord {
-    // BindThisValue ( V )
-    //
-    // The BindThisValue concrete method of a function Environment Record envRec takes argument V (an ECMAScript
-    // language value). It performs the following steps when called:
-    //
-    //  1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
-    //  2. If envRec.[[ThisBindingStatus]] is initialized, throw a ReferenceError exception.
-    //  3. Set envRec.[[ThisValue]] to V.
-    //  4. Set envRec.[[ThisBindingStatus]] to initialized.
-    //  5. Return V.
-    pub fn bind_this_value(&mut self, agent: &mut Agent, val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        assert_ne!(self.this_binding_status, BindingStatus::Lexical);
-        if self.this_binding_status == BindingStatus::Initialized {
-            Err(create_reference_error(agent, "This value already bound"))
-        } else {
-            self.this_value = val.clone();
-            self.this_binding_status = BindingStatus::Initialized;
-            Ok(val)
-        }
-    }
-
     // GetSuperBase ( )
     //
     // The GetSuperBase concrete method of a function Environment Record envRec takes no arguments. It performs the
@@ -916,8 +920,8 @@ impl FunctionEnvironmentRecord {
                 outer_env: outer,
                 name: format!("{name}-inner"),
             },
-            this_value: ECMAScriptValue::Undefined,
-            this_binding_status: tbs,
+            this_value: RefCell::new(ECMAScriptValue::Undefined),
+            this_binding_status: Cell::new(tbs),
             function_object: f,
             new_target,
             name,

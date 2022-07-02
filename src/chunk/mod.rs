@@ -8,6 +8,7 @@ pub struct StashedFunctionData {
     pub source_text: String,
     pub params: ParamSource,
     pub body: BodySource,
+    pub to_compile: FunctionSource,
     pub strict: bool,
 }
 

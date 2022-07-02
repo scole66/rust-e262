@@ -1000,7 +1000,7 @@ pub trait ObjectInterface: Debug {
         // Whereas this is anything that implements [[Call]]
         None
     }
-    fn to_constructable(&self) -> Option<&dyn ConstructableObject> {
+    fn to_constructable(&self) -> Option<&dyn CallableObject> {
         None
     }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
@@ -1749,7 +1749,11 @@ pub fn call(
         None => Err(create_type_error(agent, "Value not callable")),
         Some(callable) => {
             let self_obj = to_object(agent, func.clone()).unwrap();
-            callable.call(agent, &self_obj, this_value, args)
+            callable.call(agent, &self_obj, this_value, args);
+            agent
+                .ec_pop()
+                .expect("Call must return a completion")
+                .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
         }
     }
 }
@@ -1777,10 +1781,14 @@ pub fn construct(
 ) -> Completion<ECMAScriptValue> {
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
-    cstr.construct(agent, func, args, nt)
+    cstr.construct(agent, func, args, nt);
+    agent
+        .ec_pop()
+        .expect("Construct must return a completion")
+        .map(|nc| ECMAScriptValue::try_from(nc).expect("Construct must return a language value"))
 }
 
-pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject> {
+pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
     match val {
         ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
         _ => None,

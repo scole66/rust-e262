@@ -5,6 +5,7 @@ use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
 use std::rc::Rc;
+use counter::Counter;
 
 pub type Opcode = u16;
 
@@ -339,7 +340,7 @@ impl PrimaryExpression {
             }
             PrimaryExpression::ArrayLiteral { node } => todo!(),
             PrimaryExpression::TemplateLiteral { node } => todo!(),
-            PrimaryExpression::Function { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
+            PrimaryExpression::Function { node } => node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from),
             PrimaryExpression::Class { node } => todo!(),
             PrimaryExpression::Generator { node } => todo!(),
             PrimaryExpression::AsyncFunction { node } => todo!(),
@@ -1316,7 +1317,7 @@ impl AssignmentExpression {
             }
             AssignmentExpression::Yield(_) => todo!(),
             AssignmentExpression::Arrow(arrow_function) => {
-                arrow_function.compile(chunk, strict, text).map(CompilerStatusFlags::from)
+                arrow_function.compile(chunk, strict, text, arrow_function.clone()).map(CompilerStatusFlags::from)
             }
             AssignmentExpression::AsyncArrow(_) => todo!(),
             AssignmentExpression::OpAssignment(_, _, _) => todo!(),
@@ -1624,6 +1625,7 @@ impl FunctionExpression {
         strict: bool,
         name: Option<JSString>,
         text: &str,
+        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionExpression
         match &self.ident {
@@ -1653,6 +1655,7 @@ impl FunctionExpression {
                     params,
                     body,
                     strict,
+                    to_compile: FunctionSource::from(self_as_rc),
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id);
@@ -1665,7 +1668,7 @@ impl FunctionExpression {
     /// Generate the code to evaluate a ['FunctionExpression'].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<NeverAbruptRefResult> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str, self_as_rc: Rc<Self>) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: Evaluation
         //  FunctionExpression : function BindingIdentifier[opt] ( FormalParameters ) { FunctionBody }
         //      1. Return InstantiateOrdinaryFunctionExpression of FunctionExpression.
@@ -1674,7 +1677,199 @@ impl FunctionExpression {
         //          | FunctionDeclaration or FunctionExpression, to allow for the possibility that the
         //          | function will be used as a constructor.
         //
-        self.instantiate_ordinary_function_expression(chunk, strict, None, text)
+        self.instantiate_ordinary_function_expression(chunk, strict, None, text, self_as_rc)
+    }
+
+    pub fn compile_body(&self, chunk: &mut Chunk, info: &StashedFunctionData) -> anyhow::Result<NeverAbruptRefResult> {
+        // Runtime Semantics: EvaluateBody
+        // 
+        // The syntax-directed operation EvaluateBody takes arguments functionObject and argumentsList (a List) and
+        // returns either a normal completion containing an ECMAScript language value or an abrupt completion. It is
+        // defined piecewise over the following productions:
+        // 
+        // FunctionBody : FunctionStatementList
+        //  1. Return ? EvaluateFunctionBody of FunctionBody with arguments functionObject and argumentsList.
+
+        // Runtime Semantics: EvaluateFunctionBody
+        // 
+        // The syntax-directed operation EvaluateFunctionBody takes arguments functionObject and argumentsList (a List)
+        // and returns either a normal completion containing an ECMAScript language value or an abrupt completion. It
+        // is defined piecewise over the following productions:
+        // 
+        // FunctionBody : FunctionStatementList
+        //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
+        //  2. Return the result of evaluating FunctionStatementList.
+
+        // Both steps 1 and 2 have compilable code.
+
+        self.compile_fdi(chunk, info)?;
+        todo!()
+    }
+
+    /// Generates the code necessary to set up function execution
+    pub fn compile_fdi(&self, chunk: &mut Chunk, info: &StashedFunctionData) -> anyhow::Result<NeverAbruptRefResult> {
+        // FunctionDeclarationInstantiation ( func, argumentsList )
+        //
+        // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
+        // argumentsList and returns either a normal completion containing unused or an abrupt completion. func is the
+        // function object for which the execution context is being established.
+        // 
+        // NOTE 1  | When an execution context is established for evaluating an ECMAScript function a new function
+        //         | Environment Record is created and bindings for each formal parameter are instantiated in that
+        //         | Environment Record. Each declaration in the function body is also instantiated. If the function's
+        //         | formal parameters do not include any default value initializers then the body declarations are
+        //         | instantiated in the same Environment Record as the parameters. If default value parameter
+        //         | initializers exist, a second Environment Record is created for the body declarations. Formal
+        //         | parameters and functions are initialized as part of FunctionDeclarationInstantiation. All other
+        //         | bindings are initialized during evaluation of the function body.
+        // 
+        // It performs the following steps when called: (🏃 = Run time; 🧑‍💻 = Compile time)
+        // 
+        //🏃   1. Let calleeContext be the running execution context.
+        //🧑‍💻   2. Let code be func.[[ECMAScriptCode]].
+        //🧑‍💻   3. Let strict be func.[[Strict]].
+        //🧑‍💻   4. Let formals be func.[[FormalParameters]].
+        //🧑‍💻   5. Let parameterNames be the BoundNames of formals.
+        //🧑‍💻   6. If parameterNames has any duplicate entries, let hasDuplicates be true. Otherwise, let hasDuplicates be
+        //🧑‍💻      false.
+        //🧑‍💻   7. Let simpleParameterList be IsSimpleParameterList of formals.
+        //🧑‍💻   8. Let hasParameterExpressions be ContainsExpression of formals.
+        //🧑‍💻   9. Let varNames be the VarDeclaredNames of code.
+        //🧑‍💻  10. Let varDeclarations be the VarScopedDeclarations of code.
+        //🧑‍💻  11. Let lexicalNames be the LexicallyDeclaredNames of code.
+        //🧑‍💻  12. Let functionNames be a new empty List.
+        //🧑‍💻  13. Let functionsToInitialize be a new empty List.
+        //🧑‍💻  14. For each element d of varDeclarations, in reverse List order, do
+        //🧑‍💻      a. If d is neither a VariableDeclaration nor a ForBinding nor a BindingIdentifier, then
+        //🧑‍💻            i. Assert: d is either a FunctionDeclaration, a GeneratorDeclaration, an
+        //🧑‍💻               AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
+        //🧑‍💻           ii. Let fn be the sole element of the BoundNames of d.
+        //🧑‍💻          iii. If fn is not an element of functionNames, then
+        //🧑‍💻              1. Insert fn as the first element of functionNames.
+        //🧑‍💻              2. NOTE: If there are multiple function declarations for the same name, the last declaration is
+        //🧑‍💻                 used.
+        //🧑‍💻              3. Insert d as the first element of functionsToInitialize.
+        //🧑‍💻  15. Let argumentsObjectNeeded be true.
+        //🧑‍💻  16. If func.[[ThisMode]] is lexical, then
+        //🧑‍💻      a. NOTE: Arrow functions never have an arguments object.
+        //🧑‍💻      b. Set argumentsObjectNeeded to false.
+        //🧑‍💻  17. Else if "arguments" is an element of parameterNames, then
+        //🧑‍💻      a. Set argumentsObjectNeeded to false.
+        //🧑‍💻  18. Else if hasParameterExpressions is false, then
+        //🧑‍💻      a. If "arguments" is an element of functionNames or if "arguments" is an element of lexicalNames, then
+        //🧑‍💻            i. Set argumentsObjectNeeded to false.
+        //🧑‍💻  19. If strict is true or if hasParameterExpressions is false, then
+        //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters, since calls to eval in strict
+        //🧑‍💻         mode code cannot create new bindings which are visible outside of the eval.
+        //🏃      b. Let env be the LexicalEnvironment of calleeContext.
+        //🧑‍💻  20. Else,
+        //🏃      a. NOTE: A separate Environment Record is needed to ensure that bindings created by direct eval calls
+        //🏃         in the formal parameter list are outside the environment where parameters are declared.
+        //🏃      b. Let calleeEnv be the LexicalEnvironment of calleeContext.
+        //🏃      c. Let env be NewDeclarativeEnvironment(calleeEnv).
+        //🏃      d. Assert: The VariableEnvironment of calleeContext is calleeEnv.
+        //🏃      e. Set the LexicalEnvironment of calleeContext to env.
+        //🧑‍💻  21. For each String paramName of parameterNames, do
+        //🏃      a. Let alreadyDeclared be ! env.HasBinding(paramName).
+        //🏃      b. NOTE: Early errors ensure that duplicate parameter names can only occur in non-strict functions that
+        //🏃         do not have parameter default values or rest parameters.
+        //🏃      c. If alreadyDeclared is false, then
+        //🏃            i. Perform ! env.CreateMutableBinding(paramName, false).
+        //🧑‍💻           ii. If hasDuplicates is true, then
+        //🏃              1. Perform ! env.InitializeBinding(paramName, undefined).
+        //🧑‍💻  22. If argumentsObjectNeeded is true, then
+        //🧑‍💻      a. If strict is true or if simpleParameterList is false, then
+        //🏃            i. Let ao be CreateUnmappedArgumentsObject(argumentsList).
+        //🧑‍💻      b. Else,
+        //🏃            i. NOTE: A mapped argument object is only provided for non-strict functions that don't have a
+        //🏃               rest parameter, any parameter default value initializers, or any destructured parameters.
+        //🏃           ii. Let ao be CreateMappedArgumentsObject(func, formals, argumentsList, env).
+        //🧑‍💻      c. If strict is true, then
+        //🏃            i. Perform ! env.CreateImmutableBinding("arguments", false).
+        //🏃           ii. NOTE: In strict mode code early errors prevent attempting to assign to this binding, so its
+        //🏃               mutability is not observable.
+        //🧑‍💻      d. Else,
+        //🏃            i. Perform ! env.CreateMutableBinding("arguments", false).
+        //🏃      e. Perform ! env.InitializeBinding("arguments", ao).
+        //🧑‍💻      f. Let parameterBindings be the list-concatenation of parameterNames and « "arguments" ».
+        //🧑‍💻  23. Else,
+        //🧑‍💻      a. Let parameterBindings be parameterNames.
+        //🏃  24. Let iteratorRecord be CreateListIteratorRecord(argumentsList).
+        //🧑‍💻  25. If hasDuplicates is true, then
+        //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and undefined.
+        //🧑‍💻  26. Else,
+        //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and env.
+        //🧑‍💻  27. If hasParameterExpressions is false, then
+        //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters and top-level vars.
+        //🧑‍💻      b. Let instantiatedVarNames be a copy of the List parameterBindings.
+        //🧑‍💻      c. For each element n of varNames, do
+        //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
+        //🧑‍💻              1. Append n to instantiatedVarNames.
+        //🏃              2. Perform ! env.CreateMutableBinding(n, false).
+        //🏃              3. Perform ! env.InitializeBinding(n, undefined).
+        //🏃      d. Let varEnv be env.
+        //🧑‍💻  28. Else,
+        //🏃      a. NOTE: A separate Environment Record is needed to ensure that closures created by expressions in the
+        //🏃        formal parameter list do not have visibility of declarations in the function body.
+        //🏃      b. Let varEnv be NewDeclarativeEnvironment(env).
+        //🏃      c. Set the VariableEnvironment of calleeContext to varEnv.
+        //🧑‍💻      d. Let instantiatedVarNames be a new empty List.
+        //🧑‍💻      e. For each element n of varNames, do
+        //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
+        //🧑‍💻              1. Append n to instantiatedVarNames.
+        //🏃              2. Perform ! varEnv.CreateMutableBinding(n, false).
+        //🧑‍💻              3. If n is not an element of parameterBindings or if n is an element of functionNames, let
+        //🏃                 initialValue be undefined.
+        //🧑‍💻              4. Else,
+        //🏃                  a. Let initialValue be ! env.GetBindingValue(n, false).
+        //🏃              5. Perform ! varEnv.InitializeBinding(n, initialValue).
+        //🏃              6. NOTE: A var with the same name as a formal parameter initially has the same value as the
+        //🏃                 corresponding initialized parameter.
+        //🧑‍💻  29. NOTE: Annex B.3.2.1 adds additional steps at this point.
+        //🧑‍💻  30. If strict is false, then
+        //🏃      a. Let lexEnv be NewDeclarativeEnvironment(varEnv).
+        //🏃      b. NOTE: Non-strict functions use a separate Environment Record for top-level lexical declarations so
+        //🏃         that a direct eval can determine whether any var scoped declarations introduced by the eval code
+        //🏃         conflict with pre-existing top-level lexically scoped declarations. This is not needed for strict
+        //🏃         functions because a strict direct eval always places all declarations into a new Environment Record.
+        //🧑‍💻  31. Else,
+        //🏃      a. Let lexEnv be varEnv.
+        //🏃  32. Set the LexicalEnvironment of calleeContext to lexEnv.
+        //🧑‍💻  33. Let lexDeclarations be the LexicallyScopedDeclarations of code.
+        //🧑‍💻  34. For each element d of lexDeclarations, do
+        //🧑‍💻      a. NOTE: A lexically declared name cannot be the same as a function/generator declaration, formal
+        //🧑‍💻         parameter, or a var name. Lexically declared names are only instantiated here but not initialized.
+        //🧑‍💻      b. For each element dn of the BoundNames of d, do
+        //🧑‍💻            i. If IsConstantDeclaration of d is true, then
+        //🏃              1. Perform ! lexEnv.CreateImmutableBinding(dn, true).
+        //🧑‍💻           ii. Else,
+        //🏃              1. Perform ! lexEnv.CreateMutableBinding(dn, false).
+        //🏃  35. Let privateEnv be the PrivateEnvironment of calleeContext.
+        //🧑‍💻  36. For each Parse Node f of functionsToInitialize, do
+        //🧑‍💻      a. Let fn be the sole element of the BoundNames of f.
+        //🏃      b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
+        //🏃      c. Perform ! varEnv.SetMutableBinding(fn, fo, false).
+        //🧑‍💻  37. Return unused.
+        //
+        //  NOTE 2   | B.3.2 provides an extension to the above algorithm that is necessary for backwards compatibility
+        //           | with web browser implementations of ECMAScript that predate ECMAScript 2015.
+
+        let strict = info.strict;
+        let code = &info.body;
+        let formals = &info.params;
+        let parameter_names = formals.bound_names();
+        let has_duplicates = parameter_names
+        .iter()
+        .collect::<Counter<_>>()
+        .into_iter()
+        .filter(|&(_, n)| n > 1)
+        .count()
+         > 0;
+        let simple_parameter_list = formals.is_simple_parameter_list();
+        let has_parameter_expressions = formals.contains_expression();
+        let var_names = code.var_declared_names();
+
+        todo!()
     }
 }
 
@@ -1685,6 +1880,7 @@ impl ArrowFunction {
         strict: bool,
         text: &str,
         name: Option<JSString>,
+        self_as_rc: Rc<Self>
     ) -> anyhow::Result<NeverAbruptRefResult> {
         let name = name.unwrap_or_else(|| JSString::from(""));
         let name_id = chunk.add_to_string_pool(name)?;
@@ -1694,14 +1890,14 @@ impl ArrowFunction {
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.parameters));
         let body = BodySource::from(Rc::clone(&self.body));
-        let function_data = StashedFunctionData { source_text, params, body, strict };
+        let function_data = StashedFunctionData { source_text, params, body, strict, to_compile: FunctionSource::from(self_as_rc) };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
         Ok(NeverAbruptRefResult {})
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<NeverAbruptRefResult> {
-        self.instantiate_arrow_function_expression(chunk, strict, text, None)
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str, self_as_rc: Rc<Self>) -> anyhow::Result<NeverAbruptRefResult> {
+        self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
     }
 }
 

@@ -142,6 +142,24 @@ impl Agent {
         self.execution_context_stack.pop();
     }
 
+    pub fn ec_push(&mut self, val: FullCompletion) {
+        let len = self.execution_context_stack.len();
+        assert!(len > 0, "EC Push called with no active EC");
+        let ec = &mut self.execution_context_stack[len - 1];
+        ec.stack.push(val);
+    }
+
+    pub fn ec_pop(&mut self) -> Option<FullCompletion> {
+        let len = self.execution_context_stack.len();
+        match len {
+            0 => None,
+            _ => {
+                let ec = &mut self.execution_context_stack[len - 1];
+                ec.stack.pop()
+            }
+        }
+    }
+
     pub fn wks(&self, sym_id: WksId) -> Symbol {
         match sym_id {
             WksId::AsyncIterator => &self.symbols.async_iterator_,
@@ -416,18 +434,23 @@ impl Agent {
     }
 
     pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion<ECMAScriptValue> {
-        let ec_idx = match self.execution_context_stack.len() {
-            0 => return Err(create_type_error(self, "No active execution context")),
-            n => n - 1,
-        };
+        if self.execution_context_stack.is_empty() {
+            return Err(create_type_error(self, "No active execution context"));
+        }
 
-        self.prepare_for_execution(ec_idx, chunk);
-        let result = self.execute(ec_idx);
+        self.prepare_running_ec_for_execution(chunk);
+        let result = self.execute();
 
+        let ec_idx = self.execution_context_stack.len() - 1;
         assert!(self.execution_context_stack[ec_idx].stack.is_empty());
 
         result
-        //todo!()
+    }
+
+    pub fn prepare_running_ec_for_execution(&mut self, chunk: Rc<Chunk>) {
+        assert!(!self.execution_context_stack.is_empty());
+        let index = self.execution_context_stack.len() - 1;
+        self.prepare_for_execution(index, chunk);
     }
 
     pub fn prepare_for_execution(&mut self, index: usize, chunk: Rc<Chunk>) {
@@ -436,13 +459,14 @@ impl Agent {
         self.execution_context_stack[index].pc = 0;
     }
 
-    pub fn execute(&mut self, index: usize) -> Completion<ECMAScriptValue> {
-        let chunk = match self.execution_context_stack[index].chunk.clone() {
-            Some(r) => Ok(r),
-            None => Err(create_type_error(self, "No compiled units!")),
-        }?;
-        //while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+    pub fn execute(&mut self) -> Completion<ECMAScriptValue> {
         loop {
+            let index = self.execution_context_stack.len() - 1;
+            let chunk = match self.execution_context_stack[index].chunk.clone() {
+                Some(r) => Ok(r),
+                None => Err(create_type_error(self, "No compiled units!")),
+            }?;
+
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
@@ -746,6 +770,7 @@ impl Agent {
 
                     let result = self.evaluate_call(func_val, ref_nc, &arguments);
 
+                    // @@@ This is the wrong thing to do for successful calls to function objects. (Those calls will put their own items on the stack.)
                     self.execution_context_stack[index].stack.push(result);
                 }
                 Insn::UnaryPlus => {
@@ -816,6 +841,7 @@ impl Agent {
                 }
             }
         }
+        let index = self.execution_context_stack.len() - 1;
         self.execution_context_stack[index]
             .stack
             .pop()
@@ -1058,18 +1084,37 @@ impl Agent {
         //      7. Perform MakeConstructor(closure).
         //      8. Return closure.
 
+        let to_compile: Rc<FunctionExpression> =
+            info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name);
+        let compilation_status = to_compile.compile_body(&mut compiled, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(self, err.to_string());
+            let l = self.execution_context_stack[index].stack.len();
+            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            return;
+        }
+
         // Name is on the stack.
         // env/privateenv come from the agent.
         // sourceText is on the stack? Or with the productions?
         // FormalParameters/FunctionBody are... In a registry someplace maybe? With a registry ID in the instruction?
         // strict is ... in that registry? (Needs to be not part of the current chunk).
-        let env = self.current_lexical_environment().unwrap();
+        let env = self.current_lexical_environment().expect("Lexical environment must exist if code is running");
         let priv_env = self.current_private_environment();
 
         let name = JSString::try_from(
-            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap(),
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index]
+                    .stack
+                    .pop()
+                    .expect("Insn only used with argument on stack")
+                    .expect("Argument must not be an AbruptCompletion"),
+            )
+            .expect("Argument must be a value"),
         )
-        .unwrap();
+        .expect("Argument must be a string");
 
         let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
 
@@ -1083,6 +1128,7 @@ impl Agent {
             env,
             priv_env,
             info.strict,
+            Rc::new(compiled),
         );
 
         set_function_name(self, &closure, name.into(), None);
@@ -1091,6 +1137,7 @@ impl Agent {
         self.execution_context_stack[index].stack.push(Ok(closure.into()));
     }
 
+    #[allow(unreachable_code, unused_variables)]
     fn instantiate_arrow_function_expression(&mut self, index: usize, info: &StashedFunctionData) {
         let env = self.current_lexical_environment().unwrap();
         let priv_env = self.current_private_environment();
@@ -1099,6 +1146,8 @@ impl Agent {
             ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap(),
         )
         .unwrap();
+
+        let compiled: Chunk = todo!();
 
         let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
 
@@ -1112,6 +1161,7 @@ impl Agent {
             env,
             priv_env,
             info.strict,
+            Rc::new(compiled),
         );
         set_function_name(self, &closure, name.into(), None);
 
