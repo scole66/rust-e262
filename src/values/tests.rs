@@ -1197,7 +1197,7 @@ pub fn make_tostring_getter_error(agent: &mut Agent) -> Object {
 
     target
 }
-fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
+pub fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
@@ -1829,6 +1829,17 @@ mod f64ish {
     #[test_case(ECMAScriptValue::Undefined => serr("Value not an f64"); "undefined")]
     #[test_case(ECMAScriptValue::from(99) => Ok(99.0); "number")]
     fn try_from(src: impl TryInto<f64, Error = anyhow::Error>) -> Result<f64, String> {
+        src.try_into().map_err(|err| err.to_string())
+    }
+}
+
+mod bigintish {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ECMAScriptValue::Undefined => serr("Value not a bigint"); "undefined")]
+    #[test_case(ECMAScriptValue::from(BigInt::from(10)) => Ok(Rc::new(BigInt::from(10))); "bigint")]
+    fn try_from(src: impl TryInto<Rc<BigInt>, Error = anyhow::Error>) -> Result<Rc<BigInt>, String> {
         src.try_into().map_err(|err| err.to_string())
     }
 }

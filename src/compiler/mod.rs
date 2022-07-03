@@ -64,6 +64,12 @@ pub enum Insn {
     LeftShift,
     SignedRightShift,
     UnsignedRightShift,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    InstanceOf,
+    In,
     Throw,
 }
 
@@ -123,6 +129,12 @@ impl fmt::Display for Insn {
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
+            Insn::Less => "LT",
+            Insn::Greater => "GT",
+            Insn::LessEqual => "LE",
+            Insn::GreaterEqual => "GE",
+            Insn::InstanceOf => "INSTANCEOF",
+            Insn::In => "IN",
             Insn::Throw => "THROW",
         })
     }
@@ -1195,7 +1207,29 @@ impl RelationalExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, text),
-            _ => todo!(),
+            RelationalExpression::Less(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Less).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::Greater(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Greater)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::LessEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::LessEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::GreaterEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::GreaterEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::InstanceOf(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::InstanceOf)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::In(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::In).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::PrivateIn(_, _, _) => todo!(),
         }
     }
 }

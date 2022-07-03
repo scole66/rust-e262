@@ -208,3 +208,29 @@ fn hash_defhash(a: JSString, b: JSString) -> bool {
 fn concat(s1: JSString, s2: impl Into<JSString>) -> String {
     s1.concat(s2).to_string()
 }
+
+#[test_case("" => true; "empty")]
+#[test_case("full" => false; "not empty")]
+fn is_empty(s: &str) -> bool {
+    JSString::from(s).is_empty()
+}
+
+#[allow(clippy::cmp_owned)]
+mod lt {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", "something" => true; "empty to thing")]
+    #[test_case("blue", "blue" => false; "equal")]
+    #[test_case("before", "zafter" => true; "alpha")]
+    fn less_than(left: &str, right: &str) -> bool {
+        JSString::from(left) < JSString::from(right)
+    }
+}
+
+#[test_case("", "something" => "something"; "empty to thing")]
+#[test_case("blue", "blue" => "blue"; "equal")]
+#[test_case("before", "zafter" => "zafter"; "alpha")]
+fn max(left: &str, right: &str) -> String {
+    String::from(JSString::from(left).max(JSString::from(right)))
+}

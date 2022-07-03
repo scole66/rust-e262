@@ -12,6 +12,7 @@ use test_case::test_case;
 
 mod agent {
     use super::*;
+    use crate::values::tests::make_test_obj_uncallable;
     use test_case::test_case;
 
     #[test]
@@ -471,6 +472,146 @@ mod agent {
         assert_eq!(agent.execution_context_stack[0].pc, 0);
         assert!(agent.execution_context_stack[0].stack.is_empty());
         assert_eq!(agent.execution_context_stack[0].chunk.as_ref().unwrap().name, "test sentinel");
+    }
+
+    #[test]
+    fn two_values() {
+        let mut agent = test_agent();
+        let index = agent.execution_context_stack.len() - 1;
+        agent.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
+        agent.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
+        let (left, right) = agent.two_values(index);
+        assert_eq!(left, ECMAScriptValue::Null);
+        assert_eq!(right, ECMAScriptValue::from("test"));
+    }
+
+    fn no_primitive_val(agent: &mut Agent) -> ECMAScriptValue {
+        make_test_obj_uncallable(agent).into()
+    }
+    fn make_symbol(agent: &mut Agent) -> ECMAScriptValue {
+        Symbol::new(agent, None).into()
+    }
+    #[test_case(no_primitive_val, |_| ECMAScriptValue::from(10), true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; first errs")]
+    #[test_case(|_| ECMAScriptValue::from(10), no_primitive_val, true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; second errs")]
+    #[test_case(no_primitive_val, |_| ECMAScriptValue::from(10), false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; second errs")]
+    #[test_case(|_| ECMAScriptValue::from(10), no_primitive_val, false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; first errs")]
+    #[test_case(|_| ECMAScriptValue::from("first"), |_| ECMAScriptValue::from("second"), true => Ok(Some(true)); "two strings; left first; true")]
+    #[test_case(|_| ECMAScriptValue::from("zfirst"), |_| ECMAScriptValue::from("second"), true => Ok(Some(false)); "two strings; left first; false")]
+    #[test_case(|_| ECMAScriptValue::from("10"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(true)); "left string; right bigint; true")]
+    #[test_case(|_| ECMAScriptValue::from("1000"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(false)); "left string; right bigint; false")]
+    #[test_case(|_| ECMAScriptValue::from("anchor"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(None); "left string; right bigint; none")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("10"), true => Ok(Some(false)); "left bigint; right string; false")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("1000"), true => Ok(Some(true)); "left bigint; right string; true")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("anchor"), true => Ok(None); "left bigint; right string; none")]
+    #[test_case(make_symbol, |_| ECMAScriptValue::Undefined, true => serr("TypeError: Symbol values cannot be converted to Number values"); "left symbol")]
+    #[test_case(|_| ECMAScriptValue::Undefined, make_symbol, true => serr("TypeError: Symbol values cannot be converted to Number values"); "right symbol")]
+    #[test_case(|_| ECMAScriptValue::from(0), |_| ECMAScriptValue::Undefined, true => Ok(None); "right NaN")]
+    #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::from(0), true => Ok(None); "left NaN")]
+    #[test_case(|_| ECMAScriptValue::from(100), |_| ECMAScriptValue::from(0), false => Ok(Some(false)); "numbers: left bigger")]
+    #[test_case(|_| ECMAScriptValue::from(100), |_| ECMAScriptValue::from(7880), true => Ok(Some(true)); "numbers: left smaller")]
+    #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(None); "left NaN vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(f64::NEG_INFINITY), |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(true)); "left neg inf vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(f64::INFINITY), |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(false)); "left pos inf vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(2.3e87), |_| ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(false)); "left big vs BigInt")]
+    #[test_case(|_| ECMAScriptValue::from(-2.3e87), |_| ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(true)); "left small vs BigInt")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::Undefined, true => Ok(None); "right NaN vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::from(f64::NEG_INFINITY), true => Ok(Some(false)); "right neg inf vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::from(f64::INFINITY), true => Ok(Some(true)); "right pos inf vs Bigint")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(388)), |_| ECMAScriptValue::from(2.3e87), true => Ok(Some(true)); "right big vs BigInt")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(388)), |_| ECMAScriptValue::from(-2.3e87), true => Ok(Some(false)); "right small vs BigInt")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(true)); "bigints: left smaller")]
+    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100999)), |_| ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
+    fn is_less_than(
+        make_x: fn(&mut Agent) -> ECMAScriptValue,
+        make_y: fn(&mut Agent) -> ECMAScriptValue,
+        left_first: bool,
+    ) -> Result<Option<bool>, String> {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+        agent.is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(&mut agent, completion))
+    }
+
+    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
+    fn empty_object(agent: &mut Agent) -> ECMAScriptValue {
+        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        ECMAScriptValue::from(ordinary_object_create(agent, Some(obj_proto), &[]))
+    }
+    fn bool_class(agent: &mut Agent) -> ECMAScriptValue {
+        let boolean = agent.intrinsic(IntrinsicId::Boolean);
+        ECMAScriptValue::from(boolean)
+    }
+    fn undef(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn number(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(10)
+    }
+    fn string(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from("Test Sentinel")
+    }
+    fn dead_object(agent: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(DeadObject::object(agent))
+    }
+    fn test_has_instance(
+        agent: &mut Agent,
+        _: ECMAScriptValue,
+        _: Option<&Object>,
+        arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let mut args = FuncArgs::from(arguments);
+        let thing_to_check = args.next_arg();
+        // Let's say: all numbers are instances of our "class"
+        // But that strings are a type error
+        match thing_to_check {
+            ECMAScriptValue::Number(_) => Ok(true.into()),
+            ECMAScriptValue::String(s) => Err(create_type_error(agent, s)),
+            _ => Ok(false.into()),
+        }
+    }
+    fn faux_class(agent: &mut Agent) -> ECMAScriptValue {
+        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(obj_proto), &[]);
+        let realm = agent.current_realm_record();
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let has_instance = create_builtin_function(
+            agent,
+            test_has_instance,
+            false,
+            1_f64,
+            PropertyKey::from("[Symbol.hasInstance]"),
+            BUILTIN_FUNCTION_SLOTS,
+            realm,
+            Some(function_prototype),
+            None,
+        );
+        let hi = agent.wks(WksId::HasInstance);
+        define_property_or_throw(
+            agent,
+            &obj,
+            hi,
+            PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(true),
+        )
+        .unwrap();
+        obj.into()
+    }
+
+    #[test_case(empty_object, undef => serr("TypeError: Right-hand side of 'instanceof' is not an object"); "class is not object")]
+    #[test_case(empty_object, dead_object => serr("TypeError: get called on DeadObject"); "GetMethod throws for class")]
+    #[test_case(empty_object, empty_object => serr("TypeError: Right-hand side of 'instanceof' is not callable"); "class is not callable")]
+    #[test_case(empty_object, bool_class => Ok(false.into()); "defer to ordinary")]
+    #[test_case(empty_object, faux_class => Ok(false.into()); "[Symbol.hasInstance] returns false")]
+    #[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
+    #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
+    fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        let v = make_v(&mut agent);
+        let target = make_target(&mut agent);
+
+        agent
+            .instanceof_operator(v, target)
+            .map_err(|completion| unwind_any_error(&mut agent, completion))
+            .map(|nc| nc.try_into().unwrap())
     }
 }
 

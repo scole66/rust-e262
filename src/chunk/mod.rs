@@ -137,6 +137,12 @@ impl Chunk {
             | Insn::LeftShift
             | Insn::SignedRightShift
             | Insn::UnsignedRightShift
+            | Insn::Less
+            | Insn::Greater
+            | Insn::LessEqual
+            | Insn::GreaterEqual
+            | Insn::InstanceOf
+            | Insn::In
             | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {

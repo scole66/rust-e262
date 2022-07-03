@@ -214,6 +214,7 @@ mod chunk {
         c.op(Insn::GetValue);
         c.op(Insn::UpdateEmpty);
         c.fixup(mark).unwrap();
+        c.op_plus_arg(Insn::Unwind, 3);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -230,6 +231,7 @@ mod chunk {
             "    FALSE",
             "    GET_VALUE",
             "    UPDATE_EMPTY",
+            "    UNWIND              3",
         ]);
         assert_eq!(result, expected);
     }

@@ -64,6 +64,12 @@ mod insn {
     #[test_case(Insn::UnsignedRightShift => "URSH"; "UnsignedRightShift instruction")]
     #[test_case(Insn::SignedRightShift => "SRSH"; "SignedRightShift instruction")]
     #[test_case(Insn::Throw => "THROW"; "Throw instruction")]
+    #[test_case(Insn::Less => "LT"; "Less instruction")]
+    #[test_case(Insn::Greater => "GT"; "Greater instruction")]
+    #[test_case(Insn::LessEqual => "LE"; "LessEqual instruction")]
+    #[test_case(Insn::GreaterEqual => "GE"; "GreaterEqual instruction")]
+    #[test_case(Insn::InstanceOf => "INSTANCEOF"; "InstanceOf instruction")]
+    #[test_case(Insn::In => "IN"; "In instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -430,7 +436,14 @@ mod primary_expression {
             "TRUE"
         ]); "literal")]
         #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
-        #[test_case("class {}", true => panics "not yet implemented"; "anything else")]
+        #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
+        #[test_case("[]", true => panics "not yet implemented"; "array literal")]
+        #[test_case("``", true => panics "not yet implemented"; "template literal")]
+        #[test_case("function a(){}", true => panics "not yet implemented"; "function expression")]
+        #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
+        #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
+        #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
+        #[test_case("/abcd/", true => panics "not yet implemented"; "regular expression")]
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
@@ -1302,14 +1315,82 @@ mod relational_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a<b", true => panics "not yet implemented"; "relational expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/strict")]
+    #[test_case("a>10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/strict")]
+    #[test_case("a<=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/strict")]
+    #[test_case("a>=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/strict")]
+    #[test_case("a in b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "IN"
+    ]), true, false)); "in/strict")]
+    #[test_case("a instanceof c", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "INSTANCEOF"
+    ]), true, false)); "instanceof/strict")]
+    #[test_case("#blue in gray", true, None => panics "not yet implemented"; "privateid in")]
+    #[test_case("a<10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/non-strict")]
+    #[test_case("a>10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/non-strict")]
+    #[test_case("a<=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/non-strict")]
+    #[test_case("a>=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/non-strict")]
+    #[test_case("a in b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "IN"
+    ]), true, false)); "in/non-strict")]
+    #[test_case("a instanceof c", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (c)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "INSTANCEOF"
+    ]), true, false)); "instanceof/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).relational_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
