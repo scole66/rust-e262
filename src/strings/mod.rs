@@ -8,7 +8,7 @@ use std::rc::Rc;
 //
 // The API for pulling out pieces of them hasn't really been defined yet.
 
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct JSString {
     s: Rc<Vec<u16>>,
 }

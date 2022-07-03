@@ -243,6 +243,16 @@ impl TryFrom<ECMAScriptValue> for f64 {
     }
 }
 
+impl TryFrom<ECMAScriptValue> for Rc<BigInt> {
+    type Error = anyhow::Error;
+    fn try_from(src: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match src {
+            ECMAScriptValue::BigInt(bi) => Ok(bi),
+            _ => Err(anyhow!("Value not a bigint")),
+        }
+    }
+}
+
 impl Default for ECMAScriptValue {
     fn default() -> Self {
         Self::Undefined

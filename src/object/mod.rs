@@ -1845,6 +1845,57 @@ pub fn invoke(
     call(agent, &func, &v, arguments_list)
 }
 
+impl Agent {
+    pub fn ordinary_has_instance(&mut self, c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
+        // OrdinaryHasInstance ( C, O )
+        //
+        // The abstract operation OrdinaryHasInstance takes arguments C (an ECMAScript language value) and O and returns
+        // either a normal completion containing a Boolean or a throw completion. It implements the default algorithm
+        // for determining if O inherits from the instance object inheritance path provided by C. It performs the
+        // following steps when called:
+        //
+        //  1. If IsCallable(C) is false, return false.
+        //  2. If C has a [[BoundTargetFunction]] internal slot, then
+        //      a. Let BC be C.[[BoundTargetFunction]].
+        //      b. Return ? InstanceofOperator(O, BC).
+        //  3. If Type(O) is not Object, return false.
+        //  4. Let P be ? Get(C, "prototype").
+        //  5. If Type(P) is not Object, throw a TypeError exception.
+        //  6. Repeat,
+        //      a. Set O to ? O.[[GetPrototypeOf]]().
+        //      b. If O is null, return false.
+        //      c. If SameValue(P, O) is true, return true.
+        if !is_callable(c) {
+            return Ok(false);
+        }
+        // todo: bound target function nonsense
+
+        let c = to_object(self, c.clone()).expect("Callables must be objects");
+        match o {
+            ECMAScriptValue::Object(obj) => {
+                let p = get(self, &c, &"prototype".into())?;
+                if !p.is_object() {
+                    return Err(create_type_error(self, "Bad prototype chain in 'instanceof'"));
+                }
+                let p = to_object(self, p).expect("Objects must be objects");
+                let mut o = obj.clone();
+                loop {
+                    match o.o.get_prototype_of(self)? {
+                        None => return Ok(false),
+                        Some(new_obj) => {
+                            if p == new_obj {
+                                return Ok(true);
+                            }
+                            o = new_obj;
+                        }
+                    }
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 // EnumerableOwnPropertyNames ( O, kind )
 //
 // The abstract operation EnumerableOwnPropertyNames takes arguments O (an Object) and kind (key, value, or key+value).

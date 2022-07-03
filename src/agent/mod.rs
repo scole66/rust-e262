@@ -2,7 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
-use num::{BigInt, BigUint, Zero};
+use num::{BigInt, BigUint, ToPrimitive, Zero};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -786,6 +786,46 @@ impl Agent {
                         .expect("Throw requires a value");
                     self.execution_context_stack[index].stack.push(Err(AbruptCompletion::Throw { value: exp }));
                 }
+                Insn::Less => {
+                    let (lval, rval) = self.two_values(index);
+                    let result =
+                        self.is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::Greater => {
+                    let (lval, rval) = self.two_values(index);
+                    let result =
+                        self.is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::LessEqual => {
+                    let (lval, rval) = self.two_values(index);
+                    let result =
+                        self.is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::GreaterEqual => {
+                    let (lval, rval) = self.two_values(index);
+                    let result =
+                        self.is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::InstanceOf => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = self.instanceof_operator(lval, rval);
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::In => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = match rval {
+                        ECMAScriptValue::Object(obj) => {
+                            let key = to_property_key(self, lval)?;
+                            has_property(self, &obj, &key).map(NormalCompletion::from)
+                        }
+                        _ => Err(create_type_error(self, "Right-hand side of 'in' must be an object")),
+                    };
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -911,11 +951,26 @@ impl Agent {
         Ok(NormalCompletion::from(type_string))
     }
 
+    fn two_values(&mut self, index: usize) -> (ECMAScriptValue, ECMAScriptValue) {
+        let (right, left) = {
+            let stack = &mut self.execution_context_stack[index].stack;
+            (stack.pop(), stack.pop())
+        };
+        let rval: ECMAScriptValue = right
+            .expect("Operation requires an argument")
+            .expect("Right must be a NormalCompletion")
+            .try_into()
+            .expect("Right must be a value");
+        let lval: ECMAScriptValue = left
+            .expect("Operation requires two arguments")
+            .expect("Left must be a NormalCompletion")
+            .try_into()
+            .expect("Left must be a value");
+        (lval, rval)
+    }
+
     fn binary_operation(&mut self, index: usize, op: BinOp) {
-        let rval =
-            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
-        let lval =
-            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+        let (lval, rval) = self.two_values(index);
         let result = self.apply_string_or_numeric_binary_operator(lval, rval, op);
         self.execution_context_stack[index].stack.push(result);
     }
@@ -1031,6 +1086,117 @@ impl Agent {
             (Numeric::BigInt(_), Numeric::Number(_), _) | (Numeric::Number(_), Numeric::BigInt(_), _) => {
                 Err(create_type_error(self, "Cannot mix BigInt and other types, use explicit conversions"))
             }
+        }
+    }
+
+    fn is_less_than(&mut self, x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
+        let (px, py) = if left_first {
+            let px = to_primitive(self, x, None)?;
+            let py = to_primitive(self, y, None)?;
+            (px, py)
+        } else {
+            let py = to_primitive(self, y, None)?;
+            let px = to_primitive(self, x, None)?;
+            (px, py)
+        };
+        if px.is_string() && py.is_string() {
+            let sx = JSString::try_from(px).expect("String values must be strings");
+            let sy = JSString::try_from(py).expect("String values must be strings");
+            return Ok(Some(sx < sy));
+        }
+        if px.is_string() && py.is_bigint() {
+            let nx =
+                String::from(JSString::try_from(px).expect("String values must be strings")).parse::<BigInt>().ok();
+            let ny: Rc<BigInt> = py.try_into().expect("Bigint values must be bigints");
+            return match nx {
+                None => Ok(None),
+                Some(nx) => Ok(Some(nx < *ny)),
+            };
+        }
+        if px.is_bigint() && py.is_string() {
+            let nx: Rc<BigInt> = px.try_into().expect("Bigint values must be bigints");
+            let ny =
+                String::from(JSString::try_from(py).expect("String values must be strings")).parse::<BigInt>().ok();
+            return match ny {
+                None => Ok(None),
+                Some(ny) => Ok(Some(*nx < ny)),
+            };
+        }
+        let nx = to_numeric(self, px)?;
+        let ny = to_numeric(self, py)?;
+        match (nx, ny) {
+            (Numeric::Number(nx), Numeric::Number(ny)) => {
+                if nx.is_nan() || ny.is_nan() {
+                    Ok(None)
+                } else {
+                    Ok(Some(nx < ny))
+                }
+            }
+            (Numeric::Number(nx), Numeric::BigInt(by)) => {
+                if nx.is_nan() {
+                    Ok(None)
+                } else if nx == f64::NEG_INFINITY {
+                    Ok(Some(true))
+                } else if nx == f64::INFINITY {
+                    Ok(Some(false))
+                } else {
+                    Ok(Some(nx < by.to_f64().unwrap()))
+                }
+            }
+            (Numeric::BigInt(bx), Numeric::Number(ny)) => {
+                if ny.is_nan() {
+                    Ok(None)
+                } else if ny == f64::NEG_INFINITY {
+                    Ok(Some(false))
+                } else if ny == f64::INFINITY {
+                    Ok(Some(true))
+                } else {
+                    Ok(Some(bx.to_f64().unwrap() < ny))
+                }
+            }
+            (Numeric::BigInt(bx), Numeric::BigInt(by)) => Ok(Some(*bx < *by)),
+        }
+    }
+
+    fn instanceof_operator(&mut self, v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompletion {
+        // InstanceofOperator ( V, target )
+        //
+        // The abstract operation InstanceofOperator takes arguments V (an ECMAScript language value) and target (an
+        // ECMAScript language value) and returns either a normal completion containing a Boolean or a throw completion.
+        // It implements the generic algorithm for determining if V is an instance of target either by consulting
+        // target's @@hasInstance method or, if absent, determining whether the value of target's "prototype" property
+        // is present in V's prototype chain. It performs the following steps when called:
+        //
+        //  1. If Type(target) is not Object, throw a TypeError exception.
+        //  2. Let instOfHandler be ? GetMethod(target, @@hasInstance).
+        //  3. If instOfHandler is not undefined, then
+        //      a. Return ToBoolean(? Call(instOfHandler, target, « V »)).
+        //  4. If IsCallable(target) is false, throw a TypeError exception.
+        //  5. Return ? OrdinaryHasInstance(target, V).
+        //
+        //
+        // NOTE    | Steps 4 and 5 provide compatibility with previous editions of ECMAScript that did not use a
+        //         | @@hasInstance method to define the instanceof operator semantics. If an object does not define or
+        //         | inherit @@hasInstance it uses the default instanceof semantics.
+        match &target {
+            ECMAScriptValue::Object(_) => {
+                let hi = self.wks(WksId::HasInstance);
+                let instof_handler = get_method(self, &target, &hi.into())?;
+                match &instof_handler {
+                    ECMAScriptValue::Undefined => {
+                        if !is_callable(&target) {
+                            Err(create_type_error(self, "Right-hand side of 'instanceof' is not callable"))
+                        } else {
+                            self.ordinary_has_instance(&target, &v).map(NormalCompletion::from)
+                        }
+                    }
+                    _ => {
+                        let res = call(self, &instof_handler, &target, &[v])?;
+                        Ok(NormalCompletion::from(to_boolean(res)))
+                    }
+                }
+            }
+            _ => Err(create_type_error(self, "Right-hand side of 'instanceof' is not an object")),
         }
     }
 }
