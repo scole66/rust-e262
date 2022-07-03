@@ -159,12 +159,12 @@ mod agent {
             a.push_execution_context(second_context);
 
             let current = a.current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&mut a, &*current.borrow()), "second");
+            assert_eq!(get_realm_name(&mut a, &current.borrow()), "second");
 
             a.pop_execution_context();
 
             let current = a.current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&mut a, &*current.borrow()), "first");
+            assert_eq!(get_realm_name(&mut a, &current.borrow()), "first");
         }
     }
 

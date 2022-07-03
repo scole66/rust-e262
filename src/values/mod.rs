@@ -824,7 +824,7 @@ fn string_to_number(string: JSString) -> f64 {
             format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
         static ref STRING_NUMERIC_LITERAL: String =
             format!("^(?:{}?|{}?{}{}?)$", *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE);
-        static ref MATCHER: Regex = Regex::new(&*STRING_NUMERIC_LITERAL).unwrap();
+        static ref MATCHER: Regex = Regex::new(&STRING_NUMERIC_LITERAL).unwrap();
     }
 
     let number_string = String::from(string);
