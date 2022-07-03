@@ -993,7 +993,7 @@ impl Agent {
                 Ok(NormalCompletion::from(Rc::new(&*left * &*right)))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => left
-                .checked_div(&*right)
+                .checked_div(&right)
                 .map(NormalCompletion::from)
                 .map(Ok)
                 .unwrap_or_else(|| Err(create_range_error(self, "Division by zero"))),
@@ -1008,11 +1008,11 @@ impl Agent {
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => {
                 Ok(NormalCompletion::from(&*left - &*right))
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => bigint_leftshift(&*left, &*right)
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => bigint_leftshift(&left, &right)
                 .map_err(|err| create_range_error(self, err.to_string()))
                 .map(NormalCompletion::from),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => {
-                bigint_rightshift(&*left, &*right)
+                bigint_rightshift(&left, &right)
                     .map_err(|err| create_range_error(self, err.to_string()))
                     .map(NormalCompletion::from)
             }

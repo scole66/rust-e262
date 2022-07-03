@@ -1062,7 +1062,7 @@ fn escape_sequence_test() {
 fn line_terminator_sequence_test() {
     let valid = ["\r", "\r\n", "\n", "\u{2028}", "\u{2029}"];
     for lt in valid.iter() {
-        let result = line_terminator_sequence(&Scanner::new(), *lt);
+        let result = line_terminator_sequence(&Scanner::new(), lt);
         assert_eq!(result, Some(Scanner { line: 2, column: 1, start_idx: lt.len() }));
     }
     assert!(line_terminator_sequence(&Scanner::new(), "blue").is_none());
