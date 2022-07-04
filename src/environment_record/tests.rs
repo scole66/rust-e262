@@ -1891,12 +1891,10 @@ mod get_identifier_reference {
         parent.create_immutable_binding(&mut agent, JSString::from("parent"), true).unwrap();
         parent.initialize_binding(&mut agent, &JSString::from("parent"), ECMAScriptValue::from("testing")).unwrap();
         let rcparent: Rc<dyn EnvironmentRecord> = Rc::new(parent);
-        let (rcparent_ptr, _) = Rc::as_ptr(&rcparent).to_raw_parts(); // Remove vtable for comparison
         let env = DeclarativeEnvironmentRecord::new(Some(Rc::clone(&rcparent)), "inner");
         env.create_immutable_binding(&mut agent, JSString::from("present"), true).unwrap();
         env.initialize_binding(&mut agent, &JSString::from("present"), ECMAScriptValue::from("testing")).unwrap();
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
-        let (rcenv_ptr, _) = Rc::as_ptr(&rcenv).to_raw_parts(); // Remove vtable for comparison
 
         let result =
             get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from(name), strict).unwrap();
@@ -1904,10 +1902,9 @@ mod get_identifier_reference {
             match &result.base {
                 Base::Unresolvable => EnvResult::Unresolvable,
                 Base::Environment(e) => {
-                    let (e_ptr, _) = Rc::as_ptr(e).to_raw_parts(); // Remove vtable for comparison
-                    if std::ptr::eq(e_ptr, rcenv_ptr) {
+                    if e.name() == "inner" {
                         EnvResult::SelfEnv
-                    } else if std::ptr::eq(e_ptr, rcparent_ptr) {
+                    } else if e.name() == "test" {
                         EnvResult::ParentEnv
                     } else {
                         panic!("Strange environment came back")
