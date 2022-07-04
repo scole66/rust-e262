@@ -1216,5 +1216,133 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
     to_constructor(value).is_some()
 }
 
+impl ECMAScriptValue {
+    #[inline]
+    pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
+        match (self, other) {
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => true,
+            (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
+            (ECMAScriptValue::String(a), ECMAScriptValue::String(b)) => a == b,
+            (ECMAScriptValue::Boolean(a), ECMAScriptValue::Boolean(b)) => a == b,
+            (ECMAScriptValue::Symbol(a), ECMAScriptValue::Symbol(b)) => a == b,
+            (ECMAScriptValue::Object(a), ECMAScriptValue::Object(b)) => a == b,
+            _ => panic!("Invalid input args"),
+        }
+    }
+
+    pub fn same_value_zero(&self, other: &ECMAScriptValue) -> bool {
+        match (self, other) {
+            (ECMAScriptValue::Number(a), ECMAScriptValue::Number(b)) => number_same_value_zero(*a, *b),
+            (ECMAScriptValue::BigInt(a), ECMAScriptValue::BigInt(b)) => a == b,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null)
+            | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
+            | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
+            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => self.same_value_non_numeric(other),
+            _ => false,
+        }
+    }
+
+    pub fn same_value(&self, other: &ECMAScriptValue) -> bool {
+        match (self, other) {
+            (ECMAScriptValue::Number(a), ECMAScriptValue::Number(b)) => number_same_value(*a, *b),
+            (ECMAScriptValue::BigInt(a), ECMAScriptValue::BigInt(b)) => a == b,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null)
+            | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
+            | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
+            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => self.same_value_non_numeric(other),
+            _ => false,
+        }
+    }
+
+    pub fn is_strictly_equal(&self, other: &ECMAScriptValue) -> bool {
+        match (self, other) {
+            (&ECMAScriptValue::Number(x), &ECMAScriptValue::Number(y)) => x == y,
+            (ECMAScriptValue::BigInt(x), ECMAScriptValue::BigInt(y)) => x == y,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null)
+            | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
+            | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
+            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => self.same_value_non_numeric(other),
+            _ => false,
+        }
+    }
+}
+
+impl Agent {
+    pub fn is_loosely_equal(&mut self, x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<bool> {
+        match (x, y) {
+            (ECMAScriptValue::Number(_), ECMAScriptValue::Number(_))
+            | (ECMAScriptValue::BigInt(_), ECMAScriptValue::BigInt(_))
+            | (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null)
+            | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
+            | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
+            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => Ok(x.is_strictly_equal(y)),
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Null)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Undefined) => Ok(true),
+            (ECMAScriptValue::Number(_), ECMAScriptValue::String(y)) => {
+                let new_y =
+                    ECMAScriptValue::from(to_number(self, y).expect("Strings are always convertable to numbers"));
+                self.is_loosely_equal(x, &new_y)
+            }
+            (ECMAScriptValue::String(x), ECMAScriptValue::Number(_)) => {
+                let new_x =
+                    ECMAScriptValue::from(to_number(self, x).expect("Strings are always convertable to numbers"));
+                self.is_loosely_equal(&new_x, y)
+            }
+            (ECMAScriptValue::BigInt(_), ECMAScriptValue::String(y)) => {
+                let n = String::from(y).parse::<BigInt>();
+                match n {
+                    Err(_) => Ok(false),
+                    Ok(bi) => self.is_loosely_equal(x, &bi.into()),
+                }
+            }
+            (ECMAScriptValue::String(_), ECMAScriptValue::BigInt(_)) => self.is_loosely_equal(y, x),
+            (ECMAScriptValue::Boolean(_), _) => {
+                let new_x = ECMAScriptValue::from(
+                    to_number(self, x.clone()).expect("Booleans are always convertable to numbers"),
+                );
+                self.is_loosely_equal(&new_x, y)
+            }
+            (_, ECMAScriptValue::Boolean(_)) => {
+                let new_y = ECMAScriptValue::from(
+                    to_number(self, y.clone()).expect("Booleans are always convertable to numbers"),
+                );
+                self.is_loosely_equal(x, &new_y)
+            }
+            (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
+            | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
+            | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
+            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
+                let new_y = to_primitive(self, y.clone(), None)?;
+                self.is_loosely_equal(x, &new_y)
+            }
+            (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
+            | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
+                let new_x = to_primitive(self, x.clone(), None)?;
+                self.is_loosely_equal(&new_x, y)
+            }
+            (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))
+            | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
+                Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
+            }
+            (ECMAScriptValue::Undefined, _)
+            | (ECMAScriptValue::Null, _)
+            | (ECMAScriptValue::Symbol(_), _)
+            | (_, ECMAScriptValue::Undefined)
+            | (_, ECMAScriptValue::Null)
+            | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests;

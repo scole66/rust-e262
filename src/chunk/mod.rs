@@ -143,6 +143,10 @@ impl Chunk {
             | Insn::GreaterEqual
             | Insn::InstanceOf
             | Insn::In
+            | Insn::Equal
+            | Insn::NotEqual
+            | Insn::StrictEqual
+            | Insn::StrictNotEqual
             | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
