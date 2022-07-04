@@ -338,6 +338,126 @@ mod ecmascript_value {
             format!("{val}")
         }
     }
+
+    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
+    fn undef(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn null(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Null
+    }
+    fn string_a(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from("A")
+    }
+    fn string_b(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from("B")
+    }
+    fn bool_a(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(true)
+    }
+    fn bool_b(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(false)
+    }
+    fn symbol_a(agent: &mut Agent) -> ECMAScriptValue {
+        agent.wks(WksId::ToPrimitive).into()
+    }
+    fn symbol_b(agent: &mut Agent) -> ECMAScriptValue {
+        agent.wks(WksId::HasInstance).into()
+    }
+    fn object_a(agent: &mut Agent) -> ECMAScriptValue {
+        agent.intrinsic(IntrinsicId::FunctionPrototype).into()
+    }
+    fn object_b(agent: &mut Agent) -> ECMAScriptValue {
+        agent.intrinsic(IntrinsicId::ObjectPrototype).into()
+    }
+    fn number_10(_: &mut Agent) -> ECMAScriptValue {
+        10.into()
+    }
+    fn number_100(_: &mut Agent) -> ECMAScriptValue {
+        100.into()
+    }
+    fn number_zero(_: &mut Agent) -> ECMAScriptValue {
+        0.into()
+    }
+    fn number_neg_zero(_: &mut Agent) -> ECMAScriptValue {
+        (-0.0).into()
+    }
+    fn number_nan(_: &mut Agent) -> ECMAScriptValue {
+        f64::NAN.into()
+    }
+    fn bigint_a(_: &mut Agent) -> ECMAScriptValue {
+        BigInt::from(10).into()
+    }
+    fn bigint_b(_: &mut Agent) -> ECMAScriptValue {
+        BigInt::from(-1097631).into()
+    }
+
+    #[test_case(undef, undef => true; "undefined")]
+    #[test_case(null, null => true; "null value")]
+    #[test_case(string_a, string_b => false; "differing strings")]
+    #[test_case(string_a, string_a => true; "equal strings")]
+    #[test_case(bool_a, bool_b => false; "differing bools")]
+    #[test_case(bool_a, bool_a => true; "equal bools")]
+    #[test_case(symbol_a, symbol_b => false; "differing symbols")]
+    #[test_case(symbol_a, symbol_a => true; "equal symbols")]
+    #[test_case(object_a, object_b => false; "differing objects")]
+    #[test_case(object_a, object_a => true; "equal objects")]
+    #[test_case(undef, symbol_b => panics "Invalid input args"; "Invalid Input")]
+    fn same_value_non_numeric(make_x: ValueMaker, make_y: ValueMaker) -> bool {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+
+        x.same_value_non_numeric(&y)
+    }
+
+    #[test_case(undef, null => false; "different types")]
+    #[test_case(number_10, number_10 => true; "equal numbers")]
+    #[test_case(number_zero, number_neg_zero => true; "sign of zero irrelevant")]
+    #[test_case(number_nan, number_nan => true; "NaNs compare equal")]
+    #[test_case(number_10, number_100 => false; "different numbers")]
+    #[test_case(bigint_a, bigint_a => true; "equal bigints")]
+    #[test_case(bigint_a, bigint_b => false; "different bigints")]
+    #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
+    fn same_value_zero(make_x: ValueMaker, make_y: ValueMaker) -> bool {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+
+        x.same_value_zero(&y)
+    }
+
+    #[test_case(undef, null => false; "different types")]
+    #[test_case(number_10, number_10 => true; "equal numbers")]
+    #[test_case(number_zero, number_neg_zero => false; "sign of zero significant")]
+    #[test_case(number_nan, number_nan => true; "NaNs compare equal")]
+    #[test_case(number_10, number_100 => false; "different numbers")]
+    #[test_case(bigint_a, bigint_a => true; "equal bigints")]
+    #[test_case(bigint_a, bigint_b => false; "different bigints")]
+    #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
+    fn same_value(make_x: ValueMaker, make_y: ValueMaker) -> bool {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+
+        x.same_value(&y)
+    }
+
+    #[test_case(undef, null => false; "different types")]
+    #[test_case(number_10, number_10 => true; "equal numbers")]
+    #[test_case(number_zero, number_neg_zero => true; "sign of zero irrelevant")]
+    #[test_case(number_nan, number_nan => false; "NaNs compare unequal")]
+    #[test_case(number_10, number_100 => false; "different numbers")]
+    #[test_case(bigint_a, bigint_a => true; "equal bigints")]
+    #[test_case(bigint_a, bigint_b => false; "different bigints")]
+    #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
+    fn is_strictly_equal(make_x: ValueMaker, make_y: ValueMaker) -> bool {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+
+        x.is_strictly_equal(&y)
+    }
 }
 
 #[test]
@@ -1841,5 +1961,140 @@ mod bigintish {
     #[test_case(ECMAScriptValue::from(BigInt::from(10)) => Ok(Rc::new(BigInt::from(10))); "bigint")]
     fn try_from(src: impl TryInto<Rc<BigInt>, Error = anyhow::Error>) -> Result<Rc<BigInt>, String> {
         src.try_into().map_err(|err| err.to_string())
+    }
+}
+
+mod agent {
+    use super::*;
+    use test_case::test_case;
+
+    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
+    fn undef(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn null(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Null
+    }
+    fn string_a(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from("A")
+    }
+    fn string_b(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from("B")
+    }
+    fn string_10(_: &mut Agent) -> ECMAScriptValue {
+        "10".into()
+    }
+    fn bool_a(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(true)
+    }
+    fn bool_b(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(false)
+    }
+    fn symbol_a(agent: &mut Agent) -> ECMAScriptValue {
+        agent.wks(WksId::ToPrimitive).into()
+    }
+    fn symbol_b(agent: &mut Agent) -> ECMAScriptValue {
+        agent.wks(WksId::HasInstance).into()
+    }
+    fn object_a(agent: &mut Agent) -> ECMAScriptValue {
+        agent.intrinsic(IntrinsicId::FunctionPrototype).into()
+    }
+    fn object_b(agent: &mut Agent) -> ECMAScriptValue {
+        agent.intrinsic(IntrinsicId::ObjectPrototype).into()
+    }
+    fn number_10(_: &mut Agent) -> ECMAScriptValue {
+        10.into()
+    }
+    fn number_100(_: &mut Agent) -> ECMAScriptValue {
+        100.into()
+    }
+    fn number_zero(_: &mut Agent) -> ECMAScriptValue {
+        0.into()
+    }
+    fn number_neg_zero(_: &mut Agent) -> ECMAScriptValue {
+        (-0.0).into()
+    }
+    fn number_nan(_: &mut Agent) -> ECMAScriptValue {
+        f64::NAN.into()
+    }
+    fn number_inf(_: &mut Agent) -> ECMAScriptValue {
+        f64::INFINITY.into()
+    }
+    fn number_neg_inf(_: &mut Agent) -> ECMAScriptValue {
+        f64::NEG_INFINITY.into()
+    }
+    fn bigint_a(_: &mut Agent) -> ECMAScriptValue {
+        BigInt::from(10).into()
+    }
+    fn bigint_b(_: &mut Agent) -> ECMAScriptValue {
+        BigInt::from(-1097631).into()
+    }
+    fn dead_object(agent: &mut Agent) -> ECMAScriptValue {
+        DeadObject::object(agent).into()
+    }
+    fn returns_10(
+        _: &mut Agent,
+        _: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        Ok(10.into())
+    }
+    fn object_10(agent: &mut Agent) -> ECMAScriptValue {
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let object = ordinary_object_create(agent, Some(object_prototype), &[]);
+        let to_primitive = agent.wks(WksId::ToPrimitive);
+        let realm = agent.current_realm_record();
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let to_prim_func = create_builtin_function(
+            agent,
+            returns_10,
+            false,
+            0_f64,
+            to_primitive.clone().into(),
+            BUILTIN_FUNCTION_SLOTS,
+            realm,
+            Some(function_prototype),
+            None,
+        );
+        define_property_or_throw(
+            agent,
+            &object,
+            to_primitive,
+            PotentialPropertyDescriptor::new().value(to_prim_func).writable(false).enumerable(true).configurable(true),
+        )
+        .unwrap();
+        object.into()
+    }
+
+    #[test_case(symbol_a, symbol_a => Ok(true); "same-type fallthru")]
+    #[test_case(null, undef => Ok(true); "null undef")]
+    #[test_case(undef, null => Ok(true); "undef null")]
+    #[test_case(number_10, string_10 => Ok(true); "right string to number")]
+    #[test_case(string_10, number_10 => Ok(true); "left string to number")]
+    #[test_case(bigint_a, string_a => Ok(false); "right string to bigint fail")]
+    #[test_case(bigint_a, string_10 => Ok(true); "right string to bigint ok")]
+    #[test_case(string_10, bigint_a => Ok(true); "left string to bigint")]
+    #[test_case(bool_b, number_zero => Ok(true); "left bool vs number")]
+    #[test_case(number_10, bool_a => Ok(false); "right bool vs number")]
+    #[test_case(dead_object, string_10 => serr("TypeError: get called on DeadObject"); "left toprim fails")]
+    #[test_case(string_10, dead_object => serr("TypeError: get called on DeadObject"); "right toprim fails")]
+    #[test_case(string_10, object_10 => Ok(true); "obj on right")]
+    #[test_case(object_10, string_10 => Ok(true); "obj on left")]
+    #[test_case(number_10, bigint_a => Ok(true); "number bigint")]
+    #[test_case(bigint_a, number_10 => Ok(true); "bigint number")]
+    #[test_case(number_inf, bigint_a => Ok(false); "number inf left")]
+    #[test_case(number_neg_inf, bigint_a => Ok(false); "number neg inf left")]
+    #[test_case(number_nan, bigint_a => Ok(false); "number nan left")]
+    #[test_case(bigint_a, number_inf => Ok(false); "number inf right")]
+    #[test_case(bigint_a, number_neg_inf => Ok(false); "number neg inf right")]
+    #[test_case(bigint_a, number_nan => Ok(false); "number nan right")]
+    #[test_case(null, symbol_a => Ok(false); "Null & symbol")]
+    fn is_loosely_equal(make_x: ValueMaker, make_y: ValueMaker) -> Result<bool, String> {
+        let mut agent = test_agent();
+        let x = make_x(&mut agent);
+        let y = make_y(&mut agent);
+
+        agent.is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(&mut agent, e))
     }
 }

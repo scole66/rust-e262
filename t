@@ -25,6 +25,11 @@ case $name in
   ValuesOption) data=(core::option::Option option_object values) ;;
   Valuesf64) data=(f64 f64ish values) ;;
   ValuesRc) data=(alloc::rc::Rc bigintish values) ;;
+  same_value_non_numeric) data=(ECMAScriptValue::$name ecmascript_value::$name values) ;;
+  same_value_zero) data=(ECMAScriptValue::$name ecmascript_value::$name values) ;;
+  same_value) data=(ECMAScriptValue::$name ecmascript_value::${name}:: values) ;;
+  is_strictly_equal) data=(ECMAScriptValue::$name ecmascript_value::${name} values) ;;
+  is_loosely_equal) data=(agent::Agent::$name agent::$name values) ;;
 
   SymbolObject) data=($name symbol_object symbol_object) ;;
   SymbolRegistry) data=($name symbol_registry symbol_object) ;;

@@ -70,6 +70,10 @@ pub enum Insn {
     GreaterEqual,
     InstanceOf,
     In,
+    Equal,
+    NotEqual,
+    StrictEqual,
+    StrictNotEqual,
     Throw,
 }
 
@@ -135,6 +139,10 @@ impl fmt::Display for Insn {
             Insn::GreaterEqual => "GE",
             Insn::InstanceOf => "INSTANCEOF",
             Insn::In => "IN",
+            Insn::Equal => "EQ",
+            Insn::NotEqual => "NE",
+            Insn::StrictEqual => "SEQ",
+            Insn::StrictNotEqual => "SNE",
             Insn::Throw => "THROW",
         })
     }
@@ -1238,7 +1246,21 @@ impl EqualityExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict, text),
-            _ => todo!(),
+            EqualityExpression::Equal(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Equal).map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::NotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::StrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotStrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictNotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }

@@ -826,6 +826,26 @@ impl Agent {
                     };
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Equal => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = self.is_loosely_equal(&lval, &rval).map(NormalCompletion::from);
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::NotEqual => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = self.is_loosely_equal(&lval, &rval).map(|val| NormalCompletion::from(!val));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::StrictEqual => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = Ok(NormalCompletion::from(lval.is_strictly_equal(&rval)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::StrictNotEqual => {
+                    let (lval, rval) = self.two_values(index);
+                    let result = Ok(NormalCompletion::from(!lval.is_strictly_equal(&rval)));
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
