@@ -74,6 +74,9 @@ mod insn {
     #[test_case(Insn::NotEqual => "NE"; "NotEqual instruction")]
     #[test_case(Insn::StrictEqual => "SEQ"; "StrictEqual instruction")]
     #[test_case(Insn::StrictNotEqual => "SNE"; "StrictNotEqual instruction")]
+    #[test_case(Insn::BitwiseAnd => "AND"; "BitwiseAnd instruction")]
+    #[test_case(Insn::BitwiseOr => "OR"; "BitwiseOr instruction")]
+    #[test_case(Insn::BitwiseXor => "XOR"; "BitwiseXor instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -1488,14 +1491,37 @@ mod bitwise_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a&8", true => panics "not yet implemented"; "bit and expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a&43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "AND"
+    ]), true, false)); "bit and expr/strict")]
+    #[test_case("a&43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "AND"
+    ]), true, false)); "bit and expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_and_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1503,14 +1529,37 @@ mod bitwise_xor_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a^6", true => panics "not yet implemented"; "bit xor expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a^43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "XOR"
+    ]), true, false)); "bit xor expr/strict")]
+    #[test_case("a^43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "XOR"
+    ]), true, false)); "bit xor expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_xor_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1518,14 +1567,37 @@ mod bitwise_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a|8", true => panics "not yet implemented"; "bit or expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a|43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "OR"
+    ]), true, false)); "bit or expr/strict")]
+    #[test_case("a|43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "OR"
+    ]), true, false)); "bit or expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_or_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 

@@ -846,6 +846,9 @@ impl Agent {
                     let result = Ok(NormalCompletion::from(!lval.is_strictly_equal(&rval)));
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::BitwiseAnd => self.binary_operation(index, BinOp::BitwiseAnd),
+                Insn::BitwiseOr => self.binary_operation(index, BinOp::BitwiseOr),
+                Insn::BitwiseXor => self.binary_operation(index, BinOp::BitwiseXor),
             }
         }
         self.execution_context_stack[index]
@@ -1050,13 +1053,19 @@ impl Agent {
                 Ok(NormalCompletion::from(lnum >> shift_count))
             }
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
-                todo!()
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to int32");
+                let rnum = to_int32(self, right).expect("Numbers are always convertable to int32");
+                Ok(NormalCompletion::from(lnum & rnum))
             }
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => {
-                todo!()
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to int32");
+                let rnum = to_int32(self, right).expect("Numbers are always convertable to int32");
+                Ok(NormalCompletion::from(lnum | rnum))
             }
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => {
-                todo!()
+                let lnum = to_int32(self, left).expect("Numbers are always convertable to int32");
+                let rnum = to_int32(self, right).expect("Numbers are always convertable to int32");
+                Ok(NormalCompletion::from(lnum ^ rnum))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {
                 let exponent =
@@ -1095,13 +1104,13 @@ impl Agent {
                 Err(create_type_error(self, "BigInts have no unsigned right shift, use >> instead"))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
-                todo!()
+                Ok(NormalCompletion::from(&*left & &*right))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseOr) => {
-                todo!()
+                Ok(NormalCompletion::from(&*left | &*right))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseXor) => {
-                todo!()
+                Ok(NormalCompletion::from(&*left ^ &*right))
             }
             (Numeric::BigInt(_), Numeric::Number(_), _) | (Numeric::Number(_), Numeric::BigInt(_), _) => {
                 Err(create_type_error(self, "Cannot mix BigInt and other types, use explicit conversions"))
