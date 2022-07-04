@@ -72,9 +72,9 @@ case $name in
   CompilerShiftExpression) data=(parser::bitwise_shift_operators::ShiftExpression shift_expression compiler) ;;
   CompilerRelationalExpression) data=(parser::relational_operators::RelationalExpression relational_expression compiler) ;;
   CompilerEqualityExpression) data=(parser::equality_operators::EqualityExpression equality_expression compiler) ;;
-  CompilerBitwiseANDExpression) data=(parser::bitwise_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler) ;;
-  CompilerBitwiseXORExpression) data=(parser::bitwise_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler) ;;
-  CompilerBitwiseORExpression) data=(parser::bitwise_bitwise_operators::BitwiseORExpression bitwise_or_expression compiler) ;;
+  CompilerBitwiseANDExpression) data=(parser::binary_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler) ;;
+  CompilerBitwiseXORExpression) data=(parser::binary_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler) ;;
+  CompilerBitwiseORExpression) data=(parser::binary_bitwise_operators::BitwiseORExpression bitwise_or_expression compiler) ;;
   CompilerLogicalANDExpression) data=(parser::bitwise_logical_operators::LogicalANDExpression logical_and_expression compiler) ;;
   CompilerLogicalORExpression) data=(parser::bitwise_logical_operators::LogicalORExpression logical_or_expression compiler) ;;
   CompilerShortCircuitExpression) data=(parser::bitwise_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;

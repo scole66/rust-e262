@@ -348,15 +348,15 @@ mod agent {
     #[test_case(|_| ECMAScriptValue::from(2.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::BitwiseAnd
-                => panics "not yet implemented"; "bitwise and")]
+                => Ok(NormalCompletion::from(2)); "bitwise and")]
     #[test_case(|_| ECMAScriptValue::from(2.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::BitwiseOr
-                => panics "not yet implemented"; "bitwise or")]
+                => Ok(NormalCompletion::from(3)); "bitwise or")]
     #[test_case(|_| ECMAScriptValue::from(2.0),
                 |_| ECMAScriptValue::from(3.0),
                 BinOp::BitwiseXor
-                => panics "not yet implemented"; "bitwise xor")]
+                => Ok(NormalCompletion::from(1)); "bitwise xor")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Exponentiate
@@ -416,15 +416,15 @@ mod agent {
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseAnd
-                => panics "not yet implemented"; "bitwise and (bigint)")]
+                => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(2)))); "bitwise and (bigint)")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseOr
-                => panics "not yet implemented"; "bitwise or (bigint)")]
+                => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(3)))); "bitwise or (bigint)")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
                 |_| ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseXor
-                => panics "not yet implemented"; "bitwise xor (bigint)")]
+                => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(1)))); "bitwise xor (bigint)")]
     #[test_case(|_| ECMAScriptValue::from(BigInt::from(12)),
                 |_| ECMAScriptValue::from(3),
                 BinOp::Remainder

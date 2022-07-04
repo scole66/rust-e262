@@ -74,6 +74,9 @@ pub enum Insn {
     NotEqual,
     StrictEqual,
     StrictNotEqual,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
     Throw,
 }
 
@@ -143,6 +146,9 @@ impl fmt::Display for Insn {
             Insn::NotEqual => "NE",
             Insn::StrictEqual => "SEQ",
             Insn::StrictNotEqual => "SNE",
+            Insn::BitwiseAnd => "AND",
+            Insn::BitwiseOr => "OR",
+            Insn::BitwiseXor => "XOR",
             Insn::Throw => "THROW",
         })
     }
@@ -1269,7 +1275,10 @@ impl BitwiseANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseANDExpression::BitwiseAND(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseAnd)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1278,7 +1287,10 @@ impl BitwiseXORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseXORExpression::BitwiseXOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseXor)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1287,7 +1299,10 @@ impl BitwiseORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseORExpression::BitwiseOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseOr)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }

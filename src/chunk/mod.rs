@@ -147,6 +147,9 @@ impl Chunk {
             | Insn::NotEqual
             | Insn::StrictEqual
             | Insn::StrictNotEqual
+            | Insn::BitwiseAnd
+            | Insn::BitwiseOr
+            | Insn::BitwiseXor
             | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
