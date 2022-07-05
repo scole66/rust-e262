@@ -1634,8 +1634,12 @@ impl ArrayBindingPattern {
         match self {
             ArrayBindingPattern::RestOnly { bre: None, .. } => false,
             ArrayBindingPattern::RestOnly { bre: Some(bre), .. } => bre.contains_expression(),
-            ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, ..} => bel.contains_expression(),
-            ArrayBindingPattern::ListRest { bel, bre: Some(bre), .. } => bel.contains_expression() || bre.contains_expression(),
+            ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, .. } => {
+                bel.contains_expression()
+            }
+            ArrayBindingPattern::ListRest { bel, bre: Some(bre), .. } => {
+                bel.contains_expression() || bre.contains_expression()
+            }
         }
     }
 }
@@ -2558,7 +2562,7 @@ impl SingleNameBinding {
     }
 
     pub fn contains_expression(&self) -> bool {
-        todo!()
+        self.has_initializer()
     }
 }
 
@@ -2696,7 +2700,10 @@ impl BindingRestElement {
     }
 
     pub fn contains_expression(&self) -> bool {
-        todo!()
+        match self {
+            BindingRestElement::Identifier(..) => false,
+            BindingRestElement::Pattern(node, ..) => node.contains_expression(),
+        }
     }
 }
 
