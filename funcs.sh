@@ -1,6 +1,6 @@
 function objects() {
     for file in $( \
-            LLVM_PROFILE_FILE="res-%m.profraw" cargo test --profile coverage --no-run --message-format=json 2> /dev/null | \
+            LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage --no-run --message-format=json 2> /dev/null | \
                 jq -r "select(.profile.test == true) | .filenames[]" | \
                 grep -v dSYM - \
             ); do
@@ -16,9 +16,13 @@ function tst() {
   rm -f res-*.profraw
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
-  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
-  cargo profdata -- merge res-*.profraw --output=res.profdata
+  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
+  local status=$?
+  if [ $status -eq 0 ]; then
+    cargo profdata -- merge res-*.profraw --output=res.profdata
+  fi
   cd $here
+  return $status
 }
 
 function summary() {

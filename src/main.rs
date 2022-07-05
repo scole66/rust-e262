@@ -1,4 +1,3 @@
-#![feature(ptr_metadata)]
 #![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]

@@ -64,6 +64,19 @@ pub enum Insn {
     LeftShift,
     SignedRightShift,
     UnsignedRightShift,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    InstanceOf,
+    In,
+    Equal,
+    NotEqual,
+    StrictEqual,
+    StrictNotEqual,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
     Throw,
 }
 
@@ -123,6 +136,19 @@ impl fmt::Display for Insn {
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
+            Insn::Less => "LT",
+            Insn::Greater => "GT",
+            Insn::LessEqual => "LE",
+            Insn::GreaterEqual => "GE",
+            Insn::InstanceOf => "INSTANCEOF",
+            Insn::In => "IN",
+            Insn::Equal => "EQ",
+            Insn::NotEqual => "NE",
+            Insn::StrictEqual => "SEQ",
+            Insn::StrictNotEqual => "SNE",
+            Insn::BitwiseAnd => "AND",
+            Insn::BitwiseOr => "OR",
+            Insn::BitwiseXor => "XOR",
             Insn::Throw => "THROW",
         })
     }
@@ -1195,7 +1221,29 @@ impl RelationalExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, text),
-            _ => todo!(),
+            RelationalExpression::Less(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Less).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::Greater(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Greater)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::LessEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::LessEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::GreaterEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::GreaterEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::InstanceOf(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::InstanceOf)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::In(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::In).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::PrivateIn(_, _, _) => todo!(),
         }
     }
 }
@@ -1204,7 +1252,21 @@ impl EqualityExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict, text),
-            _ => todo!(),
+            EqualityExpression::Equal(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Equal).map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::NotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::StrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotStrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictNotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1213,7 +1275,10 @@ impl BitwiseANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseANDExpression::BitwiseAND(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseAnd)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1222,7 +1287,10 @@ impl BitwiseXORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseXORExpression::BitwiseXOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseXor)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1231,7 +1299,10 @@ impl BitwiseORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseORExpression::BitwiseOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseOr)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
