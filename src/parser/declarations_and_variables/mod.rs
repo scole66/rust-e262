@@ -1049,6 +1049,13 @@ impl BindingPattern {
             BindingPattern::Array(node) => node.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingPattern::Object(o) => o.contains_expression(),
+            BindingPattern::Array(a) => a.contains_expression(),
+        }
+    }
 }
 
 // ObjectBindingPattern[Yield, Await] :
@@ -1296,6 +1303,15 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 bpl.early_errors(agent, errs, strict);
                 rst.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
+                bpl.contains_expression()
             }
         }
     }
@@ -1613,6 +1629,15 @@ impl ArrayBindingPattern {
             }
         }
     }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ArrayBindingPattern::RestOnly { bre: None, .. } => false,
+            ArrayBindingPattern::RestOnly { bre: Some(bre), .. } => bre.contains_expression(),
+            ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, ..} => bel.contains_expression(),
+            ArrayBindingPattern::ListRest { bel, bre: Some(bre), .. } => bel.contains_expression() || bre.contains_expression(),
+        }
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
@@ -1813,6 +1838,13 @@ impl BindingPropertyList {
             }
         }
     }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingPropertyList::Item(node) => node.contains_expression(),
+            BindingPropertyList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
+        }
+    }
 }
 
 // BindingElementList[Yield, Await] :
@@ -1947,6 +1979,13 @@ impl BindingElementList {
             }
         }
     }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingElementList::Item(node) => node.contains_expression(),
+            BindingElementList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
+        }
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -2049,6 +2088,11 @@ impl BindingElisionElement {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let BindingElisionElement::Element(_, elem) = self;
         elem.early_errors(agent, errs, strict);
+    }
+
+    pub fn contains_expression(&self) -> bool {
+        let BindingElisionElement::Element(_, elem) = self;
+        elem.contains_expression()
     }
 }
 
@@ -2173,6 +2217,13 @@ impl BindingProperty {
                 name.early_errors(agent, errs, strict);
                 elem.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingProperty::Single(single) => single.contains_expression(),
+            BindingProperty::Property(name, elem) => name.is_computed_property_key() || elem.contains_expression(),
         }
     }
 }
@@ -2355,6 +2406,14 @@ impl BindingElement {
             BindingElement::Pattern(_, izer) => izer.is_some(),
         }
     }
+
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingElement::Single(sing) => sing.contains_expression(),
+            BindingElement::Pattern(_, Some(_)) => true,
+            BindingElement::Pattern(pat, None) => pat.contains_expression(),
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -2497,6 +2556,10 @@ impl SingleNameBinding {
         let SingleNameBinding::Id(_, izer) = self;
         izer.is_some()
     }
+
+    pub fn contains_expression(&self) -> bool {
+        todo!()
+    }
 }
 
 // BindingRestElement[Yield, Await] :
@@ -2630,6 +2693,10 @@ impl BindingRestElement {
             BindingRestElement::Identifier(node, ..) => node.early_errors(agent, errs, strict),
             BindingRestElement::Pattern(node, ..) => node.early_errors(agent, errs, strict),
         }
+    }
+
+    pub fn contains_expression(&self) -> bool {
+        todo!()
     }
 }
 

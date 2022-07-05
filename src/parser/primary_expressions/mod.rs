@@ -1657,6 +1657,10 @@ impl PropertyName {
             PropertyName::ComputedPropertyName(_) => None,
         }
     }
+
+    pub fn is_computed_property_key(&self) -> bool {
+        todo!()
+    }
 }
 
 // PropertyDefinition[Yield, Await] :
