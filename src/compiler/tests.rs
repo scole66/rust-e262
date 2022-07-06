@@ -1984,14 +1984,28 @@ mod expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a,9", true => panics "not yet implemented"; "comma expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a,9", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "POP", "FLOAT 0 (9)"]), true, false)); "comma expr")]
+    #[test_case("a,0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "first expr compile fail")]
+    #[test_case("0,a", true, None => Ok((svec(&["FLOAT 0 (0)", "POP", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), true, false)); "first expr literal")]
+    #[test_case("true,false", true, None => Ok((svec(&["TRUE", "POP", "FALSE"]), false, false)); "nothing but literals")]
+    #[test_case("true,a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "second expr compile fail")]
+    #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
+    #[test_case("a,b", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 5", "POP", "STRING 1 (b)", "RESOLVE", "GET_VALUE"]), true, false)); "not strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
