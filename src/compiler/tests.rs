@@ -1841,14 +1841,60 @@ mod conditional_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a?1:0", true => panics "not yet implemented"; "conditional expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a?b:c", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_IF_FALSE 7",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP 5",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "conditional expr / strict")]
+    #[test_case("a?b:c", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_IF_FALSE 7",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP 5",
+        "POP",
+        "STRING 2 (c)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "conditional expr / non-strict")]
+    #[test_case("a?0:0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compile fails")]
+    #[test_case("true?a:0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "truthy compile fails")]
+    #[test_case("true?false:a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "falsey compile fails")]
+    #[test_case("false?'a':'b'", true, None => Ok((svec(&["FALSE", "JUMP_IF_FALSE 5", "POP", "STRING 0 (a)", "JUMP 3", "POP", "STRING 1 (b)"]), false, false)); "only constants")]
+    #[test_case("true?@@@:1", true, None => serr("out of range integral type conversion attempted"); "truthy too big")]
+    #[test_case("true?0:@@@", true, None => serr("out of range integral type conversion attempted"); "falsey too big")]
+    #[test_case("a?0:@@@", true, None => serr("out of range integral type conversion attempted"); "err jump too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).conditional_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
