@@ -359,7 +359,7 @@ impl LogicalORExpression {
 #[derive(Debug)]
 pub struct CoalesceExpression {
     pub head: Rc<CoalesceExpressionHead>,
-    tail: Rc<BitwiseORExpression>,
+    pub tail: Rc<BitwiseORExpression>,
 }
 
 impl fmt::Display for CoalesceExpression {

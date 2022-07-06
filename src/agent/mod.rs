@@ -524,6 +524,45 @@ impl Agent {
                         }
                     }
                 }
+                Insn::JumpIfFalse | Insn::JumpIfTrue => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let bool_val = bool::from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index].stack[stack_idx]
+                                .clone()
+                                .expect("Boolean Jumps may only be used with Normal completions"),
+                        )
+                        .expect("Boolean Jumps may only be used with Values"),
+                    );
+                    if (instruction == Insn::JumpIfFalse && !bool_val) || (instruction == Insn::JumpIfTrue && bool_val)
+                    {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
+                Insn::JumpIfNotNullish => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let val = ECMAScriptValue::try_from(
+                        self.execution_context_stack[index].stack[stack_idx]
+                            .clone()
+                            .expect("Nullish Jumps may only be used with Normal completions"),
+                    )
+                    .expect("Nullish Jumps may only be used with Values");
+                    if val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
                 Insn::Jump => {
                     let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
                     self.execution_context_stack[index].pc += 1;
