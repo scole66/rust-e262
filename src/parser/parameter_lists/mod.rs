@@ -114,6 +114,13 @@ impl UniqueFormalParameters {
     pub fn expected_argument_count(&self) -> f64 {
         self.formals.expected_argument_count()
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.formals.contains_expression()
+    }
 }
 
 // FormalParameters[Yield, Await] :
@@ -395,6 +402,18 @@ impl FormalParameters {
             | FormalParameters::ListRest(list, _) => list.expected_argument_count(),
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            FormalParameters::Empty(..) => false,
+            FormalParameters::Rest(rest) => rest.contains_expression(),
+            FormalParameters::List(list) | FormalParameters::ListComma(list, ..) => list.contains_expression(),
+            FormalParameters::ListRest(list, rest) => list.contains_expression() || rest.contains_expression(),
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -589,6 +608,16 @@ impl FormalParameterList {
             FormalParameterList::List(list, item) => list.has_initializer() || item.has_initializer(),
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    fn contains_expression(&self) -> bool {
+        match self {
+            FormalParameterList::Item(item) => item.contains_expression(),
+            FormalParameterList::List(list, item) => list.contains_expression() || item.contains_expression(),
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -669,6 +698,13 @@ impl FunctionRestParameter {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(agent, errs, strict);
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.element.contains_expression()
     }
 }
 
@@ -776,6 +812,13 @@ impl FormalParameter {
     /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
     fn has_initializer(&self) -> bool {
         self.element.has_initializer()
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    fn contains_expression(&self) -> bool {
+        self.element.contains_expression()
     }
 }
 

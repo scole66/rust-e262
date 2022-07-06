@@ -882,6 +882,14 @@ mod binding_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).binding_pattern().location()
     }
+
+    #[test_case("{a=0}" => true; "object with expr")]
+    #[test_case("{}" => false; "object without expr")]
+    #[test_case("[a=0]" => true; "array with expr")]
+    #[test_case("[]" => false; "array without expr")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_pattern().contains_expression()
+    }
 }
 
 // OBJECT BINDING PATTERN

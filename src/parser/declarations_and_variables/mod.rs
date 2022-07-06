@@ -1050,6 +1050,9 @@ impl BindingPattern {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingPattern::Object(o) => o.contains_expression(),
@@ -1307,6 +1310,9 @@ impl ObjectBindingPattern {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
@@ -1630,6 +1636,9 @@ impl ArrayBindingPattern {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             ArrayBindingPattern::RestOnly { bre: None, .. } => false,
@@ -1843,6 +1852,9 @@ impl BindingPropertyList {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingPropertyList::Item(node) => node.contains_expression(),
@@ -1984,6 +1996,9 @@ impl BindingElementList {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingElementList::Item(node) => node.contains_expression(),
@@ -2094,6 +2109,9 @@ impl BindingElisionElement {
         elem.early_errors(agent, errs, strict);
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         let BindingElisionElement::Element(_, elem) = self;
         elem.contains_expression()
@@ -2224,6 +2242,9 @@ impl BindingProperty {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingProperty::Single(single) => single.contains_expression(),
@@ -2411,6 +2432,9 @@ impl BindingElement {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingElement::Single(sing) => sing.contains_expression(),
@@ -2561,6 +2585,9 @@ impl SingleNameBinding {
         izer.is_some()
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         self.has_initializer()
     }
@@ -2699,6 +2726,9 @@ impl BindingRestElement {
         }
     }
 
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         match self {
             BindingRestElement::Identifier(..) => false,
