@@ -17,12 +17,12 @@ function tst() {
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
   RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
-  local status=$?
-  if [ $status -eq 0 ]; then
+  local covstatus=$?
+  if [ $covstatus -eq 0 ]; then
     cargo profdata -- merge res-*.profraw --output=res.profdata
   fi
   cd $here
-  return $status
+  return $covstatus
 }
 
 function summary() {
