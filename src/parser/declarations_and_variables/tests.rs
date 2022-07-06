@@ -1113,6 +1113,16 @@ mod object_binding_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).object_binding_pattern().location()
     }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("{...a}" => false; "rest only")]
+    #[test_case("{a, b=0}" => true; "list only; present")]
+    #[test_case("{a, b}" => false; "list only; missing")]
+    #[test_case("{a=0, ...b}" => true; "list+rest; present")]
+    #[test_case("{a, ...b}" => false; "list+rest; missing")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).object_binding_pattern().contains_expression()
+    }
 }
 
 // ARRAY BINDING PATTERN
@@ -1507,6 +1517,20 @@ mod array_binding_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).array_binding_pattern().location()
     }
+
+    #[test_case("[]" => false; "empty")]
+    #[test_case("[...{a=0}]" => true; "rest-only; present")]
+    #[test_case("[...a]" => false; "rest-only; missing")]
+    #[test_case("[a,]" => false; "list-comma; missing")]
+    #[test_case("[a=0,]" => true; "list-comma; present")]
+    #[test_case("[a]" => false; "list-only; missing")]
+    #[test_case("[a=0]" => true; "list-only; present")]
+    #[test_case("[a,...b]" => false; "list+rest; missing")]
+    #[test_case("[a=0,...b]" => true; "list+rest; present (list)")]
+    #[test_case("[a,...{b=0}]" => true; "list+rest; present (rest)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).array_binding_pattern().contains_expression()
+    }
 }
 
 // BINDING REST PROPERTY
@@ -1682,6 +1706,15 @@ mod binding_property_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a" => false; "item; missing")]
+    #[test_case("a=0" => true; "item; present")]
+    #[test_case("a,b" => false; "list+item; missing")]
+    #[test_case("a=0,b" => true; "list+item; present (list)")]
+    #[test_case("a,b=0" => true; "list+item; present (item)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_property_list().contains_expression()
     }
 }
 
