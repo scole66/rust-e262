@@ -152,7 +152,12 @@ impl Chunk {
             | Insn::BitwiseXor
             | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
-            Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
+            Insn::JumpIfAbrupt
+            | Insn::Jump
+            | Insn::JumpIfNormal
+            | Insn::JumpIfFalse
+            | Insn::JumpIfTrue
+            | Insn::JumpIfNotNullish => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }
