@@ -1457,7 +1457,53 @@ impl ConditionalExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict, text),
-            _ => todo!(),
+            ConditionalExpression::Conditional(expr, truthy, falsey) => {
+                let mut first_exit = None;
+                let expr_status = expr.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if expr_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if expr_status.maybe_ref() || expr_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let falsey_spot = chunk.op_jump(Insn::JumpIfFalse);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let truthy_status = truthy.compile(chunk, strict, text)?;
+                // Stack: trueRef/trueVal/err
+                if truthy_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: trueVal/err
+                let second_exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(falsey_spot)?;
+                // Stack: lval ...
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let falsey_status = falsey.compile(chunk, strict, text)?;
+                // Stack: falseRef/falseVal/err
+                if falsey_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: falseVal/err
+                if let Some(spot) = first_exit {
+                    chunk.fixup(spot)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: trueVal/falseVal/err
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    expr_status.maybe_ref()
+                        || expr_status.maybe_abrupt()
+                        || truthy_status.maybe_abrupt()
+                        || truthy_status.maybe_ref()
+                        || falsey_status.maybe_abrupt()
+                        || falsey_status.maybe_ref(),
+                ))
+            }
         }
     }
 }
