@@ -1575,7 +1575,36 @@ impl Expression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             Expression::FallThru(ae) => ae.compile(chunk, strict, text),
-            Expression::Comma(e, ae) => todo!(),
+            Expression::Comma(e, ae) => {
+                let mut first_exit = None;
+                let left_status = e.compile(chunk, strict, text)?;
+                // Stack: lref/lval/err
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = ae.compile(chunk, strict, text)?;
+                // Stack: rref/rval/err
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err
+                if let Some(fixup) = first_exit {
+                    chunk.fixup(fixup)?;
+                }
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
     }
 }

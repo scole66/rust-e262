@@ -82,7 +82,7 @@ case $name in
   CompilerShortCircuitExpression) data=(parser::binary_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;
   CompilerConditionalExpression) data=(parser::conditional_operator::ConditionalExpression conditional_expression compiler) ;;
   CompilerAssignmentExpression) data=(parser::assignment_operators::AssignmentExpression assignment_expression compiler) ;;
-  CompilerExpression) data=(parser::comma_operator::Expression expression compiler) ;;
+  CompilerExpression) data=(parser::comma_operator::Expression expression:: compiler) ;;
   CompilerExpressionStatement) data=(parser::expression_statement::ExpressionStatement expression_statement compiler) ;;
   CompilerStatementList) data=(parser::block::StatementList statement_list:: compiler) ;;
   CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
