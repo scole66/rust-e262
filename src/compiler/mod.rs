@@ -28,6 +28,9 @@ pub enum Insn {
     Jump,
     JumpIfAbrupt,
     JumpIfNormal,
+    JumpIfFalse,
+    JumpIfTrue,
+    JumpIfNotNullish,
     Call,
     UpdateEmpty,
     Swap,
@@ -100,6 +103,9 @@ impl fmt::Display for Insn {
             Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::JumpIfNormal => "JUMP_IF_NORMAL",
+            Insn::JumpIfFalse => "JUMP_IF_FALSE",
+            Insn::JumpIfTrue => "JUMP_IF_TRUE",
+            Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH",
             Insn::Call => "CALL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
@@ -1311,7 +1317,41 @@ impl LogicalANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict, text),
-            _ => todo!(),
+            LogicalANDExpression::LogicalAND(left, right) => {
+                let mut first_exit = None;
+                // Stack: ...
+                let left_status = left.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let second_exit = chunk.op_jump(Insn::JumpIfFalse);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = right.compile(chunk, strict, text)?;
+                // Stack: rval/rref/err ...
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err ...
+                if let Some(offset) = first_exit {
+                    chunk.fixup(offset)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: lval/rval/err ...
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
     }
 }
@@ -1320,8 +1360,87 @@ impl LogicalORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict, text),
-            _ => todo!(),
+            LogicalORExpression::LogicalOR(left, right) => {
+                let mut first_exit = None;
+                // Stack: ...
+                let left_status = left.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let second_exit = chunk.op_jump(Insn::JumpIfTrue);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = right.compile(chunk, strict, text)?;
+                // Stack: rval/rref/err ...
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err ...
+                if let Some(offset) = first_exit {
+                    chunk.fixup(offset)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: lval/rval/err ...
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
+    }
+}
+
+impl CoalesceExpressionHead {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(coal) => coal.compile(chunk, strict, text),
+            CoalesceExpressionHead::BitwiseORExpression(bor) => bor.compile(chunk, strict, text),
+        }
+    }
+}
+
+impl CoalesceExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        let mut first_exit = None;
+        // Stack ...
+        let head_status = self.head.compile(chunk, strict, text)?;
+        // Stack: lref/lval/err ...
+        if head_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: lval/err ...
+        if head_status.maybe_ref() || head_status.maybe_abrupt() {
+            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        // Stack: lval ...
+        let second_exit = chunk.op_jump(Insn::JumpIfNotNullish);
+        chunk.op(Insn::Pop);
+        let tail_status = self.tail.compile(chunk, strict, text)?;
+        // Stack: rval/rref/err ...
+        if tail_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: rval/err ...
+        if let Some(fixup) = first_exit {
+            chunk.fixup(fixup)?;
+        }
+        chunk.fixup(second_exit)?;
+        // Stack: lval/rval/err
+        Ok(CompilerStatusFlags::new().abrupt(
+            head_status.maybe_ref()
+                || head_status.maybe_abrupt()
+                || tail_status.maybe_ref()
+                || head_status.maybe_abrupt(),
+        ))
     }
 }
 
@@ -1329,7 +1448,7 @@ impl ShortCircuitExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict, text),
-            _ => todo!(),
+            ShortCircuitExpression::CoalesceExpression(coal) => coal.compile(chunk, strict, text),
         }
     }
 }

@@ -75,9 +75,11 @@ case $name in
   CompilerBitwiseANDExpression) data=(parser::binary_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler) ;;
   CompilerBitwiseXORExpression) data=(parser::binary_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler) ;;
   CompilerBitwiseORExpression) data=(parser::binary_bitwise_operators::BitwiseORExpression bitwise_or_expression compiler) ;;
-  CompilerLogicalANDExpression) data=(parser::bitwise_logical_operators::LogicalANDExpression logical_and_expression compiler) ;;
-  CompilerLogicalORExpression) data=(parser::bitwise_logical_operators::LogicalORExpression logical_or_expression compiler) ;;
-  CompilerShortCircuitExpression) data=(parser::bitwise_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;
+  CompilerLogicalANDExpression) data=(parser::binary_logical_operators::LogicalANDExpression logical_and_expression compiler) ;;
+  CompilerLogicalORExpression) data=(parser::binary_logical_operators::LogicalORExpression logical_or_expression compiler) ;;
+  CompilerCoalesceExpression) data=(parser::binary_logical_operators::CoalesceExpression coalesce_expression:: compiler) ;;
+  CompilerCoalesceExpressionHead) data=(parser::binary_logical_operators::CoalesceExpressionHead coalesce_expression_head compiler) ;;
+  CompilerShortCircuitExpression) data=(parser::binary_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;
   CompilerConditionalExpression) data=(parser::conditional_operator::ConditionalExpression conditional_expression compiler) ;;
   CompilerAssignmentExpression) data=(parser::assignment_operators::AssignmentExpression assignment_expression compiler) ;;
   CompilerExpression) data=(parser::comma_operator::Expression expression compiler) ;;
