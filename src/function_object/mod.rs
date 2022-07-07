@@ -51,6 +51,12 @@ impl From<Rc<ConciseBody>> for BodySource {
 }
 
 impl BodySource {
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             BodySource::Function(f) => f.var_declared_names(),
@@ -58,6 +64,19 @@ impl BodySource {
             BodySource::AsyncFunction(af) => af.var_declared_names(),
             BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
             BodySource::ConciseBody(cb) => cb.var_declared_names(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            BodySource::Function(f) => f.var_scoped_declarations(),
+            BodySource::Generator(g) => g.var_scoped_declarations(),
+            BodySource::AsyncFunction(af) => af.var_scoped_declarations(),
+            BodySource::AsyncGenerator(ag) => ag.var_scoped_declarations(),
+            BodySource::ConciseBody(cb) => cb.var_scoped_declarations(),
         }
     }
 }

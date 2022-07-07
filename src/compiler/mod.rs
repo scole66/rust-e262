@@ -2181,6 +2181,7 @@ impl FunctionExpression {
         let simple_parameter_list = formals.is_simple_parameter_list();
         let has_parameter_expressions = formals.contains_expression();
         let var_names = code.var_declared_names();
+        let var_declarations = code.var_scoped_declarations();
 
         todo!()
     }
