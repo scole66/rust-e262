@@ -444,6 +444,16 @@ impl AsyncGeneratorBody {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        self.0.var_declared_names()
+    }
 }
 
 #[cfg(test)]

@@ -402,6 +402,12 @@ mod concise_body {
     fn location(src: &str) -> Location {
         Maker::new(src).concise_body().location()
     }
+
+    #[test_case("x + 3" => svec(&[]); "expression body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().var_declared_names().into_iter().map(String::from).collect()
+    }
 }
 
 // EXPRESSION BODY
