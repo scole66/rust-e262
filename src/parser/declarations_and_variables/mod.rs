@@ -1049,6 +1049,16 @@ impl BindingPattern {
             BindingPattern::Array(node) => node.early_errors(agent, errs, strict),
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingPattern::Object(o) => o.contains_expression(),
+            BindingPattern::Array(a) => a.contains_expression(),
+        }
+    }
 }
 
 // ObjectBindingPattern[Yield, Await] :
@@ -1296,6 +1306,18 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 bpl.early_errors(agent, errs, strict);
                 rst.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
+                bpl.contains_expression()
             }
         }
     }
@@ -1613,6 +1635,22 @@ impl ArrayBindingPattern {
             }
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ArrayBindingPattern::RestOnly { bre: None, .. } => false,
+            ArrayBindingPattern::RestOnly { bre: Some(bre), .. } => bre.contains_expression(),
+            ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, .. } => {
+                bel.contains_expression()
+            }
+            ArrayBindingPattern::ListRest { bel, bre: Some(bre), .. } => {
+                bel.contains_expression() || bre.contains_expression()
+            }
+        }
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
@@ -1813,6 +1851,16 @@ impl BindingPropertyList {
             }
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingPropertyList::Item(node) => node.contains_expression(),
+            BindingPropertyList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
+        }
+    }
 }
 
 // BindingElementList[Yield, Await] :
@@ -1947,6 +1995,16 @@ impl BindingElementList {
             }
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingElementList::Item(node) => node.contains_expression(),
+            BindingElementList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
+        }
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -2049,6 +2107,14 @@ impl BindingElisionElement {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let BindingElisionElement::Element(_, elem) = self;
         elem.early_errors(agent, errs, strict);
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        let BindingElisionElement::Element(_, elem) = self;
+        elem.contains_expression()
     }
 }
 
@@ -2173,6 +2239,16 @@ impl BindingProperty {
                 name.early_errors(agent, errs, strict);
                 elem.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingProperty::Single(single) => single.contains_expression(),
+            BindingProperty::Property(name, elem) => name.is_computed_property_key() || elem.contains_expression(),
         }
     }
 }
@@ -2355,6 +2431,17 @@ impl BindingElement {
             BindingElement::Pattern(_, izer) => izer.is_some(),
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingElement::Single(sing) => sing.contains_expression(),
+            BindingElement::Pattern(_, Some(_)) => true,
+            BindingElement::Pattern(pat, None) => pat.contains_expression(),
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -2497,6 +2584,13 @@ impl SingleNameBinding {
         let SingleNameBinding::Id(_, izer) = self;
         izer.is_some()
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.has_initializer()
+    }
 }
 
 // BindingRestElement[Yield, Await] :
@@ -2629,6 +2723,16 @@ impl BindingRestElement {
         match self {
             BindingRestElement::Identifier(node, ..) => node.early_errors(agent, errs, strict),
             BindingRestElement::Pattern(node, ..) => node.early_errors(agent, errs, strict),
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            BindingRestElement::Identifier(..) => false,
+            BindingRestElement::Pattern(node, ..) => node.contains_expression(),
         }
     }
 }

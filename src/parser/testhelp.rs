@@ -302,6 +302,18 @@ impl<'a> Maker<'a> {
     pub fn binding_element(self) -> Rc<BindingElement> {
         BindingElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`BindingElementList`] parse node.
+    pub fn binding_element_list(self) -> Rc<BindingElementList> {
+        BindingElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingElisionElement`] parse node.
+    pub fn binding_elision_element(self) -> Rc<BindingElisionElement> {
+        BindingElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`BindingIdentifier`] parse node.
     pub fn binding_identifier(self) -> Rc<BindingIdentifier> {
         BindingIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
@@ -317,6 +329,16 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`BindingPattern`] parse node.
     pub fn binding_pattern(self) -> Rc<BindingPattern> {
         BindingPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingProperty`] parse node.
+    pub fn binding_property(self) -> Rc<BindingProperty> {
+        BindingProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingPropertyList`] parse node.
+    pub fn binding_property_list(self) -> Rc<BindingPropertyList> {
+        BindingPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingRestElement`] parse node.
     pub fn binding_rest_element(self) -> Rc<BindingRestElement> {

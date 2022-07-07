@@ -90,6 +90,12 @@ mod unique_formal_parameters {
     fn unique_formal_parameters(src: &str) -> f64 {
         Maker::new(src).unique_formal_parameters().expected_argument_count()
     }
+
+    #[test_case("a,b,c,d" => false; "no exprs")]
+    #[test_case("a,b=99,c,d" => true; "with exprs")]
+    fn contains_expressions(src: &str) -> bool {
+        Maker::new(src).unique_formal_parameters().contains_expression()
+    }
 }
 
 // FORMAL PARAMETERS
@@ -341,6 +347,20 @@ mod formal_parameters {
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).formal_parameters().expected_argument_count()
     }
+
+    #[test_case("" => false; "empty")]
+    #[test_case("...x" => false; "rest-only; no exprs")]
+    #[test_case("...{z=10}" => true; "rest-only; with exprs")]
+    #[test_case("a,b" => false; "list-only; no exprs")]
+    #[test_case("a=0,b" => true; "list-only; with expr")]
+    #[test_case("a,b," => false; "list-comma; no exprs")]
+    #[test_case("a=0,b," => true; "list-comma; with expr")]
+    #[test_case("a,b,...c" => false; "list-rest; no expr")]
+    #[test_case("a=0,b,...c" => true; "list-rest; expr in list")]
+    #[test_case("a,b,...{c=0}" => true; "list-rest; expr in rest")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).formal_parameters().contains_expression()
+    }
 }
 
 // FORMAL PARAMETER LIST
@@ -495,6 +515,15 @@ mod formal_parameter_list {
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).formal_parameter_list().expected_argument_count()
     }
+
+    #[test_case("a=0" => true; "item with expr")]
+    #[test_case("a" => false; "item without expr")]
+    #[test_case("a,b" => false; "list+item without expr")]
+    #[test_case("a=0,b" => true; "list+item expr in list")]
+    #[test_case("a,b=0" => true; "list+item expr in item")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).formal_parameter_list().contains_expression()
+    }
 }
 
 // FUNCTION REST PARAMETER
@@ -565,6 +594,12 @@ mod function_rest_parameter {
     #[test_case("  ...a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4}}; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).function_rest_parameter().location()
+    }
+
+    #[test_case("...a" => false; "no expr")]
+    #[test_case("...{a=0}" => true; "with expr")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).function_rest_parameter().contains_expression()
     }
 }
 
@@ -661,5 +696,11 @@ mod formal_parameter {
     #[test_case("a=b" => true; "with init")]
     fn has_initializer(src: &str) -> bool {
         Maker::new(src).formal_parameter().has_initializer()
+    }
+
+    #[test_case("a" => false; "no expr")]
+    #[test_case("a=0" => true; "with expr")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).formal_parameter().contains_expression()
     }
 }
