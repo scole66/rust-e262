@@ -50,7 +50,17 @@ impl From<Rc<ConciseBody>> for BodySource {
     }
 }
 
-impl BodySource {}
+impl BodySource {
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            BodySource::Function(f) => f.var_declared_names(),
+            BodySource::Generator(g) => g.var_declared_names(),
+            BodySource::AsyncFunction(af) => af.var_declared_names(),
+            BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
+            BodySource::ConciseBody(cb) => cb.var_declared_names(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum ParamSource {
