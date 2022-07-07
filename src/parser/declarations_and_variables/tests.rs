@@ -882,6 +882,14 @@ mod binding_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).binding_pattern().location()
     }
+
+    #[test_case("{a=0}" => true; "object with expr")]
+    #[test_case("{}" => false; "object without expr")]
+    #[test_case("[a=0]" => true; "array with expr")]
+    #[test_case("[]" => false; "array without expr")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_pattern().contains_expression()
+    }
 }
 
 // OBJECT BINDING PATTERN
@@ -1104,6 +1112,16 @@ mod object_binding_pattern {
     #[test_case("   { a, ...b }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
     fn location(src: &str) -> Location {
         Maker::new(src).object_binding_pattern().location()
+    }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("{...a}" => false; "rest only")]
+    #[test_case("{a, b=0}" => true; "list only; present")]
+    #[test_case("{a, b}" => false; "list only; missing")]
+    #[test_case("{a=0, ...b}" => true; "list+rest; present")]
+    #[test_case("{a, ...b}" => false; "list+rest; missing")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).object_binding_pattern().contains_expression()
     }
 }
 
@@ -1499,6 +1517,20 @@ mod array_binding_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).array_binding_pattern().location()
     }
+
+    #[test_case("[]" => false; "empty")]
+    #[test_case("[...{a=0}]" => true; "rest-only; present")]
+    #[test_case("[...a]" => false; "rest-only; missing")]
+    #[test_case("[a,]" => false; "list-comma; missing")]
+    #[test_case("[a=0,]" => true; "list-comma; present")]
+    #[test_case("[a]" => false; "list-only; missing")]
+    #[test_case("[a=0]" => true; "list-only; present")]
+    #[test_case("[a,...b]" => false; "list+rest; missing")]
+    #[test_case("[a=0,...b]" => true; "list+rest; present (list)")]
+    #[test_case("[a,...{b=0}]" => true; "list+rest; present (rest)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).array_binding_pattern().contains_expression()
+    }
 }
 
 // BINDING REST PROPERTY
@@ -1675,6 +1707,15 @@ mod binding_property_list {
     fn contains_arguments(src: &str) -> bool {
         BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a" => false; "item; missing")]
+    #[test_case("a=0" => true; "item; present")]
+    #[test_case("a,b" => false; "list+item; missing")]
+    #[test_case("a=0,b" => true; "list+item; present (list)")]
+    #[test_case("a,b=0" => true; "list+item; present (item)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_property_list().contains_expression()
+    }
 }
 
 // BINDING ELEMENT LIST
@@ -1789,6 +1830,15 @@ mod binding_element_list {
     fn contains_arguments(src: &str) -> bool {
         BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a" => false; "item; missing")]
+    #[test_case("a=0" => true; "item; present")]
+    #[test_case("a,b" => false; "list+item; missing")]
+    #[test_case("a=0,b" => true; "list+item; present (list)")]
+    #[test_case("a,b=0" => true; "list+item; present (item)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_element_list().contains_expression()
+    }
 }
 
 // BINDING ELISION ELEMENT
@@ -1878,6 +1928,14 @@ mod binding_elision_element {
     #[test_case(",a" => false; "Elision Item (no)")]
     fn contains_arguments(src: &str) -> bool {
         BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(",a" => false; "Elision+Item; missing")]
+    #[test_case(",a=0" => true; "Elision+Item; present")]
+    #[test_case("a" => false; "Item; missing")]
+    #[test_case("a=0" => true; "Item; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_elision_element().contains_expression()
     }
 }
 
@@ -1992,6 +2050,15 @@ mod binding_property {
     #[test_case("a:b" => false; "N:E (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a" => false; "Single; missing")]
+    #[test_case("a=0" => true; "Single; present")]
+    #[test_case("a:b" => false; "Name+Element; missing")]
+    #[test_case("[0]:b" => true; "Name+Element; present (Name)")]
+    #[test_case("a:b=0" => true; "Name+Element; present (Element)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_property().contains_expression()
     }
 }
 
@@ -2148,6 +2215,15 @@ mod binding_element {
     fn has_initializer(src: &str) -> bool {
         Maker::new(src).binding_element().has_initializer()
     }
+
+    #[test_case("a" => false; "Single; missing")]
+    #[test_case("a=0" => true; "Single; present")]
+    #[test_case("{a}" => false; "Pattern; missing")]
+    #[test_case("{a=0}" => true; "Pattern; present")]
+    #[test_case("{a}=b" => true; "Pattern+init")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_element().contains_expression()
+    }
 }
 
 // SINGLE NAME BINDING
@@ -2257,6 +2333,12 @@ mod single_name_binding {
     fn has_initializer(src: &str) -> bool {
         Maker::new(src).single_name_binding().has_initializer()
     }
+
+    #[test_case("x" => false; "no init")]
+    #[test_case("x=a" => true; "with init")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).single_name_binding().contains_expression()
+    }
 }
 
 // BINDING REST ELEMENT
@@ -2362,5 +2444,12 @@ mod binding_rest_element {
     #[test_case("   ...{x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "pattern")]
     fn location(src: &str) -> Location {
         Maker::new(src).binding_rest_element().location()
+    }
+
+    #[test_case("...a" => false; "id")]
+    #[test_case("...{a}" => false; "pattern; missing")]
+    #[test_case("...{a=0}" => true; "pattern; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_rest_element().contains_expression()
     }
 }

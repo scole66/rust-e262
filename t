@@ -24,6 +24,13 @@ case $name in
   ValuesJSString) data=(strings::JSString jsstring values) ;;
   ValuesOption) data=(core::option::Option option_object values) ;;
   Valuesf64) data=(f64 f64ish values) ;;
+  ValuesRc) data=(alloc::rc::Rc bigintish values) ;;
+  same_value_non_numeric) data=(ECMAScriptValue::$name ecmascript_value::$name values) ;;
+  same_value_zero) data=(ECMAScriptValue::$name ecmascript_value::$name values) ;;
+  same_value) data=(ECMAScriptValue::$name ecmascript_value::${name}:: values) ;;
+  is_strictly_equal) data=(ECMAScriptValue::$name ecmascript_value::${name} values) ;;
+  is_loosely_equal) data=(agent::Agent::$name agent::$name values) ;;
+
   SymbolObject) data=($name symbol_object symbol_object) ;;
   SymbolRegistry) data=($name symbol_registry symbol_object) ;;
   ( create_symbol_object \
@@ -65,19 +72,21 @@ case $name in
   CompilerShiftExpression) data=(parser::bitwise_shift_operators::ShiftExpression shift_expression compiler) ;;
   CompilerRelationalExpression) data=(parser::relational_operators::RelationalExpression relational_expression compiler) ;;
   CompilerEqualityExpression) data=(parser::equality_operators::EqualityExpression equality_expression compiler) ;;
-  CompilerBitwiseANDExpression) data=(parser::bitwise_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler) ;;
-  CompilerBitwiseXORExpression) data=(parser::bitwise_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler) ;;
-  CompilerBitwiseORExpression) data=(parser::bitwise_bitwise_operators::BitwiseORExpression bitwise_or_expression compiler) ;;
-  CompilerLogicalANDExpression) data=(parser::bitwise_logical_operators::LogicalANDExpression logical_and_expression compiler) ;;
-  CompilerLogicalORExpression) data=(parser::bitwise_logical_operators::LogicalORExpression logical_or_expression compiler) ;;
-  CompilerShortCircuitExpression) data=(parser::bitwise_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;
+  CompilerBitwiseANDExpression) data=(parser::binary_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler) ;;
+  CompilerBitwiseXORExpression) data=(parser::binary_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler) ;;
+  CompilerBitwiseORExpression) data=(parser::binary_bitwise_operators::BitwiseORExpression bitwise_or_expression compiler) ;;
+  CompilerLogicalANDExpression) data=(parser::binary_logical_operators::LogicalANDExpression logical_and_expression compiler) ;;
+  CompilerLogicalORExpression) data=(parser::binary_logical_operators::LogicalORExpression logical_or_expression compiler) ;;
+  CompilerCoalesceExpression) data=(parser::binary_logical_operators::CoalesceExpression coalesce_expression:: compiler) ;;
+  CompilerCoalesceExpressionHead) data=(parser::binary_logical_operators::CoalesceExpressionHead coalesce_expression_head compiler) ;;
+  CompilerShortCircuitExpression) data=(parser::binary_logical_operators::ShortCircuitExpression short_circuit_expression compiler) ;;
   CompilerConditionalExpression) data=(parser::conditional_operator::ConditionalExpression conditional_expression compiler) ;;
   CompilerAssignmentExpression) data=(parser::assignment_operators::AssignmentExpression assignment_expression compiler) ;;
-  CompilerExpression) data=(parser::comma_operator::Expression expression compiler) ;;
+  CompilerExpression) data=(parser::comma_operator::Expression expression:: compiler) ;;
   CompilerExpressionStatement) data=(parser::expression_statement::ExpressionStatement expression_statement compiler) ;;
   CompilerStatementList) data=(parser::block::StatementList statement_list:: compiler) ;;
   CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
-  CompilerStatement) data=(parser::statements_and_declarations::Statement statement compiler) ;;
+  CompilerStatement) data=(parser::statements_and_declarations::Statement statement:: compiler) ;;
   CompilerDeclaration) data=(parser::statements_and_declarations::Declaration declaration compiler) ;;
   CompilerLexicalDeclaration) data=(parser::declarations_and_variables::LexicalDeclaration lexical_declaration compiler) ;;
   CompilerBindingList) data=(parser::declarations_and_variables::BindingList binding_list compiler) ;;
@@ -86,6 +95,7 @@ case $name in
   CompilerVariableStatement) data=(parser::declarations_and_variables::VariableStatement variable_statement compiler) ;;
   CompilerVariableDeclarationList) data=(parser::declarations_and_variables::VariableDeclarationList variable_declaration_list compiler) ;;
   CompilerVariableDeclaration) data=(parser::declarations_and_variables::VariableDeclaration variable_declaration:: compiler) ;;
+  CompilerThrowStatement) data=(parser::throw_statement::ThrowStatement throw_statement compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
   RefResult) data=($name ref_result compiler) ;;
@@ -293,6 +303,9 @@ case $name in
   Agent_current_lexical_environment) data=(Agent::current_lexical_environment agent::current_lexical_environment agent) ;;
   Agent_set_realm_global_object) data=(Agent::set_realm_global_object agent::set_realm_global_object agent) ;;
   Agent_pop_execution_context) data=(Agent::pop_execution_context agent::pop_execution_context agent) ;;
+  Agent_two_values) data=(Agent::two_values agent::two_values agent) ;;
+  Agent_is_less_than) data=(Agent::is_less_than agent::is_less_than agent) ;;
+  Agent_instanceof_operator) data=(Agent::instanceof_operator agent::instanceof_operator agent) ;;
   WellKnownSymbols) data=($name well_known_symbols agent) ;;
   parse_script) data=($name $name agent) ;;
   TopLevelLexDecl) data=($name top_level_lex_decl agent) ;;
@@ -302,6 +315,8 @@ case $name in
   script_evaluation) data=($name $name agent) ;;
   ProcessError) data=($name process_error agent) ;;
   process_ecmascript) data=($name $name agent) ;;
+  bigint_leftshift) data=($name $name agent) ;;
+  bigint_rightshift) data=($name $name agent) ;;
 
   Removability) data=($name removability environment_record) ;;
   Strictness) data=($name strictness environment_record) ;;
@@ -315,13 +330,10 @@ case $name in
   get_identifier_reference) data=($name $name environment_record) ;;
   PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
 
+  ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
+
   *) echo "No type called $name"; exit ;;
 esac
-
-# Make sure we compile
-if ! cargo check --profile coverage --tests; then
-  exit
-fi
 
 file=${data[2]}
 modname=${data[1]}

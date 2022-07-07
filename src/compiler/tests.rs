@@ -22,6 +22,9 @@ mod insn {
     #[test_case(Insn::Bigint => "BIGINT"; "Bigint instruction")]
     #[test_case(Insn::GetValue => "GET_VALUE"; "GetValue instruction")]
     #[test_case(Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT"; "JumpIfAbrupt instruction")]
+    #[test_case(Insn::JumpIfFalse => "JUMP_IF_FALSE"; "JumpIfFalse instruction")]
+    #[test_case(Insn::JumpIfTrue => "JUMP_IF_TRUE"; "JumpIfTrue instruction")]
+    #[test_case(Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH"; "JumpIfNotNullish instruction")]
     #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty instruction")]
     #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
     #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
@@ -60,6 +63,23 @@ mod insn {
     #[test_case(Insn::Modulo => "MODULO"; "Modulo instruction")]
     #[test_case(Insn::Add => "ADD"; "Add instruction")]
     #[test_case(Insn::Subtract => "SUBTRACT"; "Subtract instruction")]
+    #[test_case(Insn::LeftShift => "LSH"; "LeftShift instruction")]
+    #[test_case(Insn::UnsignedRightShift => "URSH"; "UnsignedRightShift instruction")]
+    #[test_case(Insn::SignedRightShift => "SRSH"; "SignedRightShift instruction")]
+    #[test_case(Insn::Throw => "THROW"; "Throw instruction")]
+    #[test_case(Insn::Less => "LT"; "Less instruction")]
+    #[test_case(Insn::Greater => "GT"; "Greater instruction")]
+    #[test_case(Insn::LessEqual => "LE"; "LessEqual instruction")]
+    #[test_case(Insn::GreaterEqual => "GE"; "GreaterEqual instruction")]
+    #[test_case(Insn::InstanceOf => "INSTANCEOF"; "InstanceOf instruction")]
+    #[test_case(Insn::In => "IN"; "In instruction")]
+    #[test_case(Insn::Equal => "EQ"; "Equal instruction")]
+    #[test_case(Insn::NotEqual => "NE"; "NotEqual instruction")]
+    #[test_case(Insn::StrictEqual => "SEQ"; "StrictEqual instruction")]
+    #[test_case(Insn::StrictNotEqual => "SNE"; "StrictNotEqual instruction")]
+    #[test_case(Insn::BitwiseAnd => "AND"; "BitwiseAnd instruction")]
+    #[test_case(Insn::BitwiseOr => "OR"; "BitwiseOr instruction")]
+    #[test_case(Insn::BitwiseXor => "XOR"; "BitwiseXor instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -426,7 +446,14 @@ mod primary_expression {
             "TRUE"
         ]); "literal")]
         #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
-        #[test_case("class {}", true => panics "not yet implemented"; "anything else")]
+        #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
+        #[test_case("[]", true => panics "not yet implemented"; "array literal")]
+        #[test_case("``", true => panics "not yet implemented"; "template literal")]
+        #[test_case("function a(){}", true => panics "not yet implemented"; "function expression")]
+        #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
+        #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
+        #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
+        #[test_case("/abcd/", true => panics "not yet implemented"; "regular expression")]
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
@@ -1213,14 +1240,84 @@ mod shift_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a<<2", true => panics "not yet implemented"; "shift expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<<2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "LSH"
+    ]), true, false)); "left shift, strict")]
+    #[test_case("a<<2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "LSH"
+    ]), true, false)); "left shift, non-strict")]
+    #[test_case("a>>2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "SRSH"
+    ]), true, false)); "signed right shift, strict")]
+    #[test_case("a>>2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "SRSH"
+    ]), true, false)); "signed right shift, non-strict")]
+    #[test_case("a>>>2", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "URSH"
+    ]), true, false)); "unsigned right shift, strict")]
+    #[test_case("a>>>2", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "URSH"
+    ]), true, false)); "unsigned right shift, non-strict")]
+    #[test_case("2>>4", true, None => Ok((svec(&[
+        "FLOAT 0 (2)",
+        "FLOAT 1 (4)",
+        "SRSH"
+    ]), true, false)); "nothing that can throw")]
+    #[test_case("2>>a", true, None => Ok((svec(&[
+        "FLOAT 0 (2)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "SRSH"
+    ]), true, false)); "can throw from right")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).shift_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1228,14 +1325,82 @@ mod relational_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a<b", true => panics "not yet implemented"; "relational expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/strict")]
+    #[test_case("a>10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/strict")]
+    #[test_case("a<=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/strict")]
+    #[test_case("a>=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/strict")]
+    #[test_case("a in b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "IN"
+    ]), true, false)); "in/strict")]
+    #[test_case("a instanceof c", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "INSTANCEOF"
+    ]), true, false)); "instanceof/strict")]
+    #[test_case("#blue in gray", true, None => panics "not yet implemented"; "privateid in")]
+    #[test_case("a<10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/non-strict")]
+    #[test_case("a>10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/non-strict")]
+    #[test_case("a<=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/non-strict")]
+    #[test_case("a>=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/non-strict")]
+    #[test_case("a in b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "IN"
+    ]), true, false)); "in/non-strict")]
+    #[test_case("a instanceof c", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (c)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "INSTANCEOF"
+    ]), true, false)); "instanceof/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).relational_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1243,14 +1408,85 @@ mod equality_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a==43", true => panics "not yet implemented"; "equality expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a==43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "EQ"
+    ]), true, false)); "loosely eq/strict")]
+    #[test_case("a===43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "SEQ"
+    ]), true, false)); "strict eq/strict")]
+    #[test_case("a!=43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "NE"
+    ]), true, false)); "loosely not eq/strict")]
+    #[test_case("a!==43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "SNE"
+    ]), true, false)); "strict not eq/strict")]
+    #[test_case("a==43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "EQ"
+    ]), true, false)); "loosely eq/non-strict")]
+    #[test_case("a===43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "SEQ"
+    ]), true, false)); "strict eq/non-strict")]
+    #[test_case("a!=43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "NE"
+    ]), true, false)); "loosely not eq/non-strict")]
+    #[test_case("a!==43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "SNE"
+    ]), true, false)); "strict not eq/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).equality_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1258,14 +1494,37 @@ mod bitwise_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a&8", true => panics "not yet implemented"; "bit and expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a&43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "AND"
+    ]), true, false)); "bit and expr/strict")]
+    #[test_case("a&43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "AND"
+    ]), true, false)); "bit and expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_and_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1273,14 +1532,37 @@ mod bitwise_xor_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a^6", true => panics "not yet implemented"; "bit xor expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a^43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "XOR"
+    ]), true, false)); "bit xor expr/strict")]
+    #[test_case("a^43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "XOR"
+    ]), true, false)); "bit xor expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_xor_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1288,14 +1570,37 @@ mod bitwise_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a|8", true => panics "not yet implemented"; "bit or expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a|43", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "OR"
+    ]), true, false)); "bit or expr/strict")]
+    #[test_case("a|43", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (43)",
+        "OR"
+    ]), true, false)); "bit or expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_or_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1303,14 +1608,48 @@ mod logical_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a&&b", true => panics "not yet implemented"; "land expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a&&b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_IF_FALSE 5",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "land expr/strict")]
+    #[test_case("a&&b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_IF_FALSE 5",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "land expr/non-strict")]
+    #[test_case("a&&b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "left expression error")]
+    #[test_case("true&&false", true, None => Ok((svec(&["TRUE", "JUMP_IF_FALSE 2", "POP", "FALSE"]), false, false)); "just constants")]
+    #[test_case("a&&b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "right expression error")]
+    #[test_case("a&&@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
+    #[test_case("true&&@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-false too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).logical_and_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1318,14 +1657,139 @@ mod logical_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a||m", true => panics "not yet implemented"; "lor expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a||b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_IF_TRUE 5",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "lor expr/strict")]
+    #[test_case("a||b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_IF_TRUE 5",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "lor expr/non-strict")]
+    #[test_case("a||b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "left expression error")]
+    #[test_case("true||false", true, None => Ok((svec(&["TRUE", "JUMP_IF_TRUE 2", "POP", "FALSE"]), false, false)); "just constants")]
+    #[test_case("a||b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "right expression error")]
+    #[test_case("a||@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
+    #[test_case("true||@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-true too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).logical_or_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod coalesce_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a??b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coal expr/strict")]
+    #[test_case("a??b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coal expr/non-strict")]
+    #[test_case("a??b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "left expression error")]
+    #[test_case("true??false", true, None => Ok((svec(&["TRUE", "JUMP_NOT_NULLISH 2", "POP", "FALSE"]), false, false)); "just constants")]
+    #[test_case("a??b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "right expression error")]
+    #[test_case("a??@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
+    #[test_case("true??@@@", true, None => serr("out of range integral type conversion attempted"); "jump-not-nullish too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).coalesce_expression();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod coalesce_expression_head {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a??b", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true)); "bitwise or/strict")]
+    #[test_case("a??b??c", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coalesce/strict")]
+    #[test_case("a??b", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE"]), true, true)); "bitwise or/non-strict")]
+    #[test_case("a??b??c", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coalesce/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).coalesce_expression_head();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1333,14 +1797,43 @@ mod short_circuit_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a??7", true => panics "not yet implemented"; "coalesce expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a??b", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coal expr/strict")]
+    #[test_case("a??b", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 7",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "coal expr/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).short_circuit_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1348,14 +1841,60 @@ mod conditional_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a?1:0", true => panics "not yet implemented"; "conditional expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a?b:c", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_IF_FALSE 7",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP 5",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "conditional expr / strict")]
+    #[test_case("a?b:c", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_IF_FALSE 7",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP 5",
+        "POP",
+        "STRING 2 (c)",
+        "RESOLVE",
+        "GET_VALUE"
+    ]), true, false)); "conditional expr / non-strict")]
+    #[test_case("a?0:0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compile fails")]
+    #[test_case("true?a:0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "truthy compile fails")]
+    #[test_case("true?false:a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "falsey compile fails")]
+    #[test_case("false?'a':'b'", true, None => Ok((svec(&["FALSE", "JUMP_IF_FALSE 5", "POP", "STRING 0 (a)", "JUMP 3", "POP", "STRING 1 (b)"]), false, false)); "only constants")]
+    #[test_case("true?@@@:1", true, None => serr("out of range integral type conversion attempted"); "truthy too big")]
+    #[test_case("true?0:@@@", true, None => serr("out of range integral type conversion attempted"); "falsey too big")]
+    #[test_case("a?0:@@@", true, None => serr("out of range integral type conversion attempted"); "err jump too far")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).conditional_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1445,14 +1984,28 @@ mod expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a,9", true => panics "not yet implemented"; "comma expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a,9", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "POP", "FLOAT 0 (9)"]), true, false)); "comma expr")]
+    #[test_case("a,0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "first expr compile fail")]
+    #[test_case("0,a", true, None => Ok((svec(&["FLOAT 0 (0)", "POP", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), true, false)); "first expr literal")]
+    #[test_case("true,false", true, None => Ok((svec(&["TRUE", "POP", "FALSE"]), false, false)); "nothing but literals")]
+    #[test_case("true,a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "second expr compile fail")]
+    #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
+    #[test_case("a,b", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 5", "POP", "STRING 1 (b)", "RESOLVE", "GET_VALUE"]), true, false)); "not strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -1581,13 +2134,61 @@ mod statement {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-    ]); "strict stmt")]
+    ]); "strict expr stmt")]
     #[test_case("a;", false => svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
-    ]); "non-strict stmt")]
-    #[test_case("debugger;", true => panics "not yet implemented"; "other")]
+    ]); "non-strict expr stmt")]
+    #[test_case("{}", true => panics "not yet implemented"; "block")]
+    #[test_case("var a=b;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]); "strict var stmt")]
+    #[test_case("var a=b;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE",
+    ]); "non-strict var stmt")]
+    #[test_case(";", true => panics "not yet implemented"; "empty")]
+    #[test_case("if (true) a=3;", true => panics "not yet implemented"; "if statement")]
+    #[test_case("for (i=0;i<10;i++) log(i);", true => panics "not yet implemented"; "breakable statement")]
+    #[test_case("continue;", true => panics "not yet implemented"; "continue statement")]
+    #[test_case("break;", true => panics "not yet implemented"; "break statement")]
+    #[test_case("return;", true => panics "not yet implemented"; "return statement")]
+    #[test_case("with (a) {}", true => panics "not yet implemented"; "with statement")]
+    #[test_case("a: b();", true => panics "not yet implemented"; "labelled statement")]
+    #[test_case("throw a;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]); "strict throw")]
+    #[test_case("throw a;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]); "non-strict throw")]
+    #[test_case("try {} catch {}", true => panics "not yet implemented"; "try statement")]
+    #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
         let mut c = Chunk::new("x");
@@ -1982,6 +2583,45 @@ mod variable_declaration {
     #[test_case("[a]=b", true, None => panics "not yet implemented"; "pattern assignment")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).variable_declaration();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod throw_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("throw 'a';", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "THROW"
+    ]), true, false)); "Throw literal")]
+    #[test_case("throw a;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]), true, false)); "Throw reference")]
+    #[test_case("throw a;", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "THROW"
+    ]), true, false)); "Throw ref/non-strict")]
+    #[test_case("throw a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "exp compile fail")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).throw_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict, src)

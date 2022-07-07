@@ -289,6 +289,16 @@ impl ArrowParameters {
             ArrowParameters::Formals(formals) => formals.expected_argument_count(),
         }
     }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ArrowParameters::Identifier(_) => false,
+            ArrowParameters::Formals(f) => f.contains_expression(),
+        }
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -401,6 +411,13 @@ impl ArrowFormalParameters {
 
     fn expected_argument_count(&self) -> f64 {
         self.params.expected_argument_count()
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    fn contains_expression(&self) -> bool {
+        self.params.contains_expression()
     }
 }
 

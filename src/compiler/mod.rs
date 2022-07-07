@@ -1,11 +1,11 @@
 use super::*;
+use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
 use std::rc::Rc;
-use counter::Counter;
 
 pub type Opcode = u16;
 
@@ -29,6 +29,9 @@ pub enum Insn {
     Jump,
     JumpIfAbrupt,
     JumpIfNormal,
+    JumpIfFalse,
+    JumpIfTrue,
+    JumpIfNotNullish,
     Call,
     UpdateEmpty,
     Swap,
@@ -64,6 +67,23 @@ pub enum Insn {
     Subtract,
     InstantiateIdFreeFunctionExpression,
     InstantiateArrowFunctionExpression,
+    LeftShift,
+    SignedRightShift,
+    UnsignedRightShift,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    InstanceOf,
+    In,
+    Equal,
+    NotEqual,
+    StrictEqual,
+    StrictNotEqual,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    Throw,
 }
 
 impl fmt::Display for Insn {
@@ -86,6 +106,9 @@ impl fmt::Display for Insn {
             Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::JumpIfNormal => "JUMP_IF_NORMAL",
+            Insn::JumpIfFalse => "JUMP_IF_FALSE",
+            Insn::JumpIfTrue => "JUMP_IF_TRUE",
+            Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH",
             Insn::Call => "CALL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
@@ -121,6 +144,23 @@ impl fmt::Display for Insn {
             Insn::Subtract => "SUBTRACT",
             Insn::InstantiateIdFreeFunctionExpression => "FUNC_IIFE",
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
+            Insn::LeftShift => "LSH",
+            Insn::SignedRightShift => "SRSH",
+            Insn::UnsignedRightShift => "URSH",
+            Insn::Less => "LT",
+            Insn::Greater => "GT",
+            Insn::LessEqual => "LE",
+            Insn::GreaterEqual => "GE",
+            Insn::InstanceOf => "INSTANCEOF",
+            Insn::In => "IN",
+            Insn::Equal => "EQ",
+            Insn::NotEqual => "NE",
+            Insn::StrictEqual => "SEQ",
+            Insn::StrictNotEqual => "SNE",
+            Insn::BitwiseAnd => "AND",
+            Insn::BitwiseOr => "OR",
+            Insn::BitwiseXor => "XOR",
+            Insn::Throw => "THROW",
         })
     }
 }
@@ -340,7 +380,9 @@ impl PrimaryExpression {
             }
             PrimaryExpression::ArrayLiteral { node } => todo!(),
             PrimaryExpression::TemplateLiteral { node } => todo!(),
-            PrimaryExpression::Function { node } => node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from),
+            PrimaryExpression::Function { node } => {
+                node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
+            }
             PrimaryExpression::Class { node } => todo!(),
             PrimaryExpression::Generator { node } => todo!(),
             PrimaryExpression::AsyncFunction { node } => todo!(),
@@ -1172,7 +1214,18 @@ impl ShiftExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.compile(chunk, strict, text),
-            _ => todo!(),
+            ShiftExpression::LeftShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::LeftShift)
+                    .map(CompilerStatusFlags::from)
+            }
+            ShiftExpression::SignedRightShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::SignedRightShift)
+                    .map(CompilerStatusFlags::from)
+            }
+            ShiftExpression::UnsignedRightShift(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::UnsignedRightShift)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1181,7 +1234,29 @@ impl RelationalExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, text),
-            _ => todo!(),
+            RelationalExpression::Less(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Less).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::Greater(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Greater)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::LessEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::LessEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::GreaterEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::GreaterEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::InstanceOf(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::InstanceOf)
+                    .map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::In(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::In).map(CompilerStatusFlags::from)
+            }
+            RelationalExpression::PrivateIn(_, _, _) => todo!(),
         }
     }
 }
@@ -1190,7 +1265,21 @@ impl EqualityExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict, text),
-            _ => todo!(),
+            EqualityExpression::Equal(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::Equal).map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::NotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::StrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictEqual)
+                    .map(CompilerStatusFlags::from)
+            }
+            EqualityExpression::NotStrictEqual(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictNotEqual)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1199,7 +1288,10 @@ impl BitwiseANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseANDExpression::BitwiseAND(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseAnd)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1208,7 +1300,10 @@ impl BitwiseXORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseXORExpression::BitwiseXOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseXor)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1217,7 +1312,10 @@ impl BitwiseORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict, text),
-            _ => todo!(),
+            BitwiseORExpression::BitwiseOR(left, right) => {
+                compile_binary_expression!(chunk, strict, text, left, right, Insn::BitwiseOr)
+                    .map(CompilerStatusFlags::from)
+            }
         }
     }
 }
@@ -1226,7 +1324,41 @@ impl LogicalANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict, text),
-            _ => todo!(),
+            LogicalANDExpression::LogicalAND(left, right) => {
+                let mut first_exit = None;
+                // Stack: ...
+                let left_status = left.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let second_exit = chunk.op_jump(Insn::JumpIfFalse);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = right.compile(chunk, strict, text)?;
+                // Stack: rval/rref/err ...
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err ...
+                if let Some(offset) = first_exit {
+                    chunk.fixup(offset)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: lval/rval/err ...
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
     }
 }
@@ -1235,8 +1367,87 @@ impl LogicalORExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict, text),
-            _ => todo!(),
+            LogicalORExpression::LogicalOR(left, right) => {
+                let mut first_exit = None;
+                // Stack: ...
+                let left_status = left.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let second_exit = chunk.op_jump(Insn::JumpIfTrue);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = right.compile(chunk, strict, text)?;
+                // Stack: rval/rref/err ...
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err ...
+                if let Some(offset) = first_exit {
+                    chunk.fixup(offset)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: lval/rval/err ...
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
+    }
+}
+
+impl CoalesceExpressionHead {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(coal) => coal.compile(chunk, strict, text),
+            CoalesceExpressionHead::BitwiseORExpression(bor) => bor.compile(chunk, strict, text),
+        }
+    }
+}
+
+impl CoalesceExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        let mut first_exit = None;
+        // Stack ...
+        let head_status = self.head.compile(chunk, strict, text)?;
+        // Stack: lref/lval/err ...
+        if head_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: lval/err ...
+        if head_status.maybe_ref() || head_status.maybe_abrupt() {
+            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        // Stack: lval ...
+        let second_exit = chunk.op_jump(Insn::JumpIfNotNullish);
+        chunk.op(Insn::Pop);
+        let tail_status = self.tail.compile(chunk, strict, text)?;
+        // Stack: rval/rref/err ...
+        if tail_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: rval/err ...
+        if let Some(fixup) = first_exit {
+            chunk.fixup(fixup)?;
+        }
+        chunk.fixup(second_exit)?;
+        // Stack: lval/rval/err
+        Ok(CompilerStatusFlags::new().abrupt(
+            head_status.maybe_ref()
+                || head_status.maybe_abrupt()
+                || tail_status.maybe_ref()
+                || head_status.maybe_abrupt(),
+        ))
     }
 }
 
@@ -1244,7 +1455,7 @@ impl ShortCircuitExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict, text),
-            _ => todo!(),
+            ShortCircuitExpression::CoalesceExpression(coal) => coal.compile(chunk, strict, text),
         }
     }
 }
@@ -1253,7 +1464,53 @@ impl ConditionalExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict, text),
-            _ => todo!(),
+            ConditionalExpression::Conditional(expr, truthy, falsey) => {
+                let mut first_exit = None;
+                let expr_status = expr.compile(chunk, strict, text)?;
+                // Stack: lval/lref/err ...
+                if expr_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err ...
+                if expr_status.maybe_ref() || expr_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval ...
+                let falsey_spot = chunk.op_jump(Insn::JumpIfFalse);
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let truthy_status = truthy.compile(chunk, strict, text)?;
+                // Stack: trueRef/trueVal/err
+                if truthy_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: trueVal/err
+                let second_exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(falsey_spot)?;
+                // Stack: lval ...
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let falsey_status = falsey.compile(chunk, strict, text)?;
+                // Stack: falseRef/falseVal/err
+                if falsey_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: falseVal/err
+                if let Some(spot) = first_exit {
+                    chunk.fixup(spot)?;
+                }
+                chunk.fixup(second_exit)?;
+                // Stack: trueVal/falseVal/err
+
+                Ok(CompilerStatusFlags::new().abrupt(
+                    expr_status.maybe_ref()
+                        || expr_status.maybe_abrupt()
+                        || truthy_status.maybe_abrupt()
+                        || truthy_status.maybe_ref()
+                        || falsey_status.maybe_abrupt()
+                        || falsey_status.maybe_ref(),
+                ))
+            }
         }
     }
 }
@@ -1334,7 +1591,36 @@ impl Expression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             Expression::FallThru(ae) => ae.compile(chunk, strict, text),
-            Expression::Comma(e, ae) => todo!(),
+            Expression::Comma(e, ae) => {
+                let mut first_exit = None;
+                let left_status = e.compile(chunk, strict, text)?;
+                // Stack: lref/lval/err
+                if left_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: lval/err
+                if left_status.maybe_ref() || left_status.maybe_abrupt() {
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack: lval
+                chunk.op(Insn::Pop);
+                // Stack: ...
+                let right_status = ae.compile(chunk, strict, text)?;
+                // Stack: rref/rval/err
+                if right_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err
+                if let Some(fixup) = first_exit {
+                    chunk.fixup(fixup)?;
+                }
+                Ok(CompilerStatusFlags::new().abrupt(
+                    left_status.maybe_ref()
+                        || left_status.maybe_abrupt()
+                        || right_status.maybe_ref()
+                        || right_status.maybe_abrupt(),
+                ))
+            }
         }
     }
 }
@@ -1393,7 +1679,7 @@ impl Statement {
             Statement::Return(_) => todo!(),
             Statement::With(_) => todo!(),
             Statement::Labelled(_) => todo!(),
-            Statement::Throw(_) => todo!(),
+            Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::Try(_) => todo!(),
             Statement::Debugger(_) => todo!(),
         }
@@ -1598,6 +1884,32 @@ impl VariableDeclaration {
     }
 }
 
+impl ThrowStatement {
+    /// Compile the ThrowStatement production
+    ///
+    /// The instruction sequence will always leave a Throw completion on the stack.
+    ///
+    /// See [ThrowStatement evaluation](https://tc39.es/ecma262/#sec-throw-statement-runtime-semantics-evaluation) in ECMA-262.
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        // ThrowStatement : throw Expression ;
+        // 1. Let exprRef be the result of evaluating Expression.
+        // 2. Let exprValue be ? GetValue(exprRef).
+        // 3. Return ThrowCompletion(exprValue).
+        let status = self.exp.compile(chunk, strict, text)?; // Stack: exp/ref/err ...
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue); // Stack: exp/err ...
+        }
+        let abort_target =
+            if status.maybe_abrupt() || status.maybe_ref() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::Throw);
+        if let Some(tgt) = abort_target {
+            chunk.fixup(tgt).expect("Jump too short to overflow");
+        }
+        Ok(AlwaysAbruptResult {})
+    }
+}
+
 impl Script {
     pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         match &self.body {
@@ -1668,7 +1980,13 @@ impl FunctionExpression {
     /// Generate the code to evaluate a ['FunctionExpression'].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str, self_as_rc: Rc<Self>) -> anyhow::Result<NeverAbruptRefResult> {
+    pub fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: Evaluation
         //  FunctionExpression : function BindingIdentifier[opt] ( FormalParameters ) { FunctionBody }
         //      1. Return InstantiateOrdinaryFunctionExpression of FunctionExpression.
@@ -1682,20 +2000,20 @@ impl FunctionExpression {
 
     pub fn compile_body(&self, chunk: &mut Chunk, info: &StashedFunctionData) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: EvaluateBody
-        // 
+        //
         // The syntax-directed operation EvaluateBody takes arguments functionObject and argumentsList (a List) and
         // returns either a normal completion containing an ECMAScript language value or an abrupt completion. It is
         // defined piecewise over the following productions:
-        // 
+        //
         // FunctionBody : FunctionStatementList
         //  1. Return ? EvaluateFunctionBody of FunctionBody with arguments functionObject and argumentsList.
 
         // Runtime Semantics: EvaluateFunctionBody
-        // 
+        //
         // The syntax-directed operation EvaluateFunctionBody takes arguments functionObject and argumentsList (a List)
         // and returns either a normal completion containing an ECMAScript language value or an abrupt completion. It
         // is defined piecewise over the following productions:
-        // 
+        //
         // FunctionBody : FunctionStatementList
         //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
         //  2. Return the result of evaluating FunctionStatementList.
@@ -1713,7 +2031,7 @@ impl FunctionExpression {
         // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
         // argumentsList and returns either a normal completion containing unused or an abrupt completion. func is the
         // function object for which the execution context is being established.
-        // 
+        //
         // NOTE 1  | When an execution context is established for evaluating an ECMAScript function a new function
         //         | Environment Record is created and bindings for each formal parameter are instantiated in that
         //         | Environment Record. Each declaration in the function body is also instantiated. If the function's
@@ -1722,9 +2040,9 @@ impl FunctionExpression {
         //         | initializers exist, a second Environment Record is created for the body declarations. Formal
         //         | parameters and functions are initialized as part of FunctionDeclarationInstantiation. All other
         //         | bindings are initialized during evaluation of the function body.
-        // 
+        //
         // It performs the following steps when called: (🏃 = Run time; 🧑‍💻 = Compile time)
-        // 
+        //
         //🏃   1. Let calleeContext be the running execution context.
         //🧑‍💻   2. Let code be func.[[ECMAScriptCode]].
         //🧑‍💻   3. Let strict be func.[[Strict]].
@@ -1858,13 +2176,8 @@ impl FunctionExpression {
         let code = &info.body;
         let formals = &info.params;
         let parameter_names = formals.bound_names();
-        let has_duplicates = parameter_names
-        .iter()
-        .collect::<Counter<_>>()
-        .into_iter()
-        .filter(|&(_, n)| n > 1)
-        .count()
-         > 0;
+        let has_duplicates =
+            parameter_names.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
         let simple_parameter_list = formals.is_simple_parameter_list();
         let has_parameter_expressions = formals.contains_expression();
         let var_names = code.var_declared_names();
@@ -1880,7 +2193,7 @@ impl ArrowFunction {
         strict: bool,
         text: &str,
         name: Option<JSString>,
-        self_as_rc: Rc<Self>
+        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         let name = name.unwrap_or_else(|| JSString::from(""));
         let name_id = chunk.add_to_string_pool(name)?;
@@ -1890,13 +2203,20 @@ impl ArrowFunction {
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.parameters));
         let body = BodySource::from(Rc::clone(&self.body));
-        let function_data = StashedFunctionData { source_text, params, body, strict, to_compile: FunctionSource::from(self_as_rc) };
+        let function_data =
+            StashedFunctionData { source_text, params, body, strict, to_compile: FunctionSource::from(self_as_rc) };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
         Ok(NeverAbruptRefResult {})
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str, self_as_rc: Rc<Self>) -> anyhow::Result<NeverAbruptRefResult> {
+    pub fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> anyhow::Result<NeverAbruptRefResult> {
         self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
     }
 }

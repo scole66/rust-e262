@@ -150,8 +150,30 @@ impl Chunk {
             | Insn::Modulo
             | Insn::Add
             | Insn::Subtract
+            | Insn::LeftShift
+            | Insn::SignedRightShift
+            | Insn::UnsignedRightShift
+            | Insn::Less
+            | Insn::Greater
+            | Insn::LessEqual
+            | Insn::GreaterEqual
+            | Insn::InstanceOf
+            | Insn::In
+            | Insn::Equal
+            | Insn::NotEqual
+            | Insn::StrictEqual
+            | Insn::StrictNotEqual
+            | Insn::BitwiseAnd
+            | Insn::BitwiseOr
+            | Insn::BitwiseXor
+            | Insn::Throw
             | Insn::Object => (1, format!("    {insn}")),
-            Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
+            Insn::JumpIfAbrupt
+            | Insn::Jump
+            | Insn::JumpIfNormal
+            | Insn::JumpIfFalse
+            | Insn::JumpIfTrue
+            | Insn::JumpIfNotNullish => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }

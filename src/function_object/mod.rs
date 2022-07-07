@@ -1,9 +1,9 @@
 use super::*;
+use anyhow::bail;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
-use anyhow::bail;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ConstructorKind {
@@ -50,8 +50,7 @@ impl From<Rc<ConciseBody>> for BodySource {
     }
 }
 
-impl BodySource {
-}
+impl BodySource {}
 
 #[derive(Debug, Clone)]
 pub enum ParamSource {
@@ -91,7 +90,7 @@ impl ParamSource {
         }
     }
 
-    pub fn contains_exprsesion(&self) -> bool {
+    pub fn contains_expression(&self) -> bool {
         match self {
             ParamSource::FormalParameters(formals) => formals.contains_expression(),
             ParamSource::ArrowParameters(arrow) => arrow.contains_expression(),
@@ -128,7 +127,7 @@ impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
     fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
         match value {
             FunctionSource::FunctionExpression(fe) => Ok(fe),
-            _ => bail!("FunctionExpression expected")
+            _ => bail!("FunctionExpression expected"),
         }
     }
 }
@@ -1017,7 +1016,7 @@ pub fn ordinary_function_create(
     env: Rc<dyn EnvironmentRecord>,
     private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
-    compiled: Rc<Chunk>
+    compiled: Rc<Chunk>,
 ) -> Object {
     // OrdinaryFunctionCreate ( functionPrototype, sourceText, ParameterList, Body, thisMode, env, privateEnv )
     //

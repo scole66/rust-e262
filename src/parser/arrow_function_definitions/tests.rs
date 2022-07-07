@@ -277,6 +277,13 @@ mod arrow_parameters {
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).arrow_parameters().expected_argument_count()
     }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("(a)" => false; "formals; missing")]
+    #[test_case("(a=0)" => true; "formals; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).arrow_parameters().contains_expression()
+    }
 }
 
 // CONCISE BODY
@@ -566,5 +573,11 @@ mod arrow_formal_parameters {
     #[test_case("(a,b,...c)" => 2.0; "typical")]
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).arrow_formal_parameters().expected_argument_count()
+    }
+
+    #[test_case("(a)" => false; "missing")]
+    #[test_case("(a=0)" => true; "present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).arrow_formal_parameters().contains_expression()
     }
 }

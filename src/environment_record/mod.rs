@@ -1,9 +1,9 @@
 use super::*;
 use ahash::{AHashMap, AHashSet, RandomState};
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
-use std::cell::Cell;
 
 // Environment Records
 //
@@ -125,9 +125,10 @@ pub trait EnvironmentRecord: Debug {
     fn get_this_binding(&self, _agent: &mut Agent) -> Completion<ECMAScriptValue> {
         unreachable!()
     }
-    fn bind_this_value(&self, _agent: &mut Agent, _val: ECMAScriptValue) -> Completion<ECMAScriptValue>{
+    fn bind_this_value(&self, _agent: &mut Agent, _val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
         unreachable!()
     }
+    fn name(&self) -> String;
 }
 
 // Declarative Environment Records
@@ -405,6 +406,10 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
         self.outer_env.as_ref().cloned()
     }
+
+    fn name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl DeclarativeEnvironmentRecord {
@@ -666,6 +671,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
         self.outer_env.as_ref().cloned()
     }
+
+    fn name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl ObjectEnvironmentRecord {
@@ -848,6 +857,10 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
             self.this_binding_status.set(BindingStatus::Initialized);
             Ok(val)
         }
+    }
+
+    fn name(&self) -> String {
+        self.name.clone()
     }
 }
 
@@ -1245,6 +1258,10 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
     //  1. Return envRec.[[GlobalThisValue]].
     fn get_this_binding(&self, _: &mut Agent) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::from(self.global_this_value.clone()))
+    }
+
+    fn name(&self) -> String {
+        self.name.clone()
     }
 }
 

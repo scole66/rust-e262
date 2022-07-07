@@ -3188,3 +3188,103 @@ mod set_integrity_level {
             .map_err(|err| unwind_any_error(&mut agent, err))
     }
 }
+
+mod ordinary_has_instance {
+    use super::*;
+    use test_case::test_case;
+
+    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
+
+    fn undef(_: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn bool_class(agent: &mut Agent) -> ECMAScriptValue {
+        let boolean = agent.intrinsic(IntrinsicId::Boolean);
+        ECMAScriptValue::from(boolean)
+    }
+    fn basic_constructor(agent: &mut Agent) -> Object {
+        let realm = agent.current_realm_record();
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        create_builtin_function(
+            agent,
+            throw_type_error,
+            true,
+            0_f64,
+            PropertyKey::from("TestConstructor"),
+            BUILTIN_FUNCTION_SLOTS,
+            realm,
+            Some(function_prototype),
+            None,
+        )
+    }
+    fn ungettable_prototype(agent: &mut Agent) -> ECMAScriptValue {
+        let throw = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError));
+        let constructor = basic_constructor(agent);
+        define_property_or_throw(
+            agent,
+            &constructor,
+            "prototype",
+            PotentialPropertyDescriptor::new().set(throw.clone()).get(throw).enumerable(false).configurable(false),
+        )
+        .unwrap();
+
+        ECMAScriptValue::from(constructor)
+    }
+    fn nonobject_prototype(agent: &mut Agent) -> ECMAScriptValue {
+        let constructor = basic_constructor(agent);
+        define_property_or_throw(
+            agent,
+            &constructor,
+            "prototype",
+            PotentialPropertyDescriptor::new()
+                .writable(false)
+                .value(ECMAScriptValue::Undefined)
+                .enumerable(false)
+                .configurable(false),
+        )
+        .unwrap();
+
+        ECMAScriptValue::from(constructor)
+    }
+    fn dead_object(agent: &mut Agent) -> ECMAScriptValue {
+        ECMAScriptValue::from(DeadObject::object(agent))
+    }
+    fn empty_object(agent: &mut Agent) -> ECMAScriptValue {
+        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        ECMAScriptValue::from(ordinary_object_create(agent, Some(obj_proto), &[]))
+    }
+    fn bool_child(agent: &mut Agent) -> ECMAScriptValue {
+        let bool_constructor = agent.intrinsic(IntrinsicId::Boolean);
+        ordinary_create_from_constructor(agent, &bool_constructor, IntrinsicId::BooleanPrototype, BOOLEAN_OBJECT_SLOTS)
+            .unwrap()
+            .into()
+    }
+    fn bool_grandchild(agent: &mut Agent) -> ECMAScriptValue {
+        let bool_constructor = agent.intrinsic(IntrinsicId::Boolean);
+        let bool_child = ordinary_create_from_constructor(
+            agent,
+            &bool_constructor,
+            IntrinsicId::BooleanPrototype,
+            BOOLEAN_OBJECT_SLOTS,
+        )
+        .unwrap();
+        let grandkid = ordinary_object_create(agent, Some(bool_child), &[]);
+        grandkid.into()
+    }
+
+    #[test_case(undef, empty_object => Ok(false); "c not callable")]
+    #[test_case(bool_class, undef => Ok(false); "o not an object")]
+    #[test_case(ungettable_prototype, empty_object => serr("TypeError: Generic TypeError"); "broken prototype on class")]
+    #[test_case(nonobject_prototype, empty_object => serr("TypeError: Bad prototype chain in 'instanceof'"); "nonobject prototype on class")]
+    #[test_case(bool_class, dead_object => serr("TypeError: get_prototype_of called on DeadObject"); "broken prototype on object")]
+    #[test_case(bool_class, empty_object => Ok(false); "legit false return")]
+    #[test_case(bool_class, bool_child => Ok(true); "true instance via prototype chain (child)")]
+    #[test_case(bool_class, bool_grandchild => Ok(true); "true instance via prototype chain (grandchild)")]
+    fn ordinary_has_instance(make_c: ValueMaker, make_o: ValueMaker) -> Result<bool, String> {
+        let mut agent = test_agent();
+        let c = make_c(&mut agent);
+        let o = make_o(&mut agent);
+
+        agent.ordinary_has_instance(&c, &o).map_err(|completion| unwind_any_error(&mut agent, completion))
+    }
+}

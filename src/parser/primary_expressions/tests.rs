@@ -1889,6 +1889,11 @@ mod computed_property_name {
     fn location(src: &str) -> Location {
         Maker::new(src).computed_property_name().location()
     }
+
+    #[test_case("[computed]" => true; "typical")]
+    fn is_computed_property_key(src: &str) -> bool {
+        Maker::new(src).computed_property_name().is_computed_property_key()
+    }
 }
 
 // LITERAL PROPERTY NAME
@@ -2011,6 +2016,11 @@ mod literal_property_name {
     #[test_case("   3" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "numeric")]
     fn location(src: &str) -> Location {
         Maker::new(src).literal_property_name().location()
+    }
+
+    #[test_case("ident" => false; "typical")]
+    fn is_computed_property_key(src: &str) -> bool {
+        Maker::new(src).literal_property_name().is_computed_property_key()
     }
 }
 
@@ -2139,6 +2149,12 @@ mod property_name {
     #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "computed name")]
     fn location(src: &str) -> Location {
         Maker::new(src).property_name().location()
+    }
+
+    #[test_case("ident" => false; "identifier")]
+    #[test_case("[computed]" => true; "computed")]
+    fn is_computed_property_key(src: &str) -> bool {
+        Maker::new(src).property_name().is_computed_property_key()
     }
 }
 

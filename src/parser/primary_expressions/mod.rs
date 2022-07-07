@@ -1408,6 +1408,13 @@ impl ComputedPropertyName {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(agent, errs, strict);
     }
+
+    /// Reports whether this property key is formed by computation or not
+    ///
+    /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
+    pub fn is_computed_property_key(&self) -> bool {
+        true
+    }
 }
 
 // LiteralPropertyName :
@@ -1522,6 +1529,13 @@ impl LiteralPropertyName {
             }
             LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(bi), .. } => JSString::from(bi.to_string()),
         }
+    }
+
+    /// Reports whether this property key is formed by computation or not
+    ///
+    /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
+    pub fn is_computed_property_key(&self) -> bool {
+        false
     }
 }
 
@@ -1655,6 +1669,16 @@ impl PropertyName {
         match self {
             PropertyName::LiteralPropertyName(lpn) => Some(lpn.prop_name()),
             PropertyName::ComputedPropertyName(_) => None,
+        }
+    }
+
+    /// Reports whether this property key is formed by computation or not
+    ///
+    /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
+    pub fn is_computed_property_key(&self) -> bool {
+        match self {
+            PropertyName::LiteralPropertyName(lpn) => lpn.is_computed_property_key(),
+            PropertyName::ComputedPropertyName(cpn) => cpn.is_computed_property_key(),
         }
     }
 }
