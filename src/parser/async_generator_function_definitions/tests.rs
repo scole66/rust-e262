@@ -803,6 +803,8 @@ fn async_generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod async_generator_body {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
@@ -811,5 +813,10 @@ mod async_generator_body {
             &mut vec![],
             true,
         );
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).async_generator_body().var_declared_names().into_iter().map(String::from).collect()
     }
 }
