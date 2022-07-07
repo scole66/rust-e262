@@ -304,11 +304,15 @@ impl<'a> Maker<'a> {
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingElementList`] parse node.
     pub fn binding_element_list(self) -> Rc<BindingElementList> {
-        BindingElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+        BindingElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingElisionElement`] parse node.
     pub fn binding_elision_element(self) -> Rc<BindingElisionElement> {
-        BindingElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+        BindingElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingIdentifier`] parse node.
     pub fn binding_identifier(self) -> Rc<BindingIdentifier> {
@@ -332,7 +336,9 @@ impl<'a> Maker<'a> {
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingPropertyList`] parse node.
     pub fn binding_property_list(self) -> Rc<BindingPropertyList> {
-        BindingPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+        BindingPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`BindingRestElement`] parse node.
     pub fn binding_rest_element(self) -> Rc<BindingRestElement> {

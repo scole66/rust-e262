@@ -515,7 +515,7 @@ mod formal_parameter_list {
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).formal_parameter_list().expected_argument_count()
     }
-    
+
     #[test_case("a=0" => true; "item with expr")]
     #[test_case("a" => false; "item without expr")]
     #[test_case("a,b" => false; "list+item without expr")]
