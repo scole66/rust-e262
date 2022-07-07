@@ -647,6 +647,11 @@ mod generator_body {
     fn location(src: &str) -> Location {
         Maker::new(src).generator_body().location()
     }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().var_declared_names().into_iter().map(String::from).collect()
+    }
 }
 
 // YIELD EXPRESSION

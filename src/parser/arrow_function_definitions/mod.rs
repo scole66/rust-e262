@@ -572,6 +572,19 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.early_errors(agent, errs, strict),
         }
     }
+
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.var_declared_names(),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :
