@@ -585,6 +585,16 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.var_declared_names(),
         }
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.var_scoped_declarations(),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :

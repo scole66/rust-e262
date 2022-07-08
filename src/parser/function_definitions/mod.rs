@@ -482,6 +482,13 @@ impl FunctionBody {
     pub fn var_declared_names(&self) -> Vec<JSString> {
         self.statements.var_declared_names()
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.statements.var_scoped_declarations()
+    }
 }
 
 // FunctionStatementList[Yield, Await] :
@@ -642,6 +649,16 @@ impl FunctionStatementList {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         if let FunctionStatementList::Statements(sl) = self {
             sl.early_errors(agent, errs, strict, false, false);
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            FunctionStatementList::Statements(s) => s.top_level_var_scoped_declarations(),
+            FunctionStatementList::Empty(_) => vec![],
         }
     }
 }

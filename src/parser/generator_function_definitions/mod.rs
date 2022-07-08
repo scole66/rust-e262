@@ -571,6 +571,13 @@ impl GeneratorBody {
     pub fn var_declared_names(&self) -> Vec<JSString> {
         self.0.var_declared_names()
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.0.var_scoped_declarations()
+    }
 }
 
 // YieldExpression[In, Await] :
