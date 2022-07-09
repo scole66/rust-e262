@@ -337,6 +337,10 @@ impl GeneratorDeclaration {
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
+    }
 }
 
 // GeneratorExpression :

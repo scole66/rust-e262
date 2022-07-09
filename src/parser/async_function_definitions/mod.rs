@@ -242,6 +242,10 @@ impl AsyncFunctionDeclaration {
 
         // And done.
     }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
+    }
 }
 
 // AsyncFunctionExpression :

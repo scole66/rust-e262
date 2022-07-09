@@ -132,7 +132,7 @@ impl BlockStatement {
 //      { StatementList[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
 pub struct Block {
-    statements: Option<Rc<StatementList>>,
+    pub statements: Option<Rc<StatementList>>,
     location: Location,
 }
 
@@ -642,6 +642,17 @@ impl StatementList {
             }
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementList::Item(item) => item.lexically_scoped_declarations(),
+            StatementList::List(list, item) => {
+                let mut list = list.lexically_scoped_declarations();
+                list.extend(item.lexically_scoped_declarations());
+                list
+            }
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -880,6 +891,16 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(_) => vec![],
             StatementListItem::Declaration(d) => d.top_level_lexically_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementListItem::Statement(stmt) => match &**stmt {
+                Statement::Labelled(l) => l.lexically_scoped_declarations(),
+                _ => vec![],
+            },
+            StatementListItem::Declaration(d) => vec![d.declaration_part()],
         }
     }
 }

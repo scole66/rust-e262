@@ -536,6 +536,11 @@ mod async_generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_generator_declaration().bound_name().into()
     }
+
+    #[test_case("async function *foo () {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).async_generator_declaration().is_constant_declaration()
+    }
 }
 
 // ASYNC GENERATOR EXPRESSION

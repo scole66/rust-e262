@@ -664,6 +664,33 @@ mod decl_part {
     fn string_from(part: DeclPart) -> String {
         String::from(&part)
     }
+
+    #[test_case(Maker::new("function a(){}").function_declaration() => "function a (  ) {  }"; "function decl")]
+    fn from_funcdecl(part: Rc<FunctionDeclaration>) -> String {
+        DeclPart::from(part).to_string()
+    }
+
+    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => false; "Function Decl")]
+    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => false; "Generator Decl")]
+    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => false; "Async Function Decl")]
+    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => false; "Async Generator Decl")]
+    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => false; "class def")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => true; "const lexical decl")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("let age = 49.0;").lexical_declaration()) => false; "mutable lexical decl")]
+    fn is_constant_declaration(part: DeclPart) -> bool {
+        part.is_constant_declaration()
+    }
+
+    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => svec(&["banana"]); "Function Decl")]
+    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => svec(&["a"]); "Generator Decl")]
+    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => svec(&["a"]); "Async Function Decl")]
+    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => svec(&["a"]); "Async Generator Decl")]
+    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => svec(&["rust"]); "class def")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => svec(&["PI"]); "const lexical decl")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("let age = 49.0, b, c, elephant;").lexical_declaration()) => svec(&["age", "b", "c", "elephant"]); "many lexical decl")]
+    fn bound_names(part: DeclPart) -> Vec<String> {
+        part.bound_names().iter().map(String::from).collect()
+    }
 }
 
 // DECLARATION

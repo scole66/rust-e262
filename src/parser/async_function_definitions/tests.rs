@@ -283,6 +283,11 @@ mod async_function_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_function_declaration().bound_name().into()
     }
+
+    #[test_case("async function foo () {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).async_function_declaration().is_constant_declaration()
+    }
 }
 
 // ASYNC FUNCTION EXPRESSION

@@ -41,6 +41,11 @@ pub enum Insn {
     Ref,
     StrictRef,
     InitializeReferencedBinding,
+    PushNewLexEnv,
+    PopLexEnv,
+    CreateStrictImmutableLexBinding,
+    CreatePermanentMutableLexBinding,
+    InitializeLexBinding,
     Object,
     CreateDataProperty,
     SetPrototype,
@@ -116,6 +121,11 @@ impl fmt::Display for Insn {
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
+            Insn::PushNewLexEnv => "PNLE",
+            Insn::PopLexEnv => "PLE",
+            Insn::CreateStrictImmutableLexBinding => "CSILB",
+            Insn::CreatePermanentMutableLexBinding => "CPMLB",
+            Insn::InitializeLexBinding => "ILB",
             Insn::Object => "OBJECT",
             Insn::CreateDataProperty => "CR_PROP",
             Insn::SetPrototype => "SET_PROTO",
@@ -1653,7 +1663,7 @@ impl Statement {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict, text),
-            Statement::Block(_) => todo!(),
+            Statement::Block(bs) => bs.compile(chunk, strict, text),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
             Statement::Empty(_) => todo!(),
             Statement::If(_) => todo!(),
@@ -1676,6 +1686,67 @@ impl Declaration {
             Declaration::Class(_) => todo!(),
             Declaration::Hoistable(_) => todo!(),
             Declaration::Lexical(lex) => lex.compile(chunk, strict, text).map(AbruptResult::from),
+        }
+    }
+}
+
+impl BlockStatement {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let BlockStatement::Block(block) = self;
+        block.compile(chunk, strict, text)
+    }
+}
+
+impl FcnDef {
+    pub fn compile_fo_instantiation(
+        &self,
+        _chunk: &mut Chunk,
+        _strict: bool,
+        _text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            FcnDef::Function(_) => todo!(),
+            FcnDef::Generator(_) => todo!(),
+            FcnDef::AsyncFun(_) => todo!(),
+            FcnDef::AsyncGen(_) => todo!(),
+        }
+    }
+}
+
+impl Block {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match &self.statements {
+            None => {
+                chunk.op(Insn::Empty);
+                Ok(NeverAbruptRefResult {}.into())
+            }
+            Some(sl) => {
+                chunk.op(Insn::PushNewLexEnv);
+                let declarations = sl.lexically_scoped_declarations();
+                for d in declarations {
+                    let is_constant = d.is_constant_declaration();
+                    for dn in d.bound_names() {
+                        let string_idx = chunk.add_to_string_pool(dn)?;
+                        if is_constant {
+                            chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx);
+                        } else {
+                            chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
+                        }
+                    }
+                    if let Ok(fcn) = FcnDef::try_from(d) {
+                        let fcn_name = fcn.bound_name();
+                        let string_idx =
+                            chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
+                        fcn.compile_fo_instantiation(chunk, strict, text)?;
+                        chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+                    }
+                }
+
+                let statement_status = sl.compile(chunk, strict, text)?;
+                chunk.op(Insn::PopLexEnv);
+
+                Ok(statement_status)
+            }
         }
     }
 }
