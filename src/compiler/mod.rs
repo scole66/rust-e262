@@ -1665,8 +1665,8 @@ impl Statement {
             Statement::Expression(exp) => exp.compile(chunk, strict, text),
             Statement::Block(bs) => bs.compile(chunk, strict, text),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
-            Statement::Empty(_) => todo!(),
-            Statement::If(_) => todo!(),
+            Statement::Empty(empty) => Ok(empty.compile(chunk).into()),
+            Statement::If(if_stmt) => if_stmt.compile(chunk, strict, text),
             Statement::Breakable(_) => todo!(),
             Statement::Continue(_) => todo!(),
             Statement::Break(_) => todo!(),
@@ -1933,6 +1933,69 @@ impl VariableDeclaration {
             }
             VariableDeclaration::Pattern(_, _) => todo!(),
         }
+    }
+}
+
+impl EmptyStatement {
+    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+        chunk.op(Insn::Empty);
+        NeverAbruptRefResult {}
+    }
+}
+
+impl IfStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let mut first_exit = None;
+        let mut second_exit = None;
+        let mut third_exit = None;
+        let expr_status = self.expression().compile(chunk, strict, text)?;
+        // Stack: exprRef/exprValue/err
+        if expr_status.maybe_ref() {
+            chunk.op(Insn::GetValue)
+        }
+        // Stack: exprValue/err
+        if expr_status.maybe_abrupt() {
+            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        // Stack: exprValue
+        let expr_false = chunk.op_jump(Insn::JumpIfFalse);
+        // "True" path
+        chunk.op(Insn::Pop);
+        let true_path_status = self.first_statement().compile(chunk, strict, text)?;
+        if true_path_status.maybe_abrupt() {
+            second_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        let true_complete = chunk.op_jump(Insn::Jump);
+        // "False" path
+        chunk.fixup(expr_false)?;
+        chunk.op(Insn::Pop);
+        let false_path_status = match self {
+            IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, text)?,
+            IfStatement::WithoutElse(..) => {
+                chunk.op(Insn::Undefined);
+                NeverAbruptRefResult {}.into()
+            }
+        };
+        if false_path_status.maybe_abrupt() {
+            third_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        chunk.fixup(true_complete)?;
+        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Swap);
+        chunk.op(Insn::UpdateEmpty);
+        if let Some(mark) = first_exit {
+            chunk.fixup(mark)?;
+        }
+        if let Some(mark) = second_exit {
+            chunk.fixup(mark)?;
+        }
+        if let Some(mark) = third_exit {
+            chunk.fixup(mark)?;
+        }
+
+        Ok(AbruptResult::from(
+            expr_status.maybe_abrupt() || true_path_status.maybe_abrupt() || false_path_status.maybe_abrupt(),
+        ))
     }
 }
 
