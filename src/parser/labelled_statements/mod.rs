@@ -168,6 +168,10 @@ impl LabelledStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.item.var_scoped_declarations()
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.item.lexically_scoped_declarations()
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -394,6 +398,13 @@ impl LabelledItem {
         match self {
             LabelledItem::Function(_) => vec![],
             LabelledItem::Statement(stmt) => stmt.var_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            LabelledItem::Statement(_) => vec![],
+            LabelledItem::Function(f) => vec![Rc::clone(f).into()],
         }
     }
 }

@@ -712,7 +712,7 @@ mod top_level_lex_decl {
     }
 }
 
-mod top_level_fcn_def {
+mod fcn_def {
     use super::*;
     use test_case::test_case;
 
@@ -725,10 +725,10 @@ mod top_level_fcn_def {
     #[test]
     fn clone() {
         let fd = Maker::new("function alice(x) { return x * 2; }").function_declaration();
-        let tlfd1 = FcnDef::Function(fd);
-        let tlfd2 = tlfd1.clone();
+        let fd1 = FcnDef::Function(fd);
+        let fd2 = fd1.clone();
 
-        match (tlfd1, tlfd2) {
+        match (fd1, fd2) {
             (FcnDef::Function(fd1), FcnDef::Function(fd2)) => {
                 assert!(Rc::ptr_eq(&fd1, &fd2));
             }
@@ -772,12 +772,12 @@ mod top_level_fcn_def {
     #[test_case(make_gen_decl => Ok(true); "Generator decl")]
     #[test_case(make_async_decl => Ok(true); "Async Function decl")]
     #[test_case(make_async_gen_decl => Ok(true); "Async Generator decl")]
-    #[test_case(make_var_decl => serr("Not a top-level function def"); "Var decl")]
-    #[test_case(make_for_binding => serr("Not a top-level function def"); "for binding")]
+    #[test_case(make_var_decl => serr("Not a function def"); "Var decl")]
+    #[test_case(make_for_binding => serr("Not a function def"); "for binding")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
         let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
         FcnDef::try_from(vsd)
-            .map(|tlfd| match (tlfd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
                 (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
                 (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
                 (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
@@ -785,6 +785,76 @@ mod top_level_fcn_def {
                 _ => false,
             })
             .map_err(|err| err.to_string())
+    }
+
+    type MakerDeclResult = (
+        Option<Rc<FunctionDeclaration>>,
+        Option<Rc<GeneratorDeclaration>>,
+        Option<Rc<AsyncFunctionDeclaration>>,
+        Option<Rc<AsyncGeneratorDeclaration>>,
+        DeclPart,
+    );
+    fn decl_func() -> MakerDeclResult {
+        let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
+        (Some(fd.clone()), None, None, None, DeclPart::FunctionDeclaration(fd))
+    }
+    fn decl_gen() -> MakerDeclResult {
+        let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
+        (None, Some(gd.clone()), None, None, DeclPart::GeneratorDeclaration(gd))
+    }
+    fn decl_async() -> MakerDeclResult {
+        let afd = Maker::new("async function alice(bob) { return charlie(bob); }").async_function_declaration();
+        (None, None, Some(afd.clone()), None, DeclPart::AsyncFunctionDeclaration(afd))
+    }
+    fn decl_async_gen() -> MakerDeclResult {
+        let agd = Maker::new("async function *alice(bob) { return charlie(bob); }").async_generator_declaration();
+        (None, None, None, Some(agd.clone()), DeclPart::AsyncGeneratorDeclaration(agd))
+    }
+    fn decl_class() -> MakerDeclResult {
+        let cls = Maker::new("class alice {}").class_declaration();
+        (None, None, None, None, DeclPart::ClassDeclaration(cls))
+    }
+    fn decl_lex() -> MakerDeclResult {
+        let ld = Maker::new("let alice;").lexical_declaration();
+        (None, None, None, None, DeclPart::LexicalDeclaration(ld))
+    }
+    #[test_case(decl_func => Ok(true); "Function decl")]
+    #[test_case(decl_gen => Ok(true); "Generator decl")]
+    #[test_case(decl_async => Ok(true); "Async Function decl")]
+    #[test_case(decl_async_gen => Ok(true); "Async Generator decl")]
+    #[test_case(decl_class => serr("Not a function def"); "Class decl")]
+    #[test_case(decl_lex => serr("Not a function def"); "Lex decl")]
+    fn try_from_declpart(maker: fn() -> MakerDeclResult) -> Result<bool, String> {
+        let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, dp) = maker();
+        FcnDef::try_from(dp)
+            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+                (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
+                (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
+                (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
+                (FcnDef::AsyncGen(agd1), _, _, _, Some(agd2)) => Rc::ptr_eq(&agd1, &agd2),
+                _ => false,
+            })
+            .map_err(|err| err.to_string())
+    }
+
+    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => "fcn"; "function decl")]
+    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => "fcn"; "generator decl")]
+    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => "fcn"; "async function decl")]
+    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => "fcn"; "async generator decl")]
+    fn bound_name(part: FcnDef) -> String {
+        part.bound_name().to_string()
+    }
+
+    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => panics "not yet implemented"; "function decl")]
+    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => panics "not yet implemented"; "generator decl")]
+    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => panics "not yet implemented"; "async function decl")]
+    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => panics "not yet implemented"; "async generator decl")]
+    fn instantiate_function_object(part: FcnDef) {
+        let mut agent = test_agent();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let env = global_env as Rc<dyn EnvironmentRecord>;
+
+        part.instantiate_function_object(&mut agent, env, None);
     }
 }
 

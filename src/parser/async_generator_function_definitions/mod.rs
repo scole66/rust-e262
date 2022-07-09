@@ -266,6 +266,10 @@ impl AsyncGeneratorDeclaration {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
+    }
 }
 
 // AsyncGeneratorExpression :

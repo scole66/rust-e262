@@ -158,6 +158,10 @@ impl ClassDeclaration {
         };
         tail.early_errors(agent, errs, true);
     }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
+    }
 }
 
 // ClassExpression[Yield, Await] :

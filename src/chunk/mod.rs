@@ -76,7 +76,7 @@ impl Chunk {
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
         idx += 1;
         match insn {
-            Insn::String => {
+            Insn::String | Insn::CreateStrictImmutableLexBinding | Insn::CreatePermanentMutableLexBinding => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
             }
@@ -98,6 +98,9 @@ impl Chunk {
             | Insn::StrictResolve
             | Insn::Nop
             | Insn::InitializeReferencedBinding
+            | Insn::PopLexEnv
+            | Insn::PushNewLexEnv
+            | Insn::InitializeLexBinding
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
