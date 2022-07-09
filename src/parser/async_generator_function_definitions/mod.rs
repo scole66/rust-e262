@@ -238,9 +238,13 @@ impl AsyncGeneratorDeclaration {
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         match &self.ident {
-            None => vec![JSString::from("*default*")],
-            Some(node) => node.bound_names(),
+            None => JSString::from("*default*"),
+            Some(node) => node.bound_name(),
         }
     }
 
@@ -460,6 +464,10 @@ impl AsyncGeneratorBody {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        self.0.lexically_declared_names()
     }
 }
 

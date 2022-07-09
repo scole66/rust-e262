@@ -1542,6 +1542,16 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
         }
     }
 }
+impl TopLevelFcnDef {
+    fn bound_name(&self) -> JSString {
+        match self {
+            TopLevelFcnDef::Function(fd) => fd.bound_name(),
+            TopLevelFcnDef::Generator(gd) => gd.bound_name(),
+            TopLevelFcnDef::AsyncFun(afd) => afd.bound_name(),
+            TopLevelFcnDef::AsyncGen(agd) => agd.bound_name(),
+        }
+    }
+}
 enum TopLevelVarDecl {
     VarDecl(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),
@@ -1597,12 +1607,7 @@ pub fn global_declaration_instantiation(
     let mut functions_to_initialize = vec![];
     let mut declared_function_names = vec![];
     for d in var_declarations.iter().rev().cloned().filter_map(|decl| TopLevelFcnDef::try_from(decl).ok()) {
-        let func_name = match &d {
-            TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
-            TopLevelFcnDef::Generator(gd) => gd.bound_names()[0].clone(),
-            TopLevelFcnDef::AsyncFun(afd) => afd.bound_names()[0].clone(),
-            TopLevelFcnDef::AsyncGen(agd) => agd.bound_names()[0].clone(),
-        };
+        let func_name = d.bound_name();
         if !declared_function_names.contains(&func_name) {
             let fn_definable = env.can_declare_global_function(agent, &func_name)?;
             if !fn_definable {

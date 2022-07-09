@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::anyhow;
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -1926,6 +1927,35 @@ impl ScriptBody {
     }
 }
 
+enum FcnDef {
+    Function(Rc<FunctionDeclaration>),
+    Generator(Rc<GeneratorDeclaration>),
+    AsyncFun(Rc<AsyncFunctionDeclaration>),
+    AsyncGen(Rc<AsyncGeneratorDeclaration>),
+}
+impl TryFrom<VarScopeDecl> for FcnDef {
+    type Error = anyhow::Error;
+    fn try_from(src: VarScopeDecl) -> anyhow::Result<Self> {
+        match src {
+            VarScopeDecl::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
+            VarScopeDecl::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
+            VarScopeDecl::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
+            VarScopeDecl::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
+            _ => Err(anyhow!("Not a function def")),
+        }
+    }
+}
+impl FcnDef {
+    fn bound_name(&self) -> JSString {
+        match self {
+            FcnDef::Function(fd) => fd.bound_name(),
+            FcnDef::Generator(gd) => gd.bound_name(),
+            FcnDef::AsyncFun(afd) => afd.bound_name(),
+            FcnDef::AsyncGen(agd) => agd.bound_name(),
+        }
+    }
+}
+
 impl FunctionExpression {
     /// Generate code to create a potentially named function object
     ///
@@ -2182,6 +2212,36 @@ impl FunctionExpression {
         let has_parameter_expressions = formals.contains_expression();
         let var_names = code.var_declared_names();
         let var_declarations = code.var_scoped_declarations();
+        let lexical_names = code.lexically_declared_names();
+        let mut function_names = vec![];
+        let mut functions_to_initialize = vec![];
+        for d in var_declarations.iter().rev().cloned().filter_map(|decl| FcnDef::try_from(decl).ok()) {
+            let func_name = d.bound_name();
+            if !function_names.contains(&func_name) {
+                function_names.insert(0, func_name);
+                functions_to_initialize.insert(0, d);
+            }
+        }
+        let a = JSString::from("arguments");
+        // Note: this is currently written for FunctionExpressions. So ThisMode is never Lexical.
+        let arguments_object_needed = !parameter_names.contains(&a)
+            && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
+
+        if !strict && has_parameter_expressions {
+            chunk.op(Insn::PushNewLexEnv); // from a future PR! the code for block statements made this.
+        }
+
+        for param_name in parameter_names {
+            let sidx = chunk.add_to_string_pool(param_name)?;
+            chunk.op_plus_arg(
+                if has_duplicates {
+                    Insn::CreateInitializedPermanentLexMutableIfMissing
+                } else {
+                    Insn::CreatePermanentLexMutableIfMissing
+                },
+                sidx,
+            );
+        }
 
         todo!()
     }
