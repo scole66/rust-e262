@@ -309,7 +309,7 @@ case $name in
   WellKnownSymbols) data=($name well_known_symbols agent) ;;
   parse_script) data=($name $name agent) ;;
   TopLevelLexDecl) data=($name top_level_lex_decl agent) ;;
-  TopLevelFcnDef) data=($name top_level_fcn_def agent) ;;
+  FcnDef) data=($name top_level_fcn_def agent) ;;
   TopLevelVarDecl) data=($name top_level_var_decl agent) ;;
   global_declaration_instantiation) data=($name $name agent) ;;
   script_evaluation) data=($name $name agent) ;;

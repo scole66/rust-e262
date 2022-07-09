@@ -719,17 +719,17 @@ mod top_level_fcn_def {
     #[test]
     fn debug() {
         let fd = Maker::new("function alice(x) { return x * 2; }").function_declaration();
-        assert_ne!(format!("{:?}", TopLevelFcnDef::Function(fd)), "");
+        assert_ne!(format!("{:?}", FcnDef::Function(fd)), "");
     }
 
     #[test]
     fn clone() {
         let fd = Maker::new("function alice(x) { return x * 2; }").function_declaration();
-        let tlfd1 = TopLevelFcnDef::Function(fd);
+        let tlfd1 = FcnDef::Function(fd);
         let tlfd2 = tlfd1.clone();
 
         match (tlfd1, tlfd2) {
-            (TopLevelFcnDef::Function(fd1), TopLevelFcnDef::Function(fd2)) => {
+            (FcnDef::Function(fd1), FcnDef::Function(fd2)) => {
                 assert!(Rc::ptr_eq(&fd1, &fd2));
             }
             _ => unreachable!(),
@@ -776,12 +776,12 @@ mod top_level_fcn_def {
     #[test_case(make_for_binding => serr("Not a top-level function def"); "for binding")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
         let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
-        TopLevelFcnDef::try_from(vsd)
+        FcnDef::try_from(vsd)
             .map(|tlfd| match (tlfd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
-                (TopLevelFcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
-                (TopLevelFcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
-                (TopLevelFcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
-                (TopLevelFcnDef::AsyncGen(agd1), _, _, _, Some(agd2)) => Rc::ptr_eq(&agd1, &agd2),
+                (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
+                (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
+                (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
+                (FcnDef::AsyncGen(agd1), _, _, _, Some(agd2)) => Rc::ptr_eq(&agd1, &agd2),
                 _ => false,
             })
             .map_err(|err| err.to_string())

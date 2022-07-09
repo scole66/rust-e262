@@ -853,6 +853,13 @@ mod binding_identifier {
     fn location(src: &str) -> Location {
         Maker::new(src).yield_ok(false).await_ok(false).binding_identifier().location()
     }
+
+    #[test_case("named" => "named"; "named")]
+    #[test_case("yield" => "yield"; "yield kwd")]
+    #[test_case("await" => "await"; "await kwd")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).yield_ok(false).await_ok(false).binding_identifier().bound_name().into()
+    }
 }
 
 // LABEL IDENTIFIER

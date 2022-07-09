@@ -236,6 +236,12 @@ mod function_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).function_declaration().location()
     }
+
+    #[test_case("function named() {}" => "named"; "named")]
+    #[test_case("function (){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).function_declaration().bound_name().into()
+    }
 }
 
 // FUNCTION EXPRESSION
