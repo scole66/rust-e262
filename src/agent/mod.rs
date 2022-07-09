@@ -1353,13 +1353,13 @@ impl TryFrom<DeclPart> for TopLevelLexDecl {
     }
 }
 #[derive(Debug, Clone)]
-enum TopLevelFcnDef {
+enum FcnDef {
     Function(Rc<FunctionDeclaration>),
     Generator(Rc<GeneratorDeclaration>),
     AsyncFun(Rc<AsyncFunctionDeclaration>),
     AsyncGen(Rc<AsyncGeneratorDeclaration>),
 }
-impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
+impl TryFrom<VarScopeDecl> for FcnDef {
     type Error = anyhow::Error;
     fn try_from(src: VarScopeDecl) -> anyhow::Result<Self> {
         match src {
@@ -1425,12 +1425,12 @@ pub fn global_declaration_instantiation(
     let var_declarations = script.var_scoped_declarations();
     let mut functions_to_initialize = vec![];
     let mut declared_function_names = vec![];
-    for d in var_declarations.iter().rev().cloned().filter_map(|decl| TopLevelFcnDef::try_from(decl).ok()) {
+    for d in var_declarations.iter().rev().cloned().filter_map(|decl| FcnDef::try_from(decl).ok()) {
         let func_name = match &d {
-            TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
-            TopLevelFcnDef::Generator(gd) => gd.bound_names()[0].clone(),
-            TopLevelFcnDef::AsyncFun(afd) => afd.bound_names()[0].clone(),
-            TopLevelFcnDef::AsyncGen(agd) => agd.bound_names()[0].clone(),
+            FcnDef::Function(fd) => fd.bound_names()[0].clone(),
+            FcnDef::Generator(gd) => gd.bound_names()[0].clone(),
+            FcnDef::AsyncFun(afd) => afd.bound_names()[0].clone(),
+            FcnDef::AsyncGen(agd) => agd.bound_names()[0].clone(),
         };
         if !declared_function_names.contains(&func_name) {
             let fn_definable = env.can_declare_global_function(agent, &func_name)?;
@@ -1478,19 +1478,19 @@ pub fn global_declaration_instantiation(
     }
     for f in functions_to_initialize {
         let (name, func_obj) = match f {
-            TopLevelFcnDef::Function(fd) => (
+            FcnDef::Function(fd) => (
                 fd.bound_names()[0].clone(),
                 fd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
             ),
-            TopLevelFcnDef::Generator(gd) => (
+            FcnDef::Generator(gd) => (
                 gd.bound_names()[0].clone(),
                 gd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
             ),
-            TopLevelFcnDef::AsyncFun(afd) => (
+            FcnDef::AsyncFun(afd) => (
                 afd.bound_names()[0].clone(),
                 afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
             ),
-            TopLevelFcnDef::AsyncGen(agd) => (
+            FcnDef::AsyncGen(agd) => (
                 agd.bound_names()[0].clone(),
                 agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
             ),
