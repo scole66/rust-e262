@@ -403,6 +403,12 @@ mod generator_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).generator_declaration().location()
     }
+
+    #[test_case("function *named() {}" => "named"; "named")]
+    #[test_case("function *(){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).generator_declaration().bound_name().into()
+    }
 }
 
 // GENERATOR EXPRESSION

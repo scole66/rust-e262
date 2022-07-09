@@ -155,6 +155,12 @@ mod class_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).class_declaration().location()
     }
+
+    #[test_case("class named {}" => "named"; "named")]
+    #[test_case("class {}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).class_declaration().bound_name().into()
+    }
 }
 
 // CLASS EXPRESSION

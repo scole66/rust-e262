@@ -92,9 +92,13 @@ impl ClassDeclaration {
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         match self {
-            ClassDeclaration::Named { ident, .. } => ident.bound_names(),
-            ClassDeclaration::Unnamed { .. } => vec![JSString::from("*default*")],
+            ClassDeclaration::Named { ident, .. } => ident.bound_name(),
+            ClassDeclaration::Unnamed { .. } => JSString::from("*default*"),
         }
     }
 

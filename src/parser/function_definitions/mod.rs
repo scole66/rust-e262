@@ -112,9 +112,13 @@ impl FunctionDeclaration {
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         match &self.ident {
-            None => vec![JSString::from("*default*")],
-            Some(node) => node.bound_names(),
+            None => JSString::from("*default*"),
+            Some(node) => node.bound_name(),
         }
     }
 
