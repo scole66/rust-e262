@@ -530,6 +530,12 @@ mod async_generator_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).async_generator_declaration().location()
     }
+
+    #[test_case("async function *named() {}" => "named"; "named")]
+    #[test_case("async function *(){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).async_generator_declaration().bound_name().into()
+    }
 }
 
 // ASYNC GENERATOR EXPRESSION

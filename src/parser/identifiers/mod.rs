@@ -540,11 +540,15 @@ impl BindingIdentifier {
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         use BindingIdentifier::*;
         match self {
-            Identifier { identifier, .. } => vec![identifier.string_value()],
-            Yield { .. } => vec![JSString::from("yield")],
-            Await { .. } => vec![JSString::from("await")],
+            Identifier { identifier, .. } => identifier.string_value(),
+            Yield { .. } => JSString::from("yield"),
+            Await { .. } => JSString::from("await"),
         }
     }
 
