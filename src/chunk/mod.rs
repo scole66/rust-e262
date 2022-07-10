@@ -1,5 +1,7 @@
 use super::*;
+use ahash::AHashSet;
 use anyhow::anyhow;
+use itertools::Itertools;
 use num::bigint::BigInt;
 use std::rc::Rc;
 
@@ -11,6 +13,7 @@ pub struct Chunk {
     pub opcodes: Vec<Opcode>,
     pub floats: Vec<f64>,
     pub bigints: Vec<Rc<BigInt>>,
+    pub label_sets: Vec<AHashSet<JSString>>,
 }
 
 impl Chunk {
@@ -28,6 +31,11 @@ impl Chunk {
 
     pub fn add_to_bigint_pool(&mut self, n: Rc<BigInt>) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.bigints, n, "big ints")
+    }
+
+    pub fn add_to_label_set_pool(&mut self, labels: &[JSString]) -> anyhow::Result<u16> {
+        let label_set = labels.iter().cloned().collect::<AHashSet<JSString>>();
+        Self::add_to_pool(&mut self.label_sets, label_set, "label sets")
     }
 
     fn add_to_pool<Item>(collection: &mut Vec<Item>, item: Item, collection_name: &str) -> anyhow::Result<u16>
@@ -61,6 +69,14 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
+    pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
+        self.opcodes.push(opcode.into());
+        let delta = location as isize - self.opcodes.len() as isize - 1;
+        let offset = i16::try_from(delta)?;
+        self.opcodes.push(offset as u16);
+        Ok(())
+    }
+
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {
@@ -71,22 +87,31 @@ impl Chunk {
         Ok(())
     }
 
+    pub fn pos(&self) -> usize {
+        self.opcodes.len()
+    }
+
     pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
         let mut idx = starting_idx;
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
         idx += 1;
         match insn {
-            Insn::String | Insn::CreateStrictImmutableLexBinding | Insn::CreatePermanentMutableLexBinding => {
+            Insn::String
+            | Insn::CreateStrictImmutableLexBinding
+            | Insn::CreatePermanentMutableLexBinding
+            | Insn::TargetedContinue
+            | Insn::TargetedBreak
+            | Insn::HandleTargetedBreak => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<20}{}", insn, self.strings[arg]))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.floats[arg]))
+                (2, format!("    {:<20}{}", insn, self.floats[arg]))
             }
             Insn::Bigint => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
+                (2, format!("    {:<20}{}", insn, self.bigints[arg]))
             }
             Insn::Unwind => {
                 let arg = self.opcodes[idx] as usize;
@@ -154,15 +179,26 @@ impl Chunk {
             | Insn::BitwiseOr
             | Insn::BitwiseXor
             | Insn::Throw
+            | Insn::HandleEmptyBreak
+            | Insn::CoalesceValue
+            | Insn::Continue
+            | Insn::Break
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
             | Insn::JumpIfFalse
             | Insn::JumpIfTrue
+            | Insn::JumpPopIfFalse
+            | Insn::JumpPopIfTrue
             | Insn::JumpIfNotNullish => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
+            }
+            Insn::LoopContinues => {
+                let label_set_idx = self.opcodes[idx] as usize;
+                let label_set = self.label_sets[label_set_idx].iter().join(", ");
+                (2, format!("    {:<20}[{}]", insn, label_set))
             }
         }
     }
