@@ -2170,8 +2170,8 @@ mod statement {
         "JUMP 1",
         "PUT_VALUE",
     ]); "non-strict var stmt")]
-    #[test_case(";", true => panics "not yet implemented"; "empty")]
-    #[test_case("if (true) a=3;", true => panics "not yet implemented"; "if statement")]
+    #[test_case(";", true => svec(&["EMPTY"]); "empty")]
+    #[test_case("if (true) true;", true => svec(&["TRUE", "JUMP_IF_FALSE 4", "POP", "TRUE", "JUMP 2", "POP", "UNDEFINED", "UNDEFINED", "SWAP", "UPDATE_EMPTY"]); "if statement")]
     #[test_case("for (i=0;i<10;i++) log(i);", true => panics "not yet implemented"; "breakable statement")]
     #[test_case("continue;", true => panics "not yet implemented"; "continue statement")]
     #[test_case("break;", true => panics "not yet implemented"; "break statement")]
@@ -2804,5 +2804,83 @@ mod fcn_def {
         let mut c = Chunk::new("x");
 
         part.compile_fo_instantiation(&mut c, strict, &src).unwrap();
+    }
+}
+
+mod empty_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(";", None => (svec(&["EMPTY"]), false, false); "typical")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
+        let node = Maker::new(src).empty_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let status = node.compile(&mut c);
+        (
+            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+            status.maybe_abrupt(),
+            status.maybe_ref(),
+        )
+    }
+}
+
+mod if_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("if (1) 2;", true, None => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "JUMP_IF_FALSE 5",
+        "POP",
+        "FLOAT 1 (2)",
+        "JUMP 2",
+        "POP",
+        "UNDEFINED",
+        "UNDEFINED",
+        "SWAP",
+        "UPDATE_EMPTY"
+    ]), false, false)); "no else; only literals")]
+    #[test_case("if (a) b; else c;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 21",
+        "JUMP_IF_FALSE 9",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 12",
+        "JUMP 7",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "UNDEFINED",
+        "SWAP",
+        "UPDATE_EMPTY"
+    ]), true, false)); "with else; all potentially fail")]
+    #[test_case("if (a) 1;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compile fail")]
+    #[test_case("if (true) a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "s1 compile fail")]
+    #[test_case("if (true) false; else a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "s2 compile fail")]
+    #[test_case("if (true) @@@; else false;", true, None => serr("out of range integral type conversion attempted"); "true path too large")]
+    #[test_case("if (true) false; else @@@;", true, None => serr("out of range integral type conversion attempted"); "false path too large")]
+    #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
+    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")] // 1990
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).if_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }

@@ -187,3 +187,20 @@ mod exponentiation_expression {
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
 }
+
+mod if_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("if (true) 3;" => vok(3); "no else; true path")]
+    #[test_case("if (false) 3;" => vok(ECMAScriptValue::Undefined); "no else; false path")]
+    #[test_case("if (true) 1; else -1;" => vok(1); "has else; true path")]
+    #[test_case("if (false) 1; else -1;" => vok(-1); "has else; false path")]
+    #[test_case("if (a) 1; else -1;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in expr")]
+    #[test_case("if (true) a; else -1;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in stmt1")]
+    #[test_case("if (false) 1; else a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in stmt2")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}
