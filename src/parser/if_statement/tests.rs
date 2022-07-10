@@ -273,4 +273,16 @@ mod if_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).if_statement().location()
     }
+
+    #[test_case("if (expr) first;" => "first ;"; "without else")]
+    #[test_case("if (expr) first; else second;" => "first ;"; "with else")]
+    fn first_statement(src: &str) -> String {
+        Maker::new(src).if_statement().first_statement().to_string()
+    }
+
+    #[test_case("if (expr) first;" => "expr"; "without else")]
+    #[test_case("if (expr) first; else second;" => "expr"; "with else")]
+    fn expression(src: &str) -> String {
+        Maker::new(src).if_statement().expression().to_string()
+    }
 }
