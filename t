@@ -99,7 +99,9 @@ case $name in
   CompilerVariableDeclaration) data=(parser::declarations_and_variables::VariableDeclaration variable_declaration:: compiler) ;;
   CompilerThrowStatement) data=(parser::throw_statement::ThrowStatement throw_statement compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
-  CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
+  CompilerScriptBody) data=(parser::scripts::ScriptBody script_body compiler) ;;
+  CompilerEmptyStatement) data=(parser::empty_statement::EmptyStatement empty_statement compiler) ;;
+  CompilerIfStatement) data=(parser::if_statement::IfStatement if_statement compiler) ;;
   RefResult) data=($name ref_result compiler) ;;
   AbruptResult) data=($name abrupt_result compiler) ;;
   AlwaysAbruptResult) data=($name always_abrupt_result compiler) ;;
@@ -206,6 +208,8 @@ case $name in
   BindingIdentifier) data=($name binding_identifier parser::identifiers) ;;
   LabelIdentifier) data=($name label_identifier parser::identifiers) ;;
   IfStatement) data=($name if_statement parser::if_statement) ;;
+  IfStatement-expression) data=(IfStatement::expression if_statement::expression parser::if_statement) ;;
+  IfStatement-first_statement) data=(IfStatement::first_statement if_statement::first_statement parser::if_statement) ;;
   IterationStatement) data=($name iteration_statement parser::iteration_statements) ;;
   DoWhileStatement) data=($name do_while_statement parser::iteration_statements) ;;
   WhileStatement) data=($name while_statement parser::iteration_statements) ;;

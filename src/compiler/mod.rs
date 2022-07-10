@@ -2067,7 +2067,7 @@ impl IfStatement {
             chunk.fixup(mark)?;
         }
         if let Some(mark) = third_exit {
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).expect("Jump too short to overflow");
         }
 
         Ok(AbruptResult::from(
