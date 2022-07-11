@@ -1748,22 +1748,14 @@ impl BreakableStatement {
         text: &str,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
-        match self {
-            BreakableStatement::Iteration(iter) => {
-                let state = iter.loop_compile(chunk, strict, text, label_set)?;
-                if state.maybe_abrupt() {
-                    chunk.op(Insn::HandleEmptyBreak);
-                }
-                Ok(state)
-            }
-            BreakableStatement::Switch(swtch) => {
-                let state = swtch.compile(chunk, strict, text)?;
-                if state.maybe_abrupt() {
-                    chunk.op(Insn::HandleEmptyBreak);
-                }
-                Ok(state)
-            }
+        let state = match self {
+            BreakableStatement::Iteration(iter) => iter.loop_compile(chunk, strict, text, label_set),
+            BreakableStatement::Switch(swtch) => swtch.compile(chunk, strict, text),
+        }?;
+        if state.maybe_abrupt() {
+            chunk.op(Insn::HandleEmptyBreak);
         }
+        Ok(state)
     }
 }
 

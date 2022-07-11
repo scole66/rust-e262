@@ -107,6 +107,8 @@ case $name in
   CompilerBreakStatement) data=(parser::break_statement::BreakStatement break_statement compiler) ;;
   CompilerContinueStatement) data=(parser::continue_statement::ContinueStatement continue_statement compiler) ;;
   CompilerBreakableStatement) data=(parser::statements_and_declarations::BreakableStatement breakable_statement compiler) ;;
+  CompilerBreakableStatement-compile) data=(parser::statements_and_declarations::BreakableStatement::compile breakable_statement::compile compiler) ;;
+  CompilerBreakableStatement-labelled_compile) data=(parser::statements_and_declarations::BreakableStatement::labelled_compile breakable_statement::labelled_compile compiler) ;;
   CompilerIterationStatement) data=(parser::iteration_statements::IterationStatement iteration_statement compiler) ;;
   CompilerDoWhileStatement) data=(parser::iteration_statements::DoWhileStatement do_while_statement compiler) ;;
   CompilerSwitchStatement) data=(parser::switch_statement::SwitchStatement switch_statement compiler) ;;

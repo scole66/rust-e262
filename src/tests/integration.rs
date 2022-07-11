@@ -239,6 +239,18 @@ mod labelled_statement {
             } while (true);
         } while (row <= limit);
         result;" => vok("Result: (0, 0) (1, 0) (2, 0) (0, 1) (1, 1) (2, 1) (0, 2) (1, 2) (2, 2)"); "labelled continue")]
+    #[test_case(r"
+        let result = '';
+        outer_block: {
+            inner_block: {
+                result = result + '1 ';
+                break outer_block; // breaks out of both inner_block and outer_block
+                result = result + ':-('; // skipped
+            }
+            result = result + ' 2'; // skipped
+        }
+        result;
+    " => vok("1 "); "loopless targeted break")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         let mut agent = test_agent();
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
