@@ -92,7 +92,11 @@ impl Chunk {
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
         idx += 1;
         match insn {
-            Insn::String | Insn::CreateStrictImmutableLexBinding | Insn::CreatePermanentMutableLexBinding => {
+            Insn::String
+            | Insn::CreateStrictImmutableLexBinding
+            | Insn::CreatePermanentMutableLexBinding
+            | Insn::CreateInitializedPermanentMutableLexIfMissing
+            | Insn::CreatePermanentMutableLexIfMissing => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
             }

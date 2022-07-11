@@ -47,6 +47,8 @@ pub enum Insn {
     PopLexEnv,
     CreateStrictImmutableLexBinding,
     CreatePermanentMutableLexBinding,
+    CreateInitializedPermanentMutableLexIfMissing,
+    CreatePermanentMutableLexIfMissing,
     InitializeLexBinding,
     Object,
     CreateDataProperty,
@@ -129,6 +131,8 @@ impl fmt::Display for Insn {
             Insn::PopLexEnv => "PLE",
             Insn::CreateStrictImmutableLexBinding => "CSILB",
             Insn::CreatePermanentMutableLexBinding => "CPMLB",
+            Insn::CreateInitializedPermanentMutableLexIfMissing => "CIPMLBM",
+            Insn::CreatePermanentMutableLexIfMissing => "CPMLBM",
             Insn::InitializeLexBinding => "ILB",
             Insn::Object => "OBJECT",
             Insn::CreateDataProperty => "CR_PROP",
@@ -2341,9 +2345,9 @@ impl FunctionExpression {
             let sidx = chunk.add_to_string_pool(param_name)?;
             chunk.op_plus_arg(
                 if has_duplicates {
-                    Insn::CreateInitializedPermanentLexMutableIfMissing
+                    Insn::CreateInitializedPermanentMutableLexIfMissing
                 } else {
-                    Insn::CreatePermanentLexMutableIfMissing
+                    Insn::CreatePermanentMutableLexIfMissing
                 },
                 sidx,
             );

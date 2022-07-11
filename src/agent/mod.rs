@@ -199,7 +199,7 @@ impl Agent {
             n => self.execution_context_stack[n - 1].private_environment.clone(),
         }
     }
-    
+
     pub fn set_lexical_environment(&mut self, env: Option<Rc<dyn EnvironmentRecord>>) {
         match self.execution_context_stack.len() {
             0 => (),
@@ -712,6 +712,37 @@ impl Agent {
                     let name = chunk.strings[string_idx].clone();
 
                     env.create_mutable_binding(self, name, false).expect("binding should not already exist");
+                }
+                Insn::CreatePermanentMutableLexIfMissing => {
+                    //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
+                    //  2. If alreadyDeclared is false, then
+                    //        a. Perform ! env.CreateMutableBinding(paramName, false).
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = &chunk.strings[string_idx];
+
+                    let already_declared = env.has_binding(self, name).expect("basic environments can't fail this");
+                    if !already_declared {
+                        env.create_mutable_binding(self, name.clone(), false).expect("binding does not already exist");
+                    }
+                }
+                Insn::CreateInitializedPermanentMutableLexIfMissing => {
+                    //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
+                    //  2. If alreadyDeclared is false, then
+                    //      a. Perform ! env.CreateMutableBinding(paramName, false).
+                    //      b. Perform ! env.InitializeBinding(paramName, undefined).
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = &chunk.strings[string_idx];
+
+                    let already_declared = env.has_binding(self, name).expect("basic environments can't fail this");
+                    if !already_declared {
+                        env.create_mutable_binding(self, name.clone(), false).expect("binding does not already exist");
+                        env.initialize_binding(self, name, ECMAScriptValue::Undefined)
+                            .expect("binding is not previously initialized");
+                    }
                 }
                 Insn::InitializeLexBinding => {
                     let env = self.current_lexical_environment().expect("lex environment must exist");
