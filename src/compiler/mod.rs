@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::anyhow;
+use anyhow;
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -2059,35 +2059,6 @@ impl ScriptBody {
     pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         let strict = self.contains_use_strict();
         self.statement_list.compile(chunk, strict, text)
-    }
-}
-
-enum FcnDef {
-    Function(Rc<FunctionDeclaration>),
-    Generator(Rc<GeneratorDeclaration>),
-    AsyncFun(Rc<AsyncFunctionDeclaration>),
-    AsyncGen(Rc<AsyncGeneratorDeclaration>),
-}
-impl TryFrom<VarScopeDecl> for FcnDef {
-    type Error = anyhow::Error;
-    fn try_from(src: VarScopeDecl) -> anyhow::Result<Self> {
-        match src {
-            VarScopeDecl::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
-            VarScopeDecl::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
-            VarScopeDecl::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
-            VarScopeDecl::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
-            _ => Err(anyhow!("Not a function def")),
-        }
-    }
-}
-impl FcnDef {
-    fn bound_name(&self) -> JSString {
-        match self {
-            FcnDef::Function(fd) => fd.bound_name(),
-            FcnDef::Generator(gd) => gd.bound_name(),
-            FcnDef::AsyncFun(afd) => afd.bound_name(),
-            FcnDef::AsyncGen(agd) => agd.bound_name(),
-        }
     }
 }
 

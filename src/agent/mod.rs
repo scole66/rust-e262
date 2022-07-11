@@ -1596,7 +1596,7 @@ impl TryFrom<VarScopeDecl> for FcnDef {
 
 impl TryFrom<DeclPart> for FcnDef {
     type Error = anyhow::Error;
-    fn try_from(value: DeclPart) -> Result<Self, Self::Error> {
+    fn try_from(value: DeclPart) -> anyhow::Result<Self> {
         match value {
             DeclPart::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
             DeclPart::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
