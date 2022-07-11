@@ -2035,9 +2035,8 @@ impl IfStatement {
             first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }
         // Stack: exprValue
-        let expr_false = chunk.op_jump(Insn::JumpIfFalse);
+        let expr_false = chunk.op_jump(Insn::JumpPopIfFalse);
         // "True" path
-        chunk.op(Insn::Pop);
         let true_path_status = self.first_statement().compile(chunk, strict, text)?;
         if true_path_status.maybe_abrupt() {
             second_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -2045,7 +2044,6 @@ impl IfStatement {
         let true_complete = chunk.op_jump(Insn::Jump);
         // "False" path
         chunk.fixup(expr_false)?;
-        chunk.op(Insn::Pop);
         let false_path_status = match self {
             IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, text)?,
             IfStatement::WithoutElse(..) => {
@@ -2208,11 +2206,11 @@ impl LabelledStatement {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let label = self.identifier.string_value();
-        let str_idx = chunk.add_to_string_pool(label.clone())?;
         let mut label_set = label_set.to_vec();
-        label_set.push(label);
+        label_set.push(label.clone());
         let item_status = self.item.labelled_compile(chunk, strict, text, &label_set)?;
         if item_status.maybe_abrupt() {
+            let str_idx = chunk.add_to_string_pool(label)?;
             chunk.op_plus_arg(Insn::HandleTargetedBreak, str_idx);
         }
         Ok(item_status)

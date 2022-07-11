@@ -85,6 +85,16 @@ mod insn {
     #[test_case(Insn::CreateStrictImmutableLexBinding => "CSILB"; "CreateStrictImmutableLexBinding instruction")]
     #[test_case(Insn::CreatePermanentMutableLexBinding => "CPMLB"; "CreatePermanentMutableLexBinding instruction")]
     #[test_case(Insn::InitializeLexBinding => "ILB"; "InitializeLexBinding instruction")]
+    #[test_case(Insn::JumpPopIfTrue => "JUMPPOP_TRUE"; "JumpPopIfTrue instruction")]
+    #[test_case(Insn::JumpPopIfFalse => "JUMPPOP_FALSE"; "JumpPopIfFalse instruction")]
+    #[test_case(Insn::HandleEmptyBreak => "HEB"; "HandleEmptyBreak instruction")]
+    #[test_case(Insn::HandleTargetedBreak => "HTB"; "HandleTargetedBreak instruction")]
+    #[test_case(Insn::CoalesceValue => "COALESCE"; "CoalesceValue instruction")]
+    #[test_case(Insn::LoopContinues => "LOOP_CONT"; "LoopContinues instruction")]
+    #[test_case(Insn::Continue => "CONTINUE"; "Continue instruction")]
+    #[test_case(Insn::TargetedContinue => "CONTINUE_WITH"; "TargetedContinue instruction")]
+    #[test_case(Insn::Break => "BREAK"; "Break instruction")]
+    #[test_case(Insn::TargetedBreak => "BREAK_FROM"; "TargetedBreak instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -2171,13 +2181,13 @@ mod statement {
         "PUT_VALUE",
     ]); "non-strict var stmt")]
     #[test_case(";", true => svec(&["EMPTY"]); "empty")]
-    #[test_case("if (true) true;", true => svec(&["TRUE", "JUMP_IF_FALSE 4", "POP", "TRUE", "JUMP 2", "POP", "UNDEFINED", "UNDEFINED", "SWAP", "UPDATE_EMPTY"]); "if statement")]
-    #[test_case("for (i=0;i<10;i++) log(i);", true => panics "not yet implemented"; "breakable statement")]
-    #[test_case("continue;", true => panics "not yet implemented"; "continue statement")]
-    #[test_case("break;", true => panics "not yet implemented"; "break statement")]
+    #[test_case("if (true) true;", true => svec(&["TRUE", "JUMPPOP_FALSE 3", "TRUE", "JUMP 1", "UNDEFINED", "UNDEFINED", "SWAP", "UPDATE_EMPTY"]); "if statement")]
+    #[test_case("do ; while (false);", true => svec(&["UNDEFINED", "EMPTY", "COALESCE", "FALSE", "JUMPPOP_TRUE -5"]); "breakable statement")]
+    #[test_case("continue;", true => svec(&["CONTINUE"]); "continue statement")]
+    #[test_case("break;", true => svec(&["BREAK"]); "break statement")]
     #[test_case("return;", true => panics "not yet implemented"; "return statement")]
     #[test_case("with (a) {}", true => panics "not yet implemented"; "with statement")]
-    #[test_case("a: b();", true => panics "not yet implemented"; "labelled statement")]
+    #[test_case("a: true;", true => svec(&["TRUE"]); "labelled statement")]
     #[test_case("throw a;", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
@@ -2199,6 +2209,53 @@ mod statement {
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+
+    #[test_case("do break alpha; while (false)", &["alpha", "beta"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK_FROM 0 (alpha)",
+        "LOOP_CONT [alpha, beta]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -10",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB"
+    ]), true, false)); "breakable stmt")]
+    #[test_case("true;", &["alpha", "beta"], true, None => Ok((svec(&["TRUE"]), false, false)); "simple statement")]
+    #[test_case("gamma: do break alpha; while(false)", &["alpha", "beta"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK_FROM 0 (alpha)",
+        "LOOP_CONT [alpha, beta, gamma]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -10",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+        "HTB 1 (gamma)",
+    ]), true, false)); "labelled statement")]
+    fn labelled_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.labelled_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -2831,11 +2888,9 @@ mod if_statement {
 
     #[test_case("if (1) 2;", true, None => Ok((svec(&[
         "FLOAT 0 (1)",
-        "JUMP_IF_FALSE 5",
-        "POP",
+        "JUMPPOP_FALSE 4",
         "FLOAT 1 (2)",
-        "JUMP 2",
-        "POP",
+        "JUMP 1",
         "UNDEFINED",
         "UNDEFINED",
         "SWAP",
@@ -2845,15 +2900,13 @@ mod if_statement {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 21",
-        "JUMP_IF_FALSE 9",
-        "POP",
+        "JUMP_IF_ABRUPT 19",
+        "JUMPPOP_FALSE 8",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 12",
-        "JUMP 7",
-        "POP",
+        "JUMP_IF_ABRUPT 11",
+        "JUMP 6",
         "STRING 2 (c)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2868,7 +2921,7 @@ mod if_statement {
     #[test_case("if (true) @@@; else false;", true, None => serr("out of range integral type conversion attempted"); "true path too large")]
     #[test_case("if (true) false; else @@@;", true, None => serr("out of range integral type conversion attempted"); "false path too large")]
     #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
-    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")] // 1990
+    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).if_statement();
         let mut c =

@@ -103,15 +103,15 @@ impl Chunk {
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{}", insn, self.strings[arg]))
+                (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{}", insn, self.floats[arg]))
+                (2, format!("    {:<20}{} ({})", insn, arg, self.floats[arg]))
             }
             Insn::Bigint => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{}", insn, self.bigints[arg]))
+                (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind => {
                 let arg = self.opcodes[idx] as usize;
@@ -197,8 +197,9 @@ impl Chunk {
             }
             Insn::LoopContinues => {
                 let label_set_idx = self.opcodes[idx] as usize;
-                let label_set = self.label_sets[label_set_idx].iter().join(", ");
-                (2, format!("    {:<20}[{}]", insn, label_set))
+                let mut label_set = self.label_sets[label_set_idx].iter().collect::<Vec<&JSString>>();
+                label_set.sort();
+                (2, format!("    {:<20}[{}]", insn, label_set.iter().join(", ")))
             }
         }
     }

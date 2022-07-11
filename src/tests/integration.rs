@@ -204,3 +204,43 @@ mod if_statement {
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
 }
+
+mod do_while {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("do { 1; } while (false);" => vok(1); "runs once")]
+    #[test_case("let idx=0, result=''; do { result = result + idx++; } while (idx < 10);" => vok("0123456789"); "proof of iteration")]
+    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx >= 5) break; } while (idx < 10);" => vok("01234"); "break works")]
+    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx % 2 == 0) continue; result = result + '-'; } while (idx < 10);" => vok("0-12-34-56-78-9"); "continue works")]
+    #[test_case("do a; while (false);" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in stmt")]
+    #[test_case("do null; while (a);" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in expr")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}
+
+mod labelled_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(r"
+        const limit=2;
+        let row=0, result='Result:';
+        outer: do {
+            let col = 0;
+            const in_row = row++;
+            inner: do {
+                result = result + ' (' + col + ', ' + in_row + ')';
+                col ++;
+                if (col > limit)
+                    continue outer;
+            } while (true);
+        } while (row <= limit);
+        result;" => vok("Result: (0, 0) (1, 0) (2, 0) (0, 1) (1, 1) (2, 1) (0, 2) (1, 2) (2, 2)"); "labelled continue")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}
