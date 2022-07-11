@@ -80,6 +80,11 @@ mod insn {
     #[test_case(Insn::BitwiseAnd => "AND"; "BitwiseAnd instruction")]
     #[test_case(Insn::BitwiseOr => "OR"; "BitwiseOr instruction")]
     #[test_case(Insn::BitwiseXor => "XOR"; "BitwiseXor instruction")]
+    #[test_case(Insn::PushNewLexEnv => "PNLE"; "PushNewLexEnv instruction")]
+    #[test_case(Insn::PopLexEnv => "PLE"; "PopLexEnv instruction")]
+    #[test_case(Insn::CreateStrictImmutableLexBinding => "CSILB"; "CreateStrictImmutableLexBinding instruction")]
+    #[test_case(Insn::CreatePermanentMutableLexBinding => "CPMLB"; "CreatePermanentMutableLexBinding instruction")]
+    #[test_case(Insn::InitializeLexBinding => "ILB"; "InitializeLexBinding instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -2140,7 +2145,7 @@ mod statement {
         "RESOLVE",
         "GET_VALUE",
     ]); "non-strict expr stmt")]
-    #[test_case("{}", true => panics "not yet implemented"; "block")]
+    #[test_case("{}", true => svec(&["EMPTY"]); "block")]
     #[test_case("var a=b;", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
@@ -2165,8 +2170,8 @@ mod statement {
         "JUMP 1",
         "PUT_VALUE",
     ]); "non-strict var stmt")]
-    #[test_case(";", true => panics "not yet implemented"; "empty")]
-    #[test_case("if (true) a=3;", true => panics "not yet implemented"; "if statement")]
+    #[test_case(";", true => svec(&["EMPTY"]); "empty")]
+    #[test_case("if (true) true;", true => svec(&["TRUE", "JUMP_IF_FALSE 4", "POP", "TRUE", "JUMP 2", "POP", "UNDEFINED", "UNDEFINED", "SWAP", "UPDATE_EMPTY"]); "if statement")]
     #[test_case("for (i=0;i<10;i++) log(i);", true => panics "not yet implemented"; "breakable statement")]
     #[test_case("continue;", true => panics "not yet implemented"; "continue statement")]
     #[test_case("break;", true => panics "not yet implemented"; "break statement")]
@@ -2385,6 +2390,97 @@ mod lexical_binding {
     #[test_case("{a}=b", true, None => panics "not yet implemented"; "pattern binding")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).lexical_binding();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod block_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{ a; }", true, None => Ok((svec(&["PNLE", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no decl/strict")]
+    #[test_case("{ a; }", false, None => Ok((svec(&["PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no decl/non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).block_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod block {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}", true, None => Ok((svec(&["EMPTY"]), false, false)); "empty block")]
+    #[test_case("{ 1; }", true, None => Ok((svec(&["PNLE", "FLOAT 0 (1)", "PLE"]), false, false)); "all literal")]
+    #[test_case("{ const zero=0; let one=1; }", true, None => Ok((svec(&[
+        "PNLE",
+        "CSILB 0 (zero)",
+        "CPMLB 1 (one)",
+        "STRING 0 (zero)",
+        "STRICT_RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (one)",
+        "STRICT_RESOLVE",
+        "FLOAT 1 (1)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+        "UPDATE_EMPTY",
+        "PLE"
+    ]), true, false)); "decls/strict")]
+    #[test_case("{ const zero=0; let one=1; }", false, None => Ok((svec(&[
+        "PNLE",
+        "CSILB 0 (zero)",
+        "CPMLB 1 (one)",
+        "STRING 0 (zero)",
+        "RESOLVE",
+        "FLOAT 0 (0)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 1 (one)",
+        "RESOLVE",
+        "FLOAT 1 (1)",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+        "UPDATE_EMPTY",
+        "PLE"
+    ]), true, false)); "decls/non-strict")]
+    #[test_case("{ let a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in decl formation")]
+    #[test_case("{ function a() {} }", true, None => panics "not yet implemented"; "function def")]
+    #[test_case("{ a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in statement compilation")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).block();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict, src)
@@ -2675,5 +2771,116 @@ mod script_body {
         let mut c = Chunk::new("x");
         node.compile(&mut c, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod fcn_def {
+    use super::*;
+    use test_case::test_case;
+
+    fn fcndecl() -> (FcnDef, String) {
+        let src = "function a() {}";
+        (FcnDef::Function(Maker::new(src).function_declaration()), src.to_string())
+    }
+    fn gendecl() -> (FcnDef, String) {
+        let src = "function *a() {}";
+        (FcnDef::Generator(Maker::new(src).generator_declaration()), src.to_string())
+    }
+    fn afcndecl() -> (FcnDef, String) {
+        let src = "async function a() {}";
+        (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.to_string())
+    }
+    fn agendecl() -> (FcnDef, String) {
+        let src = "async function *a() {}";
+        (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.to_string())
+    }
+
+    #[test_case(fcndecl, true => panics "not yet implemented"; "function decl")]
+    #[test_case(gendecl, true => panics "not yet implemented"; "generator decl")]
+    #[test_case(afcndecl, true => panics "not yet implemented"; "async function decl")]
+    #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
+    fn compile_fo_instantiation(maker: fn() -> (FcnDef, String), strict: bool) {
+        let (part, src) = maker();
+        let mut c = Chunk::new("x");
+
+        part.compile_fo_instantiation(&mut c, strict, &src).unwrap();
+    }
+}
+
+mod empty_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(";", None => (svec(&["EMPTY"]), false, false); "typical")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
+        let node = Maker::new(src).empty_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let status = node.compile(&mut c);
+        (
+            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+            status.maybe_abrupt(),
+            status.maybe_ref(),
+        )
+    }
+}
+
+mod if_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("if (1) 2;", true, None => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "JUMP_IF_FALSE 5",
+        "POP",
+        "FLOAT 1 (2)",
+        "JUMP 2",
+        "POP",
+        "UNDEFINED",
+        "UNDEFINED",
+        "SWAP",
+        "UPDATE_EMPTY"
+    ]), false, false)); "no else; only literals")]
+    #[test_case("if (a) b; else c;", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 21",
+        "JUMP_IF_FALSE 9",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 12",
+        "JUMP 7",
+        "POP",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "UNDEFINED",
+        "SWAP",
+        "UPDATE_EMPTY"
+    ]), true, false)); "with else; all potentially fail")]
+    #[test_case("if (a) 1;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compile fail")]
+    #[test_case("if (true) a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "s1 compile fail")]
+    #[test_case("if (true) false; else a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "s2 compile fail")]
+    #[test_case("if (true) @@@; else false;", true, None => serr("out of range integral type conversion attempted"); "true path too large")]
+    #[test_case("if (true) false; else @@@;", true, None => serr("out of range integral type conversion attempted"); "false path too large")]
+    #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
+    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")] // 1990
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).if_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }

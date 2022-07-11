@@ -199,6 +199,15 @@ impl Agent {
             n => self.execution_context_stack[n - 1].private_environment.clone(),
         }
     }
+    
+    pub fn set_lexical_environment(&mut self, env: Option<Rc<dyn EnvironmentRecord>>) {
+        match self.execution_context_stack.len() {
+            0 => (),
+            n => {
+                self.execution_context_stack[n - 1].lexical_environment = env;
+            }
+        }
+    }
 
     pub fn intrinsic(&self, id: IntrinsicId) -> Object {
         let realm_ref = self.current_realm_record().unwrap();
@@ -677,6 +686,48 @@ impl Agent {
                     let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap()))
                         .map(NormalCompletion::from);
                     self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::PushNewLexEnv => {
+                    let current_env = self.current_lexical_environment();
+                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "inner block");
+                    self.set_lexical_environment(Some(Rc::new(new_env)));
+                }
+                Insn::PopLexEnv => {
+                    let current_env = self.current_lexical_environment().expect("lex environment must exist");
+                    let outer_env = current_env.get_outer_env();
+                    self.set_lexical_environment(outer_env);
+                }
+                Insn::CreateStrictImmutableLexBinding => {
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = chunk.strings[string_idx].clone();
+
+                    env.create_immutable_binding(self, name, true).expect("binding should not already exist");
+                }
+                Insn::CreatePermanentMutableLexBinding => {
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = chunk.strings[string_idx].clone();
+
+                    env.create_mutable_binding(self, name, false).expect("binding should not already exist");
+                }
+                Insn::InitializeLexBinding => {
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = &chunk.strings[string_idx];
+
+                    let value = ECMAScriptValue::try_from(
+                        self.execution_context_stack[index]
+                            .stack
+                            .pop()
+                            .expect("InitializeLexBinding must have a stack arg")
+                            .expect("InitializeLexBinding's stack arg must be a normal completion"),
+                    )
+                    .expect("InitializeLexBinding's stack arg must be a value");
+                    env.initialize_binding(self, name, value).expect("binding should not already have a value");
                 }
                 Insn::Object => {
                     let obj_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
@@ -1524,7 +1575,7 @@ impl TryFrom<DeclPart> for TopLevelLexDecl {
     }
 }
 #[derive(Debug, Clone)]
-enum FcnDef {
+pub enum FcnDef {
     Function(Rc<FunctionDeclaration>),
     Generator(Rc<GeneratorDeclaration>),
     AsyncFun(Rc<AsyncFunctionDeclaration>),
@@ -1538,7 +1589,42 @@ impl TryFrom<VarScopeDecl> for FcnDef {
             VarScopeDecl::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
             VarScopeDecl::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
             VarScopeDecl::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
-            _ => Err(anyhow!("Not a top-level function def")),
+            _ => Err(anyhow!("Not a function def")),
+        }
+    }
+}
+impl TryFrom<DeclPart> for FcnDef {
+    type Error = anyhow::Error;
+    fn try_from(value: DeclPart) -> Result<Self, Self::Error> {
+        match value {
+            DeclPart::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
+            DeclPart::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
+            DeclPart::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
+            DeclPart::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
+            DeclPart::ClassDeclaration(_) | DeclPart::LexicalDeclaration(_) => Err(anyhow!("Not a function def")),
+        }
+    }
+}
+impl FcnDef {
+    pub fn bound_name(&self) -> JSString {
+        match self {
+            FcnDef::Function(x) => x.bound_name(),
+            FcnDef::Generator(x) => x.bound_name(),
+            FcnDef::AsyncFun(x) => x.bound_name(),
+            FcnDef::AsyncGen(x) => x.bound_name(),
+        }
+    }
+    pub fn instantiate_function_object(
+        &self,
+        agent: &mut Agent,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<&PrivateEnvironmentRecord>,
+    ) -> ECMAScriptValue {
+        match self {
+            FcnDef::Function(x) => x.instantiate_function_object(agent, env, private_env),
+            FcnDef::Generator(x) => x.instantiate_function_object(agent, env, private_env),
+            FcnDef::AsyncFun(x) => x.instantiate_function_object(agent, env, private_env),
+            FcnDef::AsyncGen(x) => x.instantiate_function_object(agent, env, private_env),
         }
     }
 }
@@ -1653,24 +1739,8 @@ pub fn global_declaration_instantiation(
         }
     }
     for f in functions_to_initialize {
-        let (name, func_obj) = match f {
-            FcnDef::Function(fd) => (
-                fd.bound_names()[0].clone(),
-                fd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
-            ),
-            FcnDef::Generator(gd) => (
-                gd.bound_names()[0].clone(),
-                gd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
-            ),
-            FcnDef::AsyncFun(afd) => (
-                afd.bound_names()[0].clone(),
-                afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
-            ),
-            FcnDef::AsyncGen(agd) => (
-                agd.bound_names()[0].clone(),
-                agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
-            ),
-        };
+        let name = f.bound_name();
+        let func_obj = f.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env);
         println!("   function:  {name}");
         env.create_global_function_binding(agent, name, func_obj, false)?;
     }

@@ -528,6 +528,11 @@ impl From<HoistableDeclPart> for DeclPart {
         }
     }
 }
+impl From<Rc<FunctionDeclaration>> for DeclPart {
+    fn from(src: Rc<FunctionDeclaration>) -> Self {
+        Self::FunctionDeclaration(src)
+    }
+}
 impl fmt::Display for DeclPart {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -543,6 +548,29 @@ impl fmt::Display for DeclPart {
 impl From<&DeclPart> for String {
     fn from(src: &DeclPart) -> String {
         src.to_string()
+    }
+}
+impl DeclPart {
+    pub fn is_constant_declaration(&self) -> bool {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.is_constant_declaration(),
+            DeclPart::GeneratorDeclaration(gd) => gd.is_constant_declaration(),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.is_constant_declaration(),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.is_constant_declaration(),
+            DeclPart::ClassDeclaration(cd) => cd.is_constant_declaration(),
+            DeclPart::LexicalDeclaration(ld) => ld.is_constant_declaration(),
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.bound_names(),
+            DeclPart::GeneratorDeclaration(gd) => gd.bound_names(),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.bound_names(),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.bound_names(),
+            DeclPart::ClassDeclaration(cd) => cd.bound_names(),
+            DeclPart::LexicalDeclaration(ld) => ld.bound_names(),
+        }
     }
 }
 

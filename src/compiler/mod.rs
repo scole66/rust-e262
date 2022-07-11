@@ -43,6 +43,11 @@ pub enum Insn {
     Ref,
     StrictRef,
     InitializeReferencedBinding,
+    PushNewLexEnv,
+    PopLexEnv,
+    CreateStrictImmutableLexBinding,
+    CreatePermanentMutableLexBinding,
+    InitializeLexBinding,
     Object,
     CreateDataProperty,
     SetPrototype,
@@ -120,6 +125,11 @@ impl fmt::Display for Insn {
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
+            Insn::PushNewLexEnv => "PNLE",
+            Insn::PopLexEnv => "PLE",
+            Insn::CreateStrictImmutableLexBinding => "CSILB",
+            Insn::CreatePermanentMutableLexBinding => "CPMLB",
+            Insn::InitializeLexBinding => "ILB",
             Insn::Object => "OBJECT",
             Insn::CreateDataProperty => "CR_PROP",
             Insn::SetPrototype => "SET_PROTO",
@@ -1670,10 +1680,10 @@ impl Statement {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict, text),
-            Statement::Block(_) => todo!(),
+            Statement::Block(bs) => bs.compile(chunk, strict, text),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
-            Statement::Empty(_) => todo!(),
-            Statement::If(_) => todo!(),
+            Statement::Empty(empty) => Ok(empty.compile(chunk).into()),
+            Statement::If(if_stmt) => if_stmt.compile(chunk, strict, text),
             Statement::Breakable(_) => todo!(),
             Statement::Continue(_) => todo!(),
             Statement::Break(_) => todo!(),
@@ -1696,6 +1706,67 @@ impl Declaration {
                 Ok(AbruptResult::Never)
             }
             Declaration::Lexical(lex) => lex.compile(chunk, strict, text).map(AbruptResult::from),
+        }
+    }
+}
+
+impl BlockStatement {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let BlockStatement::Block(block) = self;
+        block.compile(chunk, strict, text)
+    }
+}
+
+impl FcnDef {
+    pub fn compile_fo_instantiation(
+        &self,
+        _chunk: &mut Chunk,
+        _strict: bool,
+        _text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            FcnDef::Function(_) => todo!(),
+            FcnDef::Generator(_) => todo!(),
+            FcnDef::AsyncFun(_) => todo!(),
+            FcnDef::AsyncGen(_) => todo!(),
+        }
+    }
+}
+
+impl Block {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match &self.statements {
+            None => {
+                chunk.op(Insn::Empty);
+                Ok(NeverAbruptRefResult {}.into())
+            }
+            Some(sl) => {
+                chunk.op(Insn::PushNewLexEnv);
+                let declarations = sl.lexically_scoped_declarations();
+                for d in declarations {
+                    let is_constant = d.is_constant_declaration();
+                    for dn in d.bound_names() {
+                        let string_idx = chunk.add_to_string_pool(dn)?;
+                        if is_constant {
+                            chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx);
+                        } else {
+                            chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
+                        }
+                    }
+                    if let Ok(fcn) = FcnDef::try_from(d) {
+                        let fcn_name = fcn.bound_name();
+                        let string_idx =
+                            chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
+                        fcn.compile_fo_instantiation(chunk, strict, text)?;
+                        chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+                    }
+                }
+
+                let statement_status = sl.compile(chunk, strict, text)?;
+                chunk.op(Insn::PopLexEnv);
+
+                Ok(statement_status)
+            }
         }
     }
 }
@@ -1882,6 +1953,69 @@ impl VariableDeclaration {
             }
             VariableDeclaration::Pattern(_, _) => todo!(),
         }
+    }
+}
+
+impl EmptyStatement {
+    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+        chunk.op(Insn::Empty);
+        NeverAbruptRefResult {}
+    }
+}
+
+impl IfStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let mut first_exit = None;
+        let mut second_exit = None;
+        let mut third_exit = None;
+        let expr_status = self.expression().compile(chunk, strict, text)?;
+        // Stack: exprRef/exprValue/err
+        if expr_status.maybe_ref() {
+            chunk.op(Insn::GetValue)
+        }
+        // Stack: exprValue/err
+        if expr_status.maybe_abrupt() {
+            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        // Stack: exprValue
+        let expr_false = chunk.op_jump(Insn::JumpIfFalse);
+        // "True" path
+        chunk.op(Insn::Pop);
+        let true_path_status = self.first_statement().compile(chunk, strict, text)?;
+        if true_path_status.maybe_abrupt() {
+            second_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        let true_complete = chunk.op_jump(Insn::Jump);
+        // "False" path
+        chunk.fixup(expr_false)?;
+        chunk.op(Insn::Pop);
+        let false_path_status = match self {
+            IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, text)?,
+            IfStatement::WithoutElse(..) => {
+                chunk.op(Insn::Undefined);
+                NeverAbruptRefResult {}.into()
+            }
+        };
+        if false_path_status.maybe_abrupt() {
+            third_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        chunk.fixup(true_complete)?;
+        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Swap);
+        chunk.op(Insn::UpdateEmpty);
+        if let Some(mark) = first_exit {
+            chunk.fixup(mark)?;
+        }
+        if let Some(mark) = second_exit {
+            chunk.fixup(mark)?;
+        }
+        if let Some(mark) = third_exit {
+            chunk.fixup(mark).expect("Jump too short to overflow");
+        }
+
+        Ok(AbruptResult::from(
+            expr_status.maybe_abrupt() || true_path_status.maybe_abrupt() || false_path_status.maybe_abrupt(),
+        ))
     }
 }
 

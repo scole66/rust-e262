@@ -242,6 +242,11 @@ mod function_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).function_declaration().bound_name().into()
     }
+
+    #[test_case("function() {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).function_declaration().is_constant_declaration()
+    }
 }
 
 // FUNCTION EXPRESSION
@@ -612,5 +617,11 @@ mod function_statement_list {
     #[test_case("   " => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
     fn location(src: &str) -> Location {
         Maker::new(src).function_statement_list().location()
+    }
+
+    #[test_case("var alpha, beta;" => svec(&["alpha", "beta"]); "var statement")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_statement_list().var_scoped_declarations().iter().map(String::from).collect()
     }
 }

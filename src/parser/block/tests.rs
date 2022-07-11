@@ -564,6 +564,12 @@ mod statement_list {
             .collect::<Vec<_>>()
     }
 
+    #[test_case("let dragon=xorn;" => svec(&["let dragon = xorn ;"]); "item")]
+    #[test_case("const a=0; function b(){} class c{}" => svec(&["const a = 0 ;", "function b (  ) {  }", "class c { }"]); "list")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
     #[test_case("    a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 2 } }; "statement")]
     #[test_case("    b; let a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 9 } }; "list")]
     fn location(src: &str) -> Location {
@@ -815,6 +821,18 @@ mod statement_list_item {
         Maker::new(src)
             .statement_list_item()
             .top_level_lexically_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+    }
+
+    #[test_case("var a=27;" => svec(&[]); "statement")]
+    #[test_case("class rocket{}" => svec(&["class rocket { }"]); "declaration")]
+    #[test_case("lbl: function x() {}" => svec(&["function x (  ) {  }"]); "labelled function")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src)
+            .statement_list_item()
+            .lexically_scoped_declarations()
             .iter()
             .map(String::from)
             .collect::<Vec<_>>()

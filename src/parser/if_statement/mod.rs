@@ -105,6 +105,17 @@ impl IfStatement {
         }
     }
 
+    pub fn expression(&self) -> &Rc<Expression> {
+        match self {
+            IfStatement::WithElse(e, ..) | IfStatement::WithoutElse(e, ..) => e,
+        }
+    }
+    pub fn first_statement(&self) -> &Rc<Statement> {
+        match self {
+            IfStatement::WithElse(_, s, ..) | IfStatement::WithoutElse(_, s, ..) => s,
+        }
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {

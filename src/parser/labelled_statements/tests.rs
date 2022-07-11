@@ -177,6 +177,12 @@ mod labelled_statement {
         Maker::new(src).labelled_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:var u;" => svec(&[]); "not a function")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_statement().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
     #[test_case("   a:b();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).labelled_statement().location()

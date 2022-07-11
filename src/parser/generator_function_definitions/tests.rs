@@ -409,6 +409,11 @@ mod generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).generator_declaration().bound_name().into()
     }
+
+    #[test_case("function *x() {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).generator_declaration().is_constant_declaration()
+    }
 }
 
 // GENERATOR EXPRESSION

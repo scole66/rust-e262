@@ -161,6 +161,11 @@ mod class_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).class_declaration().bound_name().into()
     }
+
+    #[test_case("class x {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).class_declaration().is_constant_declaration()
+    }
 }
 
 // CLASS EXPRESSION
