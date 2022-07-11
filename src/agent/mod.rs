@@ -1593,6 +1593,7 @@ impl TryFrom<VarScopeDecl> for FcnDef {
         }
     }
 }
+
 impl TryFrom<DeclPart> for FcnDef {
     type Error = anyhow::Error;
     fn try_from(value: DeclPart) -> Result<Self, Self::Error> {
@@ -1628,16 +1629,7 @@ impl FcnDef {
         }
     }
 }
-impl TopLevelFcnDef {
-    fn bound_name(&self) -> JSString {
-        match self {
-            TopLevelFcnDef::Function(fd) => fd.bound_name(),
-            TopLevelFcnDef::Generator(gd) => gd.bound_name(),
-            TopLevelFcnDef::AsyncFun(afd) => afd.bound_name(),
-            TopLevelFcnDef::AsyncGen(agd) => agd.bound_name(),
-        }
-    }
-}
+
 enum TopLevelVarDecl {
     VarDecl(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),

@@ -1753,7 +1753,8 @@ impl Block {
                             chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
                         }
                     }
-                    if let Ok(fcn) = FcnDef::try_from(d) {
+                    let x: Result<FcnDef, anyhow::Error> = FcnDef::try_from(d);
+                    if let Ok(fcn) = x {
                         let fcn_name = fcn.bound_name();
                         let string_idx =
                             chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
@@ -2362,7 +2363,7 @@ impl FunctionExpression {
             && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
 
         if !strict && has_parameter_expressions {
-            chunk.op(Insn::PushNewLexEnv); // from a future PR! the code for block statements made this.
+            chunk.op(Insn::PushNewLexEnv);
         }
 
         for param_name in parameter_names {
