@@ -3267,3 +3267,162 @@ mod function_declaration {
             .map_err(|e| e.to_string())
     }
 }
+
+mod labelled_item {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("function b(){}", &[], true, None => panics "not yet implemented"; "function def")]
+    #[test_case("do x; while (true);", &["b"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [b]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+    ]), true, false)); "statement/strict")]
+    #[test_case("do x; while (true);", &["b"], false, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [b]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+    ]), true, false)); "statement/nonstrict")]
+    fn labelled_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).labelled_item();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.labelled_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod labelled_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a:do x; while (true);", &["b"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [a, b]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+        "HTB 1 (a)"
+    ]), true, false)); "statement/strict")]
+    #[test_case("a:do x; while (true);", &["b"], false, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [a, b]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+        "HTB 1 (a)"
+    ]), true, false)); "statement/nonstrict")]
+    #[test_case("a:;", &["b"], true, None => Ok((svec(&["EMPTY"]), false, false)); "non-abrupt statement")]
+    #[test_case("a:p;", &["b"], true, Some(0) => serr("Out of room for strings in this compilation unit"); "stmt compile fail")]
+    #[test_case("a:break;", &["b"], true, Some(0) => serr("Out of room for strings in this compilation unit"); "label store fail")]
+    fn labelled_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).labelled_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.labelled_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("a:do x; while(true);", true, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [a]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+        "HTB 1 (a)"
+    ]), true, false)); "stmt/strict")]
+    #[test_case("a:do x; while(true);", false, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT [a]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "TRUE",
+        "JUMPPOP_TRUE -12",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+        "HEB",
+        "HTB 1 (a)"
+    ]), true, false)); "stmt/nonstrict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).labelled_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
