@@ -5,6 +5,7 @@ use crate::parser::testhelp::*;
 use crate::tests::*;
 use num::BigInt;
 use std::rc::Rc;
+use ahash::AHashSet;
 
 mod insn {
     use super::*;
@@ -380,6 +381,8 @@ fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
+    let sample : AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
+    c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
     c
 }
 
@@ -3031,6 +3034,142 @@ mod breakable_statement {
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod iteration_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("do break beta; while(false);", &["beta", "green", "chocolate"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK_FROM 0 (beta)",
+        "LOOP_CONT [beta, chocolate, green]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -10",
+        "JUMP 1",
+        "UPDATE_EMPTY"
+    ]), true, false)); "dowhile/strict")]
+    #[test_case("do break beta; while(false);", &["beta", "piano", "guitar"], false, None => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK_FROM 0 (beta)",
+        "LOOP_CONT [beta, guitar, piano]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -10",
+        "JUMP 1",
+        "UPDATE_EMPTY"
+    ]), true, false)); "dowhile/nonstrict")]
+    #[test_case("while(false);", &[], true, None => panics "not yet implemented"; "while stmt")]
+    #[test_case("for(;;);", &[], true, None => panics "not yet implemented"; "for stmt")]
+    #[test_case("for(a in b);", &[], true, None => panics "not yet implemented"; "for-in stmt")]
+    fn loop_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).iteration_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.loop_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod do_while_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("do ; while(false);", &[], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "EMPTY",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -5",
+    ]), false, false)); "literals only")]
+    #[test_case("do a; while(false);", &[], true, Some(0) => serr("Out of room for strings in this compilation unit"); "stmt compile fails")]
+    #[test_case("do break; while(false);", &["a"], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK",
+        "LOOP_CONT [a]",
+        "JUMPPOP_FALSE 6",
+        "COALESCE",
+        "FALSE",
+        "JUMPPOP_TRUE -9",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+    ]), true, false)); "abrubt statement possible")]
+    #[test_case("do break; while(false);", &["a"], true, Some(0) => serr("Out of room for label sets in this compilation unit"); "label store fails")]
+    #[test_case("do ; while(a);", &[], true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compilation fails")]
+    #[test_case("do p; while(a);", &[], false, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (p)",
+        "RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 15",
+        "COALESCE",
+        "STRING 1 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 5",
+        "JUMPPOP_TRUE -21",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+    ]), true, false)); "stmt/expr fallible; nonstrict")]
+    #[test_case("do p; while(a);", &[], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "STRING 0 (p)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 15",
+        "COALESCE",
+        "STRING 1 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 5",
+        "JUMPPOP_TRUE -21",
+        "JUMP 1",
+        "UPDATE_EMPTY",
+    ]), true, false)); "stmt/expr fallible; strict")]
+    #[test_case("do break; while(@@@);", &[], true, None => serr("out of range integral type conversion attempted"); "expr too large")]
+    fn do_while_loop_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).do_while_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let label_set = labels.iter().cloned().map(JSString::from).
+        collect::<Vec<JSString>>();
+        node.do_while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

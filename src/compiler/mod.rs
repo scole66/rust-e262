@@ -2101,13 +2101,13 @@ impl DoWhileStatement {
         //      d. Let exprRef be the result of evaluating Expression.
         //      e. Let exprValue be ? GetValue(exprRef).
         //      f. If ToBoolean(exprValue) is false, return V.
-        let label_set_id = chunk.add_to_label_set_pool(label_set)?;
         chunk.op(Insn::Undefined);
         // Stack: V ...
         let loop_top = chunk.pos();
         let stmt_status = self.stmt.compile(chunk, strict, text)?;
         // Stack: stmtResult V ...
         let loop_ends = if stmt_status.maybe_abrupt() {
+            let label_set_id = chunk.add_to_label_set_pool(label_set)?;
             chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
             // Stack: LCResult stmtResult V ...
             Some(chunk.op_jump(Insn::JumpPopIfFalse))
@@ -2139,7 +2139,7 @@ impl DoWhileStatement {
         // Stack: V ...
         if let Some(mark) = loop_ends {
             let done_exit = chunk.op_jump(Insn::Jump);
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).expect("This is shorter than the jump back. We'll be fine.");
             // Stack: stmtResult V ...
             chunk.op(Insn::UpdateEmpty);
             chunk.fixup(done_exit).expect("Jump too short to fail");
