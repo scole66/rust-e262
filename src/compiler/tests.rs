@@ -3,9 +3,9 @@
 use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
+use ahash::AHashSet;
 use num::BigInt;
 use std::rc::Rc;
-use ahash::AHashSet;
 
 mod insn {
     use super::*;
@@ -381,7 +381,7 @@ fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
-    let sample : AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
+    let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
     c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
     c
 }
@@ -3167,9 +3167,96 @@ mod do_while_statement {
         let node = Maker::new(src).do_while_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).
-        collect::<Vec<JSString>>();
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
         node.do_while_loop_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod continue_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("continue;", None => Ok((svec(&["CONTINUE"]), true, false)); "bare")]
+    #[test_case("continue lbl;", None => Ok((svec(&["CONTINUE_WITH 0 (lbl)"]), true, false)); "targeted")]
+    #[test_case("continue lbl;", Some(0) => serr("Out of room for strings in this compilation unit"); "no room for label")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).continue_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod break_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("break;", None => Ok((svec(&["BREAK"]), true, false)); "bare")]
+    #[test_case("break lbl;", None => Ok((svec(&["BREAK_FROM 0 (lbl)"]), true, false)); "targeted")]
+    #[test_case("break lbl;", Some(0) => serr("Out of room for strings in this compilation unit"); "no room for label")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).break_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod switch_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("switch (expr) {}", true, None => panics "not yet implemented"; "typical")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).switch_statement();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod function_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("function x(){}", true, None => panics "not yet implemented"; "typical")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_declaration();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
