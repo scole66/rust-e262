@@ -13,13 +13,20 @@ function objects() {
 function tst() {
   local here=$(pwd)
   cd ~/*/rust-e262
+  local output=res.profdata
+  case "$1" in
+    -o=*)
+      output="${1#-o=}"
+      shift
+      ;;
+  esac
   rm -f res-*.profraw
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
   RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
   local covstatus=$?
   if [ $covstatus -eq 0 ]; then
-    cargo profdata -- merge res-*.profraw --output=res.profdata
+    cargo profdata -- merge res-*.profraw --output="$output"
   fi
   cd $here
   return $covstatus
@@ -28,7 +35,9 @@ function tst() {
 function summary() {
   local here=$(pwd)
   cd ~/*/rust-e262
-  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' --instr-profile=res.profdata $(objects)
+  local profile=res.profdata
+  if [ $# -gt 0 ]; then profile="$1"; fi
+  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
   cd $here
 }
 
@@ -58,9 +67,10 @@ function report() {
   local here=$(pwd)
   cd ~/*/rust-e262
 
-  color=--use-color
-  extra_args=()
-  pager=(cat)
+  local color=--use-color
+  local extra_args=()
+  local pager=(cat)
+  local profile=res.profdata
   while [ $# -gt 0 ]; do
     case "$1" in
       --uncovered)
@@ -75,6 +85,9 @@ function report() {
       --no-color)
         color=
         ;;
+      --profile=*)
+        profile="${1#--profile=}"
+        ;;
       *)
         extra_args=("${extra_args[@]}" "$1")
         ;;
@@ -85,7 +98,7 @@ function report() {
   cargo cov -- show \
     $color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' \
-    --instr-profile=res.profdata $(objects) \
+    --instr-profile="$profile" $(objects) \
     --show-line-counts-or-regions \
     "${extra_args[@]}" | "${pager[@]}"
 
