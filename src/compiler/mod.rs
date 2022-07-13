@@ -2084,7 +2084,6 @@ impl IterationStatement {
 }
 
 impl DoWhileStatement {
-    #[allow(unused_variables)]
     fn do_while_loop_compile(
         &self,
         chunk: &mut Chunk,
