@@ -355,6 +355,8 @@ for name in ${names[@]}; do
 
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
 
+    Chunk) data=($name chunk chunk) ;;
+
     *) echo "No type called $name"; exit ;;
   esac
 

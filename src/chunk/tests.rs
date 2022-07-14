@@ -67,6 +67,25 @@ mod chunk {
         (results, c.bigints.iter().cloned().map(|b| b.deref().clone()).collect::<Vec<_>>())
     }
 
+    #[test_case(&[&["bob"]] => (vec![0], vec![sset(&["bob"])]); "one item")]
+    #[test_case(&[&["green", "red"], &["blue"], &["red", "green"]] => (vec![0, 1, 0], vec![sset(&["green", "red"]), sset(&["blue"])]); "with duplicate")]
+    fn add_to_label_set_pool(inputs: &[&[&str]]) -> (Vec<u16>, Vec<AHashSet<String>>) {
+        let mut c = Chunk::new("test");
+        let mut results = vec![];
+        for item in inputs {
+            let labels = item.into_iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+            results.push(c.add_to_label_set_pool(&labels).unwrap());
+        }
+        (
+            results,
+            c.label_sets
+                .iter()
+                .cloned()
+                .map(|labelset| labelset.into_iter().map(String::from).collect::<AHashSet<String>>())
+                .collect::<Vec<_>>(),
+        )
+    }
+
     mod add_to_pool {
         use super::*;
 
@@ -98,6 +117,17 @@ mod chunk {
             }
             let res = c.add_to_bigint_pool(Rc::new(BigInt::from(10))).unwrap_err();
             assert_eq!(res.to_string(), "Out of room for big ints in this compilation unit");
+        }
+
+        #[test]
+        fn too_many_label_sets() {
+            let mut c = Chunk::new("too much");
+            c.label_sets = Vec::<AHashSet<JSString>>::with_capacity(65536);
+            for _ in 0..65536 {
+                c.label_sets.push(AHashSet::<JSString>::new());
+            }
+            let res = c.add_to_label_set_pool(&[JSString::from("bob")]).unwrap_err();
+            assert_eq!(res.to_string(), "Out of room for label sets in this compilation unit");
         }
     }
 
@@ -135,6 +165,17 @@ mod chunk {
         assert_eq!(c.opcodes.len(), orig_op_count + 2);
         assert_eq!(c.opcodes[orig_op_count], u16::from(Insn::JumpIfAbrupt));
         assert_eq!(c.opcodes[orig_op_count + 1], 0);
+    }
+
+    #[test]
+    fn pos() {
+        let mut c = Chunk::new("pos");
+
+        c.op(Insn::Nop);
+        c.op(Insn::Nop);
+        c.op(Insn::Nop);
+
+        assert_eq!(c.pos(), 3);
     }
 
     mod fixup {
