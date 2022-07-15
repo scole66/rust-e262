@@ -1088,7 +1088,6 @@ impl Agent {
         self.execution_context_stack[index].stack.push(result);
     }
 
-    #[allow(unused_variables)]
     fn apply_string_or_numeric_binary_operator(
         &mut self,
         lval: ECMAScriptValue,
@@ -1190,7 +1189,7 @@ impl Agent {
                     .map_err(|err| create_range_error(self, err.to_string()))
                     .map(NormalCompletion::from)
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => {
+            (Numeric::BigInt(_), Numeric::BigInt(_), BinOp::UnsignedRightShift) => {
                 Err(create_type_error(self, "BigInts have no unsigned right shift, use >> instead"))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
@@ -1317,6 +1316,64 @@ impl Agent {
             }
             _ => Err(create_type_error(self, "Right-hand side of 'instanceof' is not an object")),
         }
+    }
+
+    pub fn create_unmapped_arguments_object(&mut self, index: usize) {
+        // Stack has a list of args, which is consumed to create the object
+        let length = f64::try_from(
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index]
+                    .stack
+                    .pop()
+                    .expect("Arguments needed")
+                    .expect("Non-error arguments needed"),
+            )
+            .expect("Value arguments needed"),
+        )
+        .expect("Numeric arguments needed") as u32;
+
+        let obj = ArgumentsObject::object(self, None);
+        define_property_or_throw(
+            self,
+            &obj,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+
+        let first_arg_index = self.execution_context_stack[index].stack.len() - length as usize;
+        let arguments = self.execution_context_stack[index].stack.drain(first_arg_index..).collect::<Vec<_>>();
+
+        for (arg_number, item) in arguments.into_iter().enumerate() {
+            let value =
+                ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
+            let prop_name = to_string(self, arg_number as u32).expect("Number always convert to strings");
+            create_data_property_or_throw(self, &obj, prop_name, value).expect("Normal Object");
+        }
+
+        let iterator = self.wks(WksId::Iterator);
+        let array_values = self.intrinsic(IntrinsicId::ArrayPrototypeValues);
+        let throw_type_error = self.intrinsic(IntrinsicId::ThrowTypeError);
+        define_property_or_throw(
+            self,
+            &obj,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+        define_property_or_throw(
+            self,
+            &obj,
+            "callee",
+            PotentialPropertyDescriptor::new()
+                .get(throw_type_error.clone())
+                .set(throw_type_error)
+                .enumerable(false)
+                .configurable(false),
+        )
+        .expect("Normal Object");
+
+        self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
     }
 }
 

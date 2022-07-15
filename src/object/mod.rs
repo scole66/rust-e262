@@ -59,6 +59,15 @@ impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
     }
 }
 
+impl PropertyDescriptor {
+    pub fn writable(&self) -> Option<bool> {
+        match &self.property {
+            PropertyKind::Data(DataProperty { value: _, writable }) => Some(*writable),
+            PropertyKind::Accessor(..) => None,
+        }
+    }
+}
+
 impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
     fn from(source: &'a PropertyDescriptor) -> Self {
         Self(source)
@@ -1442,7 +1451,8 @@ pub enum InternalSlotName {
     Realm,
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
-    Nonsense,    // For testing purposes, for the time being.
+    ParameterMap,
+    Nonsense, // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
 pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] =
@@ -1461,6 +1471,8 @@ pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
+pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1497,6 +1509,8 @@ pub fn make_basic_object(
         ArrayObject::object(agent, prototype)
     } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
         SymbolObject::object(agent, prototype)
+    } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
+        panic!("Additional info needed for arguments object; use direct constructor");
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
