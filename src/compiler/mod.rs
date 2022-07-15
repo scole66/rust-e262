@@ -2312,6 +2312,8 @@ impl FunctionExpression {
         //  NOTE 2   | B.3.2 provides an extension to the above algorithm that is necessary for backwards compatibility
         //           | with web browser implementations of ECMAScript that predate ECMAScript 2015.
 
+        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+
         let strict = info.strict;
         let code = &info.body;
         let formals = &info.params;
@@ -2351,6 +2353,16 @@ impl FunctionExpression {
                 },
                 sidx,
             );
+        }
+
+        // 22.
+        if arguments_object_needed {
+            if strict || !simple_parameter_list {
+                chunk.op(Insn::CreateUnmappedArgsObj);
+            } else {
+                chunk.op(Insn::CreateMappedArgsObj);
+                
+            }
         }
 
         todo!()
