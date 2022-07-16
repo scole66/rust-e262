@@ -86,6 +86,9 @@ pub enum Insn {
     BitwiseOr,
     BitwiseXor,
     Throw,
+    CreateUnmappedArguments,
+    CreateMappedArguments,
+    AddMappedArgument,
 }
 
 impl fmt::Display for Insn {
@@ -166,6 +169,9 @@ impl fmt::Display for Insn {
             Insn::BitwiseOr => "OR",
             Insn::BitwiseXor => "XOR",
             Insn::Throw => "THROW",
+            Insn::CreateUnmappedArguments => "CUA",
+            Insn::CreateMappedArguments => "CMA",
+            Insn::AddMappedArgument => "AMA",
         })
     }
 }

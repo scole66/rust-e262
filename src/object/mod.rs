@@ -1015,6 +1015,9 @@ pub trait ObjectInterface: Debug {
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         None
     }
+    fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
+        None
+    }
     fn is_arguments_object(&self) -> bool {
         false
     }

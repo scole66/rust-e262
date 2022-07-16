@@ -7,8 +7,8 @@ pub struct ParameterMap {
 }
 
 impl ParameterMap {
-    pub fn new(env: Rc<dyn EnvironmentRecord>, capacity: usize) -> Self {
-        ParameterMap { env, properties: Vec::with_capacity(capacity) }
+    pub fn new(env: Rc<dyn EnvironmentRecord>) -> Self {
+        ParameterMap { env, properties: Vec::new() }
     }
 
     pub fn add_mapped_name(&mut self, name: JSString, loc: usize) {
@@ -49,7 +49,7 @@ impl ParameterMap {
 #[derive(Debug)]
 pub struct ArgumentsObject {
     common: RefCell<CommonObjectData>,
-    parameter_map: Option<RefCell<ParameterMap>>,
+    pub parameter_map: Option<RefCell<ParameterMap>>,
 }
 
 impl<'a> From<&'a ArgumentsObject> for &'a dyn ObjectInterface {
@@ -67,6 +67,12 @@ impl ObjectInterface for ArgumentsObject {
     }
     fn id(&self) -> usize {
         self.common.borrow().objid
+    }
+    fn is_arguments_object(&self) -> bool {
+        true
+    }
+    fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
+        Some(self)
     }
 
     fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {

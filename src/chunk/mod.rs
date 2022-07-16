@@ -154,6 +154,8 @@ impl Chunk {
             | Insn::BitwiseOr
             | Insn::BitwiseXor
             | Insn::Throw
+            | Insn::CreateUnmappedArguments
+            | Insn::CreateMappedArguments
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
@@ -163,6 +165,11 @@ impl Chunk {
             | Insn::JumpIfNotNullish => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
+            }
+            Insn::AddMappedArgument => {
+                let string_arg = self.opcodes[idx] as usize;
+                let index_arg = self.opcodes[idx + 1] as usize;
+                (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))
             }
         }
     }
