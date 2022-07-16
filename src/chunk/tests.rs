@@ -73,7 +73,7 @@ mod chunk {
         let mut c = Chunk::new("test");
         let mut results = vec![];
         for item in inputs {
-            let labels = item.into_iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+            let labels = item.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
             results.push(c.add_to_label_set_pool(&labels).unwrap());
         }
         (
