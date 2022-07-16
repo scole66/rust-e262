@@ -167,6 +167,37 @@ mod chunk {
         assert_eq!(c.opcodes[orig_op_count + 1], 0);
     }
 
+    mod op_jump_back {
+        use super::*;
+
+        #[test]
+        fn normal() {
+            let mut c = Chunk::new("op_jump_back");
+
+            let start = c.pos();
+            c.op(Insn::Nop);
+            c.op(Insn::Nop);
+            c.op(Insn::Nop);
+
+            c.op_jump_back(Insn::JumpIfTrue, start).unwrap();
+
+            assert_eq!(c.opcodes.len(), 5);
+            assert_eq!(c.opcodes[3], u16::from(Insn::JumpIfTrue));
+            assert_eq!(c.opcodes[4], (-5_i16) as u16);
+        }
+
+        #[test]
+        fn overflow() {
+            let mut c = Chunk::new("op_jump_back");
+            let start = c.pos();
+            for _ in 1..34000 {
+                c.op(Insn::Nop);
+            }
+            let result = c.op_jump_back(Insn::JumpIfTrue, start);
+            assert_eq!(result.unwrap_err().to_string(), "out of range integral type conversion attempted");
+        }
+    }
+
     #[test]
     fn pos() {
         let mut c = Chunk::new("pos");
@@ -242,6 +273,9 @@ mod chunk {
         let string_idx = c.add_to_string_pool("charlie".into()).unwrap();
         let bigint_idx = c.add_to_bigint_pool(Rc::new(BigInt::from(93939))).unwrap();
         let float_idx = c.add_to_float_pool(78.2).unwrap();
+        let ls_idx = c
+            .add_to_label_set_pool(&[JSString::from("beta"), JSString::from("zeta"), JSString::from("alpha")])
+            .unwrap();
         c.op_plus_arg(Insn::String, string_idx);
         c.op_plus_arg(Insn::Float, float_idx);
         c.op_plus_arg(Insn::Bigint, bigint_idx);
@@ -256,6 +290,7 @@ mod chunk {
         c.op(Insn::UpdateEmpty);
         c.fixup(mark).unwrap();
         c.op_plus_arg(Insn::Unwind, 3);
+        c.op_plus_arg(Insn::LoopContinues, ls_idx);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -273,6 +308,7 @@ mod chunk {
             "    GET_VALUE",
             "    UPDATE_EMPTY",
             "    UNWIND              3",
+            "    LOOP_CONT           [alpha, beta, zeta]",
         ]);
         assert_eq!(result, expected);
     }
