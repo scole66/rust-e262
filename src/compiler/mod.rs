@@ -31,6 +31,8 @@ pub enum Insn {
     JumpIfFalse,
     JumpIfTrue,
     JumpIfNotNullish,
+    JumpPopIfTrue,
+    JumpPopIfFalse,
     Call,
     UpdateEmpty,
     Swap,
@@ -89,6 +91,14 @@ pub enum Insn {
     CreateUnmappedArguments,
     CreateMappedArguments,
     AddMappedArgument,
+    HandleEmptyBreak,
+    HandleTargetedBreak,
+    CoalesceValue,
+    LoopContinues,
+    Continue,
+    TargetedContinue,
+    Break,
+    TargetedBreak,
 }
 
 impl fmt::Display for Insn {
@@ -114,6 +124,8 @@ impl fmt::Display for Insn {
             Insn::JumpIfFalse => "JUMP_IF_FALSE",
             Insn::JumpIfTrue => "JUMP_IF_TRUE",
             Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH",
+            Insn::JumpPopIfTrue => "JUMPPOP_TRUE",
+            Insn::JumpPopIfFalse => "JUMPPOP_FALSE",
             Insn::Call => "CALL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
@@ -172,6 +184,14 @@ impl fmt::Display for Insn {
             Insn::CreateUnmappedArguments => "CUA",
             Insn::CreateMappedArguments => "CMA",
             Insn::AddMappedArgument => "AMA",
+            Insn::HandleEmptyBreak => "HEB",
+            Insn::HandleTargetedBreak => "HTB",
+            Insn::CoalesceValue => "COALESCE",
+            Insn::LoopContinues => "LOOP_CONT",
+            Insn::Continue => "CONTINUE",
+            Insn::TargetedContinue => "CONTINUE_WITH",
+            Insn::Break => "BREAK",
+            Insn::TargetedBreak => "BREAK_FROM",
         })
     }
 }
@@ -1673,15 +1693,41 @@ impl Statement {
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
             Statement::Empty(empty) => Ok(empty.compile(chunk).into()),
             Statement::If(if_stmt) => if_stmt.compile(chunk, strict, text),
-            Statement::Breakable(_) => todo!(),
-            Statement::Continue(_) => todo!(),
-            Statement::Break(_) => todo!(),
+            Statement::Breakable(breakable_statement) => breakable_statement.compile(chunk, strict, text),
+            Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
+            Statement::Break(b) => b.compile(chunk).map(AbruptResult::from),
             Statement::Return(_) => todo!(),
             Statement::With(_) => todo!(),
-            Statement::Labelled(_) => todo!(),
+            Statement::Labelled(lbl) => lbl.compile(chunk, strict, text),
             Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::Try(_) => todo!(),
             Statement::Debugger(_) => todo!(),
+        }
+    }
+
+    pub fn labelled_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            Statement::Expression(_)
+            | Statement::Block(_)
+            | Statement::Variable(_)
+            | Statement::Empty(_)
+            | Statement::If(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Return(_)
+            | Statement::With(_)
+            | Statement::Throw(_)
+            | Statement::Try(_)
+            | Statement::Debugger(_) => self.compile(chunk, strict, text),
+
+            Statement::Breakable(bs) => bs.labelled_compile(chunk, strict, text, label_set),
+            Statement::Labelled(lbl) => lbl.labelled_compile(chunk, strict, text, label_set),
         }
     }
 }
@@ -1693,6 +1739,29 @@ impl Declaration {
             Declaration::Hoistable(_) => todo!(),
             Declaration::Lexical(lex) => lex.compile(chunk, strict, text).map(AbruptResult::from),
         }
+    }
+}
+
+impl BreakableStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        self.labelled_compile(chunk, strict, text, &[])
+    }
+
+    fn labelled_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        let state = match self {
+            BreakableStatement::Iteration(iter) => iter.loop_compile(chunk, strict, text, label_set),
+            BreakableStatement::Switch(swtch) => swtch.compile(chunk, strict, text),
+        }?;
+        if state.maybe_abrupt() {
+            chunk.op(Insn::HandleEmptyBreak);
+        }
+        Ok(state)
     }
 }
 
@@ -1964,9 +2033,8 @@ impl IfStatement {
             first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }
         // Stack: exprValue
-        let expr_false = chunk.op_jump(Insn::JumpIfFalse);
+        let expr_false = chunk.op_jump(Insn::JumpPopIfFalse);
         // "True" path
-        chunk.op(Insn::Pop);
         let true_path_status = self.first_statement().compile(chunk, strict, text)?;
         if true_path_status.maybe_abrupt() {
             second_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -1974,7 +2042,6 @@ impl IfStatement {
         let true_complete = chunk.op_jump(Insn::Jump);
         // "False" path
         chunk.fixup(expr_false)?;
-        chunk.op(Insn::Pop);
         let false_path_status = match self {
             IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, text)?,
             IfStatement::WithoutElse(..) => {
@@ -2005,6 +2072,163 @@ impl IfStatement {
     }
 }
 
+impl IterationStatement {
+    fn loop_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            IterationStatement::DoWhile(dws) => dws.do_while_loop_compile(chunk, strict, text, label_set),
+            IterationStatement::While(_) => todo!(),
+            IterationStatement::For(_) => todo!(),
+            IterationStatement::ForInOf(_) => todo!(),
+        }
+    }
+}
+
+impl DoWhileStatement {
+    fn do_while_loop_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        // DoWhileStatement : do Statement while ( Expression ) ;
+        //  1. Let V be undefined.
+        //  2. Repeat,
+        //      a. Let stmtResult be the result of evaluating Statement.
+        //      b. If LoopContinues(stmtResult, labelSet) is false, return ? UpdateEmpty(stmtResult, V).
+        //      c. If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
+        //      d. Let exprRef be the result of evaluating Expression.
+        //      e. Let exprValue be ? GetValue(exprRef).
+        //      f. If ToBoolean(exprValue) is false, return V.
+        chunk.op(Insn::Undefined);
+        // Stack: V ...
+        let loop_top = chunk.pos();
+        let stmt_status = self.stmt.compile(chunk, strict, text)?;
+        // Stack: stmtResult V ...
+        let loop_ends = if stmt_status.maybe_abrupt() {
+            let label_set_id = chunk.add_to_label_set_pool(label_set)?;
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
+            // Stack: LCResult stmtResult V ...
+            Some(chunk.op_jump(Insn::JumpPopIfFalse))
+        } else {
+            None
+        };
+        // Stack: stmtResult V ...
+        chunk.op(Insn::CoalesceValue);
+        // Stack: V ...
+        let expr_status = self.exp.compile(chunk, strict, text)?;
+        // Stack: exprRef/exprVal/err V ...
+        if expr_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: exprVal/err V ...
+        let expr_err_exit = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
+            let short_target = chunk.op_jump(Insn::JumpIfNormal);
+            // Stack: err V ...
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            // Stack: err ...
+            let expr_err_exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(short_target).expect("Jump too short to fail");
+            Some(expr_err_exit)
+        } else {
+            None
+        };
+        // Stack: exprVal V ...
+        chunk.op_jump_back(Insn::JumpPopIfTrue, loop_top)?;
+        // Stack: V ...
+        if let Some(mark) = loop_ends {
+            let done_exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(mark).expect("This is shorter than the jump back. We'll be fine.");
+            // Stack: stmtResult V ...
+            chunk.op(Insn::UpdateEmpty);
+            chunk.fixup(done_exit).expect("Jump too short to fail");
+        }
+        // Stack: V ...
+        if let Some(mark) = expr_err_exit {
+            chunk.fixup(mark).expect("Jump too short to fail");
+        }
+        Ok(AbruptResult::from(expr_status.maybe_abrupt() || expr_status.maybe_ref() || stmt_status.maybe_abrupt()))
+    }
+}
+
+impl ContinueStatement {
+    fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
+        match self {
+            ContinueStatement::Bare { .. } => chunk.op(Insn::Continue),
+            ContinueStatement::Labelled { label, .. } => {
+                let str_idx = chunk.add_to_string_pool(label.string_value())?;
+                chunk.op_plus_arg(Insn::TargetedContinue, str_idx);
+            }
+        }
+        Ok(AlwaysAbruptResult {})
+    }
+}
+
+impl BreakStatement {
+    fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
+        match self {
+            BreakStatement::Bare { .. } => chunk.op(Insn::Break),
+            BreakStatement::Labelled { label, .. } => {
+                let str_idx = chunk.add_to_string_pool(label.string_value())?;
+                chunk.op_plus_arg(Insn::TargetedBreak, str_idx);
+            }
+        }
+        Ok(AlwaysAbruptResult {})
+    }
+}
+
+impl SwitchStatement {
+    #[allow(unused_variables)]
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+}
+
+impl LabelledStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        self.labelled_compile(chunk, strict, text, &[])
+    }
+
+    fn labelled_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        let label = self.identifier.string_value();
+        let mut label_set = label_set.to_vec();
+        label_set.push(label.clone());
+        let item_status = self.item.labelled_compile(chunk, strict, text, &label_set)?;
+        if item_status.maybe_abrupt() {
+            let str_idx = chunk.add_to_string_pool(label)?;
+            chunk.op_plus_arg(Insn::HandleTargetedBreak, str_idx);
+        }
+        Ok(item_status)
+    }
+}
+
+impl LabelledItem {
+    fn labelled_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            LabelledItem::Function(f) => f.compile(chunk, strict, text),
+            LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, text, label_set),
+        }
+    }
+}
+
 impl ThrowStatement {
     /// Compile the ThrowStatement production
     ///
@@ -2028,6 +2252,13 @@ impl ThrowStatement {
             chunk.fixup(tgt).expect("Jump too short to overflow");
         }
         Ok(AlwaysAbruptResult {})
+    }
+}
+
+impl FunctionDeclaration {
+    #[allow(unused_variables)]
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        todo!()
     }
 }
 

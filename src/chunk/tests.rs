@@ -67,6 +67,25 @@ mod chunk {
         (results, c.bigints.iter().cloned().map(|b| b.deref().clone()).collect::<Vec<_>>())
     }
 
+    #[test_case(&[&["bob"]] => (vec![0], vec![sset(&["bob"])]); "one item")]
+    #[test_case(&[&["green", "red"], &["blue"], &["red", "green"]] => (vec![0, 1, 0], vec![sset(&["green", "red"]), sset(&["blue"])]); "with duplicate")]
+    fn add_to_label_set_pool(inputs: &[&[&str]]) -> (Vec<u16>, Vec<AHashSet<String>>) {
+        let mut c = Chunk::new("test");
+        let mut results = vec![];
+        for item in inputs {
+            let labels = item.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+            results.push(c.add_to_label_set_pool(&labels).unwrap());
+        }
+        (
+            results,
+            c.label_sets
+                .iter()
+                .cloned()
+                .map(|labelset| labelset.into_iter().map(String::from).collect::<AHashSet<String>>())
+                .collect::<Vec<_>>(),
+        )
+    }
+
     mod add_to_pool {
         use super::*;
 
@@ -98,6 +117,17 @@ mod chunk {
             }
             let res = c.add_to_bigint_pool(Rc::new(BigInt::from(10))).unwrap_err();
             assert_eq!(res.to_string(), "Out of room for big ints in this compilation unit");
+        }
+
+        #[test]
+        fn too_many_label_sets() {
+            let mut c = Chunk::new("too much");
+            c.label_sets = Vec::<AHashSet<JSString>>::with_capacity(65536);
+            for _ in 0..65536 {
+                c.label_sets.push(AHashSet::<JSString>::new());
+            }
+            let res = c.add_to_label_set_pool(&[JSString::from("bob")]).unwrap_err();
+            assert_eq!(res.to_string(), "Out of room for label sets in this compilation unit");
         }
     }
 
@@ -135,6 +165,48 @@ mod chunk {
         assert_eq!(c.opcodes.len(), orig_op_count + 2);
         assert_eq!(c.opcodes[orig_op_count], u16::from(Insn::JumpIfAbrupt));
         assert_eq!(c.opcodes[orig_op_count + 1], 0);
+    }
+
+    mod op_jump_back {
+        use super::*;
+
+        #[test]
+        fn normal() {
+            let mut c = Chunk::new("op_jump_back");
+
+            let start = c.pos();
+            c.op(Insn::Nop);
+            c.op(Insn::Nop);
+            c.op(Insn::Nop);
+
+            c.op_jump_back(Insn::JumpIfTrue, start).unwrap();
+
+            assert_eq!(c.opcodes.len(), 5);
+            assert_eq!(c.opcodes[3], u16::from(Insn::JumpIfTrue));
+            assert_eq!(c.opcodes[4], (-5_i16) as u16);
+        }
+
+        #[test]
+        fn overflow() {
+            let mut c = Chunk::new("op_jump_back");
+            let start = c.pos();
+            for _ in 1..34000 {
+                c.op(Insn::Nop);
+            }
+            let result = c.op_jump_back(Insn::JumpIfTrue, start);
+            assert_eq!(result.unwrap_err().to_string(), "out of range integral type conversion attempted");
+        }
+    }
+
+    #[test]
+    fn pos() {
+        let mut c = Chunk::new("pos");
+
+        c.op(Insn::Nop);
+        c.op(Insn::Nop);
+        c.op(Insn::Nop);
+
+        assert_eq!(c.pos(), 3);
     }
 
     mod fixup {
@@ -201,6 +273,9 @@ mod chunk {
         let string_idx = c.add_to_string_pool("charlie".into()).unwrap();
         let bigint_idx = c.add_to_bigint_pool(Rc::new(BigInt::from(93939))).unwrap();
         let float_idx = c.add_to_float_pool(78.2).unwrap();
+        let ls_idx = c
+            .add_to_label_set_pool(&[JSString::from("beta"), JSString::from("zeta"), JSString::from("alpha")])
+            .unwrap();
         c.op_plus_arg(Insn::String, string_idx);
         c.op_plus_arg(Insn::Float, float_idx);
         c.op_plus_arg(Insn::Bigint, bigint_idx);
@@ -215,6 +290,7 @@ mod chunk {
         c.op(Insn::UpdateEmpty);
         c.fixup(mark).unwrap();
         c.op_plus_arg(Insn::Unwind, 3);
+        c.op_plus_arg(Insn::LoopContinues, ls_idx);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -232,6 +308,7 @@ mod chunk {
             "    GET_VALUE",
             "    UPDATE_EMPTY",
             "    UNWIND              3",
+            "    LOOP_CONT           [alpha, beta, zeta]",
         ]);
         assert_eq!(result, expected);
     }
