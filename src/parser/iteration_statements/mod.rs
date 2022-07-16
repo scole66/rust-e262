@@ -198,8 +198,8 @@ impl IterationStatement {
 //      do Statement[?Yield, ?Await, ?Return] while ( Expression[+In, ?Yield, ?Await] ) ;
 #[derive(Debug)]
 pub struct DoWhileStatement {
-    stmt: Rc<Statement>,
-    exp: Rc<Expression>,
+    pub stmt: Rc<Statement>,
+    pub exp: Rc<Expression>,
     location: Location,
 }
 

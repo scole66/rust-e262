@@ -7,8 +7,8 @@ use std::io::Write;
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct LabelledStatement {
-    identifier: Rc<LabelIdentifier>,
-    item: Rc<LabelledItem>,
+    pub identifier: Rc<LabelIdentifier>,
+    pub item: Rc<LabelledItem>,
 }
 
 impl fmt::Display for LabelledStatement {

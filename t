@@ -89,6 +89,8 @@ for name in ${names[@]}; do
     CompilerStatementList) data=(parser::block::StatementList statement_list:: compiler) ;;
     CompilerStatementListItem) data=(parser::block::StatementListItem statement_list_item compiler) ;;
     CompilerStatement) data=(parser::statements_and_declarations::Statement statement:: compiler) ;;
+    CompilerStatement-compile) data=(parser::statements_and_declarations::Statement::compile statement::compile compiler) ;;
+    CompilerStatement-labelled_compile) data=(parser::statements_and_declarations::Statement::labelled_compile statement::labelled_compile compiler) ;;
     CompilerDeclaration) data=(parser::statements_and_declarations::Declaration declaration compiler) ;;
     CompilerLexicalDeclaration) data=(parser::declarations_and_variables::LexicalDeclaration lexical_declaration compiler) ;;
     CompilerBindingList) data=(parser::declarations_and_variables::BindingList binding_list compiler) ;;
@@ -104,6 +106,17 @@ for name in ${names[@]}; do
     CompilerScriptBody) data=(parser::scripts::ScriptBody script_body compiler) ;;
     CompilerEmptyStatement) data=(parser::empty_statement::EmptyStatement empty_statement compiler) ;;
     CompilerIfStatement) data=(parser::if_statement::IfStatement if_statement compiler) ;;
+    CompilerBreakStatement) data=(parser::break_statement::BreakStatement break_statement compiler) ;;
+    CompilerContinueStatement) data=(parser::continue_statement::ContinueStatement continue_statement compiler) ;;
+    CompilerBreakableStatement) data=(parser::statements_and_declarations::BreakableStatement breakable_statement compiler) ;;
+    CompilerBreakableStatement-compile) data=(parser::statements_and_declarations::BreakableStatement::compile breakable_statement::compile compiler) ;;
+    CompilerBreakableStatement-labelled_compile) data=(parser::statements_and_declarations::BreakableStatement::labelled_compile breakable_statement::labelled_compile compiler) ;;
+    CompilerIterationStatement) data=(parser::iteration_statements::IterationStatement iteration_statement compiler) ;;
+    CompilerDoWhileStatement) data=(parser::iteration_statements::DoWhileStatement do_while_statement compiler) ;;
+    CompilerSwitchStatement) data=(parser::switch_statement::SwitchStatement switch_statement compiler) ;;
+    CompilerLabelledStatement) data=(parser::labelled_statements::LabelledStatement labelled_statement compiler) ;;
+    CompilerLabelledItem) data=(parser::labelled_statements::LabelledItem labelled_item compiler) ;;
+    CompilerFunctionDeclaration) data=(parser::function_definitions::FunctionDeclaration function_declaration compiler) ;;
     RefResult) data=($name ref_result compiler) ;;
     AbruptResult) data=($name abrupt_result compiler) ;;
     AlwaysAbruptResult) data=($name always_abrupt_result compiler) ;;
@@ -341,6 +354,8 @@ for name in ${names[@]}; do
     PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
 
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
+
+    Chunk) data=($name chunk chunk) ;;
 
     *) echo "No type called $name"; exit ;;
   esac
