@@ -95,6 +95,8 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
+    assert_eq!(intrinsics.get(IntrinsicId::SymbolPrototype), intrinsics.symbol_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::SyntaxError), intrinsics.syntax_error);
     assert_eq!(intrinsics.get(IntrinsicId::SyntaxErrorPrototype), intrinsics.syntax_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ThrowTypeError), intrinsics.throw_type_error);

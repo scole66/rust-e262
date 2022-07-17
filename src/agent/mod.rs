@@ -36,7 +36,6 @@ pub struct Agent {
     gsr: Rc<RefCell<SymbolRegistry>>,
 }
 
-//#[allow(clippy::new_without_default)]
 impl Agent {
     pub fn new(gsr: Rc<RefCell<SymbolRegistry>>) -> Self {
         Agent {

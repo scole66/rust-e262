@@ -357,11 +357,17 @@ for name in ${names[@]}; do
     PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
 
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
+    PropertyDescriptor) data=($name property_descriptor object) ;;
+    InternalSlotName) data=($name internal_slot_name object) ;;
+    make_basic_object) data=($name $name object) ;;
 
     Chunk) data=($name chunk chunk) ;;
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;
+
+    IntrinsicId) data=($name intrinsic_id realm) ;;
+    Intrinsics) data=($name intrinsics realm) ;;
 
     *) echo "No type called $name"; exit ;;
   esac
