@@ -96,6 +96,9 @@ mod insn {
     #[test_case(Insn::TargetedContinue => "CONTINUE_WITH"; "TargetedContinue instruction")]
     #[test_case(Insn::Break => "BREAK"; "Break instruction")]
     #[test_case(Insn::TargetedBreak => "BREAK_FROM"; "TargetedBreak instruction")]
+    #[test_case(Insn::CreateUnmappedArguments => "CUA"; "CreateUnmappedArguments instruction")]
+    #[test_case(Insn::CreateMappedArguments => "CMA"; "CreateMappedArguments instruction")]
+    #[test_case(Insn::AddMappedArgument => "AMA"; "AddMappedArgument instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }

@@ -329,6 +329,9 @@ for name in ${names[@]}; do
     Agent_two_values) data=(Agent::two_values agent::two_values agent) ;;
     Agent_is_less_than) data=(Agent::is_less_than agent::is_less_than agent) ;;
     Agent_instanceof_operator) data=(Agent::instanceof_operator agent::instanceof_operator agent) ;;
+    Agent_create_unmapped_arguments_object) data=(Agent::create_unmapped_arguments_object agent::create_unmapped_arguments_object agent) ;;
+    Agent_create_mapped_arguments_object) data=(Agent::create_mapped_arguments_object agent::create_mapped_arguments_object agent) ;;
+    Agent_attach_mapped_arg) data=(Agent::attach_mapped_arg agent::attach_mapped_arg agent) ;;
     WellKnownSymbols) data=($name well_known_symbols agent) ;;
     parse_script) data=($name $name agent) ;;
     TopLevelLexDecl) data=($name top_level_lex_decl agent) ;;
@@ -356,6 +359,9 @@ for name in ${names[@]}; do
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
 
     Chunk) data=($name chunk chunk) ;;
+
+    ParameterMap) data=($name parameter_map arguments_object) ;;
+    ArgumentsObject) data=($name arguments_object arguments_object) ;;
 
     *) echo "No type called $name"; exit ;;
   esac

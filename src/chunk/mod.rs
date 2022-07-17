@@ -63,6 +63,12 @@ impl Chunk {
         self.opcodes.push(arg);
     }
 
+    pub fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16) {
+        self.opcodes.push(opcode.into());
+        self.opcodes.push(arg1);
+        self.opcodes.push(arg2);
+    }
+
     pub fn op_jump(&mut self, opcode: Insn) -> usize {
         self.opcodes.push(opcode.into());
         self.opcodes.push(0);

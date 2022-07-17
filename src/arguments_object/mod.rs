@@ -191,7 +191,7 @@ impl ObjectInterface for ArgumentsObject {
                     }
                 }
                 let allowed =
-                    ordinary_define_own_property(agent, self, key.clone(), new_arg_desc).expect("Simple Object");
+                    ordinary_define_own_property(agent, self, key, new_arg_desc).expect("Simple Object");
                 if let Some(idx) = maybe_index {
                     if allowed {
                         if desc.is_accessor_descriptor() || (desc.value.is_none() && desc.writable == Some(false)) {
@@ -305,7 +305,7 @@ impl ObjectInterface for ArgumentsObject {
         let result = ordinary_delete(agent, self, key)?;
         if let Some(map) = self.parameter_map.as_ref().filter(|_| result) {
             let mut pmap = map.borrow_mut();
-            if let Some(idx) = pmap.to_index(&key) {
+            if let Some(idx) = pmap.to_index(key) {
                 pmap.delete(idx);
             }
         }

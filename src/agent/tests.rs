@@ -613,6 +613,88 @@ mod agent {
             .map_err(|completion| unwind_any_error(&mut agent, completion))
             .map(|nc| nc.try_into().unwrap())
     }
+
+    mod create_unmapped_arguments_object {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(&["first".into(), "second".into(), 38.into(), true.into()]; "4 args")]
+        #[test_case(&[]; "no args")]
+        #[test_case(&[88.into()]; "one arg")]
+        fn normal(values: &[ECMAScriptValue]) {
+            let mut agent = test_agent();
+            let num_values = values.len() as u32;
+            let index = agent.execution_context_stack.len() - 1;
+            {
+                let top_ec = &mut agent.execution_context_stack[index];
+                let stack = &mut top_ec.stack;
+                for value in values {
+                    stack.push(Ok(value.clone().into()));
+                }
+                stack.push(Ok(num_values.into()));
+            }
+
+            agent.create_unmapped_arguments_object(index);
+
+            let stack = &agent.execution_context_stack[index].stack;
+            let stack_size = stack.len();
+
+            // Assert arg vector is still in the right spot
+            assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
+            for (idx, val) in values.iter().enumerate() {
+                assert_eq!(
+                    stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                    &NormalCompletion::from(val.clone())
+                );
+            }
+
+            // Validate the arguments object.
+            let ao =
+                Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
+                    .unwrap();
+            assert_eq!(get(&mut agent, &ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            for (idx, val) in values.iter().enumerate() {
+                assert_eq!(&get(&mut agent, &ao, &idx.into()).unwrap(), val);
+            }
+            let args_iterator = agent.intrinsic(IntrinsicId::ArrayPrototypeValues);
+            let type_error_generator = agent.intrinsic(IntrinsicId::ThrowTypeError);
+            let iterator_sym = agent.wks(WksId::Iterator);
+            assert_eq!(get(&mut agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            let callee = ao.o.get_own_property(&mut agent, &"callee".into()).unwrap().unwrap();
+            assert_eq!(
+                callee.property,
+                PropertyKind::Accessor(AccessorProperty {
+                    get: ECMAScriptValue::from(type_error_generator.clone()),
+                    set: ECMAScriptValue::from(type_error_generator)
+                })
+            );
+            assert_eq!(callee.enumerable, false);
+            assert_eq!(callee.configurable, false);
+
+            assert!(ao.o.is_arguments_object());
+        }
+
+        #[test]
+        #[should_panic(expected = "Stack must not be empty")]
+        fn panics_empty() {
+            let mut agent = test_agent();
+            let index = agent.execution_context_stack.len() - 1;
+            agent.create_unmapped_arguments_object(index);
+        }
+
+        #[test]
+        #[should_panic(expected = "Stack too short to fit all the arguments")]
+        fn panics_short() {
+            let mut agent = test_agent();
+            let index = agent.execution_context_stack.len() - 1;
+            {
+                let top_ec = &mut agent.execution_context_stack[index];
+                let stack = &mut top_ec.stack;
+                stack.push(Ok(NormalCompletion::from(800)));
+            }
+            agent.create_unmapped_arguments_object(index);
+        }
+    }
 }
 
 #[test]

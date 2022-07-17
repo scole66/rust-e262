@@ -1473,9 +1473,7 @@ impl Agent {
 
         let first_arg_index = stack_len - length as usize - 1;
         let arguments = self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize]
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
+            .to_vec();
 
         for (arg_number, item) in arguments.into_iter().enumerate() {
             let value =
@@ -1525,9 +1523,7 @@ impl Agent {
 
         let first_arg_index = stack_len - length as usize - 1;
         let arguments = self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize]
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
+            .to_vec();
 
         let env = self.current_lexical_environment().expect("A lex env must exist");
         let map = ParameterMap::new(env);

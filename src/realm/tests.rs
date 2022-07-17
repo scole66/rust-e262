@@ -5,6 +5,7 @@ use ahash::RandomState;
 const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::Array,
     IntrinsicId::ArrayPrototype,
+    IntrinsicId::ArrayPrototypeValues,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
     IntrinsicId::Error,
@@ -78,6 +79,7 @@ fn intrinsics_get() {
     let intrinsics = &realm.intrinsics;
     assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
     assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
     assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
