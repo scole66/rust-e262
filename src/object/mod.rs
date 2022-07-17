@@ -59,15 +59,6 @@ impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
     }
 }
 
-impl PropertyDescriptor {
-    pub fn writable(&self) -> Option<bool> {
-        match &self.property {
-            PropertyKind::Data(DataProperty { value: _, writable }) => Some(*writable),
-            PropertyKind::Accessor(..) => None,
-        }
-    }
-}
-
 impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
     fn from(source: &'a PropertyDescriptor) -> Self {
         Self(source)

@@ -1471,8 +1471,8 @@ impl Agent {
         .expect("Normal Object");
 
         let first_arg_index = stack_len - length as usize - 1;
-        let arguments = self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize]
-            .to_vec();
+        let arguments =
+            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
 
         for (arg_number, item) in arguments.into_iter().enumerate() {
             let value =
@@ -1521,8 +1521,8 @@ impl Agent {
         assert!(stack_len > length as usize + 1, "Stack too short to fit all the arguments plus the function obj");
 
         let first_arg_index = stack_len - length as usize - 1;
-        let arguments = self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize]
-            .to_vec();
+        let arguments =
+            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
 
         let env = self.current_lexical_environment().expect("A lex env must exist");
         let map = ParameterMap::new(env);

@@ -136,7 +136,7 @@ impl ObjectInterface for ArgumentsObject {
                     let map = map.borrow();
                     if let Some(idx) = map.to_index(key) {
                         let value = map.get(agent, idx).expect("Property must exist, as we just checked");
-                        let writable = desc.writable().expect("Property cannot be an accessor");
+                        let writable = desc.is_writable().expect("Property cannot be an accessor");
                         desc.property = PropertyKind::Data(DataProperty { value, writable });
                     }
                     Ok(Some(desc))
@@ -190,8 +190,7 @@ impl ObjectInterface for ArgumentsObject {
                             Some(map.get(agent, idx).expect("Property must exist, as we just checked"));
                     }
                 }
-                let allowed =
-                    ordinary_define_own_property(agent, self, key, new_arg_desc).expect("Simple Object");
+                let allowed = ordinary_define_own_property(agent, self, key, new_arg_desc).expect("Simple Object");
                 if let Some(idx) = maybe_index {
                     if allowed {
                         if desc.is_accessor_descriptor() || (desc.value.is_none() && desc.writable == Some(false)) {
