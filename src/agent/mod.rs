@@ -1578,10 +1578,9 @@ impl Agent {
         )
         .expect("argument must be an object");
         let ao = obj.o.to_arguments_object().expect("argument must be an ArgumentsObject");
-        if let Some(pmap) = &ao.parameter_map {
-            let mut pmap = pmap.borrow_mut();
-            pmap.add_mapped_name(name.clone(), idx);
-        }
+        let pmap = ao.parameter_map.as_ref().expect("argument must be a mapped arguments object");
+        let mut pmap = pmap.borrow_mut();
+        pmap.add_mapped_name(name.clone(), idx);
         // Stack: AObj ...
     }
 }

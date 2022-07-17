@@ -181,18 +181,22 @@ impl ObjectInterface for ArgumentsObject {
         match &self.parameter_map {
             None => ordinary_define_own_property(agent, self, key, desc),
             Some(map) => {
-                let mut map = map.borrow_mut();
-                let maybe_index = map.to_index(&key);
                 let mut new_arg_desc = desc.clone();
-                if let Some(idx) = maybe_index {
-                    if desc.is_data_descriptor() && desc.value.is_none() && desc.writable == Some(false) {
-                        new_arg_desc.value =
-                            Some(map.get(agent, idx).expect("Property must exist, as we just checked"));
+                {
+                    let map = map.borrow();
+                    let maybe_index = map.to_index(&key);
+                    if let Some(idx) = maybe_index {
+                        if desc.is_data_descriptor() && desc.value.is_none() && desc.writable == Some(false) {
+                            new_arg_desc.value =
+                                Some(map.get(agent, idx).expect("Property must exist, as we just checked"));
+                        }
                     }
                 }
-                let allowed = ordinary_define_own_property(agent, self, key, new_arg_desc).expect("Simple Object");
-                if let Some(idx) = maybe_index {
-                    if allowed {
+                let allowed =
+                    ordinary_define_own_property(agent, self, key.clone(), new_arg_desc).expect("Simple Object");
+                if allowed {
+                    let mut map = map.borrow_mut();
+                    if let Some(idx) = map.to_index(&key) {
                         if desc.is_accessor_descriptor() || (desc.value.is_none() && desc.writable == Some(false)) {
                             map.delete(idx);
                         } else if let Some(value) = desc.value {

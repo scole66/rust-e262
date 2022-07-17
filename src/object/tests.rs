@@ -1,6 +1,7 @@
 use super::*;
 use crate::tests::*;
 use std::io::Write;
+use test_case::test_case;
 
 #[test]
 fn data_property_debug() {
@@ -2075,21 +2076,18 @@ fn ordinary_object_create_03c() {
     assert_ne!(&obj, &proto);
 }
 
-#[test]
-#[should_panic(expected = "Nonsense")]
-fn make_basic_object_01() {
+#[test_case(&[InternalSlotName::Nonsense] => panics "Nonsense"; "all bad")]
+#[test_case(&[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible] => panics "Nonsense"; "one bad")]
+#[test_case(ORDINARY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_plain_object()); "ordinary obj")]
+#[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_boolean_object()); "boolean obj")]
+#[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_error_object()); "error obj")]
+#[test_case(NUMBER_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_number_object()); "number obj")]
+#[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
+#[test_case(SYMBOL_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_symbol_object()); "symbol obj")]
+#[test_case(ARGUMENTS_OBJECT_SLOTS => panics "Additional info needed for arguments object; use direct constructor"; "args obj")]
+fn make_basic_object(slots: &[InternalSlotName]) -> Object {
     let mut agent = test_agent();
-    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense], None);
-}
-#[test]
-#[should_panic(expected = "Nonsense")]
-fn make_basic_object_02() {
-    let mut agent = test_agent();
-    let _obj = make_basic_object(
-        &mut agent,
-        &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible],
-        None,
-    );
+    super::make_basic_object(&mut agent, slots, None)
 }
 
 #[test]

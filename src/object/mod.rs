@@ -1009,6 +1009,10 @@ pub trait ObjectInterface: Debug {
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
         None
     }
+    /// True if this object has no special behavior and no additional slots
+    fn is_plain_object(&self) -> bool {
+        false
+    }
     fn is_arguments_object(&self) -> bool {
         false
     }
@@ -1209,6 +1213,9 @@ impl ObjectInterface for OrdinaryObject {
         &self.data
     }
     fn is_ordinary(&self) -> bool {
+        true
+    }
+    fn is_plain_object(&self) -> bool {
         true
     }
     fn id(&self) -> usize {
