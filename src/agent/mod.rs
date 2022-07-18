@@ -606,6 +606,29 @@ impl Agent {
                         }
                     }
                 }
+                Insn::JumpPopIfFalse | Insn::JumpPopIfTrue => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let bool_val = bool::from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index]
+                                .stack
+                                .pop()
+                                .expect("JumpPop must have an argument")
+                                .expect("Boolean Jumps may only be used with Normal completions"),
+                        )
+                        .expect("Boolean Jumps may only be used with Values"),
+                    );
+                    if (instruction == Insn::JumpPopIfFalse && !bool_val)
+                        || (instruction == Insn::JumpPopIfTrue && bool_val)
+                    {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
                 Insn::JumpIfNotNullish => {
                     let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
                     self.execution_context_stack[index].pc += 1;
@@ -1037,6 +1060,102 @@ impl Agent {
                 Insn::BitwiseAnd => self.binary_operation(index, BinOp::BitwiseAnd),
                 Insn::BitwiseOr => self.binary_operation(index, BinOp::BitwiseOr),
                 Insn::BitwiseXor => self.binary_operation(index, BinOp::BitwiseXor),
+                Insn::HandleEmptyBreak => {
+                    let prior_result =
+                        self.execution_context_stack[index].stack.pop().expect("HandleEmptyBreak requires an argument");
+                    let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
+                        match value {
+                            NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
+                            value => Ok(value),
+                        }
+                    } else {
+                        prior_result
+                    };
+                    self.execution_context_stack[index].stack.push(new_result);
+                }
+                Insn::HandleTargetedBreak => {
+                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let label = &chunk.strings[str_idx];
+                    let prior_result = self.execution_context_stack[index]
+                        .stack
+                        .pop()
+                        .expect("HandleTargetedBreak requires an argument");
+                    let new_result = match prior_result {
+                        Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
+                        _ => prior_result,
+                    };
+                    self.execution_context_stack[index].stack.push(new_result);
+                }
+                Insn::CoalesceValue => {
+                    // Stack: stmtResult V ...
+                    // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
+                    let stmt_result =
+                        self.execution_context_stack[index].stack.pop().expect("CoalesceValue requires two arguments");
+                    let v = ECMAScriptValue::try_from(
+                        self.execution_context_stack[index]
+                            .stack
+                            .pop()
+                            .expect("CoalesceValue requires two arguments")
+                            .expect("argument V must be  normal completion"),
+                    )
+                    .expect("argument V must be a value");
+                    self.execution_context_stack[index].stack.push(Ok(match stmt_result {
+                        Ok(NormalCompletion::Value(value))
+                        | Err(AbruptCompletion::Throw { value })
+                        | Err(AbruptCompletion::Return { value })
+                        | Err(AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. })
+                        | Err(AbruptCompletion::Break { value: NormalCompletion::Value(value), .. }) => {
+                            NormalCompletion::from(value)
+                        }
+                        _ => NormalCompletion::from(v),
+                    }));
+                }
+                Insn::LoopContinues => {
+                    let set_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let label_set = &chunk.label_sets[set_idx];
+                    // 1. If completion.[[Type]] is normal, return true.
+                    // 2. If completion.[[Type]] is not continue, return false.
+                    // 3. If completion.[[Target]] is empty, return true.
+                    // 4. If completion.[[Target]] is an element of labelSet, return true.
+                    // 5. Return false.
+                    let idx = self.execution_context_stack[index].stack.len() - 1;
+                    let completion = &self.execution_context_stack[index].stack[idx];
+                    let result = match completion {
+                        Ok(_) => true,
+                        Err(AbruptCompletion::Continue { value: _, target: None }) => true,
+                        Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
+                        _ => false,
+                    };
+                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(result)));
+                }
+                Insn::Continue => {
+                    self.execution_context_stack[index]
+                        .stack
+                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }));
+                }
+                Insn::TargetedContinue => {
+                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let label = chunk.strings[str_idx].clone();
+                    self.execution_context_stack[index]
+                        .stack
+                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }));
+                }
+                Insn::Break => {
+                    self.execution_context_stack[index]
+                        .stack
+                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }));
+                }
+                Insn::TargetedBreak => {
+                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let label = chunk.strings[str_idx].clone();
+                    self.execution_context_stack[index]
+                        .stack
+                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }));
+                }
             }
         }
         let index = self.execution_context_stack.len() - 1;
