@@ -119,3 +119,125 @@ mod parameter_map {
         env.get_binding_value(&mut agent, pmap.properties[loc].as_ref().unwrap(), true).unwrap()
     }
 }
+
+mod arguments_object {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn object() {
+        let mut agent = test_agent();
+        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let pmap = ParameterMap {
+            env: env.clone(),
+            properties: vec![Some("from".into()), Some("the".into()), Some("test".into())],
+        };
+
+        let result = ArgumentsObject::object(&mut agent, Some(pmap));
+
+        let d = result.o.common_object_data().borrow();
+
+        assert_eq!(d.prototype, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)));
+        assert!(d.extensible);
+        assert_eq!(d.slots, ARGUMENTS_OBJECT_SLOTS);
+        assert!(d.private_elements.is_empty());
+        assert!(d.properties.is_empty());
+
+        let ao = result.o.to_arguments_object().unwrap();
+        let pmap = ao.parameter_map.as_ref().unwrap().borrow();
+
+        assert_eq!(pmap.env.name(), env.name());
+        assert_eq!(pmap.properties, vec![Some("from".into()), Some("the".into()), Some("test".into())]);
+    }
+
+    fn test_ao(agent: &mut Agent) -> Object {
+        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let pmap = ParameterMap {
+            env: env.clone(),
+            properties: vec![Some("from".into()), Some("the".into()), Some("test".into())],
+        };
+
+        ArgumentsObject::object(agent, Some(pmap))
+    }
+
+    #[test_case(|ao| ao.o.is_proxy_object() => false; "is_proxy_object")]
+    #[test_case(|ao| ao.o.is_number_object() => false; "is_number_object")]
+    #[test_case(|ao| ao.o.is_date_object() => false; "is_date_object")]
+    #[test_case(|ao| ao.o.is_boolean_object() => false; "is_boolean_object")]
+    #[test_case(|ao| ao.o.is_regexp_object() => false; "is_regexp_object")]
+    #[test_case(|ao| ao.o.is_callable_obj() => false; "is_callable_obj")]
+    #[test_case(|ao| ao.o.is_plain_object() => false; "is_plain_object")]
+    #[test_case(|ao| ao.o.is_symbol_object() => false; "is_symbol_object")]
+    #[test_case(|ao| ao.o.is_string_object() => false; "is_string_object")]
+    #[test_case(|ao| ao.o.is_array_object() => false; "is_array_object")]
+    #[test_case(|ao| ao.o.is_error_object() => false; "is_error_object")]
+    #[test_case(|ao| ao.o.is_ordinary() => true; "is_ordinary")]
+    #[test_case(|ao| ao.o.is_arguments_object() => true; "is_arguments_object")]
+    fn bool_stub(op: impl FnOnce(&Object) -> bool) -> bool {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        op(&ao)
+    }
+
+    #[test]
+    fn to_array_object() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_array_object().is_none());
+    }
+
+    #[test]
+    fn to_boolean_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_boolean_obj().is_none());
+    }
+
+    #[test]
+    fn to_error_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_error_obj().is_none());
+    }
+    #[test]
+    fn to_symbol_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_symbol_obj().is_none());
+    }
+
+    #[test]
+    fn to_number_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_number_obj().is_none());
+    }
+
+    #[test]
+    fn to_callable_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_callable_obj().is_none());
+    }
+
+    #[test]
+    fn to_constructable() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_constructable().is_none());
+    }
+
+    #[test]
+    fn to_function_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_function_obj().is_none());
+    }
+
+    #[test]
+    fn to_builtin_function_obj() {
+        let mut agent = test_agent();
+        let ao = test_ao(&mut agent);
+        assert!(ao.o.to_builtin_function_obj().is_none());
+    }
+}
