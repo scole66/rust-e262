@@ -398,3 +398,6 @@ impl ArgumentsObject {
 // AttachMappedArg arg2 2
 // AttachMappedArg arg1 1
 // AttachMappedArg arg0 0
+
+#[cfg(test)]
+mod tests;
