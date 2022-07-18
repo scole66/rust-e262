@@ -1006,6 +1006,13 @@ pub trait ObjectInterface: Debug {
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         None
     }
+    fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
+        None
+    }
+    /// True if this object has no special behavior and no additional slots
+    fn is_plain_object(&self) -> bool {
+        false
+    }
     fn is_arguments_object(&self) -> bool {
         false
     }
@@ -1206,6 +1213,9 @@ impl ObjectInterface for OrdinaryObject {
         &self.data
     }
     fn is_ordinary(&self) -> bool {
+        true
+    }
+    fn is_plain_object(&self) -> bool {
         true
     }
     fn id(&self) -> usize {
@@ -1442,6 +1452,7 @@ pub enum InternalSlotName {
     Realm,
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
+    ParameterMap,
     // Function Object Slots
     Environment,
     PrivateEnvironment,
@@ -1496,6 +1507,8 @@ pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
+pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1535,6 +1548,8 @@ pub fn make_basic_object(
     } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
         //FunctionObject::object(agent, prototype)
         panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
+    } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
+        panic!("Additional info needed for arguments object; use direct constructor");
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);

@@ -699,6 +699,8 @@ mod property_key {
         assert_eq!(pk, PropertyKey::Symbol(agent.wks(WksId::ToPrimitive)));
         let pk = PropertyKey::from(String::from("d"));
         assert_eq!(pk, PropertyKey::String(JSString::from("d")));
+        let pk = PropertyKey::from(848183_usize);
+        assert_eq!(pk, PropertyKey::String(JSString::from("848183")));
     }
     #[test]
     fn debug() {

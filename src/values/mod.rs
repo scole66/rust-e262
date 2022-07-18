@@ -318,6 +318,12 @@ impl From<String> for PropertyKey {
     }
 }
 
+impl From<usize> for PropertyKey {
+    fn from(num: usize) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
 impl From<PropertyKey> for ECMAScriptValue {
     fn from(source: PropertyKey) -> Self {
         match source {

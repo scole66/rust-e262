@@ -79,6 +79,12 @@ impl Chunk {
         self.opcodes.push(arg);
     }
 
+    pub fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16) {
+        self.opcodes.push(opcode.into());
+        self.opcodes.push(arg1);
+        self.opcodes.push(arg2);
+    }
+
     pub fn op_jump(&mut self, opcode: Insn) -> usize {
         self.opcodes.push(opcode.into());
         self.opcodes.push(0);
@@ -197,6 +203,8 @@ impl Chunk {
             | Insn::BitwiseOr
             | Insn::BitwiseXor
             | Insn::Throw
+            | Insn::CreateUnmappedArguments
+            | Insn::CreateMappedArguments
             | Insn::HandleEmptyBreak
             | Insn::CoalesceValue
             | Insn::Continue
@@ -212,6 +220,11 @@ impl Chunk {
             | Insn::JumpIfNotNullish => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
+            }
+            Insn::AddMappedArgument => {
+                let string_arg = self.opcodes[idx] as usize;
+                let index_arg = self.opcodes[idx + 1] as usize;
+                (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))
             }
             Insn::LoopContinues => {
                 let label_set_idx = self.opcodes[idx] as usize;

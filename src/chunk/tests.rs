@@ -155,6 +155,19 @@ mod chunk {
     }
 
     #[test]
+    fn op_plus_two_args() {
+        let mut c = Chunk::new("op_plus_2arg");
+        let orig_op_count = c.opcodes.len();
+
+        c.op_plus_two_args(Insn::True, 377, 887);
+
+        assert_eq!(c.opcodes.len(), orig_op_count + 3);
+        assert_eq!(c.opcodes[orig_op_count], u16::from(Insn::True));
+        assert_eq!(c.opcodes[orig_op_count + 1], 377);
+        assert_eq!(c.opcodes[orig_op_count + 2], 887);
+    }
+
+    #[test]
     fn op_jump() {
         let mut c = Chunk::new("op_jump");
         let orig_op_count = c.opcodes.len();
@@ -291,6 +304,7 @@ mod chunk {
         c.fixup(mark).unwrap();
         c.op_plus_arg(Insn::Unwind, 3);
         c.op_plus_arg(Insn::LoopContinues, ls_idx);
+        c.op_plus_two_args(Insn::AddMappedArgument, string_idx, 3);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -309,6 +323,7 @@ mod chunk {
             "    UPDATE_EMPTY",
             "    UNWIND              3",
             "    LOOP_CONT           [alpha, beta, zeta]",
+            "    AMA                 3 charlie",
         ]);
         assert_eq!(result, expected);
     }

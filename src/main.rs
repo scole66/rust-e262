@@ -3,6 +3,7 @@
 #![allow(clippy::enum_variant_names)]
 
 mod agent;
+mod arguments_object;
 mod arrays;
 mod bigint_object;
 mod boolean_object;
@@ -29,6 +30,7 @@ mod symbol_object;
 mod values;
 
 pub use crate::agent::*;
+pub use crate::arguments_object::*;
 pub use crate::arrays::*;
 pub use crate::bigint_object::*;
 pub use crate::boolean_object::*;
