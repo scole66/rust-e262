@@ -157,6 +157,13 @@ mod arguments_object {
             properties: vec![Some("from".into()), Some("the".into()), Some("test".into())],
         };
 
+        env.create_mutable_binding(agent, "from".into(), false).unwrap();
+        env.create_mutable_binding(agent, "the".into(), false).unwrap();
+        env.create_mutable_binding(agent, "test".into(), false).unwrap();
+        env.initialize_binding(agent, &"from".into(), "value of 'from'".into()).unwrap();
+        env.initialize_binding(agent, &"the".into(), "value of 'the'".into()).unwrap();
+        env.initialize_binding(agent, &"test".into(), "value of 'test'".into()).unwrap();
+
         ArgumentsObject::object(agent, Some(pmap))
     }
 
@@ -239,5 +246,74 @@ mod arguments_object {
         let mut agent = test_agent();
         let ao = test_ao(&mut agent);
         assert!(ao.o.to_builtin_function_obj().is_none());
+    }
+
+    #[test]
+    fn debug() {
+        let mut agent = test_agent();
+        let obj = test_ao(&mut agent);
+        let ao = obj.o.to_arguments_object().unwrap();
+        assert_ne!(format!("{:?}", ao), "");
+    }
+
+    #[test_case(test_ao, "0" => Ok(ECMAScriptValue::from("value of 'from'")); "index was there")]
+    #[test_case(test_ao, "not" => Ok(ECMAScriptValue::Undefined); "prop wasn't there")]
+    #[test_case(|a| { let ao = test_ao(a); ao.o.delete(a, &"1".into()).unwrap(); ao }, "1" => Ok(ECMAScriptValue::Undefined); "tried to get a deleted one")]
+    #[test_case(|a| ArgumentsObject::object(a, None), "10" => Ok(ECMAScriptValue::Undefined); "unmapped")]
+    fn get(make_object: impl FnOnce(&mut Agent) -> Object, propname: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+        let receiver = ECMAScriptValue::from(obj.clone());
+
+        obj.o.get(&mut agent, &propname.into(), &receiver).map_err(|err| unwind_any_error(&mut agent, err))
+    }
+
+    #[test_case(test_ao, "0", ECMAScriptValue::from(99), &["0", "1", "2", "from", "the", "test"] => Ok((true, vec![
+        (ECMAScriptValue::from(99), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::from("value of 'the'"), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::from("value of 'test'"), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from(99)),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'the'")),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'test'")),
+    ])); "legit")]
+    #[test_case(test_ao, "10", ECMAScriptValue::from(99), &["0", "1", "2", "from", "the", "test", "10"] => Ok((true, vec![
+        (ECMAScriptValue::from("value of 'from'"), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::from("value of 'the'"), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::from("value of 'test'"), ECMAScriptValue::Undefined),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'from'")),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'the'")),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'test'")),
+        (ECMAScriptValue::from(99), ECMAScriptValue::Undefined),
+    ])); "mapped, but not magic")]
+    #[test_case(|a| ArgumentsObject::object(a, None), "0", "sentinel".into(), &["0"] => Ok((true, vec![
+        (ECMAScriptValue::from("sentinel"), ECMAScriptValue::Undefined),
+    ])); "unmapped")]
+    fn set(
+        make_object: impl FnOnce(&mut Agent) -> Object,
+        propname: &str,
+        val: ECMAScriptValue,
+        to_check: &[&str],
+    ) -> Result<(bool, Vec<(ECMAScriptValue, ECMAScriptValue)>), String> {
+        let mut agent = test_agent();
+        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let obj = make_object(&mut agent);
+        let receiver = ECMAScriptValue::from(obj.clone());
+
+        let result = obj
+            .o
+            .set(&mut agent, propname.into(), val, &receiver)
+            .map_err(|err| unwind_any_error(&mut agent, err))?;
+
+        let values = to_check
+            .iter()
+            .map(|&probe| {
+                (
+                    obj.o.get(&mut agent, &probe.into(), &receiver).unwrap(),
+                    env.get_binding_value(&mut agent, &probe.into(), false).unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        Ok((result, values))
     }
 }
