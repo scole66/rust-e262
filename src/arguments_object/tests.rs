@@ -299,10 +299,8 @@ mod arguments_object {
         let obj = make_object(&mut agent);
         let receiver = ECMAScriptValue::from(obj.clone());
 
-        let result = obj
-            .o
-            .set(&mut agent, propname.into(), val, &receiver)
-            .map_err(|err| unwind_any_error(&mut agent, err))?;
+        let result =
+            obj.o.set(&mut agent, propname.into(), val, &receiver).map_err(|err| unwind_any_error(&mut agent, err))?;
 
         let values = to_check
             .iter()
