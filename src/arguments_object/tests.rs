@@ -122,6 +122,7 @@ mod parameter_map {
 
 mod arguments_object {
     use super::*;
+    use ahash::AHashMap;
     use test_case::test_case;
 
     #[test]
@@ -165,6 +166,16 @@ mod arguments_object {
         env.initialize_binding(agent, &"test".into(), "value of 'test'".into()).unwrap();
 
         ArgumentsObject::object(agent, Some(pmap))
+    }
+
+    fn test_unmapped(agent: &mut Agent) -> Object {
+        let obj = ArgumentsObject::object(agent, None);
+
+        super::set(agent, &obj, "0".into(), "value of 'from'".into(), false).unwrap();
+        super::set(agent, &obj, "1".into(), "value of 'the'".into(), false).unwrap();
+        super::set(agent, &obj, "2".into(), "value of 'test'".into(), false).unwrap();
+
+        obj
     }
 
     #[test_case(|ao| ao.o.is_proxy_object() => false; "is_proxy_object")]
@@ -313,5 +324,75 @@ mod arguments_object {
             .collect::<Vec<_>>();
 
         Ok((result, values))
+    }
+
+    type TestResult =
+        Result<(bool, AHashMap<String, (ECMAScriptValue, ECMAScriptValue)>, Option<Vec<Option<String>>>), String>;
+
+    fn test_hm(
+        input: &[(&str, ECMAScriptValue, ECMAScriptValue)],
+    ) -> AHashMap<String, (ECMAScriptValue, ECMAScriptValue)> {
+        input
+            .iter()
+            .map(|(name, obj_value, env_value)| (name.to_string(), (obj_value.clone(), env_value.clone())))
+            .collect()
+    }
+    fn test_v(input: &[Option<&str>]) -> Vec<Option<String>> {
+        input.iter().map(|maybe_name| maybe_name.as_ref().map(|&s| s.to_string())).collect()
+    }
+
+    #[test_case(test_ao, "1", &["0", "1", "2", "from", "the", "test"] => Ok((true, test_hm(&[
+        ("0", ECMAScriptValue::from("value of 'from'"), ECMAScriptValue::Undefined),
+        ("1", ECMAScriptValue::Undefined, ECMAScriptValue::Undefined),
+        ("2", ECMAScriptValue::from("value of 'test'"), ECMAScriptValue::Undefined),
+        ("from", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'from'")),
+        ("the", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'the'")),
+        ("test", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'test'")),
+    ]), Some(test_v(&[Some("from"), None, Some("test")])))); "typical")]
+    #[test_case(test_ao, "10", &["0", "1", "2", "from", "the", "test"] => Ok((true, test_hm(&[
+        ("0", ECMAScriptValue::from("value of 'from'"), ECMAScriptValue::Undefined),
+        ("1", ECMAScriptValue::from("value of 'the'"), ECMAScriptValue::Undefined),
+        ("2", ECMAScriptValue::from("value of 'test'"), ECMAScriptValue::Undefined),
+        ("from", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'from'")),
+        ("the", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'the'")),
+        ("test", ECMAScriptValue::Undefined, ECMAScriptValue::from("value of 'test'")),
+    ]), Some(test_v(&[Some("from"), Some("the"), Some("test")])))); "delete a non-existing prop")]
+    #[test_case(test_unmapped, "1", &["0", "1", "2"] => Ok((true, test_hm(&[
+        ("0", ECMAScriptValue::from("value of 'from'"), ECMAScriptValue::Undefined),
+        ("1", ECMAScriptValue::Undefined, ECMAScriptValue::Undefined),
+        ("2", ECMAScriptValue::from("value of 'test'"), ECMAScriptValue::Undefined),
+    ]), None)); "unmapped")]
+    #[test_case(|a| {
+        let obj = ArgumentsObject::object(a, None);
+        define_property_or_throw(a, &obj, "key", PotentialPropertyDescriptor::new().value(39).configurable(false)).unwrap();
+        obj
+    }, "key", &["key"] => Ok((false, test_hm(&[("key", ECMAScriptValue::from(39), ECMAScriptValue::Undefined)]), None)); "undeletable")]
+    fn delete(make_object: impl FnOnce(&mut Agent) -> Object, name: &str, to_check: &[&str]) -> TestResult {
+        let mut agent = test_agent();
+        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let obj = make_object(&mut agent);
+        let receiver = ECMAScriptValue::from(obj.clone());
+
+        let result = obj.o.delete(&mut agent, &name.into()).map_err(|err| unwind_any_error(&mut agent, err))?;
+
+        let values = to_check
+            .iter()
+            .map(|&probe| {
+                (
+                    probe.to_string(),
+                    (
+                        obj.o.get(&mut agent, &probe.into(), &receiver).unwrap(),
+                        env.get_binding_value(&mut agent, &probe.into(), false).unwrap(),
+                    ),
+                )
+            })
+            .collect::<AHashMap<_, _>>();
+
+        let ao = obj.o.to_arguments_object().unwrap();
+        let map_result = ao.parameter_map.as_ref().map(|pmap| {
+            pmap.borrow().properties.iter().cloned().map(|maybe_name| maybe_name.map(String::from)).collect::<Vec<_>>()
+        });
+
+        Ok((result, values, map_result))
     }
 }
