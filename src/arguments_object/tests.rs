@@ -165,7 +165,14 @@ mod arguments_object {
         env.initialize_binding(agent, &"the".into(), "value of 'the'".into()).unwrap();
         env.initialize_binding(agent, &"test".into(), "value of 'test'".into()).unwrap();
 
-        ArgumentsObject::object(agent, Some(pmap))
+        let obj = ArgumentsObject::object(agent, Some(pmap));
+
+        create_data_property_or_throw(agent, &obj, 0, "value of 'from'").unwrap();
+        create_data_property_or_throw(agent, &obj, 1, "value of 'the'").unwrap();
+        create_data_property_or_throw(agent, &obj, 2, "value of 'test'").unwrap();
+        create_data_property_or_throw(agent, &obj, 100, "not in index").unwrap();
+
+        obj
     }
 
     fn test_unmapped(agent: &mut Agent) -> Object {
@@ -394,5 +401,50 @@ mod arguments_object {
         });
 
         Ok((result, values, map_result))
+    }
+
+    fn prop_checker(expected: PotentialPropertyDescriptor) -> impl Fn(Option<PropertyDescriptor>) {
+        move |actual: Option<PropertyDescriptor>| match &actual {
+            None => panic!("{:?} should not have been None", actual),
+            Some(pd) => {
+                if let Some(enumerable) = expected.enumerable {
+                    assert_eq!(pd.enumerable, enumerable);
+                }
+                if let Some(configurable) = expected.configurable {
+                    assert_eq!(pd.configurable, configurable);
+                }
+                if let Some(expected_writable) = expected.writable {
+                    assert!(
+                        matches!(pd.property, PropertyKind::Data(DataProperty { value: _, writable }) if writable == expected_writable)
+                    );
+                }
+                if let Some(expected_value) = &expected.value {
+                    assert!(
+                        matches!(&pd.property, PropertyKind::Data(DataProperty { value, writable: _ }) if value == expected_value)
+                    );
+                }
+                if let Some(expected_get) = &expected.get {
+                    assert!(
+                        matches!(&pd.property, PropertyKind::Accessor(AccessorProperty{ get, set: _ }) if get == expected_get)
+                    );
+                }
+                if let Some(expected_set) = &expected.set {
+                    assert!(
+                        matches!(&pd.property, PropertyKind::Accessor(AccessorProperty{ get: _, set }) if set == expected_set)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test_case(test_ao, "0" => using prop_checker(PotentialPropertyDescriptor::new().value("value of 'from'").writable(true).enumerable(true).configurable(true)); "mapped value")]
+    #[test_case(test_ao, "100" => using prop_checker(PotentialPropertyDescriptor::new().value("not in index").writable(true).enumerable(true).configurable(true)); "unmapped value")]
+    #[test_case(test_unmapped, "2" => using prop_checker(PotentialPropertyDescriptor::new().value("value of 'test'").writable(true).enumerable(true).configurable(true)); "unmapped obj")]
+    #[test_case(test_unmapped, "200" => None; "property not present")]
+    fn get_own_property(make_object: impl FnOnce(&mut Agent) -> Object, name: &str) -> Option<PropertyDescriptor> {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+
+        obj.o.get_own_property(&mut agent, &name.into()).unwrap()
     }
 }
