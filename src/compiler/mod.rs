@@ -88,6 +88,9 @@ pub enum Insn {
     BitwiseOr,
     BitwiseXor,
     Throw,
+    CreateUnmappedArguments,
+    CreateMappedArguments,
+    AddMappedArgument,
     HandleEmptyBreak,
     HandleTargetedBreak,
     CoalesceValue,
@@ -178,6 +181,9 @@ impl fmt::Display for Insn {
             Insn::BitwiseOr => "OR",
             Insn::BitwiseXor => "XOR",
             Insn::Throw => "THROW",
+            Insn::CreateUnmappedArguments => "CUA",
+            Insn::CreateMappedArguments => "CMA",
+            Insn::AddMappedArgument => "AMA",
             Insn::HandleEmptyBreak => "HEB",
             Insn::HandleTargetedBreak => "HTB",
             Insn::CoalesceValue => "COALESCE",
@@ -1804,10 +1810,11 @@ impl Block {
                     }
                     if let Ok(fcn) = FcnDef::try_from(d) {
                         let fcn_name = fcn.bound_name();
-                        let string_idx =
+                        let _string_idx =
                             chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
-                        fcn.compile_fo_instantiation(chunk, strict, text)?;
-                        chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+                        todo!(); // when compile_fo_instantiation is done, uncomment. This is here only for coverage.
+                                 // fcn.compile_fo_instantiation(chunk, strict, text)?;
+                                 // chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
                     }
                 }
 

@@ -47,6 +47,9 @@ pub fn sset(items: &[&str]) -> AHashSet<String> {
 pub fn svec(items: &[&str]) -> Vec<String> {
     items.iter().map(|&s| String::from(s)).collect::<Vec<_>>()
 }
+pub fn ssome(item: &str) -> Option<String> {
+    Some(String::from(item))
+}
 
 /// Parse Node builder for test cases
 ///

@@ -36,7 +36,6 @@ pub struct Agent {
     gsr: Rc<RefCell<SymbolRegistry>>,
 }
 
-//#[allow(clippy::new_without_default)]
 impl Agent {
     pub fn new(gsr: Rc<RefCell<SymbolRegistry>>) -> Self {
         Agent {
@@ -962,6 +961,16 @@ impl Agent {
                 Insn::BitwiseAnd => self.binary_operation(index, BinOp::BitwiseAnd),
                 Insn::BitwiseOr => self.binary_operation(index, BinOp::BitwiseOr),
                 Insn::BitwiseXor => self.binary_operation(index, BinOp::BitwiseXor),
+                Insn::CreateUnmappedArguments => self.create_unmapped_arguments_object(index),
+                Insn::CreateMappedArguments => self.create_mapped_arguments_object(index),
+                Insn::AddMappedArgument => {
+                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let string = &chunk.strings[string_index as usize];
+                    let argument_index = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    self.attach_mapped_arg(index, string, argument_index);
+                }
                 Insn::HandleEmptyBreak => {
                     let prior_result =
                         self.execution_context_stack[index].stack.pop().expect("HandleEmptyBreak requires an argument");
@@ -1207,7 +1216,6 @@ impl Agent {
         self.execution_context_stack[index].stack.push(result);
     }
 
-    #[allow(unused_variables)]
     fn apply_string_or_numeric_binary_operator(
         &mut self,
         lval: ECMAScriptValue,
@@ -1309,7 +1317,7 @@ impl Agent {
                     .map_err(|err| create_range_error(self, err.to_string()))
                     .map(NormalCompletion::from)
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => {
+            (Numeric::BigInt(_), Numeric::BigInt(_), BinOp::UnsignedRightShift) => {
                 Err(create_type_error(self, "BigInts have no unsigned right shift, use >> instead"))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
@@ -1436,6 +1444,144 @@ impl Agent {
             }
             _ => Err(create_type_error(self, "Right-hand side of 'instanceof' is not an object")),
         }
+    }
+
+    pub fn create_unmapped_arguments_object(&mut self, index: usize) {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
+        // Those values are NOT consumed; this function assumes they'll be used again.
+
+        let stack_len = self.execution_context_stack[index].stack.len();
+        assert!(stack_len > 0, "Stack must not be empty");
+        let length = f64::try_from(
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index].stack[stack_len - 1].clone().expect("Non-error arguments needed"),
+            )
+            .expect("Value arguments needed"),
+        )
+        .expect("Numeric arguments needed") as u32;
+        assert!(stack_len > length as usize, "Stack too short to fit all the arguments");
+
+        let obj = ArgumentsObject::object(self, None);
+        define_property_or_throw(
+            self,
+            &obj,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+
+        let first_arg_index = stack_len - length as usize - 1;
+        let arguments =
+            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
+
+        for (arg_number, item) in arguments.into_iter().enumerate() {
+            let value =
+                ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
+            create_data_property_or_throw(self, &obj, arg_number, value).expect("Normal Object");
+        }
+
+        let iterator = self.wks(WksId::Iterator);
+        let array_values = self.intrinsic(IntrinsicId::ArrayPrototypeValues);
+        let throw_type_error = self.intrinsic(IntrinsicId::ThrowTypeError);
+        define_property_or_throw(
+            self,
+            &obj,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+        define_property_or_throw(
+            self,
+            &obj,
+            "callee",
+            PotentialPropertyDescriptor::new()
+                .get(throw_type_error.clone())
+                .set(throw_type_error)
+                .enumerable(false)
+                .configurable(false),
+        )
+        .expect("Normal Object");
+
+        self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+        // Stack at exit: AObj N arg[N-1] ... arg[0] ...
+    }
+
+    pub fn create_mapped_arguments_object(&mut self, index: usize) {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
+
+        let stack_len = self.execution_context_stack[index].stack.len();
+        assert!(stack_len > 0, "Stack must not be empty");
+        let length = f64::try_from(
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index].stack[stack_len - 1].clone().expect("Non-error arguments needed"),
+            )
+            .expect("Value arguments needed"),
+        )
+        .expect("Numeric arguments needed") as u32;
+        assert!(stack_len > length as usize + 1, "Stack too short to fit all the arguments plus the function obj");
+
+        let first_arg_index = stack_len - length as usize - 1;
+        let arguments =
+            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
+
+        let env = self.current_lexical_environment().expect("A lex env must exist");
+        let map = ParameterMap::new(env);
+        let ao = ArgumentsObject::object(self, Some(map));
+
+        for (idx, item) in arguments.into_iter().enumerate() {
+            let val =
+                ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
+            create_data_property_or_throw(self, &ao, idx, val).expect("ArgumentObject won't throw");
+        }
+
+        define_property_or_throw(
+            self,
+            &ao,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let iterator = self.wks(WksId::Iterator);
+        let array_values = self.intrinsic(IntrinsicId::ArrayPrototypeValues);
+        define_property_or_throw(
+            self,
+            &ao,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let func = ECMAScriptValue::try_from(
+            self.execution_context_stack[index].stack[first_arg_index - 1].clone().expect("Function object type error"),
+        )
+        .expect("Function object type error");
+        define_property_or_throw(
+            self,
+            &ao,
+            "callee",
+            PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+
+        self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(ao)));
+        // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
+    }
+
+    pub fn attach_mapped_arg(&mut self, index: usize, name: &JSString, idx: usize) {
+        // Stack: AObj ...
+        let top = self.execution_context_stack[index].stack.len();
+        assert!(top > 0, "stack must not be empty");
+        let obj = Object::try_from(
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index].stack[top - 1].clone().expect("arguments must be values"),
+            )
+            .expect("arguments must be values"),
+        )
+        .expect("argument must be an object");
+        let ao = obj.o.to_arguments_object().expect("argument must be an ArgumentsObject");
+        let pmap = ao.parameter_map.as_ref().expect("argument must be a mapped arguments object");
+        let mut pmap = pmap.borrow_mut();
+        pmap.add_mapped_name(name.clone(), idx);
+        // Stack: AObj ...
     }
 }
 
