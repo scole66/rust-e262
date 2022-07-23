@@ -125,6 +125,7 @@ pub trait EnvironmentRecord: Debug {
         unreachable!()
     }
     fn name(&self) -> String;
+    fn binding_names(&self) -> Vec<JSString>;
 }
 
 // Declarative Environment Records
@@ -406,6 +407,10 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn name(&self) -> String {
         self.name.clone()
     }
+
+    fn binding_names(&self) -> Vec<JSString> {
+        self.bindings.borrow().keys().cloned().collect()
+    }
 }
 
 impl DeclarativeEnvironmentRecord {
@@ -671,6 +676,18 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn name(&self) -> String {
         self.name.clone()
     }
+
+    fn binding_names(&self) -> Vec<JSString> {
+        self.binding_object
+            .o
+            .common_object_data()
+            .borrow()
+            .properties
+            .keys()
+            .cloned()
+            .map(|key| JSString::try_from(key).unwrap())
+            .collect()
+    }
 }
 
 impl ObjectEnvironmentRecord {
@@ -836,6 +853,10 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
 
     fn name(&self) -> String {
         self.name.clone()
+    }
+
+    fn binding_names(&self) -> Vec<JSString> {
+        self.base.binding_names()
     }
 }
 
@@ -1258,6 +1279,10 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
 
     fn name(&self) -> String {
         self.name.clone()
+    }
+
+    fn binding_names(&self) -> Vec<JSString> {
+        self.declarative_record.binding_names()
     }
 }
 

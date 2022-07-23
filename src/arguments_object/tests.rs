@@ -153,17 +153,19 @@ mod arguments_object {
 
     fn test_ao(agent: &mut Agent) -> Object {
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "test_ao"));
+        agent.set_lexical_environment(Some(lexenv.clone() as Rc<dyn EnvironmentRecord>));
         let pmap = ParameterMap {
-            env: env.clone(),
+            env: lexenv.clone(),
             properties: vec![Some("from".into()), Some("the".into()), Some("test".into())],
         };
 
-        env.create_mutable_binding(agent, "from".into(), false).unwrap();
-        env.create_mutable_binding(agent, "the".into(), false).unwrap();
-        env.create_mutable_binding(agent, "test".into(), false).unwrap();
-        env.initialize_binding(agent, &"from".into(), "value of 'from'".into()).unwrap();
-        env.initialize_binding(agent, &"the".into(), "value of 'the'".into()).unwrap();
-        env.initialize_binding(agent, &"test".into(), "value of 'test'".into()).unwrap();
+        lexenv.create_mutable_binding(agent, "from".into(), false).unwrap();
+        lexenv.create_mutable_binding(agent, "the".into(), false).unwrap();
+        lexenv.create_mutable_binding(agent, "test".into(), false).unwrap();
+        lexenv.initialize_binding(agent, &"from".into(), "value of 'from'".into()).unwrap();
+        lexenv.initialize_binding(agent, &"the".into(), "value of 'the'".into()).unwrap();
+        lexenv.initialize_binding(agent, &"test".into(), "value of 'test'".into()).unwrap();
 
         let obj = ArgumentsObject::object(agent, Some(pmap));
 
@@ -313,8 +315,10 @@ mod arguments_object {
         to_check: &[&str],
     ) -> Result<(bool, Vec<(ECMAScriptValue, ECMAScriptValue)>), String> {
         let mut agent = test_agent();
-        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let obj = make_object(&mut agent);
+        let env = agent
+            .current_lexical_environment()
+            .unwrap_or_else(|| agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap());
         let receiver = ECMAScriptValue::from(obj.clone());
 
         let result =
@@ -325,7 +329,11 @@ mod arguments_object {
             .map(|&probe| {
                 (
                     obj.o.get(&mut agent, &probe.into(), &receiver).unwrap(),
-                    env.get_binding_value(&mut agent, &probe.into(), false).unwrap(),
+                    if env.has_binding(&mut agent, &probe.into()).unwrap() {
+                        env.get_binding_value(&mut agent, &probe.into(), false).unwrap()
+                    } else {
+                        ECMAScriptValue::Undefined
+                    },
                 )
             })
             .collect::<Vec<_>>();
@@ -376,8 +384,10 @@ mod arguments_object {
     }, "key", &["key"] => Ok((false, test_hm(&[("key", ECMAScriptValue::from(39), ECMAScriptValue::Undefined)]), None)); "undeletable")]
     fn delete(make_object: impl FnOnce(&mut Agent) -> Object, name: &str, to_check: &[&str]) -> TestResult {
         let mut agent = test_agent();
-        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let obj = make_object(&mut agent);
+        let env = agent
+            .current_lexical_environment()
+            .unwrap_or_else(|| agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap());
         let receiver = ECMAScriptValue::from(obj.clone());
 
         let result = obj.o.delete(&mut agent, &name.into()).map_err(|err| unwind_any_error(&mut agent, err))?;
@@ -389,7 +399,11 @@ mod arguments_object {
                     probe.to_string(),
                     (
                         obj.o.get(&mut agent, &probe.into(), &receiver).unwrap(),
-                        env.get_binding_value(&mut agent, &probe.into(), false).unwrap(),
+                        if env.has_binding(&mut agent, &probe.into()).unwrap() {
+                            env.get_binding_value(&mut agent, &probe.into(), false).unwrap()
+                        } else {
+                            ECMAScriptValue::Undefined
+                        },
                     ),
                 )
             })
@@ -446,5 +460,130 @@ mod arguments_object {
         let obj = make_object(&mut agent);
 
         obj.o.get_own_property(&mut agent, &name.into()).unwrap()
+    }
+
+    type DefineOwnPropertyTestResult =
+        Result<(bool, AHashMap<String, ECMAScriptValue>, AHashMap<String, ECMAScriptValue>), String>;
+    fn hm(data: &[(&str, ECMAScriptValue)]) -> AHashMap<String, ECMAScriptValue> {
+        data.iter().map(|(s, v)| (s.to_string(), v.clone())).collect()
+    }
+    #[test_case(test_ao, "10", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
+        ("0", "value of 'from'".into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+        ("10", 101.into()),
+    ]), hm(&[
+        ("from", "value of 'from'".into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "adding beyond")]
+    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
+        ("0", 101.into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+    ]), hm(&[
+        ("from", 101.into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "replacing existing")]
+    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().writable(false) => Ok((true, hm(&[
+        ("0", "value of 'from'".into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+    ]), hm(&[
+        ("from", "value of 'from'".into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "removing writability")]
+    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().enumerable(true) => Ok((true, hm(&[
+        ("0", "value of 'from'".into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+    ]), hm(&[
+        ("from", "value of 'from'".into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "adding enumerable")]
+    #[test_case(|a| {
+        let obj = test_ao(a);
+        obj.o.define_own_property(a, "own".into(), PotentialPropertyDescriptor::new().value(0).writable(false).enumerable(true).configurable(false)).unwrap();
+        obj
+    }, "own", PotentialPropertyDescriptor::new().value(99).configurable(true) => Ok((false, hm(&[
+        ("0", "value of 'from'".into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+        ("own", 0.into()),
+    ]), hm(&[
+        ("from", "value of 'from'".into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "failed define")]
+    #[test_case(|a| {
+        let obj = test_unmapped(a);
+        let env = a.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "test_unmapped"));
+        a.set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+
+        obj
+    }, "0", PotentialPropertyDescriptor::new().value(22) => Ok((true, hm(&[
+        ("0", 22.into()),
+        ("1", "value of 'the'".into()),
+        ("2", "value of 'test'".into()),
+    ]), hm(&[]))); "unmapped")]
+    fn define_own_property(
+        make_object: impl FnOnce(&mut Agent) -> Object,
+        name: &str,
+        desc: PotentialPropertyDescriptor,
+    ) -> DefineOwnPropertyTestResult {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+        let env = agent.current_lexical_environment().unwrap();
+
+        let result =
+            obj.o.define_own_property(&mut agent, name.into(), desc).map_err(|e| unwind_any_error(&mut agent, e))?;
+
+        let object_keys = obj.o.own_property_keys(&mut agent).unwrap();
+        let items = object_keys
+            .iter()
+            .map(|key| (key.to_string(), super::get(&mut agent, &obj, key).unwrap()))
+            .collect::<AHashMap<_, _>>();
+
+        let env_items = env
+            .binding_names()
+            .iter()
+            .map(|key| (key.to_string(), env.get_binding_value(&mut agent, key, false).unwrap()))
+            .collect::<AHashMap<_, _>>();
+
+        Ok((result, items, env_items))
+    }
+
+    #[test_case(test_ao, "0" => true; "exists")]
+    #[test_case(test_ao, "from" => false; "not in ao")]
+    fn has_property(make_object: impl FnOnce(&mut Agent) -> Object, name: &str) -> bool {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+
+        obj.o.has_property(&mut agent, &name.into()).unwrap()
+    }
+
+    #[test_case(test_ao => true; "typical")]
+    fn set_prototype_of(make_object: impl FnOnce(&mut Agent) -> Object) -> bool {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+
+        obj.o.set_prototype_of(&mut agent, None).unwrap()
+    }
+
+    #[test_case(test_ao => true; "typical")]
+    fn prevent_extensions(make_object: impl FnOnce(&mut Agent) -> Object) -> bool {
+        let mut agent = test_agent();
+        let obj = make_object(&mut agent);
+
+        obj.o.prevent_extensions(&mut agent).unwrap()
     }
 }
