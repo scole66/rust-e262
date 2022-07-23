@@ -762,6 +762,10 @@ impl AsyncFunctionBody {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.0.lexically_scoped_declarations()
+    }
 }
 
 // AwaitExpression[Yield] :

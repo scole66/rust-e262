@@ -89,6 +89,16 @@ impl BodySource {
             BodySource::ConciseBody(cb) => cb.lexically_declared_names(),
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            BodySource::Function(f) => f.lexically_scoped_declarations(),
+            BodySource::Generator(g) => g.lexically_scoped_declarations(),
+            BodySource::AsyncFunction(af) => af.lexically_scoped_declarations(),
+            BodySource::AsyncGenerator(ag) => ag.lexically_scoped_declarations(),
+            BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

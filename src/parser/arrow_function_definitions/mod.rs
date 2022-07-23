@@ -595,6 +595,13 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.var_scoped_declarations(),
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :

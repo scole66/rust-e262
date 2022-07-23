@@ -6,6 +6,7 @@ use std::rc::Rc;
 pub struct ScriptRecord {
     pub realm: Rc<RefCell<Realm>>,
     pub ecmascript_code: Rc<Script>,
+    pub text: String,
     pub compiled: Rc<Chunk>,
 }
 

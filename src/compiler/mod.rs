@@ -1,4 +1,5 @@
 use super::*;
+use ahash::AHashSet;
 use anyhow;
 use counter::Counter;
 #[cfg(test)]
@@ -35,6 +36,7 @@ pub enum Insn {
     JumpIfNotNullish,
     JumpPopIfTrue,
     JumpPopIfFalse,
+    JumpIfNotUndef,
     Call,
     UpdateEmpty,
     Swap,
@@ -42,16 +44,25 @@ pub enum Insn {
     Pop2Push3,
     Dup,
     Unwind,
+    UnwindList,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
     PushNewLexEnv,
     PopLexEnv,
+    PushNewVarEnvFromLex,
+    PushNewLexEnvFromVar,
+    SetLexEnvToVarEnv,
     CreateStrictImmutableLexBinding,
+    CreateNonStrictImmutableLexBinding,
     CreatePermanentMutableLexBinding,
+    CreatePermanentMutableVarBinding,
     CreateInitializedPermanentMutableLexIfMissing,
     CreatePermanentMutableLexIfMissing,
     InitializeLexBinding,
+    GetLexBinding,
+    InitializeVarBinding,
+    SetMutableVarBinding,
     Object,
     CreateDataProperty,
     SetPrototype,
@@ -105,6 +116,8 @@ pub enum Insn {
     TargetedContinue,
     Break,
     TargetedBreak,
+    ExtractArg,
+    FinishArgs,
 }
 
 impl fmt::Display for Insn {
@@ -132,6 +145,7 @@ impl fmt::Display for Insn {
             Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH",
             Insn::JumpPopIfTrue => "JUMPPOP_TRUE",
             Insn::JumpPopIfFalse => "JUMPPOP_FALSE",
+            Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
             Insn::Call => "CALL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
@@ -139,16 +153,25 @@ impl fmt::Display for Insn {
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Dup => "DUP",
             Insn::Unwind => "UNWIND",
+            Insn::UnwindList => "UNWIND_LIST",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
             Insn::PushNewLexEnv => "PNLE",
             Insn::PopLexEnv => "PLE",
+            Insn::PushNewVarEnvFromLex => "PNVEFL",
+            Insn::PushNewLexEnvFromVar => "PNLEFV",
+            Insn::SetLexEnvToVarEnv => "SLETVE",
             Insn::CreateStrictImmutableLexBinding => "CSILB",
+            Insn::CreateNonStrictImmutableLexBinding => "CNSILB",
             Insn::CreatePermanentMutableLexBinding => "CPMLB",
             Insn::CreateInitializedPermanentMutableLexIfMissing => "CIPMLBM",
             Insn::CreatePermanentMutableLexIfMissing => "CPMLBM",
+            Insn::CreatePermanentMutableVarBinding => "CPMVB",
             Insn::InitializeLexBinding => "ILB",
+            Insn::GetLexBinding => "GLB",
+            Insn::InitializeVarBinding => "IVB",
+            Insn::SetMutableVarBinding => "SMVB",
             Insn::Object => "OBJECT",
             Insn::CreateDataProperty => "CR_PROP",
             Insn::SetPrototype => "SET_PROTO",
@@ -202,6 +225,8 @@ impl fmt::Display for Insn {
             Insn::TargetedContinue => "CONTINUE_WITH",
             Insn::Break => "BREAK",
             Insn::TargetedBreak => "BREAK_FROM",
+            Insn::ExtractArg => "EXTRACT_ARG",
+            Insn::FinishArgs => "FINISH_ARGS",
         })
     }
 }
@@ -2376,7 +2401,12 @@ impl FunctionExpression {
         self.instantiate_ordinary_function_expression(chunk, strict, None, text, self_as_rc)
     }
 
-    pub fn compile_body(&self, chunk: &mut Chunk, info: &StashedFunctionData) -> anyhow::Result<NeverAbruptRefResult> {
+    pub fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateBody
         //
         // The syntax-directed operation EvaluateBody takes arguments functionObject and argumentsList (a List) and
@@ -2398,12 +2428,17 @@ impl FunctionExpression {
 
         // Both steps 1 and 2 have compilable code.
 
-        self.compile_fdi(chunk, info)?;
+        let fdi_status = self.compile_fdi(chunk, text, info)?;
         todo!()
     }
 
     /// Generates the code necessary to set up function execution
-    pub fn compile_fdi(&self, chunk: &mut Chunk, info: &StashedFunctionData) -> anyhow::Result<NeverAbruptRefResult> {
+    pub fn compile_fdi(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
         // FunctionDeclarationInstantiation ( func, argumentsList )
         //
         // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
@@ -2555,7 +2590,7 @@ impl FunctionExpression {
         let strict = info.strict;
         let code = &info.body;
         let formals = &info.params;
-        let parameter_names = formals.bound_names();
+        let mut parameter_names = formals.bound_names();
         let has_duplicates =
             parameter_names.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
         let simple_parameter_list = formals.is_simple_parameter_list();
@@ -2581,8 +2616,8 @@ impl FunctionExpression {
             chunk.op(Insn::PushNewLexEnv);
         }
 
-        for param_name in parameter_names {
-            let sidx = chunk.add_to_string_pool(param_name)?;
+        for param_name in parameter_names.iter() {
+            let sidx = chunk.add_to_string_pool(param_name.clone())?;
             chunk.op_plus_arg(
                 if has_duplicates {
                     Insn::CreateInitializedPermanentMutableLexIfMissing
@@ -2593,16 +2628,120 @@ impl FunctionExpression {
             );
         }
 
-        // 22.
+        // 22-23.
         if arguments_object_needed {
             if strict || !simple_parameter_list {
                 chunk.op(Insn::CreateUnmappedArguments);
             } else {
                 chunk.op(Insn::CreateMappedArguments);
             }
+            let args_idx = chunk.add_to_string_pool("arguments".into())?;
+            chunk.op_plus_arg(
+                if strict { Insn::CreateNonStrictImmutableLexBinding } else { Insn::CreatePermanentMutableLexBinding },
+                args_idx,
+            );
+            chunk.op_plus_arg(Insn::InitializeLexBinding, args_idx);
+            parameter_names.push(JSString::from("arguments"));
         }
 
-        todo!()
+        // 24-26.
+        let status = formals.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+        // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
+        let mut exit = None;
+        if status.maybe_abrupt() {
+            let close_jump = chunk.op_jump(Insn::JumpIfNormal);
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            exit = Some(chunk.op_jump(Insn::Jump));
+            chunk.fixup(close_jump).expect("Jump too short to overflow");
+        }
+        chunk.op(Insn::FinishArgs);
+        // Stack: func ...
+
+        // 27-28.
+        if !has_parameter_expressions {
+            let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
+            for n in var_names {
+                if !instantiated_var_names.contains(&n) {
+                    let idx = chunk.add_to_string_pool(n.clone())?;
+                    chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                    chunk.op(Insn::Undefined);
+                    chunk.op(Insn::InitializeLexBinding);
+                    instantiated_var_names.insert(n);
+                }
+            }
+            // let varEnv be env == current lexical environment
+        } else {
+            // b. Let varEnv be NewDeclarativeEnvironment(env).
+            // c. Set the VariableEnvironment of calleeContext to varEnv.
+            chunk.op(Insn::PushNewVarEnvFromLex);
+            let instantiated_var_names = AHashSet::<JSString>::new();
+            for n in var_names {
+                if !instantiated_var_names.contains(&n) {
+                    let idx = chunk.add_to_string_pool(n.clone())?;
+                    chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx);
+                    if !parameter_names.contains(&n) || function_names.contains(&n) {
+                        chunk.op(Insn::Undefined);
+                    } else {
+                        chunk.op_plus_arg(Insn::GetLexBinding, idx);
+                    }
+                    chunk.op_plus_arg(Insn::InitializeVarBinding, idx);
+                }
+            }
+            // now varEnv == current variable environment
+        }
+
+        // 30-32.
+        // If strict && has_parameter_expressions
+        //    set current_lexical_environment = current variable environment
+        // else if strict && !has_parameter_expressions
+        //    // nothing
+        // else if !strict && has_parameter_expressions
+        //    set current_lexical_environment = new_from(current variable environment)
+        // else if !strict && !has_parameter_expressions
+        //    set current_lexical_environment = new_from(current lexical environment)
+        // ==> lexenv is now the current lexical environment;
+        //     varenv is now current lexical environment if !has_parameter_expressions else current variable environment
+        match (strict, has_parameter_expressions) {
+            (true, true) => chunk.op(Insn::SetLexEnvToVarEnv),
+            (true, false) => (),
+            (false, true) => chunk.op(Insn::PushNewLexEnvFromVar),
+            (false, false) => chunk.op(Insn::PushNewLexEnv),
+        }
+
+        // 33-34.
+        let lex_declarations = code.lexically_scoped_declarations();
+        for d in lex_declarations {
+            for dn in d.bound_names() {
+                let idx = chunk.add_to_string_pool(dn)?;
+                chunk.op_plus_arg(
+                    if d.is_constant_declaration() {
+                        Insn::CreateStrictImmutableLexBinding
+                    } else {
+                        Insn::CreatePermanentMutableLexBinding
+                    },
+                    idx,
+                );
+            }
+        }
+
+        // 35-36.
+        for f in functions_to_initialize {
+            let fname = f.bound_name();
+            let idx = chunk.add_to_string_pool(fname)?;
+            f.compile_function_object_instantiation(chunk, strict, text)?;
+            chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
+        }
+
+        // Done
+        if let Some(&mark) = exit.as_ref() {
+            chunk.fixup(mark)?;
+        }
+        
+        for line in chunk.disassemble() {
+            println!("{line}");
+        }
+
+        Ok(AbruptResult::from(exit.is_some()))
     }
 }
 
@@ -2638,6 +2777,226 @@ impl ArrowFunction {
         self_as_rc: Rc<Self>,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
+    }
+}
+
+impl ParamSource {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            ParamSource::FormalParameters(params) => {
+                params.compile_binding_initialization(chunk, strict, text, has_duplicates)
+            }
+            ParamSource::ArrowParameters(_) => todo!(),
+        }
+    }
+}
+
+impl FormalParameters {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            FormalParameters::Empty(_) => Ok(AbruptResult::from(false)),
+            FormalParameters::Rest(frp) => frp.compile_binding_initialization(chunk, strict, text, has_duplicates),
+            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => {
+                fpl.compile_binding_initialization(chunk, strict, text, has_duplicates)
+            }
+            FormalParameters::ListRest(list, rest) => {
+                let list_status = list.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                let rest_status = rest.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl FormalParameterList {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            FormalParameterList::Item(item) => item.compile_binding_initialization(chunk, strict, text, has_duplicates),
+            FormalParameterList::List(list, item) => {
+                let list_status = list.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                let item_status = item.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                Ok(AbruptResult::from(list_status.maybe_abrupt() || item_status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl FormalParameter {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        self.element.compile_binding_initialization(chunk, strict, text, has_duplicates)
+    }
+}
+
+impl BindingElement {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        // Stack: N arg[n-1] ... arg[0]
+        match self {
+            BindingElement::Single(single) => {
+                single.compile_binding_initialization(chunk, strict, text, has_duplicates)
+            }
+            BindingElement::Pattern(bp, None) => {
+                chunk.op(Insn::ExtractArg);
+                bp.compile_binding_initialization(chunk, strict, text, has_duplicates)
+            }
+            BindingElement::Pattern(bp, Some(init)) => {
+                chunk.op(Insn::ExtractArg);
+                // Stack arg0 n-1 arg[n-1] ... arg[1]
+                let mark = chunk.op_jump(Insn::JumpIfNotUndef);
+                // Stack undef n-1 arg[n-1] ... arg[1]
+                chunk.op(Insn::Pop);
+                // Stack n-1 arg[n-1] ... arg[1]
+                let status = init.compile(chunk, strict, text)?;
+                // Stack: ref/val/err n-1 arg[n-1] ... arg[1]
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: val/err n-1 arg[n-1] ... arg[1]
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err n-1 arg[n-1] ... arg[1]
+                    chunk.op(Insn::UnwindList);
+                    // Stack: err
+                    let exit = Some(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(close).expect("Jump too short to overflow");
+                    exit
+                } else {
+                    None
+                };
+                chunk.fixup(mark)?;
+                // Stack: val n-1 arg[n-1] ... arg[1]
+                let status = bp.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                if let Some(&mark) = exit.as_ref() {
+                    chunk.fixup(mark)?;
+                }
+                // Stack: n-1 arg[n-1] ... arg[1]
+                // or Stack: err
+                Ok(AbruptResult::from(exit.is_some() || status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl SingleNameBinding {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        // Stack: N arg[n-1] ... arg[0]
+        let (id, maybe_init) = {
+            let SingleNameBinding::Id(id, maybe_init) = &self;
+            (id, maybe_init.as_ref())
+        };
+        chunk.op(Insn::ExtractArg);
+        // Stack: val N-1 arg[n-1] ... arg[1]
+        let binding_id = id.string_value();
+        let id_idx = chunk.add_to_string_pool(binding_id)?;
+        chunk.op_plus_arg(Insn::String, id_idx);
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+        // Stack: ref val N-1 arg[n-1] ... arg[1]
+        chunk.op(Insn::Swap);
+        // Stack: val ref N-1 arg[n-1] ... arg[1]
+        let mut exit = None;
+        let mut no_init = None;
+        if let Some(init) = maybe_init {
+            no_init = Some(chunk.op_jump(Insn::JumpIfNotUndef));
+            // Stack: undefined ref N-1 arg[n-1] ... arg[1]
+            chunk.op(Insn::Pop);
+            // Stack: ref N-1 arg[n-1] ... arg[1]
+            if init.is_anonymous_function_definition() {
+                todo!()
+            } else {
+                let init_status = init.compile(chunk, strict, text)?;
+                // Stack: ref/val/err ref N-1 arg[n-1] ... arg[1]
+                if init_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: val/err ref N-1 arg[n-1] ... arg[1]
+                if init_status.maybe_abrupt() || init_status.maybe_ref() {
+                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err ref N-1 arg[n-1] ... arg[1]
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op(Insn::UnwindList);
+                    // Stack: err
+                    exit = Some(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(close).expect("Jump too close to overflow");
+                }
+                // Stack: val ref N-1 arg[n-1] ... arg[1]
+            }
+        }
+        if let Some(mark) = no_init {
+            chunk.fixup(mark)?;
+        }
+        if has_duplicates {
+            chunk.op(Insn::PutValue);
+        } else {
+            chunk.op(Insn::InitializeReferencedBinding);
+        }
+        chunk.op(Insn::Pop);
+        if let Some(&mark) = exit.as_ref() {
+            chunk.fixup(mark)?;
+        }
+        // Stack: N-1 arg[n-1] ... arg[1] ...  --or-- err ...
+
+        Ok(AbruptResult::from(exit.is_some()))
+    }
+}
+
+impl BindingPattern {
+    #[allow(unused_variables)]
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+}
+
+impl FunctionRestParameter {
+    #[allow(unused_variables)]
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
     }
 }
 

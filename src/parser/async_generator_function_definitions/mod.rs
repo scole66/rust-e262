@@ -473,6 +473,10 @@ impl AsyncGeneratorBody {
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         self.0.lexically_declared_names()
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.0.lexically_scoped_declarations()
+    }
 }
 
 #[cfg(test)]

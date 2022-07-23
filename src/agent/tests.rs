@@ -60,6 +60,7 @@ mod agent {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
             compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
         agent.push_execution_context(test_ec);
@@ -79,6 +80,7 @@ mod agent {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
             compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
         agent.push_execution_context(test_ec);
@@ -796,9 +798,9 @@ mod parse_script {
     #[test]
     fn happy() {
         let mut agent = test_agent();
-        let src = "'hello world';";
+        let src = "/* hello! */ 'hello world';";
         let starting_realm = agent.current_realm_record().unwrap();
-        let ScriptRecord { realm, ecmascript_code, compiled } =
+        let ScriptRecord { realm, ecmascript_code, compiled, text } =
             super::parse_script(&mut agent, src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
         assert_eq!(format!("{}", ecmascript_code), "'hello world' ;");
@@ -807,6 +809,7 @@ mod parse_script {
             compiled.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
             svec(&["STRING 0 (hello world)",])
         );
+        assert_eq!(text, src);
     }
 
     #[test_case("for [i=0, i<10, i++] {}" => sset(&["1:5: ‘(’ expected"]); "parse time syntax")]

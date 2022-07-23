@@ -120,9 +120,15 @@ impl Chunk {
         match insn {
             Insn::String
             | Insn::CreateStrictImmutableLexBinding
+            | Insn::CreateNonStrictImmutableLexBinding
             | Insn::CreatePermanentMutableLexBinding
             | Insn::CreateInitializedPermanentMutableLexIfMissing
             | Insn::CreatePermanentMutableLexIfMissing
+            | Insn::CreatePermanentMutableVarBinding
+            | Insn::InitializeLexBinding
+            | Insn::GetLexBinding
+            | Insn::InitializeVarBinding
+            | Insn::SetMutableVarBinding
             | Insn::TargetedContinue
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak => {
@@ -149,7 +155,9 @@ impl Chunk {
             | Insn::InitializeReferencedBinding
             | Insn::PopLexEnv
             | Insn::PushNewLexEnv
-            | Insn::InitializeLexBinding
+            | Insn::PushNewVarEnvFromLex
+            | Insn::PushNewLexEnvFromVar
+            | Insn::SetLexEnvToVarEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -209,6 +217,9 @@ impl Chunk {
             | Insn::CoalesceValue
             | Insn::Continue
             | Insn::Break
+            | Insn::ExtractArg
+            | Insn::FinishArgs
+            | Insn::UnwindList
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
@@ -217,7 +228,8 @@ impl Chunk {
             | Insn::JumpIfTrue
             | Insn::JumpPopIfFalse
             | Insn::JumpPopIfTrue
-            | Insn::JumpIfNotNullish => {
+            | Insn::JumpIfNotNullish
+            | Insn::JumpIfNotUndef => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }

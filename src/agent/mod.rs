@@ -192,6 +192,13 @@ impl Agent {
         }
     }
 
+    pub fn current_variable_environment(&self) -> Option<Rc<dyn EnvironmentRecord>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].variable_environment.clone(),
+        }
+    }
+
     pub fn current_private_environment(&self) -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
         match self.execution_context_stack.len() {
             0 => None,
@@ -204,6 +211,15 @@ impl Agent {
             0 => (),
             n => {
                 self.execution_context_stack[n - 1].lexical_environment = env;
+            }
+        }
+    }
+
+    pub fn set_variable_environment(&mut self, env: Option<Rc<dyn EnvironmentRecord>>) {
+        match self.execution_context_stack.len() {
+            0 => (),
+            n => {
+                self.execution_context_stack[n - 1].variable_environment = env;
             }
         }
     }
@@ -441,13 +457,13 @@ impl Agent {
         self.gsr.clone()
     }
 
-    pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion<ECMAScriptValue> {
+    pub fn evaluate(&mut self, chunk: Rc<Chunk>, text: &str) -> Completion<ECMAScriptValue> {
         if self.execution_context_stack.is_empty() {
             return Err(create_type_error(self, "No active execution context"));
         }
 
         self.prepare_running_ec_for_execution(chunk);
-        let result = self.execute();
+        let result = self.execute(text);
 
         let ec_idx = self.execution_context_stack.len() - 1;
         assert!(self.execution_context_stack[ec_idx].stack.is_empty());
@@ -467,7 +483,7 @@ impl Agent {
         self.execution_context_stack[index].pc = 0;
     }
 
-    pub fn execute(&mut self) -> Completion<ECMAScriptValue> {
+    pub fn execute(&mut self, text: &str) -> Completion<ECMAScriptValue> {
         loop {
             let index = self.execution_context_stack.len() - 1;
             let chunk = match self.execution_context_stack[index].chunk.clone() {
@@ -646,6 +662,24 @@ impl Agent {
                         }
                     }
                 }
+                Insn::JumpIfNotUndef => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let val = ECMAScriptValue::try_from(
+                        self.execution_context_stack[index].stack[stack_idx]
+                            .clone()
+                            .expect("Undef Jumps may only be used with Normal completions"),
+                    )
+                    .expect("Undef Jumps may only be used with Values");
+                    if val != ECMAScriptValue::Undefined {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
                 Insn::Jump => {
                     let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
                     self.execution_context_stack[index].pc += 1;
@@ -719,16 +753,36 @@ impl Agent {
                     let outer_env = current_env.get_outer_env();
                     self.set_lexical_environment(outer_env);
                 }
-                Insn::CreateStrictImmutableLexBinding => {
+                Insn::PushNewVarEnvFromLex => {
+                    let current_env = self.current_lexical_environment();
+                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
+                    self.set_variable_environment(Some(Rc::new(new_env)));
+                }
+                Insn::PushNewLexEnvFromVar => {
+                    let current_env = self.current_variable_environment();
+                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
+                    self.set_lexical_environment(Some(Rc::new(new_env)));
+                }
+                Insn::SetLexEnvToVarEnv => {
+                    let current_env = self.current_variable_environment();
+                    self.set_lexical_environment(current_env);
+                }
+
+                Insn::CreateStrictImmutableLexBinding | Insn::CreateNonStrictImmutableLexBinding => {
                     let env = self.current_lexical_environment().expect("lex environment must exist");
                     let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
                     self.execution_context_stack[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
 
-                    env.create_immutable_binding(self, name, true).expect("binding should not already exist");
+                    env.create_immutable_binding(self, name, instruction == Insn::CreateStrictImmutableLexBinding)
+                        .expect("binding should not already exist");
                 }
-                Insn::CreatePermanentMutableLexBinding => {
-                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                Insn::CreatePermanentMutableLexBinding | Insn::CreatePermanentMutableVarBinding => {
+                    let env = if instruction == Insn::CreatePermanentMutableLexBinding {
+                        self.current_lexical_environment().expect("lex environment must exist")
+                    } else {
+                        self.current_variable_environment().expect("var environment must exist")
+                    };
                     let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
                     self.execution_context_stack[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
@@ -766,8 +820,12 @@ impl Agent {
                             .expect("binding is not previously initialized");
                     }
                 }
-                Insn::InitializeLexBinding => {
-                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                Insn::InitializeLexBinding | Insn::InitializeVarBinding => {
+                    let env = if instruction == Insn::InitializeLexBinding {
+                        self.current_lexical_environment().expect("lex environment must exist")
+                    } else {
+                        self.current_variable_environment().expect("var environment must exist")
+                    };
                     let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
                     self.execution_context_stack[index].pc += 1;
                     let name = &chunk.strings[string_idx];
@@ -781,6 +839,77 @@ impl Agent {
                     )
                     .expect("InitializeLexBinding's stack arg must be a value");
                     env.initialize_binding(self, name, value).expect("binding should not already have a value");
+                }
+                Insn::GetLexBinding => {
+                    let env = self.current_lexical_environment().expect("lex environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = &chunk.strings[string_idx];
+                    let value = env.get_binding_value(self, name, false).expect("Binding will be there");
+                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(value)));
+                }
+                Insn::SetMutableVarBinding => {
+                    let env = self.current_variable_environment().expect("var environment must exist");
+                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let name = &chunk.strings[string_idx];
+                    let value = ECMAScriptValue::try_from(
+                        self.execution_context_stack[index]
+                            .stack
+                            .pop()
+                            .expect("SetMutableVarBinding must have a stack arg")
+                            .expect("SetMutableVarBinding's stack arg must be a normal completion"),
+                    )
+                    .expect("SetMutableVarBinding's stack arg must be a value");
+                    env.set_mutable_binding(self, name.clone(), value, false).expect("error free execution");
+                }
+                Insn::ExtractArg => {
+                    // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)
+                    // Out: arg[0] N-1 arg[N-1] arg[N-2] ... arg[1]
+                    //   --or, if N == 0 --
+                    // Stack: 0
+                    // Out: Undefined 0
+                    let stack_len = self.execution_context_stack[index].stack.len();
+                    assert!(stack_len > 0, "ExtractArg must have an argument list on the stack");
+                    let arg_count = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index].stack[stack_len - 1]
+                                .clone()
+                                .expect("ExtractArg must have a 'count' argument"),
+                        )
+                        .expect("ExtractArg must have a 'count' argument"),
+                    )
+                    .expect("ExtractArg 'count' arg must be a number");
+                    if arg_count < 0.5 {
+                        self.execution_context_stack[index]
+                            .stack
+                            .push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                    } else {
+                        let arg_count = arg_count as usize;
+                        assert!(stack_len >= arg_count + 1, "Stack must contain an argument list");
+                        let arg0 = self.execution_context_stack[index].stack.remove(stack_len - arg_count - 1);
+                        self.execution_context_stack[index].stack[stack_len - 2] =
+                            Ok(NormalCompletion::from((arg_count - 1) as u32));
+                        self.execution_context_stack[index].stack.push(arg0);
+                    }
+                }
+                Insn::FinishArgs => {
+                    // Stack: N arg[N-1] ... arg[0]
+                    // Out:
+                    // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
+                    let arg_count = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index]
+                                .stack
+                                .pop()
+                                .expect("FinishArgs must have a 'count' argument")
+                                .expect("FinishArgs must have a 'count' argument"),
+                        )
+                        .expect("FinishArgs must have a 'count' argument"),
+                    )
+                    .expect("FinishArgs 'count' arg must be a number");
+                    let to_retain = self.execution_context_stack[index].stack.len() - arg_count as usize;
+                    self.execution_context_stack[index].stack.truncate(to_retain);
                 }
                 Insn::Object => {
                     let obj_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
@@ -894,6 +1023,28 @@ impl Agent {
                         self.execution_context_stack[index].stack.truncate(new_index_of_err + 1);
                     }
                 }
+                Insn::UnwindList => {
+                    let err_to_keep =
+                        self.execution_context_stack[index].stack.pop().expect("UnwindList has two stack args");
+                    let vals_to_remove = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index]
+                                .stack
+                                .pop()
+                                .expect("UnwindList has a stack argument")
+                                .expect("UnwindList expects a normal completion"),
+                        )
+                        .expect("UnwindList expects a value"),
+                    )
+                    .expect("UnwindList expects a number") as usize;
+                    if vals_to_remove > 0 {
+                        let old_stack_size = self.execution_context_stack[index].stack.len();
+                        assert!(vals_to_remove <= old_stack_size);
+                        let new_stack_size = old_stack_size - vals_to_remove;
+                        self.execution_context_stack[index].stack.truncate(new_stack_size);
+                    }
+                    self.execution_context_stack[index].stack.push(err_to_keep);
+                }
                 Insn::Call => {
                     let arg_count_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
@@ -973,7 +1124,7 @@ impl Agent {
                     let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
                     self.execution_context_stack[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    self.instantiate_ordinary_function_expression_without_binding_id(index, info)
+                    self.instantiate_ordinary_function_expression_without_binding_id(index, text, info)
                 }
 
                 Insn::InstantiateArrowFunctionExpression => {
@@ -1437,6 +1588,7 @@ impl Agent {
     fn instantiate_ordinary_function_expression_without_binding_id(
         &mut self,
         index: usize,
+        text: &str,
         info: &StashedFunctionData,
     ) {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
@@ -1457,7 +1609,7 @@ impl Agent {
             info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
         let name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(name);
-        let compilation_status = to_compile.compile_body(&mut compiled, info);
+        let compilation_status = to_compile.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
             let l = self.execution_context_stack[index].stack.len();
@@ -1851,7 +2003,7 @@ pub fn parse_script(
             for line in chunk.disassemble() {
                 println!("{line}");
             }
-            Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk) })
+            Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk), text: source_text.into() })
         }
     }
 }
@@ -2052,8 +2204,8 @@ pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMA
 
     let script = sr.ecmascript_code.clone();
 
-    let result =
-        global_declaration_instantiation(agent, script, global_env.unwrap()).and_then(|_| agent.evaluate(sr.compiled));
+    let result = global_declaration_instantiation(agent, script, global_env.unwrap())
+        .and_then(|_| agent.evaluate(sr.compiled, &sr.text));
 
     agent.pop_execution_context();
 

@@ -497,6 +497,10 @@ impl FunctionBody {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statements.var_scoped_declarations()
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.statements.lexically_scoped_declarations()
+    }
 }
 
 // FunctionStatementList[Yield, Await] :
@@ -666,6 +670,13 @@ impl FunctionStatementList {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_var_scoped_declarations(),
+            FunctionStatementList::Empty(_) => vec![],
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
         }
     }
