@@ -365,6 +365,11 @@ for name in ${names[@]}; do
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;
+    ArgumentsObject_get_own_property) data=(ArgumentsObject@object::ObjectInterface::get_own_property arguments_object::get_own_property arguments_object) ;;
+    ArgumentsObject_define_own_property) data=(ArgumentsObject@object::ObjectInterface::define_own_property arguments_object::define_own_property arguments_object) ;;
+    ArgumentsObject_set) data=(ArgumentsObject@object::ObjectInterface::set arguments_object::set arguments_object) ;;
+    ArgumentsObject_get) data=(ArgumentsObject@object::ObjectInterface::get arguments_object::get:: arguments_object) ;;
+    ArgumentsObject_delete) data=(ArgumentsObject@object::ObjectInterface::delete arguments_object::delete arguments_object) ;;
 
     IntrinsicId) data=($name intrinsic_id realm) ;;
     Intrinsics) data=($name intrinsics realm) ;;
@@ -385,6 +390,20 @@ for name in ${names[@]}; do
   case $typename in
     f64)
       regex="_3res${filemangled}d"
+      ;;
+    *@*)
+      front_back=($(echo $typename | tr @ ' '))
+      frontparts=($(echo ${front_back[0]} | tr : ' '))
+      frontmangled=
+      for part in ${frontparts[@]}; do
+        frontmangled=${frontmangled}${#part}${part}
+      done
+      backparts=($(echo ${front_back[1]} | tr : ' '))
+      backmangled=
+      for part in ${backparts[@]}; do
+        backmangled=${backmangled}${#part}${part}
+      done
+      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}.*${backmangled}"
       ;;
     *)
       typeparts=($(echo $typename | tr : ' '))

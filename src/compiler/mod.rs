@@ -2736,7 +2736,7 @@ impl FunctionExpression {
         if let Some(&mark) = exit.as_ref() {
             chunk.fixup(mark)?;
         }
-        
+
         for line in chunk.disassemble() {
             println!("{line}");
         }

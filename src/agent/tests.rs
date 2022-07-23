@@ -699,6 +699,85 @@ mod agent {
         }
     }
 
+    mod create_mapped_arguments_object {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(&[]; "empty")]
+        #[test_case(&[10.into(), 20.into()]; "multiple")]
+        fn normal(values: &[ECMAScriptValue]) {
+            let mut agent = test_agent();
+            let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+            let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
+            agent.set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+
+            let func_obj = ordinary_object_create(&mut agent, None, &[]);
+
+            let num_values = values.len() as u32;
+            let index = agent.execution_context_stack.len() - 1;
+            {
+                let top_ec = &mut agent.execution_context_stack[index];
+                let stack = &mut top_ec.stack;
+                stack.push(Ok(func_obj.clone().into()));
+                for value in values {
+                    stack.push(Ok(value.clone().into()));
+                }
+                stack.push(Ok(num_values.into()));
+            }
+
+            agent.create_mapped_arguments_object(index);
+            let stack = &agent.execution_context_stack[index].stack;
+            let stack_size = stack.len();
+
+            // Assert arg vector is still in the right spot
+            assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
+            for (idx, val) in values.iter().enumerate() {
+                assert_eq!(
+                    stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                    &NormalCompletion::from(val.clone())
+                );
+            }
+            assert_eq!(
+                stack[stack_size - 3 - values.len()].as_ref().unwrap(),
+                &NormalCompletion::from(func_obj.clone())
+            );
+
+            // Validate the arguments object.
+            let ao =
+                Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
+                    .unwrap();
+            assert_eq!(get(&mut agent, &ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            for (idx, val) in values.iter().enumerate() {
+                assert_eq!(&get(&mut agent, &ao, &idx.into()).unwrap(), val);
+            }
+            let args_iterator = agent.intrinsic(IntrinsicId::ArrayPrototypeValues);
+            let iterator_sym = agent.wks(WksId::Iterator);
+            assert_eq!(get(&mut agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(get(&mut agent, &ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
+        }
+
+        #[test]
+        #[should_panic(expected = "Stack must not be empty")]
+        fn panics_empty() {
+            let mut agent = test_agent();
+            let index = agent.execution_context_stack.len() - 1;
+            agent.create_mapped_arguments_object(index);
+        }
+
+        #[test]
+        #[should_panic(expected = "Stack too short to fit all the arguments plus the function obj")]
+        fn panics_short() {
+            let mut agent = test_agent();
+            let index = agent.execution_context_stack.len() - 1;
+            {
+                let top_ec = &mut agent.execution_context_stack[index];
+                let stack = &mut top_ec.stack;
+                stack.push(Ok(NormalCompletion::from(800)));
+            }
+            agent.create_mapped_arguments_object(index);
+        }
+    }
+
     mod attach_mapped_arg {
         use super::*;
         use test_case::test_case;

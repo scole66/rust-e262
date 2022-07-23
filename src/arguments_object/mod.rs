@@ -305,7 +305,11 @@ impl ObjectInterface for ArgumentsObject {
     //      a. Perform ! map.[[Delete]](P).
     //  5. Return result.
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
-        let result = ordinary_delete(agent, self, key)?;
+        // Note: ordinary_delete only fails if its call to o.[[GetOwnProperty]]
+        // fails. And the ArgumentsObject::GetOwnProperty routine, just above,
+        // cannot fail. Thus: we don't need to pass back an error from
+        // ordinary_delete, and ArgumentsObject::Delete cannot fail, either!
+        let result = ordinary_delete(agent, self, key).expect("Arguments Objects can always delete");
         if let Some(map) = self.parameter_map.as_ref().filter(|_| result) {
             let mut pmap = map.borrow_mut();
             if let Some(idx) = pmap.to_index(key) {
