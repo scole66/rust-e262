@@ -1152,12 +1152,18 @@ impl Agent {
                     let info = &chunk.function_object_data[id as usize];
                     self.instantiate_ordinary_function_expression_without_binding_id(index, text, info)
                 }
+                Insn::InstantiateOrdinaryFunctionExpression => {
+                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let info = &chunk.function_object_data[id as usize];
+                    self.instantiate_ordinary_function_expression_with_binding_id(index, text, info)
+                }
 
                 Insn::InstantiateArrowFunctionExpression => {
                     let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
                     self.execution_context_stack[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    self.instantiate_arrow_function_expression(index, info)
+                    self.instantiate_arrow_function_expression(index, text, info)
                 }
                 Insn::LeftShift => self.binary_operation(index, BinOp::LeftShift),
                 Insn::SignedRightShift => self.binary_operation(index, BinOp::SignedRightShift),
@@ -1639,7 +1645,7 @@ impl Agent {
             info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
         let name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(name);
-        let compilation_status = to_compile.compile_body(&mut compiled, text, info);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, false);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
             let l = self.execution_context_stack[index].stack.len();
@@ -1691,8 +1697,92 @@ impl Agent {
         self.execution_context_stack[index].stack.push(Ok(closure.into()));
     }
 
-    #[allow(unreachable_code, unused_variables)]
-    fn instantiate_arrow_function_expression(&mut self, index: usize, info: &StashedFunctionData) {
+    fn instantiate_ordinary_function_expression_with_binding_id(
+        &mut self,
+        index: usize,
+        text: &str,
+        info: &StashedFunctionData,
+    ) {
+        // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name
+        // and returns a function object. It is defined piecewise over the following productions:
+        //
+        // FunctionExpression : function BindingIdentifier ( FormalParameters ) { FunctionBody }
+        //
+        //   1. Assert: name is not present.
+        //   2. Set name to StringValue of BindingIdentifier.
+        //   3. Let outerEnv be the running execution context's LexicalEnvironment.
+        //   4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+        //   5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+        //   6. Let privateEnv be the running execution context's PrivateEnvironment.
+        //   7. Let sourceText be the source text matched by FunctionExpression.
+        //   8. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //      FunctionBody, non-lexical-this, funcEnv, privateEnv).
+        //   9. Perform SetFunctionName(closure, name).
+        //  10. Perform MakeConstructor(closure).
+        //  11. Perform ! funcEnv.InitializeBinding(name, closure).
+        //  12. Return closure.
+        //
+        // NOTE: The BindingIdentifier in a FunctionExpression can be referenced from inside the
+        // FunctionExpression's FunctionBody to allow the function to call itself recursively. However, unlike
+        // in a FunctionDeclaration, the BindingIdentifier in a FunctionExpression cannot be referenced from
+        // and does not affect the scope enclosing the FunctionExpression.
+
+        // First: compile the function.
+        let to_compile: Rc<FunctionExpression> =
+            info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, false);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(self, err.to_string());
+            let l = self.execution_context_stack[index].stack.len();
+            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            return;
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let name = JSString::try_from(
+            ECMAScriptValue::try_from(
+                self.execution_context_stack[index]
+                    .stack
+                    .pop()
+                    .expect("Insn only used with argument on stack")
+                    .expect("Argument must not be an AbruptCompletion"),
+            )
+            .expect("Argument must be a value"),
+        )
+        .expect("Argument must be a string");
+
+        let outer_env = self.current_lexical_environment().expect("Lexical environment must exist if code is running");
+        let func_env = Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
+        let priv_env = self.current_private_environment();
+
+        func_env.create_immutable_binding(self, name.clone(), false).expect("Fresh environment won't fail");
+        let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            self,
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            FunctionThisMode::NonLexicalThis,
+            func_env.clone(),
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        set_function_name(self, &closure, name.clone().into(), None);
+        make_constructor(self, &closure, None);
+        func_env.initialize_binding(self, &name, closure.clone().into()).expect("binding has been created");
+
+        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+    }
+
+    fn instantiate_arrow_function_expression(&mut self, index: usize, text: &str, info: &StashedFunctionData) {
         let env = self.current_lexical_environment().unwrap();
         let priv_env = self.current_private_environment();
 
@@ -1701,7 +1791,20 @@ impl Agent {
         )
         .unwrap();
 
-        let compiled: Chunk = todo!();
+        let to_compile: Rc<ArrowFunction> =
+            info.to_compile.clone().try_into().expect("This routine only used with Arrow Functions");
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, true);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(self, err.to_string());
+            let l = self.execution_context_stack[index].stack.len();
+            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            return;
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
 
         let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
 

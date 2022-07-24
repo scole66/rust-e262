@@ -1398,7 +1398,7 @@ impl Object {
         }
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
+        write!(f, "<Object {}>", self.o.id())
     }
 
     // IsArray ( argument )

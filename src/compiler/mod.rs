@@ -1,5 +1,6 @@
 use super::*;
 use ahash::AHashSet;
+use anyhow::anyhow;
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -89,6 +90,7 @@ pub enum Insn {
     Add,
     Subtract,
     InstantiateIdFreeFunctionExpression,
+    InstantiateOrdinaryFunctionExpression,
     InstantiateArrowFunctionExpression,
     LeftShift,
     SignedRightShift,
@@ -201,6 +203,7 @@ impl fmt::Display for Insn {
             Insn::Add => "ADD",
             Insn::Subtract => "SUBTRACT",
             Insn::InstantiateIdFreeFunctionExpression => "FUNC_IIFE",
+            Insn::InstantiateOrdinaryFunctionExpression => "FUNC_IOFE",
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
@@ -393,6 +396,292 @@ impl NeverAbruptRefResult {
     }
     fn maybe_ref(&self) -> bool {
         false
+    }
+}
+
+enum NameableProduction {
+    Function(Rc<FunctionExpression>),
+    Generator(Rc<GeneratorExpression>),
+    AsyncFunction(Rc<AsyncFunctionExpression>),
+    AsyncGenerator(Rc<AsyncGeneratorExpression>),
+    Class(Rc<ClassExpression>),
+    Arrow(Rc<ArrowFunction>),
+    AsyncArrow(Rc<AsyncArrowFunction>),
+}
+impl TryFrom<&Rc<Initializer>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<Initializer>) -> Result<Self, Self::Error> {
+        NameableProduction::try_from(&value.ae)
+    }
+}
+impl TryFrom<&Rc<AssignmentExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<AssignmentExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            AssignmentExpression::FallThru(child) => NameableProduction::try_from(child),
+            AssignmentExpression::Arrow(child) => Ok(NameableProduction::Arrow(child.clone())),
+            AssignmentExpression::AsyncArrow(child) => Ok(NameableProduction::AsyncArrow(child.clone())),
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Assignment(_, _)
+            | AssignmentExpression::OpAssignment(_, _, _)
+            | AssignmentExpression::LandAssignment(_, _)
+            | AssignmentExpression::LorAssignment(_, _)
+            | AssignmentExpression::CoalAssignment(_, _)
+            | AssignmentExpression::Destructuring(_, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<ConditionalExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<ConditionalExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            ConditionalExpression::FallThru(child) => NameableProduction::try_from(child),
+            ConditionalExpression::Conditional(_, _, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<ShortCircuitExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<ShortCircuitExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            ShortCircuitExpression::LogicalORExpression(child) => NameableProduction::try_from(child),
+            ShortCircuitExpression::CoalesceExpression(_) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<LogicalORExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<LogicalORExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            LogicalORExpression::LogicalANDExpression(child) => NameableProduction::try_from(child),
+            LogicalORExpression::LogicalOR(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<LogicalANDExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<LogicalANDExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            LogicalANDExpression::BitwiseORExpression(child) => NameableProduction::try_from(child),
+            LogicalANDExpression::LogicalAND(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<BitwiseORExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<BitwiseORExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            BitwiseORExpression::BitwiseXORExpression(child) => NameableProduction::try_from(child),
+            BitwiseORExpression::BitwiseOR(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<BitwiseXORExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<BitwiseXORExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            BitwiseXORExpression::BitwiseANDExpression(child) => NameableProduction::try_from(child),
+            BitwiseXORExpression::BitwiseXOR(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<BitwiseANDExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<BitwiseANDExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            BitwiseANDExpression::EqualityExpression(child) => NameableProduction::try_from(child),
+            BitwiseANDExpression::BitwiseAND(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<EqualityExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<EqualityExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            EqualityExpression::RelationalExpression(child) => NameableProduction::try_from(child),
+            EqualityExpression::Equal(_, _)
+            | EqualityExpression::NotEqual(_, _)
+            | EqualityExpression::StrictEqual(_, _)
+            | EqualityExpression::NotStrictEqual(_, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<RelationalExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<RelationalExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            RelationalExpression::ShiftExpression(child) => NameableProduction::try_from(child),
+            RelationalExpression::Less(_, _)
+            | RelationalExpression::Greater(_, _)
+            | RelationalExpression::LessEqual(_, _)
+            | RelationalExpression::GreaterEqual(_, _)
+            | RelationalExpression::InstanceOf(_, _)
+            | RelationalExpression::In(_, _)
+            | RelationalExpression::PrivateIn(_, _, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<ShiftExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<ShiftExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            ShiftExpression::AdditiveExpression(child) => NameableProduction::try_from(child),
+            ShiftExpression::LeftShift(_, _)
+            | ShiftExpression::SignedRightShift(_, _)
+            | ShiftExpression::UnsignedRightShift(_, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<AdditiveExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<AdditiveExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            AdditiveExpression::MultiplicativeExpression(child) => NameableProduction::try_from(child),
+            AdditiveExpression::Add(_, _) | AdditiveExpression::Subtract(_, _) => {
+                Err(anyhow!("Production not nameable"))
+            }
+        }
+    }
+}
+impl TryFrom<&Rc<MultiplicativeExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<MultiplicativeExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            MultiplicativeExpression::ExponentiationExpression(child) => NameableProduction::try_from(child),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => {
+                Err(anyhow!("Production not nameable"))
+            }
+        }
+    }
+}
+impl TryFrom<&Rc<ExponentiationExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<ExponentiationExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            ExponentiationExpression::UnaryExpression(child) => NameableProduction::try_from(child),
+            ExponentiationExpression::Exponentiation(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<UnaryExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<UnaryExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            UnaryExpression::UpdateExpression(child) => NameableProduction::try_from(child),
+            UnaryExpression::Delete { .. }
+            | UnaryExpression::Void { .. }
+            | UnaryExpression::Typeof { .. }
+            | UnaryExpression::NoOp { .. }
+            | UnaryExpression::Negate { .. }
+            | UnaryExpression::Complement { .. }
+            | UnaryExpression::Not { .. }
+            | UnaryExpression::Await(..) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<UpdateExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<UpdateExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            UpdateExpression::LeftHandSideExpression(child) => NameableProduction::try_from(child),
+            UpdateExpression::PostIncrement { .. }
+            | UpdateExpression::PostDecrement { .. }
+            | UpdateExpression::PreIncrement { .. }
+            | UpdateExpression::PreDecrement { .. } => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<LeftHandSideExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<LeftHandSideExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            LeftHandSideExpression::New(child) => NameableProduction::try_from(child),
+            LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => {
+                Err(anyhow!("Production not nameable"))
+            }
+        }
+    }
+}
+impl TryFrom<&Rc<NewExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<NewExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            NewExpression::MemberExpression(child) => NameableProduction::try_from(child),
+            NewExpression::NewExpression(_, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<MemberExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<MemberExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            MemberExpression::PrimaryExpression(child) => NameableProduction::try_from(child),
+            MemberExpression::Expression(_, _, _)
+            | MemberExpression::IdentifierName(_, _, _)
+            | MemberExpression::TemplateLiteral(_, _)
+            | MemberExpression::SuperProperty(_)
+            | MemberExpression::MetaProperty(_)
+            | MemberExpression::NewArguments(_, _, _)
+            | MemberExpression::PrivateId(_, _, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<PrimaryExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<PrimaryExpression>) -> Result<Self, Self::Error> {
+        match &**value {
+            PrimaryExpression::Function { node } => Ok(NameableProduction::Function(node.clone())),
+            PrimaryExpression::Class { node } => Ok(NameableProduction::Class(node.clone())),
+            PrimaryExpression::Generator { node } => Ok(NameableProduction::Generator(node.clone())),
+            PrimaryExpression::AsyncFunction { node } => Ok(NameableProduction::AsyncFunction(node.clone())),
+            PrimaryExpression::AsyncGenerator { node } => Ok(NameableProduction::AsyncGenerator(node.clone())),
+            PrimaryExpression::Parenthesized { node } => NameableProduction::try_from(node),
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::ArrayLiteral { .. }
+            | PrimaryExpression::ObjectLiteral { .. }
+            | PrimaryExpression::TemplateLiteral { .. }
+            | PrimaryExpression::RegularExpression { .. } => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl TryFrom<&Rc<ParenthesizedExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<ParenthesizedExpression>) -> Result<Self, Self::Error> {
+        NameableProduction::try_from(&value.exp)
+    }
+}
+impl TryFrom<&Rc<Expression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: &Rc<Expression>) -> Result<Self, Self::Error> {
+        match &**value {
+            Expression::FallThru(child) => NameableProduction::try_from(child),
+            Expression::Comma(_, _) => Err(anyhow!("Production not nameable")),
+        }
+    }
+}
+impl NameableProduction {
+    fn compile_named_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        id: u16,
+    ) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            NameableProduction::Function(child) => {
+                child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
+            }
+            NameableProduction::Generator(_) => todo!(),
+            NameableProduction::AsyncFunction(_) => todo!(),
+            NameableProduction::AsyncGenerator(_) => todo!(),
+            NameableProduction::Class(_) => todo!(),
+            NameableProduction::Arrow(child) => {
+                child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
+            }
+            NameableProduction::AsyncArrow(_) => todo!(),
+        }
     }
 }
 
@@ -1923,28 +2212,27 @@ impl LexicalBinding {
                         None
                     }
                     Some(izer) => {
-                        if izer.is_anonymous_function_definition() {
-                            todo!();
+                        let status = if izer.is_anonymous_function_definition() {
+                            NameableProduction::try_from(izer)?.compile_named_evaluation(chunk, strict, text, id)?
+                            //izer.compile_named_evaluation(chunk, strict, text, id)?
                         } else {
-                            let status = izer.compile(chunk, strict, text)?;
-                            // Stack: rref lhs ...
-                            if status.maybe_ref() {
-                                chunk.op(Insn::GetValue);
-                                // Stack: value lhs ...
-                            }
-                            if status.maybe_abrupt() || status.maybe_ref() {
-                                let normal = chunk.op_jump(Insn::JumpIfNormal);
-                                // Stack: err lhs ...
-                                chunk.op(Insn::Swap);
-                                // Stack: lhs err ...
-                                chunk.op(Insn::Pop);
-                                // Stack: err ...
-                                let exit_tgt = Some(chunk.op_jump(Insn::Jump));
-                                chunk.fixup(normal).expect("Jump is too short to overflow.");
-                                exit_tgt
-                            } else {
-                                None
-                            }
+                            izer.compile(chunk, strict, text)?
+                        };
+                        // Stack: rref lhs ...
+                        if status.maybe_ref() {
+                            chunk.op(Insn::GetValue);
+                            // Stack: value lhs ...
+                        }
+                        if status.maybe_abrupt() || status.maybe_ref() {
+                            let normal = chunk.op_jump(Insn::JumpIfNormal);
+                            // Stack: err lhs ...
+                            chunk.op_plus_arg(Insn::Unwind, 1);
+                            // Stack: err ...
+                            let exit_tgt = Some(chunk.op_jump(Insn::Jump));
+                            chunk.fixup(normal).expect("Jump is too short to overflow.");
+                            exit_tgt
+                        } else {
+                            None
                         }
                     }
                 };
@@ -2040,19 +2328,19 @@ impl VariableDeclaration {
                 chunk.op_plus_arg(Insn::String, idx); // Stack: bindingId ...
                 chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }); // Stack: lhs/err ...
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt)); // Stack: lhs ...
-                if izer.is_anonymous_function_definition() {
-                    todo!();
+                let izer_flags = if izer.is_anonymous_function_definition() {
+                    NameableProduction::try_from(izer)?.compile_named_evaluation(chunk, strict, text, idx)?
                 } else {
-                    let izer_flags = izer.compile(chunk, strict, text)?; // Stack: rhs/rref/err lhs ...
-                    if izer_flags.maybe_ref() {
-                        chunk.op(Insn::GetValue); // Stack: rhs/err lhs ...
-                    }
-                    if izer_flags.maybe_abrupt() || izer_flags.maybe_ref() {
-                        let ok_tgt = chunk.op_jump(Insn::JumpIfNormal); // Stack: err lhs ...
-                        chunk.op_plus_arg(Insn::Unwind, 1); // Stack: err ...
-                        exits.push(chunk.op_jump(Insn::Jump));
-                        chunk.fixup(ok_tgt).expect("Jump too short to overflow.");
-                    }
+                    izer.compile(chunk, strict, text)? // Stack: rhs/rref/err lhs ...
+                };
+                if izer_flags.maybe_ref() {
+                    chunk.op(Insn::GetValue); // Stack: rhs/err lhs ...
+                }
+                if izer_flags.maybe_abrupt() || izer_flags.maybe_ref() {
+                    let ok_tgt = chunk.op_jump(Insn::JumpIfNormal); // Stack: err lhs ...
+                    chunk.op_plus_arg(Insn::Unwind, 1); // Stack: err ...
+                    exits.push(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(ok_tgt).expect("Jump too short to overflow.");
                 }
                 // Stack: rhs lhs ...
                 chunk.op(Insn::PutValue); // Stack: err/empty ...
@@ -2369,10 +2657,10 @@ impl FunctionExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        name: Option<JSString>,
+        name: Option<u16>,
         text: &str,
         self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<NeverAbruptRefResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionExpression
         match &self.ident {
             None => {
@@ -2389,8 +2677,10 @@ impl FunctionExpression {
                 //      6. Perform SetFunctionName(closure, name).
                 //      7. Perform MakeConstructor(closure).
                 //      8. Return closure.
-                let name = name.unwrap_or_else(|| JSString::from(""));
-                let name_id = chunk.add_to_string_pool(name)?;
+                let name_id = match name {
+                    None => chunk.add_to_string_pool(JSString::from(""))?,
+                    Some(id) => id,
+                };
                 chunk.op_plus_arg(Insn::String, name_id);
 
                 let span = self.location().span;
@@ -2405,9 +2695,27 @@ impl FunctionExpression {
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id);
-                Ok(NeverAbruptRefResult {})
+                Ok(AlwaysAbruptResult {})
             }
-            Some(bi) => todo!(),
+            Some(bi) => {
+                let name = bi.string_value();
+                let name_idx = chunk.add_to_string_pool(name)?;
+                chunk.op_plus_arg(Insn::String, name_idx);
+
+                let span = self.location().span;
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let function_data = StashedFunctionData {
+                    source_text: text[span.starting_index..(span.starting_index + span.length)].to_string(),
+                    params,
+                    body,
+                    strict,
+                    to_compile: FunctionSource::from(self_as_rc),
+                };
+                let func_id = chunk.add_to_func_stash(function_data)?;
+                chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id);
+                Ok(AlwaysAbruptResult {})
+            }
         }
     }
 
@@ -2420,7 +2728,7 @@ impl FunctionExpression {
         strict: bool,
         text: &str,
         self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<NeverAbruptRefResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: Evaluation
         //  FunctionExpression : function BindingIdentifier[opt] ( FormalParameters ) { FunctionBody }
         //      1. Return InstantiateOrdinaryFunctionExpression of FunctionExpression.
@@ -2432,361 +2740,328 @@ impl FunctionExpression {
         self.instantiate_ordinary_function_expression(chunk, strict, None, text, self_as_rc)
     }
 
-    pub fn compile_body(
+    fn compile_named_evaluation(
         &self,
         chunk: &mut Chunk,
+        strict: bool,
         text: &str,
-        info: &StashedFunctionData,
-    ) -> anyhow::Result<AbruptResult> {
-        // Runtime Semantics: EvaluateBody
-        //
-        // The syntax-directed operation EvaluateBody takes arguments functionObject and argumentsList (a List) and
-        // returns either a normal completion containing an ECMAScript language value or an abrupt completion. It is
-        // defined piecewise over the following productions:
-        //
-        // FunctionBody : FunctionStatementList
-        //  1. Return ? EvaluateFunctionBody of FunctionBody with arguments functionObject and argumentsList.
+        self_as_rc: Rc<Self>,
+        id: u16,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        self.instantiate_ordinary_function_expression(chunk, strict, Some(id), text, self_as_rc)
+    }
+}
 
-        // Runtime Semantics: EvaluateFunctionBody
-        //
-        // The syntax-directed operation EvaluateFunctionBody takes arguments functionObject and argumentsList (a List)
-        // and returns either a normal completion containing an ECMAScript language value or an abrupt completion. It
-        // is defined piecewise over the following productions:
-        //
-        // FunctionBody : FunctionStatementList
-        //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
-        //  2. Return the result of evaluating FunctionStatementList.
+/// Generates the code necessary to set up function execution
+pub fn compile_fdi(
+    chunk: &mut Chunk,
+    text: &str,
+    info: &StashedFunctionData,
+    lexical_this_mode: bool,
+) -> anyhow::Result<AbruptResult> {
+    // FunctionDeclarationInstantiation ( func, argumentsList )
+    //
+    // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
+    // argumentsList and returns either a normal completion containing unused or an abrupt completion. func is the
+    // function object for which the execution context is being established.
+    //
+    // NOTE 1  | When an execution context is established for evaluating an ECMAScript function a new function
+    //         | Environment Record is created and bindings for each formal parameter are instantiated in that
+    //         | Environment Record. Each declaration in the function body is also instantiated. If the function's
+    //         | formal parameters do not include any default value initializers then the body declarations are
+    //         | instantiated in the same Environment Record as the parameters. If default value parameter
+    //         | initializers exist, a second Environment Record is created for the body declarations. Formal
+    //         | parameters and functions are initialized as part of FunctionDeclarationInstantiation. All other
+    //         | bindings are initialized during evaluation of the function body.
+    //
+    // It performs the following steps when called: (🏃 = Run time; 🧑‍💻 = Compile time)
+    //
+    //🏃   1. Let calleeContext be the running execution context.
+    //🧑‍💻   2. Let code be func.[[ECMAScriptCode]].
+    //🧑‍💻   3. Let strict be func.[[Strict]].
+    //🧑‍💻   4. Let formals be func.[[FormalParameters]].
+    //🧑‍💻   5. Let parameterNames be the BoundNames of formals.
+    //🧑‍💻   6. If parameterNames has any duplicate entries, let hasDuplicates be true. Otherwise, let hasDuplicates be
+    //🧑‍💻      false.
+    //🧑‍💻   7. Let simpleParameterList be IsSimpleParameterList of formals.
+    //🧑‍💻   8. Let hasParameterExpressions be ContainsExpression of formals.
+    //🧑‍💻   9. Let varNames be the VarDeclaredNames of code.
+    //🧑‍💻  10. Let varDeclarations be the VarScopedDeclarations of code.
+    //🧑‍💻  11. Let lexicalNames be the LexicallyDeclaredNames of code.
+    //🧑‍💻  12. Let functionNames be a new empty List.
+    //🧑‍💻  13. Let functionsToInitialize be a new empty List.
+    //🧑‍💻  14. For each element d of varDeclarations, in reverse List order, do
+    //🧑‍💻      a. If d is neither a VariableDeclaration nor a ForBinding nor a BindingIdentifier, then
+    //🧑‍💻            i. Assert: d is either a FunctionDeclaration, a GeneratorDeclaration, an
+    //🧑‍💻               AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
+    //🧑‍💻           ii. Let fn be the sole element of the BoundNames of d.
+    //🧑‍💻          iii. If fn is not an element of functionNames, then
+    //🧑‍💻              1. Insert fn as the first element of functionNames.
+    //🧑‍💻              2. NOTE: If there are multiple function declarations for the same name, the last declaration is
+    //🧑‍💻                 used.
+    //🧑‍💻              3. Insert d as the first element of functionsToInitialize.
+    //🧑‍💻  15. Let argumentsObjectNeeded be true.
+    //🧑‍💻  16. If func.[[ThisMode]] is lexical, then
+    //🧑‍💻      a. NOTE: Arrow functions never have an arguments object.
+    //🧑‍💻      b. Set argumentsObjectNeeded to false.
+    //🧑‍💻  17. Else if "arguments" is an element of parameterNames, then
+    //🧑‍💻      a. Set argumentsObjectNeeded to false.
+    //🧑‍💻  18. Else if hasParameterExpressions is false, then
+    //🧑‍💻      a. If "arguments" is an element of functionNames or if "arguments" is an element of lexicalNames, then
+    //🧑‍💻            i. Set argumentsObjectNeeded to false.
+    //🧑‍💻  19. If strict is true or if hasParameterExpressions is false, then
+    //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters, since calls to eval in strict
+    //🧑‍💻         mode code cannot create new bindings which are visible outside of the eval.
+    //🏃      b. Let env be the LexicalEnvironment of calleeContext.
+    //🧑‍💻  20. Else,
+    //🏃      a. NOTE: A separate Environment Record is needed to ensure that bindings created by direct eval calls
+    //🏃         in the formal parameter list are outside the environment where parameters are declared.
+    //🏃      b. Let calleeEnv be the LexicalEnvironment of calleeContext.
+    //🏃      c. Let env be NewDeclarativeEnvironment(calleeEnv).
+    //🏃      d. Assert: The VariableEnvironment of calleeContext is calleeEnv.
+    //🏃      e. Set the LexicalEnvironment of calleeContext to env.
+    //🧑‍💻  21. For each String paramName of parameterNames, do
+    //🏃      a. Let alreadyDeclared be ! env.HasBinding(paramName).
+    //🏃      b. NOTE: Early errors ensure that duplicate parameter names can only occur in non-strict functions that
+    //🏃         do not have parameter default values or rest parameters.
+    //🏃      c. If alreadyDeclared is false, then
+    //🏃            i. Perform ! env.CreateMutableBinding(paramName, false).
+    //🧑‍💻           ii. If hasDuplicates is true, then
+    //🏃              1. Perform ! env.InitializeBinding(paramName, undefined).
+    //🧑‍💻  22. If argumentsObjectNeeded is true, then
+    //🧑‍💻      a. If strict is true or if simpleParameterList is false, then
+    //🏃            i. Let ao be CreateUnmappedArgumentsObject(argumentsList).
+    //🧑‍💻      b. Else,
+    //🏃            i. NOTE: A mapped argument object is only provided for non-strict functions that don't have a
+    //🏃               rest parameter, any parameter default value initializers, or any destructured parameters.
+    //🏃           ii. Let ao be CreateMappedArgumentsObject(func, formals, argumentsList, env).
+    //🧑‍💻      c. If strict is true, then
+    //🏃            i. Perform ! env.CreateImmutableBinding("arguments", false).
+    //🏃           ii. NOTE: In strict mode code early errors prevent attempting to assign to this binding, so its
+    //🏃               mutability is not observable.
+    //🧑‍💻      d. Else,
+    //🏃            i. Perform ! env.CreateMutableBinding("arguments", false).
+    //🏃      e. Perform ! env.InitializeBinding("arguments", ao).
+    //🧑‍💻      f. Let parameterBindings be the list-concatenation of parameterNames and « "arguments" ».
+    //🧑‍💻  23. Else,
+    //🧑‍💻      a. Let parameterBindings be parameterNames.
+    //🏃  24. Let iteratorRecord be CreateListIteratorRecord(argumentsList).
+    //🧑‍💻  25. If hasDuplicates is true, then
+    //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and undefined.
+    //🧑‍💻  26. Else,
+    //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and env.
+    //🧑‍💻  27. If hasParameterExpressions is false, then
+    //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters and top-level vars.
+    //🧑‍💻      b. Let instantiatedVarNames be a copy of the List parameterBindings.
+    //🧑‍💻      c. For each element n of varNames, do
+    //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
+    //🧑‍💻              1. Append n to instantiatedVarNames.
+    //🏃              2. Perform ! env.CreateMutableBinding(n, false).
+    //🏃              3. Perform ! env.InitializeBinding(n, undefined).
+    //🏃      d. Let varEnv be env.
+    //🧑‍💻  28. Else,
+    //🏃      a. NOTE: A separate Environment Record is needed to ensure that closures created by expressions in the
+    //🏃        formal parameter list do not have visibility of declarations in the function body.
+    //🏃      b. Let varEnv be NewDeclarativeEnvironment(env).
+    //🏃      c. Set the VariableEnvironment of calleeContext to varEnv.
+    //🧑‍💻      d. Let instantiatedVarNames be a new empty List.
+    //🧑‍💻      e. For each element n of varNames, do
+    //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
+    //🧑‍💻              1. Append n to instantiatedVarNames.
+    //🏃              2. Perform ! varEnv.CreateMutableBinding(n, false).
+    //🧑‍💻              3. If n is not an element of parameterBindings or if n is an element of functionNames, let
+    //🏃                 initialValue be undefined.
+    //🧑‍💻              4. Else,
+    //🏃                  a. Let initialValue be ! env.GetBindingValue(n, false).
+    //🏃              5. Perform ! varEnv.InitializeBinding(n, initialValue).
+    //🏃              6. NOTE: A var with the same name as a formal parameter initially has the same value as the
+    //🏃                 corresponding initialized parameter.
+    //🧑‍💻  29. NOTE: Annex B.3.2.1 adds additional steps at this point.
+    //🧑‍💻  30. If strict is false, then
+    //🏃      a. Let lexEnv be NewDeclarativeEnvironment(varEnv).
+    //🏃      b. NOTE: Non-strict functions use a separate Environment Record for top-level lexical declarations so
+    //🏃         that a direct eval can determine whether any var scoped declarations introduced by the eval code
+    //🏃         conflict with pre-existing top-level lexically scoped declarations. This is not needed for strict
+    //🏃         functions because a strict direct eval always places all declarations into a new Environment Record.
+    //🧑‍💻  31. Else,
+    //🏃      a. Let lexEnv be varEnv.
+    //🏃  32. Set the LexicalEnvironment of calleeContext to lexEnv.
+    //🧑‍💻  33. Let lexDeclarations be the LexicallyScopedDeclarations of code.
+    //🧑‍💻  34. For each element d of lexDeclarations, do
+    //🧑‍💻      a. NOTE: A lexically declared name cannot be the same as a function/generator declaration, formal
+    //🧑‍💻         parameter, or a var name. Lexically declared names are only instantiated here but not initialized.
+    //🧑‍💻      b. For each element dn of the BoundNames of d, do
+    //🧑‍💻            i. If IsConstantDeclaration of d is true, then
+    //🏃              1. Perform ! lexEnv.CreateImmutableBinding(dn, true).
+    //🧑‍💻           ii. Else,
+    //🏃              1. Perform ! lexEnv.CreateMutableBinding(dn, false).
+    //🏃  35. Let privateEnv be the PrivateEnvironment of calleeContext.
+    //🧑‍💻  36. For each Parse Node f of functionsToInitialize, do
+    //🧑‍💻      a. Let fn be the sole element of the BoundNames of f.
+    //🏃      b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
+    //🏃      c. Perform ! varEnv.SetMutableBinding(fn, fo, false).
+    //🧑‍💻  37. Return unused.
+    //
+    //  NOTE 2   | B.3.2 provides an extension to the above algorithm that is necessary for backwards compatibility
+    //           | with web browser implementations of ECMAScript that predate ECMAScript 2015.
 
-        // Both steps 1 and 2 have compilable code.
+    // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
 
-        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
-        let fdi_status = self.compile_fdi(chunk, text, info)?;
-        let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-
-        // Stack: ...
-        let strict = self.body.function_body_contains_use_strict(); // This isn't good enough. :/
-        let eval_status = self.body.statements.compile(chunk, strict, text)?;
-
-        if let Some(mark) = exit {
-            chunk.fixup(mark)?;
+    let strict = info.strict;
+    let code = &info.body;
+    let formals = &info.params;
+    let mut parameter_names = formals.bound_names();
+    let has_duplicates = parameter_names.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
+    let simple_parameter_list = formals.is_simple_parameter_list();
+    let has_parameter_expressions = formals.contains_expression();
+    let var_names = code.var_declared_names();
+    let var_declarations = code.var_scoped_declarations();
+    let lexical_names = code.lexically_declared_names();
+    let mut function_names = vec![];
+    let mut functions_to_initialize = vec![];
+    for d in var_declarations.iter().rev().cloned().filter_map(|decl| FcnDef::try_from(decl).ok()) {
+        let func_name = d.bound_name();
+        if !function_names.contains(&func_name) {
+            function_names.insert(0, func_name);
+            functions_to_initialize.insert(0, d);
         }
+    }
+    let a = JSString::from("arguments");
+    // Note: this is currently written for FunctionExpressions. So ThisMode is never Lexical.
+    let arguments_object_needed = !lexical_this_mode
+        && !parameter_names.contains(&a)
+        && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
 
-        chunk.op(Insn::EndFunction);
-
-        Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
+    if !strict && has_parameter_expressions {
+        chunk.op(Insn::PushNewLexEnv);
     }
 
-    /// Generates the code necessary to set up function execution
-    pub fn compile_fdi(
-        &self,
-        chunk: &mut Chunk,
-        text: &str,
-        info: &StashedFunctionData,
-    ) -> anyhow::Result<AbruptResult> {
-        // FunctionDeclarationInstantiation ( func, argumentsList )
-        //
-        // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
-        // argumentsList and returns either a normal completion containing unused or an abrupt completion. func is the
-        // function object for which the execution context is being established.
-        //
-        // NOTE 1  | When an execution context is established for evaluating an ECMAScript function a new function
-        //         | Environment Record is created and bindings for each formal parameter are instantiated in that
-        //         | Environment Record. Each declaration in the function body is also instantiated. If the function's
-        //         | formal parameters do not include any default value initializers then the body declarations are
-        //         | instantiated in the same Environment Record as the parameters. If default value parameter
-        //         | initializers exist, a second Environment Record is created for the body declarations. Formal
-        //         | parameters and functions are initialized as part of FunctionDeclarationInstantiation. All other
-        //         | bindings are initialized during evaluation of the function body.
-        //
-        // It performs the following steps when called: (🏃 = Run time; 🧑‍💻 = Compile time)
-        //
-        //🏃   1. Let calleeContext be the running execution context.
-        //🧑‍💻   2. Let code be func.[[ECMAScriptCode]].
-        //🧑‍💻   3. Let strict be func.[[Strict]].
-        //🧑‍💻   4. Let formals be func.[[FormalParameters]].
-        //🧑‍💻   5. Let parameterNames be the BoundNames of formals.
-        //🧑‍💻   6. If parameterNames has any duplicate entries, let hasDuplicates be true. Otherwise, let hasDuplicates be
-        //🧑‍💻      false.
-        //🧑‍💻   7. Let simpleParameterList be IsSimpleParameterList of formals.
-        //🧑‍💻   8. Let hasParameterExpressions be ContainsExpression of formals.
-        //🧑‍💻   9. Let varNames be the VarDeclaredNames of code.
-        //🧑‍💻  10. Let varDeclarations be the VarScopedDeclarations of code.
-        //🧑‍💻  11. Let lexicalNames be the LexicallyDeclaredNames of code.
-        //🧑‍💻  12. Let functionNames be a new empty List.
-        //🧑‍💻  13. Let functionsToInitialize be a new empty List.
-        //🧑‍💻  14. For each element d of varDeclarations, in reverse List order, do
-        //🧑‍💻      a. If d is neither a VariableDeclaration nor a ForBinding nor a BindingIdentifier, then
-        //🧑‍💻            i. Assert: d is either a FunctionDeclaration, a GeneratorDeclaration, an
-        //🧑‍💻               AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
-        //🧑‍💻           ii. Let fn be the sole element of the BoundNames of d.
-        //🧑‍💻          iii. If fn is not an element of functionNames, then
-        //🧑‍💻              1. Insert fn as the first element of functionNames.
-        //🧑‍💻              2. NOTE: If there are multiple function declarations for the same name, the last declaration is
-        //🧑‍💻                 used.
-        //🧑‍💻              3. Insert d as the first element of functionsToInitialize.
-        //🧑‍💻  15. Let argumentsObjectNeeded be true.
-        //🧑‍💻  16. If func.[[ThisMode]] is lexical, then
-        //🧑‍💻      a. NOTE: Arrow functions never have an arguments object.
-        //🧑‍💻      b. Set argumentsObjectNeeded to false.
-        //🧑‍💻  17. Else if "arguments" is an element of parameterNames, then
-        //🧑‍💻      a. Set argumentsObjectNeeded to false.
-        //🧑‍💻  18. Else if hasParameterExpressions is false, then
-        //🧑‍💻      a. If "arguments" is an element of functionNames or if "arguments" is an element of lexicalNames, then
-        //🧑‍💻            i. Set argumentsObjectNeeded to false.
-        //🧑‍💻  19. If strict is true or if hasParameterExpressions is false, then
-        //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters, since calls to eval in strict
-        //🧑‍💻         mode code cannot create new bindings which are visible outside of the eval.
-        //🏃      b. Let env be the LexicalEnvironment of calleeContext.
-        //🧑‍💻  20. Else,
-        //🏃      a. NOTE: A separate Environment Record is needed to ensure that bindings created by direct eval calls
-        //🏃         in the formal parameter list are outside the environment where parameters are declared.
-        //🏃      b. Let calleeEnv be the LexicalEnvironment of calleeContext.
-        //🏃      c. Let env be NewDeclarativeEnvironment(calleeEnv).
-        //🏃      d. Assert: The VariableEnvironment of calleeContext is calleeEnv.
-        //🏃      e. Set the LexicalEnvironment of calleeContext to env.
-        //🧑‍💻  21. For each String paramName of parameterNames, do
-        //🏃      a. Let alreadyDeclared be ! env.HasBinding(paramName).
-        //🏃      b. NOTE: Early errors ensure that duplicate parameter names can only occur in non-strict functions that
-        //🏃         do not have parameter default values or rest parameters.
-        //🏃      c. If alreadyDeclared is false, then
-        //🏃            i. Perform ! env.CreateMutableBinding(paramName, false).
-        //🧑‍💻           ii. If hasDuplicates is true, then
-        //🏃              1. Perform ! env.InitializeBinding(paramName, undefined).
-        //🧑‍💻  22. If argumentsObjectNeeded is true, then
-        //🧑‍💻      a. If strict is true or if simpleParameterList is false, then
-        //🏃            i. Let ao be CreateUnmappedArgumentsObject(argumentsList).
-        //🧑‍💻      b. Else,
-        //🏃            i. NOTE: A mapped argument object is only provided for non-strict functions that don't have a
-        //🏃               rest parameter, any parameter default value initializers, or any destructured parameters.
-        //🏃           ii. Let ao be CreateMappedArgumentsObject(func, formals, argumentsList, env).
-        //🧑‍💻      c. If strict is true, then
-        //🏃            i. Perform ! env.CreateImmutableBinding("arguments", false).
-        //🏃           ii. NOTE: In strict mode code early errors prevent attempting to assign to this binding, so its
-        //🏃               mutability is not observable.
-        //🧑‍💻      d. Else,
-        //🏃            i. Perform ! env.CreateMutableBinding("arguments", false).
-        //🏃      e. Perform ! env.InitializeBinding("arguments", ao).
-        //🧑‍💻      f. Let parameterBindings be the list-concatenation of parameterNames and « "arguments" ».
-        //🧑‍💻  23. Else,
-        //🧑‍💻      a. Let parameterBindings be parameterNames.
-        //🏃  24. Let iteratorRecord be CreateListIteratorRecord(argumentsList).
-        //🧑‍💻  25. If hasDuplicates is true, then
-        //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and undefined.
-        //🧑‍💻  26. Else,
-        //🏃      a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and env.
-        //🧑‍💻  27. If hasParameterExpressions is false, then
-        //🧑‍💻      a. NOTE: Only a single Environment Record is needed for the parameters and top-level vars.
-        //🧑‍💻      b. Let instantiatedVarNames be a copy of the List parameterBindings.
-        //🧑‍💻      c. For each element n of varNames, do
-        //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
-        //🧑‍💻              1. Append n to instantiatedVarNames.
-        //🏃              2. Perform ! env.CreateMutableBinding(n, false).
-        //🏃              3. Perform ! env.InitializeBinding(n, undefined).
-        //🏃      d. Let varEnv be env.
-        //🧑‍💻  28. Else,
-        //🏃      a. NOTE: A separate Environment Record is needed to ensure that closures created by expressions in the
-        //🏃        formal parameter list do not have visibility of declarations in the function body.
-        //🏃      b. Let varEnv be NewDeclarativeEnvironment(env).
-        //🏃      c. Set the VariableEnvironment of calleeContext to varEnv.
-        //🧑‍💻      d. Let instantiatedVarNames be a new empty List.
-        //🧑‍💻      e. For each element n of varNames, do
-        //🧑‍💻            i. If n is not an element of instantiatedVarNames, then
-        //🧑‍💻              1. Append n to instantiatedVarNames.
-        //🏃              2. Perform ! varEnv.CreateMutableBinding(n, false).
-        //🧑‍💻              3. If n is not an element of parameterBindings or if n is an element of functionNames, let
-        //🏃                 initialValue be undefined.
-        //🧑‍💻              4. Else,
-        //🏃                  a. Let initialValue be ! env.GetBindingValue(n, false).
-        //🏃              5. Perform ! varEnv.InitializeBinding(n, initialValue).
-        //🏃              6. NOTE: A var with the same name as a formal parameter initially has the same value as the
-        //🏃                 corresponding initialized parameter.
-        //🧑‍💻  29. NOTE: Annex B.3.2.1 adds additional steps at this point.
-        //🧑‍💻  30. If strict is false, then
-        //🏃      a. Let lexEnv be NewDeclarativeEnvironment(varEnv).
-        //🏃      b. NOTE: Non-strict functions use a separate Environment Record for top-level lexical declarations so
-        //🏃         that a direct eval can determine whether any var scoped declarations introduced by the eval code
-        //🏃         conflict with pre-existing top-level lexically scoped declarations. This is not needed for strict
-        //🏃         functions because a strict direct eval always places all declarations into a new Environment Record.
-        //🧑‍💻  31. Else,
-        //🏃      a. Let lexEnv be varEnv.
-        //🏃  32. Set the LexicalEnvironment of calleeContext to lexEnv.
-        //🧑‍💻  33. Let lexDeclarations be the LexicallyScopedDeclarations of code.
-        //🧑‍💻  34. For each element d of lexDeclarations, do
-        //🧑‍💻      a. NOTE: A lexically declared name cannot be the same as a function/generator declaration, formal
-        //🧑‍💻         parameter, or a var name. Lexically declared names are only instantiated here but not initialized.
-        //🧑‍💻      b. For each element dn of the BoundNames of d, do
-        //🧑‍💻            i. If IsConstantDeclaration of d is true, then
-        //🏃              1. Perform ! lexEnv.CreateImmutableBinding(dn, true).
-        //🧑‍💻           ii. Else,
-        //🏃              1. Perform ! lexEnv.CreateMutableBinding(dn, false).
-        //🏃  35. Let privateEnv be the PrivateEnvironment of calleeContext.
-        //🧑‍💻  36. For each Parse Node f of functionsToInitialize, do
-        //🧑‍💻      a. Let fn be the sole element of the BoundNames of f.
-        //🏃      b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
-        //🏃      c. Perform ! varEnv.SetMutableBinding(fn, fo, false).
-        //🧑‍💻  37. Return unused.
-        //
-        //  NOTE 2   | B.3.2 provides an extension to the above algorithm that is necessary for backwards compatibility
-        //           | with web browser implementations of ECMAScript that predate ECMAScript 2015.
-
-        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
-
-        let strict = info.strict;
-        let code = &info.body;
-        let formals = &info.params;
-        let mut parameter_names = formals.bound_names();
-        let has_duplicates =
-            parameter_names.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
-        let simple_parameter_list = formals.is_simple_parameter_list();
-        let has_parameter_expressions = formals.contains_expression();
-        let var_names = code.var_declared_names();
-        let var_declarations = code.var_scoped_declarations();
-        let lexical_names = code.lexically_declared_names();
-        let mut function_names = vec![];
-        let mut functions_to_initialize = vec![];
-        for d in var_declarations.iter().rev().cloned().filter_map(|decl| FcnDef::try_from(decl).ok()) {
-            let func_name = d.bound_name();
-            if !function_names.contains(&func_name) {
-                function_names.insert(0, func_name);
-                functions_to_initialize.insert(0, d);
-            }
-        }
-        let a = JSString::from("arguments");
-        // Note: this is currently written for FunctionExpressions. So ThisMode is never Lexical.
-        let arguments_object_needed = !parameter_names.contains(&a)
-            && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
-
-        if !strict && has_parameter_expressions {
-            chunk.op(Insn::PushNewLexEnv);
-        }
-
-        for param_name in parameter_names.iter() {
-            let sidx = chunk.add_to_string_pool(param_name.clone())?;
-            chunk.op_plus_arg(
-                if has_duplicates {
-                    Insn::CreateInitializedPermanentMutableLexIfMissing
-                } else {
-                    Insn::CreatePermanentMutableLexIfMissing
-                },
-                sidx,
-            );
-        }
-
-        // 22-23.
-        if arguments_object_needed {
-            if strict || !simple_parameter_list {
-                chunk.op(Insn::CreateUnmappedArguments);
+    for param_name in parameter_names.iter() {
+        let sidx = chunk.add_to_string_pool(param_name.clone())?;
+        chunk.op_plus_arg(
+            if has_duplicates {
+                Insn::CreateInitializedPermanentMutableLexIfMissing
             } else {
-                chunk.op(Insn::CreateMappedArguments);
-            }
-            let args_idx = chunk.add_to_string_pool("arguments".into())?;
-            chunk.op_plus_arg(
-                if strict { Insn::CreateNonStrictImmutableLexBinding } else { Insn::CreatePermanentMutableLexBinding },
-                args_idx,
-            );
-            chunk.op_plus_arg(Insn::InitializeLexBinding, args_idx);
-            parameter_names.push(JSString::from("arguments"));
-        }
-
-        // 24-26.
-        let status = formals.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
-        // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
-        let mut exit = None;
-        if status.maybe_abrupt() {
-            let close_jump = chunk.op_jump(Insn::JumpIfNormal);
-            chunk.op_plus_arg(Insn::Unwind, 1);
-            exit = Some(chunk.op_jump(Insn::Jump));
-            chunk.fixup(close_jump).expect("Jump too short to overflow");
-        }
-        chunk.op(Insn::FinishArgs);
-        // Stack: func ...
-        chunk.op(Insn::Pop);
-        // Stack: ...
-
-        // 27-28.
-        if !has_parameter_expressions {
-            let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
-            for n in var_names {
-                if !instantiated_var_names.contains(&n) {
-                    let idx = chunk.add_to_string_pool(n.clone())?;
-                    chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
-                    chunk.op(Insn::Undefined);
-                    chunk.op(Insn::InitializeLexBinding);
-                    instantiated_var_names.insert(n);
-                }
-            }
-            // let varEnv be env == current lexical environment
-        } else {
-            // b. Let varEnv be NewDeclarativeEnvironment(env).
-            // c. Set the VariableEnvironment of calleeContext to varEnv.
-            chunk.op(Insn::PushNewVarEnvFromLex);
-            let instantiated_var_names = AHashSet::<JSString>::new();
-            for n in var_names {
-                if !instantiated_var_names.contains(&n) {
-                    let idx = chunk.add_to_string_pool(n.clone())?;
-                    chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx);
-                    if !parameter_names.contains(&n) || function_names.contains(&n) {
-                        chunk.op(Insn::Undefined);
-                    } else {
-                        chunk.op_plus_arg(Insn::GetLexBinding, idx);
-                    }
-                    chunk.op_plus_arg(Insn::InitializeVarBinding, idx);
-                }
-            }
-            // now varEnv == current variable environment
-        }
-
-        // 30-32.
-        // If strict && has_parameter_expressions
-        //    set current_lexical_environment = current variable environment
-        // else if strict && !has_parameter_expressions
-        //    // nothing
-        // else if !strict && has_parameter_expressions
-        //    set current_lexical_environment = new_from(current variable environment)
-        // else if !strict && !has_parameter_expressions
-        //    set current_lexical_environment = new_from(current lexical environment)
-        // ==> lexenv is now the current lexical environment;
-        //     varenv is now current lexical environment if !has_parameter_expressions else current variable environment
-        match (strict, has_parameter_expressions) {
-            (true, true) => chunk.op(Insn::SetLexEnvToVarEnv),
-            (true, false) => (),
-            (false, true) => chunk.op(Insn::PushNewLexEnvFromVar),
-            (false, false) => chunk.op(Insn::PushNewLexEnv),
-        }
-
-        // 33-34.
-        let lex_declarations = code.lexically_scoped_declarations();
-        for d in lex_declarations {
-            for dn in d.bound_names() {
-                let idx = chunk.add_to_string_pool(dn)?;
-                chunk.op_plus_arg(
-                    if d.is_constant_declaration() {
-                        Insn::CreateStrictImmutableLexBinding
-                    } else {
-                        Insn::CreatePermanentMutableLexBinding
-                    },
-                    idx,
-                );
-            }
-        }
-
-        // 35-36.
-        for f in functions_to_initialize {
-            let fname = f.bound_name();
-            let idx = chunk.add_to_string_pool(fname)?;
-            f.compile_fo_instantiation(chunk, strict, text)?;
-            chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
-        }
-
-        // Done
-        if let Some(&mark) = exit.as_ref() {
-            chunk.fixup(mark)?;
-        }
-
-        // Stack: err ... or ... (i.e. error or empty)
-
-        Ok(AbruptResult::from(exit.is_some()))
+                Insn::CreatePermanentMutableLexIfMissing
+            },
+            sidx,
+        );
     }
+
+    // 22-23.
+    if arguments_object_needed {
+        if strict || !simple_parameter_list {
+            chunk.op(Insn::CreateUnmappedArguments);
+        } else {
+            chunk.op(Insn::CreateMappedArguments);
+        }
+        let args_idx = chunk.add_to_string_pool("arguments".into())?;
+        chunk.op_plus_arg(
+            if strict { Insn::CreateNonStrictImmutableLexBinding } else { Insn::CreatePermanentMutableLexBinding },
+            args_idx,
+        );
+        chunk.op_plus_arg(Insn::InitializeLexBinding, args_idx);
+        parameter_names.push(JSString::from("arguments"));
+    }
+
+    // 24-26.
+    let status = formals.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+    // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
+    let mut exit = None;
+    if status.maybe_abrupt() {
+        let close_jump = chunk.op_jump(Insn::JumpIfNormal);
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        exit = Some(chunk.op_jump(Insn::Jump));
+        chunk.fixup(close_jump).expect("Jump too short to overflow");
+    }
+    chunk.op(Insn::FinishArgs);
+    // Stack: func ...
+    chunk.op(Insn::Pop);
+    // Stack: ...
+
+    // 27-28.
+    if !has_parameter_expressions {
+        let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
+        for n in var_names {
+            if !instantiated_var_names.contains(&n) {
+                let idx = chunk.add_to_string_pool(n.clone())?;
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                chunk.op(Insn::Undefined);
+                chunk.op(Insn::InitializeLexBinding);
+                instantiated_var_names.insert(n);
+            }
+        }
+        // let varEnv be env == current lexical environment
+    } else {
+        // b. Let varEnv be NewDeclarativeEnvironment(env).
+        // c. Set the VariableEnvironment of calleeContext to varEnv.
+        chunk.op(Insn::PushNewVarEnvFromLex);
+        let instantiated_var_names = AHashSet::<JSString>::new();
+        for n in var_names {
+            if !instantiated_var_names.contains(&n) {
+                let idx = chunk.add_to_string_pool(n.clone())?;
+                chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx);
+                if !parameter_names.contains(&n) || function_names.contains(&n) {
+                    chunk.op(Insn::Undefined);
+                } else {
+                    chunk.op_plus_arg(Insn::GetLexBinding, idx);
+                }
+                chunk.op_plus_arg(Insn::InitializeVarBinding, idx);
+            }
+        }
+        // now varEnv == current variable environment
+    }
+
+    // 30-32.
+    // If strict && has_parameter_expressions
+    //    set current_lexical_environment = current variable environment
+    // else if strict && !has_parameter_expressions
+    //    // nothing
+    // else if !strict && has_parameter_expressions
+    //    set current_lexical_environment = new_from(current variable environment)
+    // else if !strict && !has_parameter_expressions
+    //    set current_lexical_environment = new_from(current lexical environment)
+    // ==> lexenv is now the current lexical environment;
+    //     varenv is now current lexical environment if !has_parameter_expressions else current variable environment
+    match (strict, has_parameter_expressions) {
+        (true, true) => chunk.op(Insn::SetLexEnvToVarEnv),
+        (true, false) => (),
+        (false, true) => chunk.op(Insn::PushNewLexEnvFromVar),
+        (false, false) => chunk.op(Insn::PushNewLexEnv),
+    }
+
+    // 33-34.
+    let lex_declarations = code.lexically_scoped_declarations();
+    for d in lex_declarations {
+        for dn in d.bound_names() {
+            let idx = chunk.add_to_string_pool(dn)?;
+            chunk.op_plus_arg(
+                if d.is_constant_declaration() {
+                    Insn::CreateStrictImmutableLexBinding
+                } else {
+                    Insn::CreatePermanentMutableLexBinding
+                },
+                idx,
+            );
+        }
+    }
+
+    // 35-36.
+    for f in functions_to_initialize {
+        let fname = f.bound_name();
+        let idx = chunk.add_to_string_pool(fname)?;
+        f.compile_fo_instantiation(chunk, strict, text)?;
+        chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
+    }
+
+    // Done
+    if let Some(&mark) = exit.as_ref() {
+        chunk.fixup(mark)?;
+    }
+
+    // Stack: err ... or ... (i.e. error or empty)
+
+    Ok(AbruptResult::from(exit.is_some()))
 }
 
 impl ArrowFunction {
@@ -2795,11 +3070,13 @@ impl ArrowFunction {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        name: Option<JSString>,
+        name: Option<u16>,
         self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<NeverAbruptRefResult> {
-        let name = name.unwrap_or_else(|| JSString::from(""));
-        let name_id = chunk.add_to_string_pool(name)?;
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        let name_id = match name {
+            None => chunk.add_to_string_pool(JSString::from(""))?,
+            Some(id) => id,
+        };
         chunk.op_plus_arg(Insn::String, name_id);
 
         let span = self.location().span;
@@ -2810,7 +3087,7 @@ impl ArrowFunction {
             StashedFunctionData { source_text, params, body, strict, to_compile: FunctionSource::from(self_as_rc) };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
-        Ok(NeverAbruptRefResult {})
+        Ok(AlwaysAbruptResult {})
     }
 
     pub fn compile(
@@ -2819,8 +3096,83 @@ impl ArrowFunction {
         strict: bool,
         text: &str,
         self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<NeverAbruptRefResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
+    }
+
+    pub fn compile_named_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+        id: u16,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        self.instantiate_arrow_function_expression(chunk, strict, text, Some(id), self_as_rc)
+    }
+}
+
+impl ConciseBody {
+    pub fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+        lexical_this_mode: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: EvaluateBody
+        // ConciseBody : ExpressionBody
+        //  1. Return ? EvaluateConciseBody of ConciseBody with arguments functionObject and argumentsList.
+
+        // Runtime Semantics: EvaluateConciseBody
+        //
+        // The syntax-directed operation EvaluateConciseBody takes arguments functionObject and argumentsList
+        // (a List) and returns either a normal completion containing an ECMAScript language value or an
+        // abrupt completion. It is defined piecewise over the following productions:
+        //
+        // ConciseBody : ExpressionBody
+        //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
+        //  2. Return the result of evaluating ExpressionBody.
+        match self {
+            ConciseBody::Function { body, .. } => body.compile_body(chunk, text, info, lexical_this_mode),
+            ConciseBody::Expression(exp) => {
+                // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+                let fdi_status = compile_fdi(chunk, text, info, lexical_this_mode)?;
+                let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+
+                // Stack: ...
+                let strict = info.strict || self.concise_body_contains_use_strict();
+                let eval_status = exp.compile(chunk, strict, text)?;
+
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
+                }
+
+                chunk.op(Insn::EndFunction);
+
+                Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl ExpressionBody {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // ExpressionBody : AssignmentExpression
+        //  1. Let exprRef be the result of evaluating AssignmentExpression.
+        //  2. Let exprValue be ? GetValue(exprRef).
+        //  3. Return Completion Record { [[Type]]: return, [[Value]]: exprValue, [[Target]]: empty }.
+        let status = self.expression.compile(chunk, strict, text)?;
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let exit =
+            if status.maybe_abrupt() || status.maybe_ref() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::Return);
+        if let Some(mark) = exit {
+            chunk.fixup(mark).expect("Jump too short to overflow");
+        }
+        Ok(AlwaysAbruptResult {})
     }
 }
 
@@ -2836,7 +3188,9 @@ impl ParamSource {
             ParamSource::FormalParameters(params) => {
                 params.compile_binding_initialization(chunk, strict, text, has_duplicates)
             }
-            ParamSource::ArrowParameters(_) => todo!(),
+            ParamSource::ArrowParameters(params) => {
+                params.compile_binding_initialization(chunk, strict, text, has_duplicates)
+            }
         }
     }
 }
@@ -2861,6 +3215,87 @@ impl FormalParameters {
                 Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
             }
         }
+    }
+}
+
+impl ArrowParameters {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        // Stack: N arg[n-1] ... arg[0]
+        match self {
+            ArrowParameters::Identifier(bi) => {
+                chunk.op(Insn::ExtractArg);
+                // Stack: val n-1 arg[n-1] ... arg[1]
+                bi.compile_binding_initialization(chunk, strict, has_duplicates).map(AbruptResult::from)
+            }
+            ArrowParameters::Formals(afp) => afp.compile_binding_initialization(chunk, strict, text, has_duplicates),
+        }
+    }
+}
+
+impl ArrowFormalParameters {
+    fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        self.params.compile_binding_initialization(chunk, strict, text, has_duplicates)
+    }
+}
+
+impl UniqueFormalParameters {
+    fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        has_duplicates: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        self.formals.compile_binding_initialization(chunk, strict, text, has_duplicates)
+    }
+}
+
+fn compile_initialize_bound_name(
+    chunk: &mut Chunk,
+    strict: bool,
+    has_duplicates: bool,
+    idx: u16,
+) -> anyhow::Result<NeverAbruptRefResult> {
+    match has_duplicates {
+        true => {
+            chunk.op_plus_arg(Insn::String, idx);
+            chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+            chunk.op(Insn::Swap);
+            chunk.op(Insn::PutValue);
+            chunk.op(Insn::Pop);
+        }
+        false => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
+    }
+    Ok(NeverAbruptRefResult {})
+}
+
+impl BindingIdentifier {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        has_duplicates: bool,
+    ) -> anyhow::Result<NeverAbruptRefResult> {
+        // Stack: val ...
+        let binding_id = match self {
+            BindingIdentifier::Identifier { identifier, .. } => identifier.string_value(),
+            BindingIdentifier::Yield { .. } => JSString::from("yield"),
+            BindingIdentifier::Await { .. } => JSString::from("await"),
+        };
+        let id_idx = chunk.add_to_string_pool(binding_id)?;
+        compile_initialize_bound_name(chunk, strict, has_duplicates, id_idx)
     }
 }
 
@@ -3041,6 +3476,53 @@ impl FunctionRestParameter {
         has_duplicates: bool,
     ) -> anyhow::Result<AbruptResult> {
         todo!()
+    }
+}
+
+impl FunctionBody {
+    pub fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+        lexical_this_mode: bool,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: EvaluateBody
+        //
+        // The syntax-directed operation EvaluateBody takes arguments functionObject and argumentsList (a List) and
+        // returns either a normal completion containing an ECMAScript language value or an abrupt completion. It is
+        // defined piecewise over the following productions:
+        //
+        // FunctionBody : FunctionStatementList
+        //  1. Return ? EvaluateFunctionBody of FunctionBody with arguments functionObject and argumentsList.
+
+        // Runtime Semantics: EvaluateFunctionBody
+        //
+        // The syntax-directed operation EvaluateFunctionBody takes arguments functionObject and argumentsList (a List)
+        // and returns either a normal completion containing an ECMAScript language value or an abrupt completion. It
+        // is defined piecewise over the following productions:
+        //
+        // FunctionBody : FunctionStatementList
+        //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
+        //  2. Return the result of evaluating FunctionStatementList.
+
+        // Both steps 1 and 2 have compilable code.
+
+        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+        let fdi_status = compile_fdi(chunk, text, info, lexical_this_mode)?;
+        let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+
+        // Stack: ...
+        let strict = info.strict || self.function_body_contains_use_strict();
+        let eval_status = self.statements.compile(chunk, strict, text)?;
+
+        if let Some(mark) = exit {
+            chunk.fixup(mark)?;
+        }
+
+        chunk.op(Insn::EndFunction);
+
+        Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
     }
 }
 

@@ -305,7 +305,7 @@ impl ArrowParameters {
 //      ( UniqueFormalParameters[?Yield, ?Await] )
 #[derive(Debug)]
 pub struct ArrowFormalParameters {
-    params: Rc<UniqueFormalParameters>,
+    pub params: Rc<UniqueFormalParameters>,
     location: Location,
 }
 
@@ -608,7 +608,7 @@ impl ConciseBody {
 //      AssignmentExpression[?In, ~Yield, ?Await]
 #[derive(Debug)]
 pub struct ExpressionBody {
-    expression: Rc<AssignmentExpression>,
+    pub expression: Rc<AssignmentExpression>,
 }
 
 impl fmt::Display for ExpressionBody {

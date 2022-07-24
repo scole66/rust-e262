@@ -2421,8 +2421,7 @@ mod lexical_binding {
         "STRICT_RESOLVE",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 1",
         "IRB"
     ]), true, false)); "resolvable initializer; strict")]
@@ -2433,8 +2432,7 @@ mod lexical_binding {
         "RESOLVE",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 1",
         "IRB"
     ]), true, false)); "resolvable initializer; non-strict")]

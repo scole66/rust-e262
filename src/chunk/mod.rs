@@ -143,7 +143,10 @@ impl Chunk {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
-            Insn::Unwind | Insn::InstantiateIdFreeFunctionExpression | Insn::InstantiateArrowFunctionExpression => {
+            Insn::Unwind
+            | Insn::InstantiateIdFreeFunctionExpression
+            | Insn::InstantiateArrowFunctionExpression
+            | Insn::InstantiateOrdinaryFunctionExpression => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{}", insn, arg))
             }

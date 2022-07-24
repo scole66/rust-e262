@@ -180,6 +180,16 @@ impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<ArrowFunction> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::ArrowFunction(af) => Ok(af),
+            _ => bail!("ArrowFunction expected"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct FunctionObjectData {
