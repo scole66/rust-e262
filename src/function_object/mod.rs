@@ -522,14 +522,12 @@ impl Agent {
         let local_env = self.current_lexical_environment().expect("Context must have a lexical environment");
         let this_value = if this_mode == ThisMode::Strict {
             this_argument
+        } else if this_argument == ECMAScriptValue::Undefined || this_argument == ECMAScriptValue::Null {
+            let global_env =
+                callee_realm.borrow().global_env.clone().expect("A global environment must exist for this realm");
+            global_env.get_this_binding(self).expect("This binding must exist")
         } else {
-            if this_argument == ECMAScriptValue::Undefined || this_argument == ECMAScriptValue::Null {
-                let global_env =
-                    callee_realm.borrow().global_env.clone().expect("A global environment must exist for this realm");
-                global_env.get_this_binding(self).expect("This binding must exist")
-            } else {
-                ECMAScriptValue::from(to_object(self, this_argument).expect("Must be objectifiable"))
-            }
+            ECMAScriptValue::from(to_object(self, this_argument).expect("Must be objectifiable"))
         };
         local_env.bind_this_value(self, this_value).expect("This binding should be uninitialized");
     }
@@ -545,6 +543,7 @@ impl Agent {
 
         // So "EvaluateBody" is what's compiled into this function's chunk; all we really need to do here is put the
         // arguments on the stack and set up the execution context for running code.
+        let func_val = NormalCompletion::from(func.clone());
         let data = func
             .o
             .to_function_obj()
@@ -553,9 +552,11 @@ impl Agent {
             .borrow();
         let chunk = Rc::clone(&data.compiled);
         self.prepare_running_ec_for_execution(chunk);
+        self.ec_push(Ok(func_val));
         for item in args.iter() {
             self.ec_push(Ok(item.clone().into()));
         }
+        self.ec_push(Ok((args.len() as u32).into()));
     }
 }
 

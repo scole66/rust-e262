@@ -334,7 +334,7 @@ impl FunctionExpression {
 //      FunctionStatementList[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionBody {
-    statements: Rc<FunctionStatementList>,
+    pub statements: Rc<FunctionStatementList>,
 }
 
 impl fmt::Display for FunctionBody {

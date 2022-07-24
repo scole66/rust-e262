@@ -152,6 +152,7 @@ impl Chunk {
             | Insn::Resolve
             | Insn::StrictResolve
             | Insn::Nop
+            | Insn::ToDo
             | Insn::InitializeReferencedBinding
             | Insn::PopLexEnv
             | Insn::PushNewLexEnv
@@ -171,6 +172,8 @@ impl Chunk {
             | Insn::GetValue
             | Insn::PutValue
             | Insn::Call
+            | Insn::EndFunction
+            | Insn::Return
             | Insn::UpdateEmpty
             | Insn::Swap
             | Insn::Pop

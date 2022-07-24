@@ -520,6 +520,10 @@ impl Agent {
                 Insn::Nop => {
                     // Do nothing
                 }
+                Insn::ToDo => {
+                    // Panic with a todo message
+                    todo!()
+                }
                 Insn::String => {
                     let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
                     self.execution_context_stack[index].pc += 1;
@@ -886,7 +890,7 @@ impl Agent {
                             .push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
                     } else {
                         let arg_count = arg_count as usize;
-                        assert!(stack_len >= arg_count + 1, "Stack must contain an argument list");
+                        assert!(stack_len > arg_count, "Stack must contain an argument list");
                         let arg0 = self.execution_context_stack[index].stack.remove(stack_len - arg_count - 1);
                         self.execution_context_stack[index].stack[stack_len - 2] =
                             Ok(NormalCompletion::from((arg_count - 1) as u32));
@@ -1062,10 +1066,32 @@ impl Agent {
                     let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
                     let ref_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
 
-                    let result = self.evaluate_call(func_val, ref_nc, &arguments);
-
-                    // @@@ This is the wrong thing to do for successful calls to function objects. (Those calls will put their own items on the stack.)
-                    self.execution_context_stack[index].stack.push(result);
+                    self.begin_call_evaluation(func_val, ref_nc, &arguments);
+                }
+                Insn::EndFunction => {
+                    //  6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
+                    //  7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
+                    //  8. If result.[[Type]] is return, return result.[[Value]].
+                    //  9. ReturnIfAbrupt(result).
+                    // 10. Return undefined.
+                    let result =
+                        self.execution_context_stack[index].stack.pop().expect("Should be one item on the stack");
+                    assert!(self.execution_context_stack[index].stack.is_empty());
+                    self.execution_context_stack.pop();
+                    self.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
+                        Ok(value.into())
+                    } else if result.is_err() {
+                        result
+                    } else {
+                        Ok(ECMAScriptValue::Undefined.into())
+                    });
+                }
+                Insn::Return => {
+                    let value = ECMAScriptValue::try_from(
+                        self.ec_pop().expect("Return needs an argument").expect("Return needs a normal completion"),
+                    )
+                    .expect("Return needs a value");
+                    self.ec_push(Err(AbruptCompletion::Return { value }));
                 }
                 Insn::UnaryPlus => {
                     let exp = self.execution_context_stack[index].stack.pop().unwrap();
@@ -1331,12 +1357,12 @@ impl Agent {
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
     }
 
-    fn evaluate_call(
+    fn begin_call_evaluation(
         &mut self,
         func: ECMAScriptValue,
         reference: NormalCompletion,
         arguments: &[ECMAScriptValue],
-    ) -> FullCompletion {
+    ) {
         let this_value = match &reference {
             NormalCompletion::Empty => unreachable!(),
             NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
@@ -1349,12 +1375,16 @@ impl Agent {
             },
         };
         if !func.is_object() {
-            return Err(create_type_error(self, "not an object"));
+            let err = Err(create_type_error(self, "not an object"));
+            self.ec_push(err);
+            return;
         }
         if !is_callable(&func) {
-            return Err(create_type_error(self, "not a function"));
+            let err = Err(create_type_error(self, "not a function"));
+            self.ec_push(err);
+            return;
         }
-        call(self, &func, &this_value, arguments).map(NormalCompletion::from)
+        initiate_call(self, &func, &this_value, arguments);
     }
 
     fn prefix_increment(&mut self, expr: FullCompletion) -> FullCompletion {
@@ -1615,6 +1645,9 @@ impl Agent {
             let l = self.execution_context_stack[index].stack.len();
             self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
             return;
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
         }
 
         // Name is on the stack.

@@ -1759,16 +1759,28 @@ pub fn call(
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
+    initiate_call(agent, func, this_value, args);
+    agent
+        .ec_pop()
+        .expect("Call must return a Completion")
+        .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
+}
+
+pub fn initiate_call(
+    agent: &mut Agent,
+    func: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
+    args: &[ECMAScriptValue],
+) {
     let maybe_callable = to_callable(func);
     match maybe_callable {
-        None => Err(create_type_error(agent, "Value not callable")),
+        None => {
+            let err = Err(create_type_error(agent, "Value not callable"));
+            agent.ec_push(err);
+        }
         Some(callable) => {
             let self_obj = to_object(agent, func.clone()).unwrap();
             callable.call(agent, &self_obj, this_value, args);
-            agent
-                .ec_pop()
-                .expect("Call must return a completion")
-                .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
         }
     }
 }

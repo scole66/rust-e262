@@ -1,6 +1,5 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow;
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -15,6 +14,7 @@ pub type Opcode = u16;
 #[repr(u16)]
 pub enum Insn {
     Nop,
+    ToDo,
     String,
     Resolve,
     StrictResolve,
@@ -38,6 +38,8 @@ pub enum Insn {
     JumpPopIfFalse,
     JumpIfNotUndef,
     Call,
+    EndFunction,
+    Return,
     UpdateEmpty,
     Swap,
     Pop,
@@ -124,6 +126,7 @@ impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(match self {
             Insn::Nop => "NOP",
+            Insn::ToDo => "TODO",
             Insn::String => "STRING",
             Insn::Resolve => "RESOLVE",
             Insn::StrictResolve => "STRICT_RESOLVE",
@@ -147,6 +150,8 @@ impl fmt::Display for Insn {
             Insn::JumpPopIfFalse => "JUMPPOP_FALSE",
             Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
             Insn::Call => "CALL",
+            Insn::EndFunction => "END_FUNCTION",
+            Insn::Return => "RETURN",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
             Insn::Pop => "POP",
@@ -1742,7 +1747,7 @@ impl Statement {
             Statement::Breakable(breakable_statement) => breakable_statement.compile(chunk, strict, text),
             Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
             Statement::Break(b) => b.compile(chunk).map(AbruptResult::from),
-            Statement::Return(_) => todo!(),
+            Statement::Return(r) => r.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::With(_) => todo!(),
             Statement::Labelled(lbl) => lbl.compile(chunk, strict, text),
             Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
@@ -1824,16 +1829,16 @@ impl BlockStatement {
 impl FcnDef {
     pub fn compile_fo_instantiation(
         &self,
-        _chunk: &mut Chunk,
+        chunk: &mut Chunk,
         _strict: bool,
         _text: &str,
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            FcnDef::Function(_) => todo!(),
-            FcnDef::Generator(_) => todo!(),
-            FcnDef::AsyncFun(_) => todo!(),
-            FcnDef::AsyncGen(_) => todo!(),
+            FcnDef::Function(_) | FcnDef::Generator(_) | FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => {
+                chunk.op(Insn::ToDo)
+            }
         }
+        Ok(NeverAbruptRefResult {}.into())
     }
 }
 
@@ -1860,11 +1865,10 @@ impl Block {
                     let x: Result<FcnDef, anyhow::Error> = FcnDef::try_from(d);
                     if let Ok(fcn) = x {
                         let fcn_name = fcn.bound_name();
-                        let _string_idx =
+                        let string_idx =
                             chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
-                        todo!(); // when compile_fo_instantiation is done, uncomment. This is here only for coverage.
-                                 // fcn.compile_fo_instantiation(chunk, strict, text)?;
-                                 // chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+                        fcn.compile_fo_instantiation(chunk, strict, text)?;
+                        chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
                     }
                 }
 
@@ -2234,6 +2238,33 @@ impl BreakStatement {
     }
 }
 
+impl ReturnStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        match self {
+            ReturnStatement::Bare { .. } => {
+                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Return);
+            }
+            ReturnStatement::Expression { exp, .. } => {
+                let status = exp.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                chunk.op(Insn::Return);
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
+                }
+            }
+        }
+        Ok(AlwaysAbruptResult {})
+    }
+}
+
 impl SwitchStatement {
     #[allow(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
@@ -2428,8 +2459,21 @@ impl FunctionExpression {
 
         // Both steps 1 and 2 have compilable code.
 
+        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
         let fdi_status = self.compile_fdi(chunk, text, info)?;
-        todo!()
+        let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+
+        // Stack: ...
+        let strict = self.body.function_body_contains_use_strict(); // This isn't good enough. :/
+        let eval_status = self.body.statements.compile(chunk, strict, text)?;
+
+        if let Some(mark) = exit {
+            chunk.fixup(mark)?;
+        }
+
+        chunk.op(Insn::EndFunction);
+
+        Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
     }
 
     /// Generates the code necessary to set up function execution
@@ -2656,6 +2700,8 @@ impl FunctionExpression {
         }
         chunk.op(Insn::FinishArgs);
         // Stack: func ...
+        chunk.op(Insn::Pop);
+        // Stack: ...
 
         // 27-28.
         if !has_parameter_expressions {
@@ -2728,7 +2774,7 @@ impl FunctionExpression {
         for f in functions_to_initialize {
             let fname = f.bound_name();
             let idx = chunk.add_to_string_pool(fname)?;
-            f.compile_function_object_instantiation(chunk, strict, text)?;
+            f.compile_fo_instantiation(chunk, strict, text)?;
             chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
         }
 
@@ -2737,9 +2783,7 @@ impl FunctionExpression {
             chunk.fixup(mark)?;
         }
 
-        for line in chunk.disassemble() {
-            println!("{line}");
-        }
+        // Stack: err ... or ... (i.e. error or empty)
 
         Ok(AbruptResult::from(exit.is_some()))
     }
@@ -2997,6 +3041,18 @@ impl FunctionRestParameter {
         has_duplicates: bool,
     ) -> anyhow::Result<AbruptResult> {
         todo!()
+    }
+}
+
+impl FunctionStatementList {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            FunctionStatementList::Statements(s) => s.compile(chunk, strict, text),
+            FunctionStatementList::Empty(_) => {
+                chunk.op(Insn::Undefined);
+                Ok(NeverAbruptRefResult {}.into())
+            }
+        }
     }
 }
 
