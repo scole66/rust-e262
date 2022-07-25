@@ -1128,44 +1128,44 @@ mod top_level_var_decl {
     }
 }
 
-//mod global_declaration_instantiation {
-//    use super::*;
-//    use test_case::test_case;
-//
-//    #[test_case("var a" => Ok((sset(&["a"]), sset(&[]))); "one simple var-declared variable")]
-//    #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
-//    #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
-//    #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
-//    #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
-//    #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
-//    #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
-//    #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
-//    #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
-//    #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
-//    #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
-//    #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
-//    fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
-//        let mut agent = test_agent();
-//        let script = Maker::new(src).script();
-//        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-//        global_env.create_global_var_binding(&mut agent, "already_var_declared".into(), false).unwrap();
-//        global_env.create_mutable_binding(&mut agent, "existing_mutable".into(), false).unwrap();
-//
-//        let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
-//        let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
-//
-//        let result = super::global_declaration_instantiation(&mut agent, script, global_env.clone());
-//
-//        result.map_err(|err| unwind_any_error(&mut agent, err)).map(|_| {
-//            let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
-//            let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
-//
-//            let new_vardecl = after_vardecl.difference(&prior_vardecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
-//            let new_lexdecl = after_lexdecl.difference(&prior_lexdecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
-//            (new_vardecl, new_lexdecl)
-//        })
-//    }
-//}
+mod global_declaration_instantiation {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("var a" => Ok((sset(&["a"]), sset(&[]))); "one simple var-declared variable")]
+    #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
+    #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
+    #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
+    #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
+    #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
+    #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
+    #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
+    #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
+    #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
+    #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
+    #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
+    fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
+        let mut agent = test_agent();
+        let script = Maker::new(src).script();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        global_env.create_global_var_binding(&mut agent, "already_var_declared".into(), false).unwrap();
+        global_env.create_mutable_binding(&mut agent, "existing_mutable".into(), false).unwrap();
+
+        let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
+        let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
+
+        let result = super::global_declaration_instantiation(&mut agent, script, global_env.clone(), false, src);
+
+        result.map_err(|err| unwind_any_error(&mut agent, err)).map(|_| {
+            let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
+            let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
+
+            let new_vardecl = after_vardecl.difference(&prior_vardecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            let new_lexdecl = after_lexdecl.difference(&prior_lexdecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            (new_vardecl, new_lexdecl)
+        })
+    }
+}
 
 mod script_evaluation {
     use super::*;

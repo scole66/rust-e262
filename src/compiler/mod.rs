@@ -3041,7 +3041,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
                 let idx = chunk.add_to_string_pool(n.clone())?;
                 chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
                 chunk.op(Insn::Undefined);
-                chunk.op(Insn::InitializeLexBinding);
+                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
                 instantiated_var_names.insert(n);
             }
         }

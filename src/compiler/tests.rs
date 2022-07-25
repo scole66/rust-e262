@@ -2538,7 +2538,7 @@ mod block {
         "PLE"
     ]), true, false)); "decls/non-strict")]
     #[test_case("{ let a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in decl formation")]
-    #[test_case("{ function a() {} }", true, None => Ok((svec(&["PNLE", "CPMLB 0 (a)", "TODO", "ILB 0 (a)", "EMPTY", "PLE"]), false, false)); "function def")]
+    #[test_case("{ function a() {} }", true, None => Ok((svec(&["PNLE", "CPMLB 0 (a)", "FUNC_OBJ 0 a", "ILB 0 (a)", "EMPTY", "PLE"]), false, false)); "function def")]
     #[test_case("{ a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in statement compilation")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).block();
