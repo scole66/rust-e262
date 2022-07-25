@@ -2538,7 +2538,7 @@ mod block {
         "PLE"
     ]), true, false)); "decls/non-strict")]
     #[test_case("{ let a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in decl formation")]
-    #[test_case("{ function a() {} }", true, None => panics "not yet implemented"; "function def")]
+    #[test_case("{ function a() {} }", true, None => Ok((svec(&["PNLE", "CPMLB 0 (a)", "TODO", "ILB 0 (a)", "EMPTY", "PLE"]), false, false)); "function def")]
     #[test_case("{ a; }", true, Some(0) => serr("Out of room for strings in this compilation unit"); "error in statement compilation")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).block();
@@ -3252,12 +3252,12 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", true, None => panics "not yet implemented"; "typical")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case("function x(){}", None => panics "not yet implemented"; "typical")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

@@ -1165,6 +1165,15 @@ impl Agent {
                     let info = &chunk.function_object_data[id as usize];
                     self.instantiate_arrow_function_expression(index, text, info)
                 }
+                Insn::InstantiateOrdinaryFunctionObject => {
+                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let string = &chunk.strings[string_index as usize];
+                    let func_index = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    let info = &chunk.function_object_data[func_index as usize];
+                    self.instantiate_ordinary_function_object(index, text, string, info)
+                }
                 Insn::LeftShift => self.binary_operation(index, BinOp::LeftShift),
                 Insn::SignedRightShift => self.binary_operation(index, BinOp::SignedRightShift),
                 Insn::UnsignedRightShift => self.binary_operation(index, BinOp::UnsignedRightShift),
@@ -1645,7 +1654,7 @@ impl Agent {
             info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
         let name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(name);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, false);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
             let l = self.execution_context_stack[index].stack.len();
@@ -1732,7 +1741,7 @@ impl Agent {
             info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, false);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
             let l = self.execution_context_stack[index].stack.len();
@@ -1795,7 +1804,7 @@ impl Agent {
             info.to_compile.clone().try_into().expect("This routine only used with Arrow Functions");
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info, true);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
             let l = self.execution_context_stack[index].stack.len();
@@ -1821,6 +1830,50 @@ impl Agent {
             Rc::new(compiled),
         );
         set_function_name(self, &closure, name.into(), None);
+
+        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+    }
+
+    fn instantiate_ordinary_function_object(
+        &mut self,
+        index: usize,
+        text: &str,
+        name: &JSString,
+        info: &StashedFunctionData,
+    ) {
+        let to_compile: Rc<FunctionDeclaration> =
+            info.to_compile.clone().try_into().expect("This routine only used with Function Declarations");
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(self, err.to_string());
+            let l = self.execution_context_stack[index].stack.len();
+            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            return;
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = self.current_lexical_environment().unwrap();
+        let priv_env = self.current_private_environment();
+        let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            self,
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            FunctionThisMode::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        set_function_name(self, &closure, name.clone().into(), None);
+        make_constructor(self, &closure, None);
 
         self.execution_context_stack[index].stack.push(Ok(closure.into()));
     }
@@ -2203,13 +2256,15 @@ impl FcnDef {
         &self,
         agent: &mut Agent,
         env: Rc<dyn EnvironmentRecord>,
-        private_env: Option<&PrivateEnvironmentRecord>,
-    ) -> ECMAScriptValue {
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        text: &str,
+    ) -> Completion<ECMAScriptValue> {
         match self {
-            FcnDef::Function(x) => x.instantiate_function_object(agent, env, private_env),
-            FcnDef::Generator(x) => x.instantiate_function_object(agent, env, private_env),
-            FcnDef::AsyncFun(x) => x.instantiate_function_object(agent, env, private_env),
-            FcnDef::AsyncGen(x) => x.instantiate_function_object(agent, env, private_env),
+            FcnDef::Function(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
+            FcnDef::Generator(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
+            FcnDef::AsyncFun(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
+            FcnDef::AsyncGen(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
         }
     }
 }
@@ -2244,6 +2299,8 @@ pub fn global_declaration_instantiation(
     agent: &mut Agent,
     script: Rc<Script>,
     env: Rc<GlobalEnvironmentRecord>,
+    strict: bool,
+    text: &str,
 ) -> Completion<()> {
     println!("Creating Globals...");
     let lex_names = script.lexically_declared_names();
@@ -2316,7 +2373,13 @@ pub fn global_declaration_instantiation(
     }
     for f in functions_to_initialize {
         let name = f.bound_name();
-        let func_obj = f.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env);
+        let func_obj = f.instantiate_function_object(
+            agent,
+            env.clone() as Rc<dyn EnvironmentRecord>,
+            private_env.clone(),
+            strict,
+            text,
+        )?;
         println!("   function:  {name}");
         env.create_global_function_binding(agent, name, func_obj, false)?;
     }
@@ -2340,7 +2403,9 @@ pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMA
 
     let script = sr.ecmascript_code.clone();
 
-    let result = global_declaration_instantiation(agent, script, global_env.unwrap())
+    let strict = script.body.as_ref().map(|b| b.contains_use_strict()).unwrap_or(false);
+
+    let result = global_declaration_instantiation(agent, script, global_env.unwrap(), strict, &sr.text)
         .and_then(|_| agent.evaluate(sr.compiled, &sr.text));
 
     agent.pop_execution_context();

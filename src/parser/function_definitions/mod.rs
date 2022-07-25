@@ -8,9 +8,9 @@ use std::io::Write;
 //      [+Default] function ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
     location: Location,
 }
 

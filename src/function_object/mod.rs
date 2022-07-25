@@ -18,6 +18,12 @@ pub enum ThisMode {
     Global,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ThisLexicality {
+    LexicalThis,
+    NonLexicalThis,
+}
+
 #[derive(Debug, Clone)]
 pub enum ClassName {
     String(JSString),
@@ -159,6 +165,7 @@ pub enum FunctionSource {
     HoistableDeclaration(Rc<HoistableDeclaration>),
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
+    FunctionDeclaration(Rc<FunctionDeclaration>),
 }
 impl From<Rc<FunctionExpression>> for FunctionSource {
     fn from(fe: Rc<FunctionExpression>) -> Self {
@@ -168,6 +175,11 @@ impl From<Rc<FunctionExpression>> for FunctionSource {
 impl From<Rc<ArrowFunction>> for FunctionSource {
     fn from(af: Rc<ArrowFunction>) -> Self {
         Self::ArrowFunction(af)
+    }
+}
+impl From<Rc<FunctionDeclaration>> for FunctionSource {
+    fn from(fd: Rc<FunctionDeclaration>) -> Self {
+        Self::FunctionDeclaration(fd)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -187,6 +199,16 @@ impl TryFrom<FunctionSource> for Rc<ArrowFunction> {
         match value {
             FunctionSource::ArrowFunction(af) => Ok(af),
             _ => bail!("ArrowFunction expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::FunctionDeclaration(fd) => Ok(fd),
+            _ => bail!("FunctionDeclaration expected"),
         }
     }
 }
@@ -1014,9 +1036,82 @@ impl FunctionDeclaration {
         &self,
         agent: &mut Agent,
         env: Rc<dyn EnvironmentRecord>,
-        private_env: Option<&PrivateEnvironmentRecord>,
-    ) -> ECMAScriptValue {
-        todo!()
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> Completion<ECMAScriptValue> {
+        // Runtime Semantics: InstantiateOrdinaryFunctionObject
+        //
+        // The syntax-directed operation InstantiateOrdinaryFunctionObject takes arguments env and privateEnv
+        // and returns a function object. It is defined piecewise over the following productions:
+        //
+        // FunctionDeclaration : function BindingIdentifier ( FormalParameters ) { FunctionBody }
+        //  1. Let name be StringValue of BindingIdentifier.
+        //  2. Let sourceText be the source text matched by FunctionDeclaration.
+        //  3. Let F be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //     FunctionBody, non-lexical-this, env, privateEnv).
+        //  4. Perform SetFunctionName(F, name).
+        //  5. Perform MakeConstructor(F).
+        //  6. Return F.
+        //
+        // FunctionDeclaration : function ( FormalParameters ) { FunctionBody }
+        //  1. Let sourceText be the source text matched by FunctionDeclaration.
+        //  2. Let F be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //     FunctionBody, non-lexical-this, env, privateEnv).
+        //  3. Perform SetFunctionName(F, "default").
+        //  4. Perform MakeConstructor(F).
+        //  5. Return F.
+        //
+        // NOTE: An anonymous FunctionDeclaration can only occur as part of an export default declaration, and
+        // its function code is therefore always strict mode code.
+
+        let name = match &self.ident {
+            None => JSString::from("default"),
+            Some(id) => id.string_value(),
+        };
+        let strict = strict || self.body.function_body_contains_use_strict();
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let chunk_name = nameify(&source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self_as_rc),
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let compilation_status = self.body.compile_body(&mut compiled, text, &function_data);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(agent, err.to_string());
+            return Err(typeerror);
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            agent,
+            function_prototype,
+            function_data.source_text.as_str(),
+            function_data.params.clone(),
+            function_data.body.clone(),
+            FunctionThisMode::NonLexicalThis,
+            env,
+            private_env,
+            function_data.strict,
+            Rc::new(compiled),
+        );
+        set_function_name(agent, &closure, name.into(), None);
+        make_constructor(agent, &closure, None);
+
+        Ok(closure.into())
     }
 }
 
@@ -1026,8 +1121,11 @@ impl GeneratorDeclaration {
         &self,
         agent: &mut Agent,
         env: Rc<dyn EnvironmentRecord>,
-        private_env: Option<&PrivateEnvironmentRecord>,
-    ) -> ECMAScriptValue {
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> Completion<ECMAScriptValue> {
         todo!()
     }
 }
@@ -1038,8 +1136,11 @@ impl AsyncFunctionDeclaration {
         &self,
         agent: &mut Agent,
         env: Rc<dyn EnvironmentRecord>,
-        private_env: Option<&PrivateEnvironmentRecord>,
-    ) -> ECMAScriptValue {
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> Completion<ECMAScriptValue> {
         todo!()
     }
 }
@@ -1050,8 +1151,11 @@ impl AsyncGeneratorDeclaration {
         &self,
         agent: &mut Agent,
         env: Rc<dyn EnvironmentRecord>,
-        private_env: Option<&PrivateEnvironmentRecord>,
-    ) -> ECMAScriptValue {
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> Completion<ECMAScriptValue> {
         todo!()
     }
 }

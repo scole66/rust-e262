@@ -1,6 +1,6 @@
 use super::*;
-use crate::parser::testhelp::*;
-use crate::tests::*;
+//use crate::parser::testhelp::*;
+//use crate::tests::*;
 
 mod func_args {
     use super::*;
@@ -44,70 +44,70 @@ mod func_args {
     }
 }
 
-mod function_declaration {
-    use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let fd = Maker::new("function a(){}").function_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
-
-        fd.instantiate_function_object(&mut agent, global_env, None);
-    }
-}
-
-mod generator_declaration {
-    use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let fd = Maker::new("function *a(){}").generator_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
-
-        fd.instantiate_function_object(&mut agent, global_env, None);
-    }
-}
-
-mod async_function_declaration {
-    use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let fd = Maker::new("async function a(){}").async_function_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
-
-        fd.instantiate_function_object(&mut agent, global_env, None);
-    }
-}
-
-mod async_generator_declaration {
-    use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let fd = Maker::new("async function *a(){}").async_generator_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
-
-        fd.instantiate_function_object(&mut agent, global_env, None);
-    }
-}
+//mod function_declaration {
+//    use super::*;
+//    #[test]
+//    #[should_panic(expected = "not yet implemented")]
+//    fn instantiate_function_object() {
+//        let fd = Maker::new("function a(){}").function_declaration();
+//        let mut agent = test_agent();
+//        let global_env = {
+//            let realm_rc = agent.current_realm_record().unwrap();
+//            let realm = realm_rc.borrow();
+//            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
+//        };
+//
+//        fd.instantiate_function_object(&mut agent, global_env, None);
+//    }
+//}
+//
+//mod generator_declaration {
+//    use super::*;
+//    #[test]
+//    #[should_panic(expected = "not yet implemented")]
+//    fn instantiate_function_object() {
+//        let fd = Maker::new("function *a(){}").generator_declaration();
+//        let mut agent = test_agent();
+//        let global_env = {
+//            let realm_rc = agent.current_realm_record().unwrap();
+//            let realm = realm_rc.borrow();
+//            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
+//        };
+//
+//        fd.instantiate_function_object(&mut agent, global_env, None);
+//    }
+//}
+//
+//mod async_function_declaration {
+//    use super::*;
+//    #[test]
+//    #[should_panic(expected = "not yet implemented")]
+//    fn instantiate_function_object() {
+//        let fd = Maker::new("async function a(){}").async_function_declaration();
+//        let mut agent = test_agent();
+//        let global_env = {
+//            let realm_rc = agent.current_realm_record().unwrap();
+//            let realm = realm_rc.borrow();
+//            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
+//        };
+//
+//        fd.instantiate_function_object(&mut agent, global_env, None);
+//    }
+//}
+//
+//mod async_generator_declaration {
+//    use super::*;
+//    #[test]
+//    #[should_panic(expected = "not yet implemented")]
+//    fn instantiate_function_object() {
+//        let fd = Maker::new("async function *a(){}").async_generator_declaration();
+//        let mut agent = test_agent();
+//        let global_env = {
+//            let realm_rc = agent.current_realm_record().unwrap();
+//            let realm = realm_rc.borrow();
+//            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
+//        };
+//
+//        fd.instantiate_function_object(&mut agent, global_env, None);
+//    }
+//}

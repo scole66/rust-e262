@@ -12,6 +12,7 @@ pub struct StashedFunctionData {
     pub body: BodySource,
     pub to_compile: FunctionSource,
     pub strict: bool,
+    pub this_mode: ThisLexicality,
 }
 
 /// A compilation unit
@@ -239,7 +240,7 @@ impl Chunk {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }
-            Insn::AddMappedArgument => {
+            Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))

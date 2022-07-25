@@ -92,6 +92,7 @@ pub enum Insn {
     InstantiateIdFreeFunctionExpression,
     InstantiateOrdinaryFunctionExpression,
     InstantiateArrowFunctionExpression,
+    InstantiateOrdinaryFunctionObject,
     LeftShift,
     SignedRightShift,
     UnsignedRightShift,
@@ -205,6 +206,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateIdFreeFunctionExpression => "FUNC_IIFE",
             Insn::InstantiateOrdinaryFunctionExpression => "FUNC_IOFE",
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
+            Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
@@ -2119,13 +2121,14 @@ impl FcnDef {
     pub fn compile_fo_instantiation(
         &self,
         chunk: &mut Chunk,
-        _strict: bool,
-        _text: &str,
+        strict: bool,
+        text: &str,
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            FcnDef::Function(_) | FcnDef::Generator(_) | FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => {
-                chunk.op(Insn::ToDo)
+            FcnDef::Function(f) => {
+                return f.compile_fo_instantiation(chunk, strict, text, f.clone()).map(AbruptResult::from);
             }
+            FcnDef::Generator(_) | FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => chunk.op(Insn::ToDo),
         }
         Ok(NeverAbruptRefResult {}.into())
     }
@@ -2593,7 +2596,7 @@ impl LabelledItem {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            LabelledItem::Function(f) => f.compile(chunk, strict, text),
+            LabelledItem::Function(f) => f.compile(chunk).map(AbruptResult::from),
             LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, text, label_set),
         }
     }
@@ -2626,9 +2629,64 @@ impl ThrowStatement {
 }
 
 impl FunctionDeclaration {
+    fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        chunk.op(Insn::Empty);
+        Ok(NeverAbruptRefResult {})
+    }
+
     #[allow(unused_variables)]
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        todo!()
+    fn compile_fo_instantiation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<Self>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: InstantiateOrdinaryFunctionObject
+        //
+        // The syntax-directed operation InstantiateOrdinaryFunctionObject takes arguments env and privateEnv
+        // and returns a function object. It is defined piecewise over the following productions:
+        //
+        // FunctionDeclaration : function BindingIdentifier ( FormalParameters ) { FunctionBody }
+        //  1. Let name be StringValue of BindingIdentifier.
+        //  2. Let sourceText be the source text matched by FunctionDeclaration.
+        //  3. Let F be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //     FunctionBody, non-lexical-this, env, privateEnv).
+        //  4. Perform SetFunctionName(F, name).
+        //  5. Perform MakeConstructor(F).
+        //  6. Return F.
+        //
+        // FunctionDeclaration : function ( FormalParameters ) { FunctionBody }
+        //  1. Let sourceText be the source text matched by FunctionDeclaration.
+        //  2. Let F be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //     FunctionBody, non-lexical-this, env, privateEnv).
+        //  3. Perform SetFunctionName(F, "default").
+        //  4. Perform MakeConstructor(F).
+        //  5. Return F.
+        //
+        // NOTE: An anonymous FunctionDeclaration can only occur as part of an export default declaration, and
+        // its function code is therefore always strict mode code.
+
+        let name_id = chunk.add_to_string_pool(match &self.ident {
+            None => JSString::from("default"),
+            Some(id) => id.string_value(),
+        })?;
+
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self_as_rc),
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_two_args(Insn::InstantiateOrdinaryFunctionObject, name_id, func_id);
+        Ok(AlwaysAbruptResult {})
     }
 }
 
@@ -2692,6 +2750,7 @@ impl FunctionExpression {
                     body,
                     strict,
                     to_compile: FunctionSource::from(self_as_rc),
+                    this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id);
@@ -2711,6 +2770,7 @@ impl FunctionExpression {
                     body,
                     strict,
                     to_compile: FunctionSource::from(self_as_rc),
+                    this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id);
@@ -2753,12 +2813,7 @@ impl FunctionExpression {
 }
 
 /// Generates the code necessary to set up function execution
-pub fn compile_fdi(
-    chunk: &mut Chunk,
-    text: &str,
-    info: &StashedFunctionData,
-    lexical_this_mode: bool,
-) -> anyhow::Result<AbruptResult> {
+pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) -> anyhow::Result<AbruptResult> {
     // FunctionDeclarationInstantiation ( func, argumentsList )
     //
     // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
@@ -2927,8 +2982,7 @@ pub fn compile_fdi(
         }
     }
     let a = JSString::from("arguments");
-    // Note: this is currently written for FunctionExpressions. So ThisMode is never Lexical.
-    let arguments_object_needed = !lexical_this_mode
+    let arguments_object_needed = info.this_mode == ThisLexicality::NonLexicalThis
         && !parameter_names.contains(&a)
         && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
 
@@ -3083,8 +3137,14 @@ impl ArrowFunction {
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.parameters));
         let body = BodySource::from(Rc::clone(&self.body));
-        let function_data =
-            StashedFunctionData { source_text, params, body, strict, to_compile: FunctionSource::from(self_as_rc) };
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self_as_rc),
+            this_mode: ThisLexicality::LexicalThis,
+        };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
         Ok(AlwaysAbruptResult {})
@@ -3118,7 +3178,6 @@ impl ConciseBody {
         chunk: &mut Chunk,
         text: &str,
         info: &StashedFunctionData,
-        lexical_this_mode: bool,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateBody
         // ConciseBody : ExpressionBody
@@ -3134,10 +3193,10 @@ impl ConciseBody {
         //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
         //  2. Return the result of evaluating ExpressionBody.
         match self {
-            ConciseBody::Function { body, .. } => body.compile_body(chunk, text, info, lexical_this_mode),
+            ConciseBody::Function { body, .. } => body.compile_body(chunk, text, info),
             ConciseBody::Expression(exp) => {
                 // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
-                let fdi_status = compile_fdi(chunk, text, info, lexical_this_mode)?;
+                let fdi_status = compile_fdi(chunk, text, info)?;
                 let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
 
                 // Stack: ...
@@ -3485,7 +3544,6 @@ impl FunctionBody {
         chunk: &mut Chunk,
         text: &str,
         info: &StashedFunctionData,
-        lexical_this_mode: bool,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateBody
         //
@@ -3509,7 +3567,7 @@ impl FunctionBody {
         // Both steps 1 and 2 have compilable code.
 
         // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
-        let fdi_status = compile_fdi(chunk, text, info, lexical_this_mode)?;
+        let fdi_status = compile_fdi(chunk, text, info)?;
         let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
 
         // Stack: ...
