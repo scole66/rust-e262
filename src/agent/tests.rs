@@ -1140,7 +1140,7 @@ mod global_declaration_instantiation {
     #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
     #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
     #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
-    #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
+    #[test_case("function f(){}" => Ok((sset(&["f"]), sset(&[]))); "functions")]
     #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
     #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
