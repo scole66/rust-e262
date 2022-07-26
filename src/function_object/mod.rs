@@ -1102,7 +1102,7 @@ impl FunctionDeclaration {
             function_data.source_text.as_str(),
             function_data.params.clone(),
             function_data.body.clone(),
-            FunctionThisMode::NonLexicalThis,
+            ThisLexicality::NonLexicalThis,
             env,
             private_env,
             function_data.strict,
@@ -1160,12 +1160,6 @@ impl AsyncGeneratorDeclaration {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum FunctionThisMode {
-    LexicalThis,
-    NonLexicalThis,
-}
-
 /// Create a ECMAScript Function Object, as though from source code
 ///
 /// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
@@ -1176,7 +1170,7 @@ pub fn ordinary_function_create(
     source_text: &str,
     parameter_list: ParamSource,
     body: BodySource,
-    this_mode: FunctionThisMode,
+    this_mode: ThisLexicality,
     env: Rc<dyn EnvironmentRecord>,
     private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
@@ -1216,8 +1210,8 @@ pub fn ordinary_function_create(
     //  22. Perform SetFunctionLength(F, len).
     //  23. Return F.
     let this_mode = match this_mode {
-        FunctionThisMode::LexicalThis => ThisMode::Lexical,
-        FunctionThisMode::NonLexicalThis => match strict {
+        ThisLexicality::LexicalThis => ThisMode::Lexical,
+        ThisLexicality::NonLexicalThis => match strict {
             true => ThisMode::Strict,
             false => ThisMode::Global,
         },
