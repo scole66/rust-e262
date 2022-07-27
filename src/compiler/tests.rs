@@ -470,7 +470,7 @@ mod primary_expression {
         #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
         #[test_case("[]", true => panics "not yet implemented"; "array literal")]
         #[test_case("``", true => panics "not yet implemented"; "template literal")]
-        #[test_case("function a(){}", true => panics "not yet implemented"; "function expression")]
+        #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
         #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
