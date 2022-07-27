@@ -7,6 +7,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerPrimaryExpression`
 * `./t parse_script`
 * `./t FunctionDeclaration_instantiate_function_object`
+* `./t GeneratorBody`
 
 ## To Check
 
@@ -36,10 +37,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `Chunk`
 * `Chunk::add_to_func_stash`
 * `Chunk::disassemble`
-
-### `src/parser/generator_function_definitions/mod.rs`
-
-* `GeneratorBody::lexically_scoped_declarations`
 
 ### `src/parser/function_definitions/mod.rs`
 

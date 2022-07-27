@@ -654,6 +654,11 @@ mod generator_body {
         Maker::new(src).generator_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 
+    #[test_case("let a; var b; const c; function d() {}" => svec(&["let a ;", "const c ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
     #[test_case("   yield 1;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).generator_body().location()
