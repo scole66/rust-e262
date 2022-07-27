@@ -6,6 +6,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 * `./t CompilerPrimaryExpression`
 * `./t parse_script`
+* `./t FunctionDeclaration_instantiate_function_object`
 
 ## To Check
 
@@ -85,10 +86,9 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `Agent::ordinary_call_evaluate_body`
 * `namify`
 * `BuiltInFunctionObject`
-* `FunctionDeclaration::instantiate_ordinary_function_object`
-* `GeneratorDeclaration::instantiate_ordinary_function_object`
-* `AsyncFunctionDeclaration::instantiate_ordinary_function_object`
-* `AsyncGeneratorDeclaration::instantiate_ordinary_function_object`
+* `GeneratorDeclaration::instantiate_function_object`
+* `AsyncFunctionDeclaration::instantiate_function_object`
+* `AsyncGeneratorDeclaration::instantiate_function_object`
 * `ordinary_function_create`
 * `make_constructor`
 

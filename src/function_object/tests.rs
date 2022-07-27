@@ -46,19 +46,64 @@ mod func_args {
 
 mod function_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let src = "function a(){}";
-        let fd = Maker::new(src).function_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
 
-        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
+    mod instantiate_function_object {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("a" => "a"; "named")]
+        #[test_case("" => "default"; "unnamed")]
+        fn typical(name: &str) -> String {
+            let src = format!("function {name}(){{}}");
+            let fd = Maker::new(&src).function_declaration();
+            let mut agent = test_agent();
+            let realm_rc = agent.current_realm_record().unwrap();
+            let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+            let fvalue =
+                fd.instantiate_function_object(&mut agent, global_env.clone(), None, false, &src, fd.clone()).unwrap();
+            let fobj = Object::try_from(fvalue).unwrap();
+
+            let result = String::from(JSString::try_from(get(&mut agent, &fobj, &"name".into()).unwrap()).unwrap());
+
+            let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
+            assert_eq!(function.environment.name(), global_env.name());
+            assert!(function.private_environment.is_none());
+            let params: Rc<FormalParameters> = function.formal_parameters.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&fd.params, &params));
+            let body: Rc<FunctionBody> = function.ecmascript_code.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&fd.body, &body));
+            assert_eq!(function.constructor_kind, ConstructorKind::Base);
+            assert!(Rc::ptr_eq(&function.realm, &realm_rc));
+            assert!(function.script_or_module.is_none()); // No scripts in test agents
+            assert_eq!(function.this_mode, ThisMode::Global);
+            assert_eq!(function.strict, false);
+            assert!(function.home_object.is_none());
+            assert_eq!(function.source_text, src);
+            assert!(function.fields.is_empty());
+            assert!(function.private_methods.is_empty());
+            assert!(matches!(function.class_field_initializer_name, ClassName::Empty));
+            assert!(!function.is_class_constructor);
+            assert!(function.is_constructor);
+
+            result
+        }
+
+        #[test]
+        fn compile_error() {
+            let src = "function a(){ if (true) { @@@; } return 3; }";
+            let fd = Maker::new(src).function_declaration();
+            let mut agent = test_agent();
+            let realm_rc = agent.current_realm_record().unwrap();
+            let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+            let fvalue = fd
+                .instantiate_function_object(&mut agent, global_env.clone(), None, false, src, fd.clone())
+                .unwrap_err();
+
+            let msg = unwind_any_error(&mut agent, fvalue);
+            assert_eq!(msg, "TypeError: out of range integral type conversion attempted");
+        }
     }
 }
 

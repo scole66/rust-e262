@@ -56,6 +56,16 @@ impl From<Rc<ConciseBody>> for BodySource {
     }
 }
 
+impl TryFrom<BodySource> for Rc<FunctionBody> {
+    type Error = anyhow::Error;
+    fn try_from(value: BodySource) -> Result<Self, Self::Error> {
+        match value {
+            BodySource::Function(val) => Ok(val),
+            _ => bail!("Not a FunctionBody"),
+        }
+    }
+}
+
 impl BodySource {
     /// Return a list of identifiers defined by the `var` statement for this node.
     ///
@@ -121,6 +131,15 @@ impl From<Rc<FormalParameters>> for ParamSource {
 impl From<Rc<ArrowParameters>> for ParamSource {
     fn from(src: Rc<ArrowParameters>) -> Self {
         Self::ArrowParameters(src)
+    }
+}
+impl TryFrom<ParamSource> for Rc<FormalParameters> {
+    type Error = anyhow::Error;
+    fn try_from(value: ParamSource) -> Result<Self, Self::Error> {
+        match value {
+            ParamSource::FormalParameters(val) => Ok(val),
+            _ => bail!("Not FormalParameters"),
+        }
     }
 }
 impl ParamSource {
