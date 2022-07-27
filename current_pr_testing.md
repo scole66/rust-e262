@@ -2,6 +2,11 @@
 
 Note: This file should be removed prior to merge. It should exist _only_ on the feature branch.
 
+## Done
+
+* `./t CompilerPrimaryExpression`
+* `./t parse_script`
+
 ## To Check
 
 ### `src/agent/mod.rs`
@@ -20,7 +25,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `Agent::instantiate_ordinary_function_expression_with_binding_id`
 * `Agent::instantiate_arrow_function_expression`
 * `Agent::instantiate_ordinary_function_object`
-* `parse_script`
 * `FcnDef::instantiate_function_object`
 * `global_declaration_instantiation`
 * `script_evaluation`
@@ -88,8 +92,49 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `ordinary_function_create`
 * `make_constructor`
 
-### Files to Scan
+### `src/execution_context/mod.rs`
 
-* `src/compiler/mod.rs`
-* `src/environment_record/mod.rs`
-* `src/execution_context/mod.rs`
+* `ScriptRecord`
+* `ScriptOrModule`
+* `ExecutionContext`
+
+### `src/environment_record/mod.rs`
+
+* `BindingStatus`
+* `FunctionEnvironmentRecord`
+* `FunctionEnvironmentRecord::bind_this_value`
+
+### `src/compiler/mod.rs`
+
+* `./t Insn`
+* `NameableProduction`
+* `AssignmentExpression`
+* `Statement`
+* `Declaration`
+* `FcnDef`
+* `Block`
+* `LexicalBinding`
+* `VariableDeclaration`
+* `ReturnStatement`
+* `LabelledItem`
+* `FunctionDeclaration`
+* `FunctionExpression`
+* `compile_fdi`
+* `ArrowFunction`
+* `ConciseBody`
+* `ExpressionBody`
+* `ParamSource`
+* `FormalParameters`
+* `ArrowParameters`
+* `ArrowFormalParameters`
+* `UniqueFormalParameters`
+* `compile_initialize_bound_name`
+* `BindingIdentifier`
+* `FormalParameterList`
+* `FormalParameter`
+* `BindingElement`
+* `SingleNameBinding`
+* `BindingPattern`
+* `FunctionRestParameter`
+* `FunctionBody`
+* `FunctionStatementList`
