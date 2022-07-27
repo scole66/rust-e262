@@ -8,6 +8,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t parse_script`
 * `./t FunctionDeclaration_instantiate_function_object`
 * `./t GeneratorBody`
+* `./t Insn`
 
 ## To Check
 
@@ -103,7 +104,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `./t Insn`
 * `NameableProduction`
 * `AssignmentExpression`
 * `Statement`
