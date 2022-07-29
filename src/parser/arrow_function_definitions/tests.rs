@@ -414,6 +414,12 @@ mod concise_body {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).concise_body().var_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("x + 3" => svec(&[]); "expression body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["let a ;", "const b = 0 ;"]); "function body")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
 }
 
 // EXPRESSION BODY

@@ -362,6 +362,7 @@ for name in ${names[@]}; do
     make_basic_object) data=($name $name object) ;;
 
     Chunk) data=($name chunk chunk) ;;
+    Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;

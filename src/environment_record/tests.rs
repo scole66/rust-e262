@@ -139,6 +139,8 @@ mod binding {
 
 mod declarative_environment_record {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     fn debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
@@ -148,6 +150,24 @@ mod declarative_environment_record {
     fn fancy_debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         assert_ne!(format!("{:#?}", der), "");
+    }
+
+    #[test_case("&str"; "string slice")]
+    #[test_case(JSString::from("JSString"); "JSString")]
+    fn new(name: impl Into<String> + Clone) {
+        let agent = test_agent();
+        let name_dup: String = name.clone().into();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let der = DeclarativeEnvironmentRecord::new(Some(global_env.clone()), name);
+        assert_eq!(der.outer_env.unwrap().name(), global_env.name());
+        assert_eq!(der.name, name_dup);
+        assert!(der.bindings.borrow().is_empty());
+    }
+
+    #[test_case("bob" => "bob"; "typical")]
+    fn name(name: &str) -> String {
+        let der = DeclarativeEnvironmentRecord::new(None, name);
+        der.name()
     }
 
     #[test]
@@ -388,6 +408,26 @@ mod declarative_environment_record {
         let mut agent = test_agent();
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         der.get_this_binding(&mut agent).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        der.bind_this_value(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        der.create_mutable_binding(&mut agent, JSString::from("a"), true).unwrap();
+        der.create_mutable_binding(&mut agent, JSString::from("greasy"), true).unwrap();
+
+        let mut names = der.binding_names();
+        names.sort();
+        assert_eq!(names, vec!["a", "greasy"]);
     }
 }
 
@@ -925,6 +965,13 @@ mod binding_status {
                 assert_eq!(*left_value == *right_value, left_idx == right_idx);
             }
         }
+    }
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let bs1 = BindingStatus::Lexical;
+        let bs2 = bs1.clone();
+        assert_eq!(bs1, bs2);
     }
 }
 

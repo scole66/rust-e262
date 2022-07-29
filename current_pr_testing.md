@@ -9,6 +9,12 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t FunctionDeclaration_instantiate_function_object`
 * `./t GeneratorBody`
 * `./t Insn`
+* `./t BindingStatus`
+* `./t ConciseBody`
+* `./t InternalSlotName`
+* `./t make_basic_object`
+* `./t Chunk`
+* `./t Chunk_add_to_func_stash`
 
 ## To Check
 
@@ -35,9 +41,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 ### `src/chunk/mod.rs`
 
 * `StashedFunctionData`
-* `Chunk`
-* `Chunk::add_to_func_stash`
-* `Chunk::disassemble`
 
 ### `src/parser/function_definitions/mod.rs`
 
@@ -53,14 +56,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 * `AsyncFunctionBody::lexically_scoped_declarations`
 
-### `src/parser/arrow_function_definitions/mod.rs`
-
-* `ConciseBody::lexically_scoped_declarations`
-
 ### `src/object/mod.rs`
 
-* `InternalSlotName`
-* `make_basic_object`
 * `call`
 * `initiate_call`
 * `construct`
@@ -98,7 +95,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/environment_record/mod.rs`
 
-* `BindingStatus`
 * `FunctionEnvironmentRecord`
 * `FunctionEnvironmentRecord::bind_this_value`
 

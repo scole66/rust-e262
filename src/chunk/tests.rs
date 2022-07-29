@@ -23,15 +23,17 @@ mod chunk {
         assert_ne!(format!("{:?}", c), "");
     }
 
-    #[test]
-    fn new() {
-        let c = Chunk::new("tomato");
+    #[test_case("tomato"; "string slice")]
+    #[test_case(String::from("radish"); "String")]
+    fn new(name: impl Into<String> + Clone) {
+        let c = Chunk::new(name.clone());
 
-        assert_eq!(c.name, "tomato");
+        assert_eq!(c.name, name.into());
         assert!(c.strings.is_empty());
         assert!(c.opcodes.is_empty());
         assert!(c.floats.is_empty());
         assert!(c.bigints.is_empty());
+        assert!(c.function_object_data.is_empty());
     }
 
     #[test_case(&[1.0] => (vec![0], vec![1.0]); "one item")]
@@ -128,6 +130,66 @@ mod chunk {
             }
             let res = c.add_to_label_set_pool(&[JSString::from("bob")]).unwrap_err();
             assert_eq!(res.to_string(), "Out of room for label sets in this compilation unit");
+        }
+    }
+
+    mod add_to_func_stash {
+        use super::*;
+
+        #[test]
+        fn typical() {
+            let mut c = Chunk::new("too much");
+            let src = "function bob() {}";
+            let parse_node = Maker::new(src).function_declaration();
+            let data = StashedFunctionData {
+                source_text: String::from(src),
+                params: parse_node.params.clone().into(),
+                body: parse_node.body.clone().into(),
+                to_compile: parse_node.clone().into(),
+                strict: true,
+                this_mode: ThisLexicality::NonLexicalThis,
+            };
+            let res = c.add_to_func_stash(data).unwrap();
+            assert_eq!(res, 0);
+            assert_eq!(c.function_object_data.len(), 1);
+            assert_eq!(c.function_object_data[0].this_mode, ThisLexicality::NonLexicalThis);
+            assert_eq!(c.function_object_data[0].strict, true);
+            assert_eq!(c.function_object_data[0].source_text, src);
+            let p: Rc<FormalParameters> = c.function_object_data[0].params.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&p, &parse_node.params));
+            let b: Rc<FunctionBody> = c.function_object_data[0].body.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&b, &parse_node.body));
+            let tc: Rc<FunctionDeclaration> = c.function_object_data[0].to_compile.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&tc, &parse_node));
+        }
+
+        #[test]
+        fn too_many_funcs() {
+            let mut c = Chunk::new("too much");
+            c.function_object_data = Vec::<StashedFunctionData>::with_capacity(65536);
+            let src = "function bob() {}";
+            let parse_node = Maker::new(src).function_declaration();
+            for _ in 0..65536 {
+                c.function_object_data.push(StashedFunctionData {
+                    source_text: String::from(src),
+                    params: parse_node.params.clone().into(),
+                    body: parse_node.body.clone().into(),
+                    to_compile: parse_node.clone().into(),
+                    strict: true,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                });
+            }
+            let res = c
+                .add_to_func_stash(StashedFunctionData {
+                    source_text: String::from(src),
+                    params: parse_node.params.clone().into(),
+                    body: parse_node.body.clone().into(),
+                    to_compile: parse_node.clone().into(),
+                    strict: true,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                })
+                .unwrap_err();
+            assert_eq!(res.to_string(), "Out of room for more functions!")
         }
     }
 
