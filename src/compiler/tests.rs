@@ -382,6 +382,40 @@ mod never_abrupt_ref_result {
     }
 }
 
+mod nameable_production {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        let fd = Maker::new("function (){}").function_expression();
+        let x = NameableProduction::Function(fd);
+        assert_ne!(format!("{:?}", x), "");
+    }
+
+    #[test_case(NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
+    #[test_case(NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
+    #[test_case(NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
+    #[test_case(NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
+    #[test_case(NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
+    #[test_case(NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
+    #[test_case(NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
+    fn display(node: NameableProduction) -> String {
+        node.to_string()
+    }
+
+    #[test_case(Maker::new("=3").initializer() => serr("Production not nameable"); "Initializer, not nameable")]
+    #[test_case(Maker::new("=function(){}").initializer() => sok("function (  ) {  }"); "Initializer: nameable")]
+    #[test_case(Maker::new("3").assignment_expression() => serr("Production not nameable"); "AssignmentExpression::FallThru not namable")]
+    #[test_case(Maker::new("function (){}").assignment_expression() => sok("function (  ) {  }"); "AssignmentExpression::FallThrue nameable")]
+    #[test_case(Maker::new("a=>a").assignment_expression() => sok("a => a"); "AssignmentExpression::ArrowFunction")]
+    #[test_case(Maker::new("async a=>a").assignment_expression() => sok("async a => a"); "AssignmentExpression::AsyncArrowHead")]
+    #[test_case(Maker::new("yield a").assignment_expression() => serr("Production not nameable"); "AssignmentExpression::YieldExpression")]
+    fn try_from(x: impl TryInto<NameableProduction, Error = anyhow::Error>) -> Result<String, String> {
+        x.try_into().map_err(|err| err.to_string()).map(|node| node.to_string())
+    }
+}
+
 // A note about compile tests: These are really unit tests; they check that all the code paths are run, and that the
 // opcodes output match what we wanted the opcodes to be. They do not test whether we chose the right opcodes to
 // complete the requested task! Checking that really feels like a later stage integration task. (Both the compiler and

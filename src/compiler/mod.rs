@@ -401,6 +401,7 @@ impl NeverAbruptRefResult {
     }
 }
 
+#[derive(Debug)]
 enum NameableProduction {
     Function(Rc<FunctionExpression>),
     Generator(Rc<GeneratorExpression>),
@@ -410,17 +411,30 @@ enum NameableProduction {
     Arrow(Rc<ArrowFunction>),
     AsyncArrow(Rc<AsyncArrowFunction>),
 }
-impl TryFrom<&Rc<Initializer>> for NameableProduction {
-    type Error = anyhow::Error;
-    fn try_from(value: &Rc<Initializer>) -> Result<Self, Self::Error> {
-        NameableProduction::try_from(&value.ae)
+impl fmt::Display for NameableProduction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NameableProduction::Function(node) => node.fmt(f),
+            NameableProduction::Generator(node) => node.fmt(f),
+            NameableProduction::AsyncFunction(node) => node.fmt(f),
+            NameableProduction::AsyncGenerator(node) => node.fmt(f),
+            NameableProduction::Class(node) => node.fmt(f),
+            NameableProduction::Arrow(node) => node.fmt(f),
+            NameableProduction::AsyncArrow(node) => node.fmt(f),
+        }
     }
 }
-impl TryFrom<&Rc<AssignmentExpression>> for NameableProduction {
+impl TryFrom<Rc<Initializer>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<AssignmentExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            AssignmentExpression::FallThru(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<Initializer>) -> Result<Self, Self::Error> {
+        NameableProduction::try_from(value.ae.clone())
+    }
+}
+impl TryFrom<Rc<AssignmentExpression>> for NameableProduction {
+    type Error = anyhow::Error;
+    fn try_from(value: Rc<AssignmentExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            AssignmentExpression::FallThru(child) => NameableProduction::try_from(child.clone()),
             AssignmentExpression::Arrow(child) => Ok(NameableProduction::Arrow(child.clone())),
             AssignmentExpression::AsyncArrow(child) => Ok(NameableProduction::AsyncArrow(child.clone())),
             AssignmentExpression::Yield(_)
@@ -433,74 +447,74 @@ impl TryFrom<&Rc<AssignmentExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<ConditionalExpression>> for NameableProduction {
+impl TryFrom<Rc<ConditionalExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<ConditionalExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            ConditionalExpression::FallThru(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<ConditionalExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            ConditionalExpression::FallThru(child) => NameableProduction::try_from(child.clone()),
             ConditionalExpression::Conditional(_, _, _) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<ShortCircuitExpression>> for NameableProduction {
+impl TryFrom<Rc<ShortCircuitExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<ShortCircuitExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            ShortCircuitExpression::LogicalORExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<ShortCircuitExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            ShortCircuitExpression::LogicalORExpression(child) => NameableProduction::try_from(child.clone()),
             ShortCircuitExpression::CoalesceExpression(_) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<LogicalORExpression>> for NameableProduction {
+impl TryFrom<Rc<LogicalORExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<LogicalORExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            LogicalORExpression::LogicalANDExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<LogicalORExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            LogicalORExpression::LogicalANDExpression(child) => NameableProduction::try_from(child.clone()),
             LogicalORExpression::LogicalOR(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<LogicalANDExpression>> for NameableProduction {
+impl TryFrom<Rc<LogicalANDExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<LogicalANDExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            LogicalANDExpression::BitwiseORExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<LogicalANDExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            LogicalANDExpression::BitwiseORExpression(child) => NameableProduction::try_from(child.clone()),
             LogicalANDExpression::LogicalAND(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<BitwiseORExpression>> for NameableProduction {
+impl TryFrom<Rc<BitwiseORExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<BitwiseORExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            BitwiseORExpression::BitwiseXORExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<BitwiseORExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            BitwiseORExpression::BitwiseXORExpression(child) => NameableProduction::try_from(child.clone()),
             BitwiseORExpression::BitwiseOR(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<BitwiseXORExpression>> for NameableProduction {
+impl TryFrom<Rc<BitwiseXORExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<BitwiseXORExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            BitwiseXORExpression::BitwiseANDExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<BitwiseXORExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            BitwiseXORExpression::BitwiseANDExpression(child) => NameableProduction::try_from(child.clone()),
             BitwiseXORExpression::BitwiseXOR(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<BitwiseANDExpression>> for NameableProduction {
+impl TryFrom<Rc<BitwiseANDExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<BitwiseANDExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            BitwiseANDExpression::EqualityExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<BitwiseANDExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            BitwiseANDExpression::EqualityExpression(child) => NameableProduction::try_from(child.clone()),
             BitwiseANDExpression::BitwiseAND(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<EqualityExpression>> for NameableProduction {
+impl TryFrom<Rc<EqualityExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<EqualityExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            EqualityExpression::RelationalExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<EqualityExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            EqualityExpression::RelationalExpression(child) => NameableProduction::try_from(child.clone()),
             EqualityExpression::Equal(_, _)
             | EqualityExpression::NotEqual(_, _)
             | EqualityExpression::StrictEqual(_, _)
@@ -508,11 +522,11 @@ impl TryFrom<&Rc<EqualityExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<RelationalExpression>> for NameableProduction {
+impl TryFrom<Rc<RelationalExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<RelationalExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            RelationalExpression::ShiftExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<RelationalExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            RelationalExpression::ShiftExpression(child) => NameableProduction::try_from(child.clone()),
             RelationalExpression::Less(_, _)
             | RelationalExpression::Greater(_, _)
             | RelationalExpression::LessEqual(_, _)
@@ -523,53 +537,53 @@ impl TryFrom<&Rc<RelationalExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<ShiftExpression>> for NameableProduction {
+impl TryFrom<Rc<ShiftExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<ShiftExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            ShiftExpression::AdditiveExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<ShiftExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            ShiftExpression::AdditiveExpression(child) => NameableProduction::try_from(child.clone()),
             ShiftExpression::LeftShift(_, _)
             | ShiftExpression::SignedRightShift(_, _)
             | ShiftExpression::UnsignedRightShift(_, _) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<AdditiveExpression>> for NameableProduction {
+impl TryFrom<Rc<AdditiveExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<AdditiveExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            AdditiveExpression::MultiplicativeExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<AdditiveExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            AdditiveExpression::MultiplicativeExpression(child) => NameableProduction::try_from(child.clone()),
             AdditiveExpression::Add(_, _) | AdditiveExpression::Subtract(_, _) => {
                 Err(anyhow!("Production not nameable"))
             }
         }
     }
 }
-impl TryFrom<&Rc<MultiplicativeExpression>> for NameableProduction {
+impl TryFrom<Rc<MultiplicativeExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<MultiplicativeExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            MultiplicativeExpression::ExponentiationExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<MultiplicativeExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            MultiplicativeExpression::ExponentiationExpression(child) => NameableProduction::try_from(child.clone()),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => {
                 Err(anyhow!("Production not nameable"))
             }
         }
     }
 }
-impl TryFrom<&Rc<ExponentiationExpression>> for NameableProduction {
+impl TryFrom<Rc<ExponentiationExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<ExponentiationExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            ExponentiationExpression::UnaryExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<ExponentiationExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            ExponentiationExpression::UnaryExpression(child) => NameableProduction::try_from(child.clone()),
             ExponentiationExpression::Exponentiation(..) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<UnaryExpression>> for NameableProduction {
+impl TryFrom<Rc<UnaryExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<UnaryExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            UnaryExpression::UpdateExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<UnaryExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            UnaryExpression::UpdateExpression(child) => NameableProduction::try_from(child.clone()),
             UnaryExpression::Delete { .. }
             | UnaryExpression::Void { .. }
             | UnaryExpression::Typeof { .. }
@@ -581,11 +595,11 @@ impl TryFrom<&Rc<UnaryExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<UpdateExpression>> for NameableProduction {
+impl TryFrom<Rc<UpdateExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<UpdateExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            UpdateExpression::LeftHandSideExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<UpdateExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            UpdateExpression::LeftHandSideExpression(child) => NameableProduction::try_from(child.clone()),
             UpdateExpression::PostIncrement { .. }
             | UpdateExpression::PostDecrement { .. }
             | UpdateExpression::PreIncrement { .. }
@@ -593,31 +607,31 @@ impl TryFrom<&Rc<UpdateExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<LeftHandSideExpression>> for NameableProduction {
+impl TryFrom<Rc<LeftHandSideExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<LeftHandSideExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            LeftHandSideExpression::New(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<LeftHandSideExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            LeftHandSideExpression::New(child) => NameableProduction::try_from(child.clone()),
             LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => {
                 Err(anyhow!("Production not nameable"))
             }
         }
     }
 }
-impl TryFrom<&Rc<NewExpression>> for NameableProduction {
+impl TryFrom<Rc<NewExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<NewExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            NewExpression::MemberExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<NewExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            NewExpression::MemberExpression(child) => NameableProduction::try_from(child.clone()),
             NewExpression::NewExpression(_, _) => Err(anyhow!("Production not nameable")),
         }
     }
 }
-impl TryFrom<&Rc<MemberExpression>> for NameableProduction {
+impl TryFrom<Rc<MemberExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<MemberExpression>) -> Result<Self, Self::Error> {
-        match &**value {
-            MemberExpression::PrimaryExpression(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<MemberExpression>) -> Result<Self, Self::Error> {
+        match &*value {
+            MemberExpression::PrimaryExpression(child) => NameableProduction::try_from(child.clone()),
             MemberExpression::Expression(_, _, _)
             | MemberExpression::IdentifierName(_, _, _)
             | MemberExpression::TemplateLiteral(_, _)
@@ -628,16 +642,16 @@ impl TryFrom<&Rc<MemberExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<PrimaryExpression>> for NameableProduction {
+impl TryFrom<Rc<PrimaryExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<PrimaryExpression>) -> Result<Self, Self::Error> {
-        match &**value {
+    fn try_from(value: Rc<PrimaryExpression>) -> Result<Self, Self::Error> {
+        match &*value {
             PrimaryExpression::Function { node } => Ok(NameableProduction::Function(node.clone())),
             PrimaryExpression::Class { node } => Ok(NameableProduction::Class(node.clone())),
             PrimaryExpression::Generator { node } => Ok(NameableProduction::Generator(node.clone())),
             PrimaryExpression::AsyncFunction { node } => Ok(NameableProduction::AsyncFunction(node.clone())),
             PrimaryExpression::AsyncGenerator { node } => Ok(NameableProduction::AsyncGenerator(node.clone())),
-            PrimaryExpression::Parenthesized { node } => NameableProduction::try_from(node),
+            PrimaryExpression::Parenthesized { node } => NameableProduction::try_from(node.clone()),
             PrimaryExpression::This { .. }
             | PrimaryExpression::IdentifierReference { .. }
             | PrimaryExpression::Literal { .. }
@@ -648,17 +662,17 @@ impl TryFrom<&Rc<PrimaryExpression>> for NameableProduction {
         }
     }
 }
-impl TryFrom<&Rc<ParenthesizedExpression>> for NameableProduction {
+impl TryFrom<Rc<ParenthesizedExpression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<ParenthesizedExpression>) -> Result<Self, Self::Error> {
-        NameableProduction::try_from(&value.exp)
+    fn try_from(value: Rc<ParenthesizedExpression>) -> Result<Self, Self::Error> {
+        NameableProduction::try_from(value.exp.clone())
     }
 }
-impl TryFrom<&Rc<Expression>> for NameableProduction {
+impl TryFrom<Rc<Expression>> for NameableProduction {
     type Error = anyhow::Error;
-    fn try_from(value: &Rc<Expression>) -> Result<Self, Self::Error> {
-        match &**value {
-            Expression::FallThru(child) => NameableProduction::try_from(child),
+    fn try_from(value: Rc<Expression>) -> Result<Self, Self::Error> {
+        match &*value {
+            Expression::FallThru(child) => NameableProduction::try_from(child.clone()),
             Expression::Comma(_, _) => Err(anyhow!("Production not nameable")),
         }
     }
@@ -2216,7 +2230,8 @@ impl LexicalBinding {
                     }
                     Some(izer) => {
                         let status = if izer.is_anonymous_function_definition() {
-                            NameableProduction::try_from(izer)?.compile_named_evaluation(chunk, strict, text, id)?
+                            NameableProduction::try_from(izer.clone())?
+                                .compile_named_evaluation(chunk, strict, text, id)?
                             //izer.compile_named_evaluation(chunk, strict, text, id)?
                         } else {
                             izer.compile(chunk, strict, text)?
@@ -2332,7 +2347,7 @@ impl VariableDeclaration {
                 chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }); // Stack: lhs/err ...
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt)); // Stack: lhs ...
                 let izer_flags = if izer.is_anonymous_function_definition() {
-                    NameableProduction::try_from(izer)?.compile_named_evaluation(chunk, strict, text, idx)?
+                    NameableProduction::try_from(izer.clone())?.compile_named_evaluation(chunk, strict, text, idx)?
                 } else {
                     izer.compile(chunk, strict, text)? // Stack: rhs/rref/err lhs ...
                 };

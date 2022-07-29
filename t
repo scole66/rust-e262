@@ -124,6 +124,7 @@ for name in ${names[@]}; do
     AlwaysAbruptRefResult) data=($name always_abrupt_ref_result compiler) ;;
     NeverAbruptRefResult) data=($name never_abrupt_ref_result compiler) ;;
     CompilerFcnDef) data=(agent::FcnDef fcn_def compiler) ;;
+    NameableProduction) data=($name nameable_production compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
