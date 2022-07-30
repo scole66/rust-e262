@@ -227,6 +227,7 @@ impl Chunk {
             | Insn::ExtractArg
             | Insn::FinishArgs
             | Insn::UnwindList
+            | Insn::ExtractThrownValue
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
@@ -236,7 +237,8 @@ impl Chunk {
             | Insn::JumpPopIfFalse
             | Insn::JumpPopIfTrue
             | Insn::JumpIfNotNullish
-            | Insn::JumpIfNotUndef => {
+            | Insn::JumpIfNotUndef
+            | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }

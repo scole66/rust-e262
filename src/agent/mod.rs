@@ -684,6 +684,20 @@ impl Agent {
                         }
                     }
                 }
+                Insn::JumpNotThrow => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let completion = &self.execution_context_stack[index].stack[stack_idx];
+
+                    if !matches!(completion, Err(AbruptCompletion::Throw { .. })) {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
                 Insn::Jump => {
                     let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
                     self.execution_context_stack[index].pc += 1;
@@ -866,6 +880,16 @@ impl Agent {
                     )
                     .expect("SetMutableVarBinding's stack arg must be a value");
                     env.set_mutable_binding(self, name.clone(), value, false).expect("error free execution");
+                }
+                Insn::ExtractThrownValue => {
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let completion = &self.execution_context_stack[index].stack[stack_idx];
+                    match completion.as_ref().unwrap_err() {
+                        AbruptCompletion::Throw { value } => {
+                            self.execution_context_stack[index].stack[stack_idx] = Ok(value.clone().into())
+                        }
+                        _ => panic!("Bad error type for ExtractThrownValue"),
+                    }
                 }
                 Insn::ExtractArg => {
                     // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)

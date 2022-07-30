@@ -304,8 +304,8 @@ impl TryStatement {
 //      catch Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct Catch {
-    parameter: Option<Rc<CatchParameter>>,
-    block: Rc<Block>,
+    pub parameter: Option<Rc<CatchParameter>>,
+    pub block: Rc<Block>,
     location: Location,
 }
 
@@ -478,7 +478,7 @@ impl Catch {
 //      finally Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct Finally {
-    block: Rc<Block>,
+    pub block: Rc<Block>,
     location: Location,
 }
 
