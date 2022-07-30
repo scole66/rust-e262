@@ -2267,7 +2267,7 @@ mod statement {
     #[test_case("do ; while (false);", true => svec(&["UNDEFINED", "EMPTY", "COALESCE", "FALSE", "JUMPPOP_TRUE -5"]); "breakable statement")]
     #[test_case("continue;", true => svec(&["CONTINUE"]); "continue statement")]
     #[test_case("break;", true => svec(&["BREAK"]); "break statement")]
-    #[test_case("return;", true => panics "not yet implemented"; "return statement")]
+    #[test_case("return;", true => svec(&["UNDEFINED", "RETURN"]); "return statement")]
     #[test_case("with (a) {}", true => panics "not yet implemented"; "with statement")]
     #[test_case("a: true;", true => svec(&["TRUE"]); "labelled statement")]
     #[test_case("throw a;", true => svec(&[
@@ -2488,7 +2488,16 @@ mod lexical_binding {
         "IRB",
     ]), true, false)); "non-strict, no initializer")]
     #[test_case("a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "string table full")]
-    #[test_case("a=function (){}", true, None => panics "not yet implemented"; "anonymous function")]
+    #[test_case("a=function (){}", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "STRING 0 (a)",
+        "FUNC_IIFE 0",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "IRB"
+    ]), true, false)); "anonymous function")]
     #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "string table full in initializer")]
     #[test_case("a=b", true, None => Ok((svec(&[
         "STRING 0 (a)",
@@ -2810,7 +2819,17 @@ mod variable_declaration {
         "PUT_VALUE",
     ]), true, false)); "id ref init/strict")]
     #[test_case("a=0", true, Some(0) => serr("Out of room for strings in this compilation unit"); "string exhaustion")]
-    #[test_case("a=function(){}", true, None => panics "not yet implemented"; "anonymous func")]
+    #[test_case("a=function(){}", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "STRING 0 (a)",
+        "FUNC_IIFE 0",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "PUT_VALUE"
+    ]), true, false)); "anonymous func")]
     #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "izer compilation fails")]
     #[test_case("a=@@@", true, None => serr("out of range integral type conversion attempted"); "izer too big")]
     #[test_case("[a]=b", true, None => panics "not yet implemented"; "pattern assignment")]
@@ -2932,15 +2951,23 @@ mod fcn_def {
         (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.to_string())
     }
 
-    #[test_case(fcndecl, true => panics "not yet implemented"; "function decl")]
-    #[test_case(gendecl, true => panics "not yet implemented"; "generator decl")]
-    #[test_case(afcndecl, true => panics "not yet implemented"; "async function decl")]
-    #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
-    fn compile_fo_instantiation(maker: fn() -> (FcnDef, String), strict: bool) {
+    #[test_case(fcndecl, true => Ok((svec(&["FUNC_OBJ 0 a"]), true, false)); "function decl")]
+    #[test_case(gendecl, true => Ok((svec(&["TODO"]), false, false)); "generator decl")]
+    #[test_case(afcndecl, true => Ok((svec(&["TODO"]), false, false)); "async function decl")]
+    #[test_case(agendecl, true => Ok((svec(&["TODO"]), false, false)); "async generator decl")]
+    fn compile_fo_instantiation(maker: fn() -> (FcnDef, String), strict: bool) -> Result<(Vec<String>, bool, bool), String>{
         let (part, src) = maker();
         let mut c = Chunk::new("x");
 
-        part.compile_fo_instantiation(&mut c, strict, &src).unwrap();
+        part.compile_fo_instantiation(&mut c, strict, &src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -3328,7 +3355,7 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", None => panics "not yet implemented"; "typical")]
+    #[test_case("function x(){}", None => Ok((svec(&["EMPTY"]), false, false)); "typical")]
     fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_declaration();
         let mut c =
@@ -3349,7 +3376,7 @@ mod labelled_item {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function b(){}", &[], true, None => panics "not yet implemented"; "function def")]
+    #[test_case("function b(){}", &[], true, None => Ok((svec(&["EMPTY"]), false, false)); "function def")]
     #[test_case("do x; while (true);", &["b"], true, None => Ok((svec(&[
         "UNDEFINED",
         "STRING 0 (x)",
