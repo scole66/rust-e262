@@ -2284,7 +2284,7 @@ mod statement {
         "JUMP_IF_ABRUPT 1",
         "THROW"
     ]); "non-strict throw")]
-    #[test_case("try {} catch {}", true => panics "not yet implemented"; "try statement")]
+    #[test_case("try {} catch {}", true => svec(&["UNDEFINED", "EMPTY", "UPDATE_EMPTY"]); "try statement")]
     #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
@@ -2955,7 +2955,10 @@ mod fcn_def {
     #[test_case(gendecl, true => Ok((svec(&["TODO"]), false, false)); "generator decl")]
     #[test_case(afcndecl, true => Ok((svec(&["TODO"]), false, false)); "async function decl")]
     #[test_case(agendecl, true => Ok((svec(&["TODO"]), false, false)); "async generator decl")]
-    fn compile_fo_instantiation(maker: fn() -> (FcnDef, String), strict: bool) -> Result<(Vec<String>, bool, bool), String>{
+    fn compile_fo_instantiation(
+        maker: fn() -> (FcnDef, String),
+        strict: bool,
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let (part, src) = maker();
         let mut c = Chunk::new("x");
 
