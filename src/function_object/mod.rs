@@ -401,12 +401,63 @@ impl CallableObject for FunctionObject {
 
     fn construct(
         &self,
-        _agent: &mut Agent,
-        _self_object: &Object,
-        _arguments_list: &[ECMAScriptValue],
-        _new_target: &Object,
+        agent: &mut Agent,
+        self_object: &Object,
+        arguments_list: &[ECMAScriptValue],
+        new_target: &Object,
     ) {
-        todo!()
+        // [[Construct]] ( argumentsList, newTarget )
+        //
+        // The [[Construct]] internal method of an ECMAScript function object F takes arguments argumentsList
+        // (a List of ECMAScript language values) and newTarget (a constructor) and returns either a normal
+        // completion containing an Object or a throw completion. It performs the following steps when called:
+        //
+        //  1. Let callerContext be the running execution context.
+        //  2. Let kind be F.[[ConstructorKind]].
+        //  3. If kind is base, then
+        //      a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
+        //  4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
+        //  5. Assert: calleeContext is now the running execution context.
+        //  6. If kind is base, then
+        //      a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
+        //      b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
+        //      c. If initializeResult is an abrupt completion, then
+        //           i. Remove calleeContext from the execution context stack and restore callerContext as the
+        //              running execution context.
+        //          ii. Return ? initializeResult.
+        //  7. Let constructorEnv be the LexicalEnvironment of calleeContext.
+        //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
+        let kind = self.function_data().borrow().constructor_kind;
+        let this_argument = if kind == ConstructorKind::Base {
+            let ta = ordinary_create_from_constructor(agent, new_target, IntrinsicId::ObjectPrototype, &[]);
+            match ta {
+                Err(err) => {
+                    agent.ec_push(Err(err));
+                    return;
+                }
+                Ok(obj) => {
+                    // Provide some values for after the constructor returns...
+                    agent.ec_push(Ok(obj.clone().into()));
+                    Some(obj)
+                },
+            }
+        } else {
+            // Provide some values for after the constructor returns...
+            agent.ec_push(Ok(NormalCompletion::Empty));
+            None
+        };
+
+        agent.prepare_for_ordinary_call(self_object, Some(new_target.clone()));
+        if kind == ConstructorKind::Base {
+            agent.ordinary_call_bind_this(self_object, this_argument.clone().expect("previously created").into());
+            let initialize_result = agent.initialize_instance_elements(this_argument, self_object);
+            if let Err(err) = initialize_result {
+                agent.pop_execution_context();
+                agent.ec_push(Err(err));
+                return;
+            }
+        }
+        agent.ordinary_call_evaluate_body(self_object, arguments_list);
     }
 }
 

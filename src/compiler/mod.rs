@@ -125,6 +125,9 @@ pub enum Insn {
     ExtractArg,
     FinishArgs,
     ExtractThrownValue,
+    SwapList,
+    RequireConstructor,
+    Construct,
 }
 
 impl fmt::Display for Insn {
@@ -241,6 +244,9 @@ impl fmt::Display for Insn {
             Insn::ExtractArg => "EXTRACT_ARG",
             Insn::FinishArgs => "FINISH_ARGS",
             Insn::ExtractThrownValue => "EXTRACT_THROW",
+            Insn::SwapList => "SWAP_LIST",
+            Insn::RequireConstructor => "REQ_CSTR",
+            Insn::Construct => "CONSTRUCT",
         })
     }
 }
@@ -1207,7 +1213,9 @@ impl MemberExpression {
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),
             MemberExpression::MetaProperty(_) => todo!(),
-            MemberExpression::NewArguments(..) => todo!(),
+            MemberExpression::NewArguments(me, args, ..) => {
+                compile_new_evaluator(chunk, strict, text, ConstructExpr::Member(me.clone()), Some(args.clone()))
+            }
             MemberExpression::PrivateId(..) => todo!(),
         }
     }
@@ -1217,9 +1225,116 @@ impl NewExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             NewExpression::MemberExpression(me) => me.compile(chunk, strict, text),
-            _ => todo!(),
+            NewExpression::NewExpression(ne, ..) => {
+                compile_new_evaluator(chunk, strict, text, ConstructExpr::New(ne.clone()), None)
+            }
         }
     }
+}
+
+#[derive(Debug)]
+enum ConstructExpr {
+    Member(Rc<MemberExpression>),
+    New(Rc<NewExpression>),
+}
+
+impl ConstructExpr {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            ConstructExpr::Member(member) => member.compile(chunk, strict, text),
+            ConstructExpr::New(newexp) => newexp.compile(chunk, strict, text),
+        }
+    }
+}
+
+fn compile_new_evaluator(
+    chunk: &mut Chunk,
+    strict: bool,
+    text: &str,
+    expr: ConstructExpr,
+    args: Option<Rc<Arguments>>,
+) -> anyhow::Result<CompilerStatusFlags> {
+    // EvaluateNew ( constructExpr, arguments )
+    //
+    // The abstract operation EvaluateNew takes arguments constructExpr (a NewExpression Parse Node or a
+    // MemberExpression Parse Node) and arguments (empty or an Arguments Parse Node) and returns either a
+    // normal completion containing an ECMAScript language value or an abrupt completion. It performs the
+    // following steps when called:
+    //
+    //  1. Let ref be the result of evaluating constructExpr.
+    //  2. Let constructor be ? GetValue(ref).
+    //  3. If arguments is empty, let argList be a new empty List.
+    //  4. Else,
+    //      a. Let argList be ? ArgumentListEvaluation of arguments.
+    //  5. If IsConstructor(constructor) is false, throw a TypeError exception.
+    //  6. Return ? Construct(constructor, argList).
+    let expr_status = expr.compile(chunk, strict, text)?;
+    // Stack: ref/val/err ...
+    if expr_status.maybe_ref() {
+        chunk.op(Insn::GetValue);
+    }
+    // Stack: val/err ...
+    let exit = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
+        Some(chunk.op_jump(Insn::JumpIfAbrupt))
+    } else {
+        None
+    };
+    // Stack: val ...
+    chunk.op(Insn::Dup);
+    // Stack: val val ...
+    chunk.op(Insn::Dup);
+    // Stack: val val val ...
+    let exit2 = match args {
+        None => {
+            let zero_idx = chunk.add_to_float_pool(0.0)?;
+            chunk.op_plus_arg(Insn::Float, zero_idx);
+            None
+        }
+        Some(arglist) => {
+            let arg_status = arglist.argument_list_evaluation(chunk, strict, text)?;
+            //     Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...
+            // or: Stack: err val val val ...
+            let exit = if arg_status.maybe_abrupt() {
+                let short = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err val val val ...
+                chunk.op_plus_arg(Insn::Unwind, 3);
+                // Stack: err ...
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(short).expect("Jump too short to overflow");
+                Some(exit)
+            } else {
+                None
+            };
+            exit
+        }
+    };
+    // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...
+    chunk.op(Insn::SwapList);
+    // Stack: val N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
+    chunk.op(Insn::RequireConstructor);
+    // Stack: err/empty N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
+    let good_spot = chunk.op_jump(Insn::JumpIfNormal);
+    // Stack: err N arg(n-1) arg(n-2) ... arg 1 arg 0 val val ...
+    chunk.op(Insn::UnwindList);
+    // Stack: err val val ...
+    chunk.op_plus_arg(Insn::Unwind, 2);
+    // Stack: err ...
+    let exit3 = chunk.op_jump(Insn::Jump);
+    chunk.fixup(good_spot).expect("Jump too short to overflow");
+    // Stack: empty N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
+    chunk.op(Insn::Pop);
+    // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
+    chunk.op(Insn::Construct);
+    // Stack: val/err ...
+
+    if let Some(mark) = exit {
+        chunk.fixup(mark)?;
+    }
+    if let Some(mark) = exit2 {
+        chunk.fixup(mark).expect("Jump too short to overflow");
+    }
+    chunk.fixup(exit3).expect("Jump too short to overflow");
+    Ok(CompilerStatusFlags::new().abrupt(true))
 }
 
 impl CallExpression {

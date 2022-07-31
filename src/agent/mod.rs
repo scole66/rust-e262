@@ -752,6 +752,21 @@ impl Agent {
                     assert!(stack_size >= 2);
                     self.execution_context_stack[index].stack.swap(stack_size - 1, stack_size - 2);
                 }
+                Insn::SwapList => {
+                    let stack_size = self.execution_context_stack[index].stack.len();
+                    assert!(stack_size >= 2);
+                    let list_len = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index].stack[stack_size - 1]
+                                .clone()
+                                .expect("Top of stack must contain a list"),
+                        )
+                        .expect("Top of stack must contain a list"),
+                    )
+                    .expect("Top of stack must contain a list") as usize;
+                    let item = self.execution_context_stack[index].stack.remove(stack_size - list_len - 2);
+                    self.execution_context_stack[index].stack.push(item);
+                }
                 Insn::InitializeReferencedBinding => {
                     let stack_size = self.execution_context_stack[index].stack.len();
                     assert!(stack_size >= 2);
@@ -1109,6 +1124,28 @@ impl Agent {
                     } else {
                         Ok(ECMAScriptValue::Undefined.into())
                     });
+                }
+                Insn::Construct => {
+                    // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
+                    let arg_count_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
+                    let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
+                    let mut arguments = Vec::with_capacity(arg_count);
+                    for _ in 1..=arg_count {
+                        let nc = ECMAScriptValue::try_from(
+                            self.execution_context_stack[index].stack.pop().unwrap().unwrap(),
+                        )
+                        .unwrap();
+                        arguments.push(nc);
+                    }
+                    arguments.reverse();
+                    let newtgt =
+                        ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap())
+                            .expect("new target must be value");
+                    let cstr_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let cstr_val = ECMAScriptValue::try_from(cstr_nc).unwrap();
+
+                    self.begin_constructor_evaluation(cstr_val, newtgt, &arguments);
                 }
                 Insn::Return => {
                     let value = ECMAScriptValue::try_from(
