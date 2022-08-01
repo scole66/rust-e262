@@ -2955,7 +2955,10 @@ mod fcn_def {
     #[test_case(gendecl, true => Ok((svec(&["TODO"]), false, false)); "generator decl")]
     #[test_case(afcndecl, true => Ok((svec(&["TODO"]), false, false)); "async function decl")]
     #[test_case(agendecl, true => Ok((svec(&["TODO"]), false, false)); "async generator decl")]
-    fn compile_fo_instantiation(maker: fn() -> (FcnDef, String), strict: bool) -> Result<(Vec<String>, bool, bool), String>{
+    fn compile_fo_instantiation(
+        maker: fn() -> (FcnDef, String),
+        strict: bool,
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let (part, src) = maker();
         let mut c = Chunk::new("x");
 

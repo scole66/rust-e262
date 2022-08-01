@@ -159,6 +159,17 @@ impl Agent {
         }
     }
 
+    pub fn ec_empty_stack(&self) -> bool {
+        let len = self.execution_context_stack.len();
+        match len {
+            0 => true,
+            _ => {
+                let ec = &self.execution_context_stack[len - 1];
+                ec.stack.is_empty()
+            }
+        }
+    }
+
     pub fn wks(&self, sym_id: WksId) -> Symbol {
         match sym_id {
             WksId::AsyncIterator => &self.symbols.async_iterator_,
@@ -1069,22 +1080,22 @@ impl Agent {
                     self.begin_call_evaluation(func_val, ref_nc, &arguments);
                 }
                 Insn::EndFunction => {
-                    //  6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-                    //  7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
-                    //  8. If result.[[Type]] is return, return result.[[Value]].
-                    //  9. ReturnIfAbrupt(result).
-                    // 10. Return undefined.
-                    let result =
-                        self.execution_context_stack[index].stack.pop().expect("Should be one item on the stack");
-                    assert!(self.execution_context_stack[index].stack.is_empty());
-                    self.execution_context_stack.pop();
-                    self.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
-                        Ok(value.into())
-                    } else if result.is_err() {
-                        result
-                    } else {
-                        Ok(ECMAScriptValue::Undefined.into())
-                    });
+                    let stack_len = self.execution_context_stack[index].stack.len();
+                    assert!(stack_len >= 2);
+                    let result = self.execution_context_stack[index].stack.pop().expect("Stack is at least 2 elements");
+                    let f_obj = Object::try_from(
+                        ECMAScriptValue::try_from(
+                            self.execution_context_stack[index]
+                                .stack
+                                .pop()
+                                .expect("Stack is at least 2 elements")
+                                .expect("function obj argument must be a function obj"),
+                        )
+                        .expect("function obj argument must be a function obj"),
+                    )
+                    .expect("function obj argument must be a function obj");
+                    let callable = f_obj.o.to_callable_obj().expect("function obj argument must be a function obj");
+                    callable.end_evaluation(self, result);
                 }
                 Insn::Return => {
                     let value = ECMAScriptValue::try_from(
