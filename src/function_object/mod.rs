@@ -247,7 +247,7 @@ pub struct FunctionObjectData {
     pub home_object: Option<Object>,
     source_text: String,
     fields: Vec<ClassFieldDefinitionRecord>,
-    private_methods: Vec<PrivateElement>,
+    private_methods: Vec<Rc<PrivateElement>>,
     class_field_initializer_name: ClassName,
     is_class_constructor: bool,
     is_constructor: bool,
@@ -302,6 +302,14 @@ impl ObjectInterface for FunctionObject {
     }
     fn is_callable_obj(&self) -> bool {
         true
+    }
+    fn to_constructable(&self) -> Option<&dyn CallableObject> {
+        let is_c = self.function_data().borrow().is_constructor;
+        if is_c {
+            Some(self)
+        } else {
+            None
+        }
     }
 
     fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
@@ -401,20 +409,71 @@ impl CallableObject for FunctionObject {
     }
 
     fn end_evaluation(&self, agent: &mut Agent, result: FullCompletion) {
+        // (From [[Call]])
         //  6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
-        //  7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
+        //  7. Remove calleeContext from the execution context stack and restore callerContext as the running
+        //     execution context.
         //  8. If result.[[Type]] is return, return result.[[Value]].
         //  9. ReturnIfAbrupt(result).
         // 10. Return undefined.
-        assert!(agent.ec_empty_stack());
-        agent.pop_execution_context();
-        agent.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
-            Ok(value.into())
-        } else if result.is_err() {
-            result
+
+        // (From [[Construct]])
+        //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
+        //  9. Remove calleeContext from the execution context stack and restore callerContext as the running
+        //     execution context.
+        // 10. If result.[[Type]] is return, then
+        //      a. If Type(result.[[Value]]) is Object, return result.[[Value]].
+        //      b. If kind is base, return thisArgument.
+        //      c. If result.[[Value]] is not undefined, throw a TypeError exception.
+        // 11. Else, ReturnIfAbrupt(result).
+        // 12. Let thisBinding be ? constructorEnv.GetThisBinding().
+        // 13. Assert: Type(thisBinding) is Object.
+        // 14. Return thisBinding.
+        if agent.ec_stack_len() == 0 {
+            // From [[Call]]
+            agent.pop_execution_context();
+            agent.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
+                Ok(value.into())
+            } else if result.is_err() {
+                result
+            } else {
+                Ok(ECMAScriptValue::Undefined.into())
+            });
         } else {
-            Ok(ECMAScriptValue::Undefined.into())
-        });
+            // From [[Construct]]
+            let this_argument = ECMAScriptValue::try_from(
+                agent.ec_pop().expect("Must be at least two things on the stack").expect("which must not be errors"),
+            )
+            .expect("the first of which must be a value");
+            let constructor_env: Rc<dyn EnvironmentRecord> = agent
+                .ec_pop()
+                .expect("Must be at least one more item on the stack")
+                .expect("which must not be an error")
+                .try_into()
+                .expect("And which must be an environment record");
+            assert_eq!(agent.ec_stack_len(), 0);
+            agent.pop_execution_context();
+            if let Err(AbruptCompletion::Return { value }) = result {
+                if value.is_object() {
+                    agent.ec_push(Ok(value.into()));
+                    return;
+                }
+                if !this_argument.is_null() {
+                    agent.ec_push(Ok(this_argument.into()));
+                    return;
+                }
+                if !value.is_undefined() {
+                    let err = create_type_error(agent, "Constructors must return objects");
+                    agent.ec_push(Err(err));
+                    return;
+                }
+            } else if let Err(e) = result {
+                agent.ec_push(Err(e));
+                return;
+            }
+            let this_binding = constructor_env.get_this_binding(agent);
+            agent.ec_push(this_binding.map(NormalCompletion::from))
+        }
     }
 
     fn construct(
@@ -455,27 +514,54 @@ impl CallableObject for FunctionObject {
                 }
                 Ok(obj) => {
                     // Provide some values for after the constructor returns...
-                    agent.ec_push(Ok(obj.clone().into()));
                     Some(obj)
-                },
+                }
             }
         } else {
             // Provide some values for after the constructor returns...
-            agent.ec_push(Ok(NormalCompletion::Empty));
             None
         };
 
         agent.prepare_for_ordinary_call(self_object, Some(new_target.clone()));
         if kind == ConstructorKind::Base {
             agent.ordinary_call_bind_this(self_object, this_argument.clone().expect("previously created").into());
-            let initialize_result = agent.initialize_instance_elements(this_argument, self_object);
+            let initialize_result = agent.initialize_instance_elements(this_argument.as_ref().unwrap(), self_object);
             if let Err(err) = initialize_result {
                 agent.pop_execution_context();
                 agent.ec_push(Err(err));
                 return;
             }
         }
+        let constructor_env = agent.current_lexical_environment().expect("A lexical environment must exist");
+        agent.ec_push(Ok(NormalCompletion::Environment(constructor_env)));
+        agent.ec_push(Ok(match this_argument {
+            None => ECMAScriptValue::Null.into(),
+            Some(obj) => ECMAScriptValue::Object(obj).into(),
+        }));
         agent.ordinary_call_evaluate_body(self_object, arguments_list);
+    }
+}
+
+impl Agent {
+    pub fn initialize_instance_elements(&mut self, this_argument: &Object, constructor: &Object) -> Completion<()> {
+        // InitializeInstanceElements ( O, constructor )
+        // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript function object) and returns either a normal completion containing unused or a throw completion. It performs the following steps when called:
+        //
+        //  1. Let methods be the value of constructor.[[PrivateMethods]].
+        //  2. For each PrivateElement method of methods, do
+        //      a. Perform ? PrivateMethodOrAccessorAdd(O, method).
+        //  3. Let fields be the value of constructor.[[Fields]].
+        //  4. For each element fieldRecord of fields, do
+        //      a. Perform ? DefineField(O, fieldRecord).
+        //  5. Return unused.
+        let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
+        for method in data.private_methods.iter() {
+            private_method_or_accessor_add(self, this_argument, method.clone())?;
+        }
+        for field_record in data.fields.iter() {
+            define_field(self, this_argument, field_record)?;
+        }
+        Ok(())
     }
 }
 
@@ -502,7 +588,7 @@ impl FunctionObject {
         home_object: Option<Object>,
         source_text: &str,
         fields: Vec<ClassFieldDefinitionRecord>,
-        private_methods: Vec<PrivateElement>,
+        private_methods: Vec<Rc<PrivateElement>>,
         class_field_initializer_name: ClassName,
         is_class_constructor: bool,
         compiled: Rc<Chunk>,
@@ -1329,7 +1415,7 @@ pub fn ordinary_function_create(
         None,
         source_text,
         Vec::<ClassFieldDefinitionRecord>::new(),
-        Vec::<PrivateElement>::new(),
+        Vec::<Rc<PrivateElement>>::new(),
         ClassName::Empty,
         false,
         compiled,

@@ -159,13 +159,13 @@ impl Agent {
         }
     }
 
-    pub fn ec_empty_stack(&self) -> bool {
+    pub fn ec_stack_len(&self) -> usize {
         let len = self.execution_context_stack.len();
         match len {
-            0 => true,
+            0 => 0,
             _ => {
                 let ec = &self.execution_context_stack[len - 1];
-                ec.stack.is_empty()
+                ec.stack.len()
             }
         }
     }
@@ -489,7 +489,6 @@ impl Agent {
     }
 
     pub fn prepare_for_execution(&mut self, index: usize, chunk: Rc<Chunk>) {
-        self.execution_context_stack[index].stack = vec![];
         self.execution_context_stack[index].chunk = Some(chunk);
         self.execution_context_stack[index].pc = 0;
     }
@@ -1158,6 +1157,17 @@ impl Agent {
 
                     self.begin_constructor_evaluation(cstr_val, newtgt, &arguments);
                 }
+                Insn::RequireConstructor => {
+                    let x = self
+                        .ec_pop()
+                        .ok_or(())
+                        .and_then(|fc| fc.map_err(|_| ()))
+                        .and_then(|nc| ECMAScriptValue::try_from(nc).map_err(|_| ()))
+                        .and_then(|val| if is_constructor(&val) { Ok(()) } else { Err(()) })
+                        .map_err(|_| create_type_error(self, "Constructor required"));
+                    self.ec_push(x.map(NormalCompletion::from));
+                }
+
                 Insn::Return => {
                     let value = ECMAScriptValue::try_from(
                         self.ec_pop().expect("Return needs an argument").expect("Return needs a normal completion"),
@@ -1439,6 +1449,7 @@ impl Agent {
                 svr.map(|sv| match sv {
                     NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
                     NormalCompletion::Value(v) => v,
+                    NormalCompletion::Environment(..) => unreachable!(),
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
@@ -1451,7 +1462,7 @@ impl Agent {
         arguments: &[ECMAScriptValue],
     ) {
         let this_value = match &reference {
-            NormalCompletion::Empty => unreachable!(),
+            NormalCompletion::Empty | NormalCompletion::Environment(..) => unreachable!(),
             NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
             NormalCompletion::Reference(r) => match &r.base {
                 Base::Unresolvable => unreachable!(),
@@ -1472,6 +1483,18 @@ impl Agent {
             return;
         }
         initiate_call(self, &func, &this_value, arguments);
+    }
+
+    fn begin_constructor_evaluation(
+        &mut self,
+        cstr: ECMAScriptValue,
+        newtgt: ECMAScriptValue,
+        args: &[ECMAScriptValue],
+    ) {
+        assert!(is_constructor(&cstr));
+        let cstr = Object::try_from(cstr).expect("Must be a constructor");
+        let newtgt = Object::try_from(newtgt).expect("Must be an object");
+        initiate_construct(self, &cstr, args, Some(&newtgt));
     }
 
     fn prefix_increment(&mut self, expr: FullCompletion) -> FullCompletion {
@@ -1499,6 +1522,7 @@ impl Agent {
     fn delete_ref(&mut self, expr: FullCompletion) -> FullCompletion {
         let reference = expr?;
         match reference {
+            NormalCompletion::Environment(..) => unreachable!(),
             NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
             NormalCompletion::Reference(r) => match *r {
                 Reference { base: Base::Unresolvable, .. } => Ok(true.into()),

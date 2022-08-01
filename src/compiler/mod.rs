@@ -1294,7 +1294,7 @@ fn compile_new_evaluator(
             let arg_status = arglist.argument_list_evaluation(chunk, strict, text)?;
             //     Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...
             // or: Stack: err val val val ...
-            let exit = if arg_status.maybe_abrupt() {
+            if arg_status.maybe_abrupt() {
                 let short = chunk.op_jump(Insn::JumpIfNormal);
                 // Stack: err val val val ...
                 chunk.op_plus_arg(Insn::Unwind, 3);
@@ -1304,8 +1304,7 @@ fn compile_new_evaluator(
                 Some(exit)
             } else {
                 None
-            };
-            exit
+            }
         }
     };
     // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...

@@ -190,7 +190,9 @@ mod agent {
         let result = agent.resolve_binding(&name.into(), env, strict);
 
         result.map_err(|err| unwind_any_error(&mut agent, err)).and_then(|nc| match nc {
-            NormalCompletion::Empty | NormalCompletion::Value(_) => Err("improper completion".to_string()),
+            NormalCompletion::Empty | NormalCompletion::Value(_) | NormalCompletion::Environment(_) => {
+                Err("improper completion".to_string())
+            }
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }
