@@ -15,6 +15,10 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t make_basic_object`
 * `./t Chunk`
 * `./t Chunk_add_to_func_stash`
+* `./t NameableProduction`
+* `./t StashedFunctionData`
+* `./t FunctionBody`
+* `./t FunctionStatementList`
 
 ## To Check
 
@@ -37,15 +41,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `FcnDef::instantiate_function_object`
 * `global_declaration_instantiation`
 * `script_evaluation`
-
-### `src/chunk/mod.rs`
-
-* `StashedFunctionData`
-
-### `src/parser/function_definitions/mod.rs`
-
-* `FunctionBody::lexically_scoped_declarations`
-* `FunctionStatementList::lexically_scoped_declarations`
 
 ### `src/parser/async_generator_function_definitions/mod.rs`
 
@@ -100,7 +95,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `NameableProduction`
 * `AssignmentExpression`
 * `Statement`
 * `Declaration`

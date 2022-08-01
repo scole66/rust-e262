@@ -432,9 +432,51 @@ mod nameable_production {
     #[test_case(Maker::new("function() {} != a").equality_expression() => serr("Production not nameable"); "Equality Expression: Ne")]
     #[test_case(Maker::new("function() {} === a").equality_expression() => serr("Production not nameable"); "Equality Expression: Seq")]
     #[test_case(Maker::new("function() {} !== a").equality_expression() => serr("Production not nameable"); "Equality Expression: Sne")]
+    #[test_case(Maker::new("function(){} < 10").relational_expression() => serr("Production not nameable"); "Relational Expression: Less")]
+    #[test_case(Maker::new("function(){} << 10").shift_expression() => serr("Production not nameable"); "Shift Expression: Left")]
+    #[test_case(Maker::new("function(){} + 10").additive_expression() => serr("Production not nameable"); "Additive Expression: add")]
+    #[test_case(Maker::new("function(){} * 10").multiplicative_expression() => serr("Production not nameable"); "Multiplicative Expression: multiply")]
+    #[test_case(Maker::new("function(){} ** 10").exponentiation_expression() => serr("Production not nameable"); "Exponentiation Expressison")]
+    #[test_case(Maker::new("function(){}").expression() => sok("function (  ) {  }"); "expression fallthru")]
+    #[test_case(Maker::new("function(){}, 10").expression() => serr("Production not nameable"); "comma expression")]
+    #[test_case(Maker::new("(function(){})").parenthesized_expression() => sok("function (  ) {  }"); "parenthesized")]
+    #[test_case(Maker::new("new function(){}").new_expression() => serr("Production not nameable"); "new expr")]
+    #[test_case(Maker::new("function() {} ++").update_expression() => serr("Production not nameable"); "post-increment")]
+    #[test_case(Maker::new("-function() {}").unary_expression() => serr("Production not nameable"); "negate")]
+    #[test_case(Maker::new("function(){}()").left_hand_side_expression() => serr("Production not nameable"); "call expression")]
+    #[test_case(Maker::new("function(){}.name").member_expression() => serr("Production not nameable"); "member expression")]
+    #[test_case(Maker::new("function(){}").primary_expression() => sok("function (  ) {  }"); "primary function expr")]
+    #[test_case(Maker::new("class {}").primary_expression() => sok("class { }"); "primary class expr")]
+    #[test_case(Maker::new("function *(){}").primary_expression() => sok("function * (  ) {  }"); "primary gen expr")]
+    #[test_case(Maker::new("async function (){}").primary_expression() => sok("async function (  ) {  }"); "primary async fun expr")]
+    #[test_case(Maker::new("async function *(){}").primary_expression() => sok("async function * (  ) {  }"); "primary async gen expr")]
+    #[test_case(Maker::new("(3)").primary_expression() => serr("Production not nameable"); "primary parenthesized expr")]
     fn try_from(x: impl TryInto<NameableProduction, Error = anyhow::Error>) -> Result<String, String> {
         x.try_into().map_err(|err| err.to_string()).map(|node| node.to_string())
     }
+
+    #[test_case("function(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IIFE 0"]), true, false)); "function expression")]
+    #[test_case("function *(){}", true => panics "not yet implemented"; "generator exprsesion")]
+    #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
+    #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
+    #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
+    #[test_case("(x => x)", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IAE 0"]), true, false)); "arrow function")]
+    #[test_case("(async x => x)", true => panics "not yet implemented"; "async arrow function")]
+    fn compile_named_evaluation(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
+        let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
+        let mut c = Chunk::new("x");
+        let id = c.add_to_string_pool("my_function_name".into()).unwrap();
+        node.compile_named_evaluation(&mut c, strict, src, id)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
 }
 
 // A note about compile tests: These are really unit tests; they check that all the code paths are run, and that the

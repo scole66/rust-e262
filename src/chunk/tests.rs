@@ -390,3 +390,33 @@ mod chunk {
         assert_eq!(result, expected);
     }
 }
+
+mod stashed_function_data {
+    use super::*;
+
+    /*
+    pub struct StashedFunctionData {
+    pub source_text: String,
+    pub params: ParamSource,
+    pub body: BodySource,
+    pub to_compile: FunctionSource,
+    pub strict: bool,
+    pub this_mode: ThisLexicality,
+    }
+    */
+
+    #[test]
+    fn debug() {
+        let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
+        let fd = Maker::new(src).function_declaration();
+        let sfd = StashedFunctionData {
+            source_text: src.into(),
+            params: fd.params.clone().into(),
+            body: fd.body.clone().into(),
+            to_compile: fd.clone().into(),
+            strict: true,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        assert_ne!(format!("{:?}", sfd), "");
+    }
+}

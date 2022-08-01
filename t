@@ -364,6 +364,7 @@ for name in ${names[@]}; do
 
     Chunk) data=($name chunk chunk) ;;
     Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
+    StashedFunctionData) data=($name stashed_function_data chunk) ;;
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;
