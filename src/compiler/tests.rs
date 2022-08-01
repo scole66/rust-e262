@@ -941,7 +941,23 @@ mod member_expression {
     #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
     #[test_case("super.a", true, None => panics "not yet implemented"; "super ref")]
     #[test_case("new.target", true, None => panics "not yet implemented"; "meta")]
-    #[test_case("new a()", true, None => panics "not yet implemented"; "new-args")]
+    #[test_case("new a()", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "DUP",
+        "DUP",
+        "FLOAT 0 (0)",
+        "SWAP_LIST",
+        "REQ_CSTR",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND_LIST",
+        "UNWIND 2",
+        "JUMP 2",
+        "POP",
+        "CONSTRUCT"
+    ]), true, false)); "new-args")]
     #[test_case("a.#pid", true, None => panics "not yet implemented"; "private")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).member_expression();
@@ -965,7 +981,23 @@ mod new_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("new a", true => panics "not yet implemented"; "new exp")]
+    #[test_case("new a", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "DUP",
+        "DUP",
+        "FLOAT 0 (0)",
+        "SWAP_LIST",
+        "REQ_CSTR",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND_LIST",
+        "UNWIND 2",
+        "JUMP 2",
+        "POP",
+        "CONSTRUCT"
+    ]); "new exp")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).new_expression();
         let mut c = Chunk::new("x");
