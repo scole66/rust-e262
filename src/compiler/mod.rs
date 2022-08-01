@@ -3337,8 +3337,6 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     }
     chunk.op(Insn::FinishArgs);
     // Stack: func ...
-    chunk.op(Insn::Pop);
-    // Stack: ...
 
     // 27-28.
     if !has_parameter_expressions {
@@ -3415,14 +3413,12 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
     }
 
-    chunk.op(Insn::Empty);
-
     // Done
     if let Some(&mark) = exit.as_ref() {
         chunk.fixup(mark)?;
     }
 
-    // Stack: err/empty
+    // Stack: err/func ...
 
     Ok(AbruptResult::from(exit.is_some()))
 }
@@ -3507,11 +3503,11 @@ impl ConciseBody {
                 // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
                 let fdi_status = compile_fdi(chunk, text, info)?;
                 let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op(Insn::Pop);
 
-                // Stack: ...
+                // Stack: func ...
                 let strict = info.strict || self.concise_body_contains_use_strict();
                 let eval_status = exp.compile(chunk, strict, text)?;
+                // Stack: result func ...
 
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
@@ -3879,11 +3875,11 @@ impl FunctionBody {
         // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
         let fdi_status = compile_fdi(chunk, text, info)?;
         let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::Pop);
 
-        // Stack: ...
+        // Stack: func ...
         let strict = info.strict || self.function_body_contains_use_strict();
         let eval_status = self.statements.compile(chunk, strict, text)?;
+        // Stack: result func ...
 
         if let Some(mark) = exit {
             chunk.fixup(mark)?;

@@ -280,6 +280,7 @@ pub trait CallableObject: ObjectInterface {
         arguments_list: &[ECMAScriptValue],
         new_target: &Object,
     );
+    fn end_evaluation(&self, agent: &mut Agent, result: FullCompletion);
 }
 
 impl ObjectInterface for FunctionObject {
@@ -397,6 +398,23 @@ impl CallableObject for FunctionObject {
         }
         agent.ordinary_call_bind_this(self_object, this_argument.clone());
         agent.ordinary_call_evaluate_body(self_object, arguments_list);
+    }
+
+    fn end_evaluation(&self, agent: &mut Agent, result: FullCompletion) {
+        //  6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
+        //  7. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
+        //  8. If result.[[Type]] is return, return result.[[Value]].
+        //  9. ReturnIfAbrupt(result).
+        // 10. Return undefined.
+        assert!(agent.ec_empty_stack());
+        agent.pop_execution_context();
+        agent.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
+            Ok(value.into())
+        } else if result.is_err() {
+            result
+        } else {
+            Ok(ECMAScriptValue::Undefined.into())
+        });
     }
 
     fn construct(
@@ -1039,6 +1057,10 @@ impl CallableObject for BuiltInFunctionObject {
         agent.pop_execution_context();
 
         agent.ec_push(result.map(NormalCompletion::from))
+    }
+
+    fn end_evaluation(&self, _: &mut Agent, _: FullCompletion) {
+        unreachable!("end_evaluation called for builtin callable")
     }
 }
 
