@@ -402,7 +402,7 @@ impl NeverAbruptRefResult {
 }
 
 #[derive(Debug)]
-enum NameableProduction {
+pub enum NameableProduction {
     Function(Rc<FunctionExpression>),
     Generator(Rc<GeneratorExpression>),
     AsyncFunction(Rc<AsyncFunctionExpression>),
@@ -683,7 +683,7 @@ impl NameableProduction {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        id: u16,
+        id: NameLoc,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             NameableProduction::Function(child) => {
@@ -697,6 +697,18 @@ impl NameableProduction {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
             }
             NameableProduction::AsyncArrow(_) => todo!(),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            NameableProduction::Function(node) => node.is_named_function(),
+            NameableProduction::Generator(node) => node.is_named_function(),
+            NameableProduction::AsyncFunction(node) => node.is_named_function(),
+            NameableProduction::AsyncGenerator(node) => node.is_named_function(),
+            NameableProduction::Class(node) => node.is_named_function(),
+            NameableProduction::Arrow(_) => false,
+            NameableProduction::AsyncArrow(_) => false,
         }
     }
 }
@@ -965,25 +977,27 @@ impl PropertyDefinition {
                     }
                 }
                 // Stack: propKey obj ...
-                if !is_proto_setter && ae.is_anonymous_function_definition() {
-                    todo!();
+                let status = if let (false, Some(np)) = (is_proto_setter, ae.anonymous_function_definition()) {
+                    chunk.op(Insn::Dup);
+                    np.compile_named_evaluation(chunk, strict, text, NameLoc::OnStack)?
                 } else {
-                    let status = ae.compile(chunk, strict, text)?;
-                    if status.maybe_ref() {
-                        // Stack: exprValueRef propKey obj ...
-                        chunk.op(Insn::GetValue);
-                    }
-                    if status.maybe_abrupt() || status.maybe_ref() {
-                        // Stack: propValue propKey obj ...
-                        let mark = chunk.op_jump(Insn::JumpIfNormal);
-                        // Stack: err propKey obj ...
-                        chunk.op_plus_arg(Insn::Unwind, 2);
-                        // Stack: err ...
-                        exits.push(chunk.op_jump(Insn::Jump));
-                        chunk.fixup(mark).expect("Jump is too short to overflow.");
-                        exit_status = AbruptResult::Maybe;
-                    }
+                    ae.compile(chunk, strict, text)?
+                };
+                if status.maybe_ref() {
+                    // Stack: exprValueRef propKey obj ...
+                    chunk.op(Insn::GetValue);
                 }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    // Stack: propValue propKey obj ...
+                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err propKey obj ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: err ...
+                    exits.push(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
+                    exit_status = AbruptResult::Maybe;
+                }
+
                 if is_proto_setter {
                     // Stack: propValue obj ...
                     chunk.op(Insn::SetPrototype);
@@ -1915,26 +1929,32 @@ impl AssignmentExpression {
                     exits.push(mark);
                 }
                 // Stack: lref ...
-                if ae.is_anonymous_function_definition() && lhse.is_identifier_ref() {
-                    todo!()
-                } else {
-                    let status = ae.compile(chunk, strict, text)?;
-                    // Stack: rref lref ...
-                    if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
-                    }
-                    if status.maybe_abrupt() || status.maybe_ref() {
-                        let close = chunk.op_jump(Insn::JumpIfNormal);
-                        // (haven't jumped) Stack: err lref
-                        chunk.op(Insn::Swap);
-                        // Stack: lref err
-                        chunk.op(Insn::Pop);
-                        // Stack: err
-                        let mark2 = chunk.op_jump(Insn::Jump);
-                        exits.push(mark2);
-                        chunk.fixup(close).expect("Jump is too short to overflow.");
-                    }
+
+                let status =
+                    if let (Some(np), Some(lhse_id)) = (ae.anonymous_function_definition(), lhse.identifier_ref()) {
+                        let idx = chunk
+                            .add_to_string_pool(lhse_id.string_value())
+                            .expect("This string already added during lhse compile");
+                        np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
+                    } else {
+                        ae.compile(chunk, strict, text)?
+                    };
+                // Stack: rref lref ...
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
                 }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    // (haven't jumped) Stack: err lref
+                    chunk.op(Insn::Swap);
+                    // Stack: lref err
+                    chunk.op(Insn::Pop);
+                    // Stack: err
+                    let mark2 = chunk.op_jump(Insn::Jump);
+                    exits.push(mark2);
+                    chunk.fixup(close).expect("Jump is too short to overflow.");
+                }
+
                 // Stack: rval lref ...
                 chunk.op(Insn::Pop2Push3);
                 // Stack: rval lref rval ...
@@ -2229,10 +2249,8 @@ impl LexicalBinding {
                         None
                     }
                     Some(izer) => {
-                        let status = if izer.is_anonymous_function_definition() {
-                            NameableProduction::try_from(izer.clone())?
-                                .compile_named_evaluation(chunk, strict, text, id)?
-                            //izer.compile_named_evaluation(chunk, strict, text, id)?
+                        let status = if let Some(np) = izer.anonymous_function_definition() {
+                            np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(id))?
                         } else {
                             izer.compile(chunk, strict, text)?
                         };
@@ -2346,8 +2364,8 @@ impl VariableDeclaration {
                 chunk.op_plus_arg(Insn::String, idx); // Stack: bindingId ...
                 chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }); // Stack: lhs/err ...
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt)); // Stack: lhs ...
-                let izer_flags = if izer.is_anonymous_function_definition() {
-                    NameableProduction::try_from(izer.clone())?.compile_named_evaluation(chunk, strict, text, idx)?
+                let izer_flags = if let Some(np) = izer.anonymous_function_definition() {
+                    np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
                 } else {
                     izer.compile(chunk, strict, text)? // Stack: rhs/rref/err lhs ...
                 };
@@ -2721,6 +2739,12 @@ impl ScriptBody {
     }
 }
 
+pub enum NameLoc {
+    None,
+    OnStack,
+    Index(u16),
+}
+
 impl FunctionExpression {
     /// Generate code to create a potentially named function object
     ///
@@ -2730,7 +2754,7 @@ impl FunctionExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        name: Option<u16>,
+        name: NameLoc,
         text: &str,
         self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
@@ -2750,11 +2774,13 @@ impl FunctionExpression {
                 //      6. Perform SetFunctionName(closure, name).
                 //      7. Perform MakeConstructor(closure).
                 //      8. Return closure.
-                let name_id = match name {
-                    None => chunk.add_to_string_pool(JSString::from(""))?,
-                    Some(id) => id,
-                };
-                chunk.op_plus_arg(Insn::String, name_id);
+                if let Some(name_id) = match name {
+                    NameLoc::None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+                    NameLoc::Index(id) => Some(id),
+                    NameLoc::OnStack => None,
+                } {
+                    chunk.op_plus_arg(Insn::String, name_id);
+                }
 
                 let span = self.location().span;
                 let params = ParamSource::from(Rc::clone(&self.params));
@@ -2812,7 +2838,7 @@ impl FunctionExpression {
         //          | FunctionDeclaration or FunctionExpression, to allow for the possibility that the
         //          | function will be used as a constructor.
         //
-        self.instantiate_ordinary_function_expression(chunk, strict, None, text, self_as_rc)
+        self.instantiate_ordinary_function_expression(chunk, strict, NameLoc::None, text, self_as_rc)
     }
 
     fn compile_named_evaluation(
@@ -2821,9 +2847,9 @@ impl FunctionExpression {
         strict: bool,
         text: &str,
         self_as_rc: Rc<Self>,
-        id: u16,
+        id: NameLoc,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_ordinary_function_expression(chunk, strict, Some(id), text, self_as_rc)
+        self.instantiate_ordinary_function_expression(chunk, strict, id, text, self_as_rc)
     }
 }
 
@@ -3137,14 +3163,16 @@ impl ArrowFunction {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        name: Option<u16>,
+        name: NameLoc,
         self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        let name_id = match name {
-            None => chunk.add_to_string_pool(JSString::from(""))?,
-            Some(id) => id,
-        };
-        chunk.op_plus_arg(Insn::String, name_id);
+        if let Some(name_id) = match name {
+            NameLoc::None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+            NameLoc::Index(id) => Some(id),
+            NameLoc::OnStack => None,
+        } {
+            chunk.op_plus_arg(Insn::String, name_id);
+        }
 
         let span = self.location().span;
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
@@ -3170,7 +3198,7 @@ impl ArrowFunction {
         text: &str,
         self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
+        self.instantiate_arrow_function_expression(chunk, strict, text, NameLoc::None, self_as_rc)
     }
 
     pub fn compile_named_evaluation(
@@ -3179,9 +3207,9 @@ impl ArrowFunction {
         strict: bool,
         text: &str,
         self_as_rc: Rc<Self>,
-        id: u16,
+        id: NameLoc,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_arrow_function_expression(chunk, strict, text, Some(id), self_as_rc)
+        self.instantiate_arrow_function_expression(chunk, strict, text, id, self_as_rc)
     }
 }
 
@@ -3487,26 +3515,26 @@ impl SingleNameBinding {
             // Stack: undefined ref N-1 arg[n-1] ... arg[1]
             chunk.op(Insn::Pop);
             // Stack: ref N-1 arg[n-1] ... arg[1]
-            if init.is_anonymous_function_definition() {
-                todo!()
+            let init_status = if let Some(np) = init.anonymous_function_definition() {
+                np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(id_idx))?
             } else {
-                let init_status = init.compile(chunk, strict, text)?;
-                // Stack: ref/val/err ref N-1 arg[n-1] ... arg[1]
-                if init_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
-                }
-                // Stack: val/err ref N-1 arg[n-1] ... arg[1]
-                if init_status.maybe_abrupt() || init_status.maybe_ref() {
-                    let close = chunk.op_jump(Insn::JumpIfNormal);
-                    // Stack: err ref N-1 arg[n-1] ... arg[1]
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                    chunk.op(Insn::UnwindList);
-                    // Stack: err
-                    exit = Some(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(close).expect("Jump too close to overflow");
-                }
-                // Stack: val ref N-1 arg[n-1] ... arg[1]
+                init.compile(chunk, strict, text)?
+            };
+            // Stack: ref/val/err ref N-1 arg[n-1] ... arg[1]
+            if init_status.maybe_ref() {
+                chunk.op(Insn::GetValue);
             }
+            // Stack: val/err ref N-1 arg[n-1] ... arg[1]
+            if init_status.maybe_abrupt() || init_status.maybe_ref() {
+                let close = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err ref N-1 arg[n-1] ... arg[1]
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op(Insn::UnwindList);
+                // Stack: err
+                exit = Some(chunk.op_jump(Insn::Jump));
+                chunk.fixup(close).expect("Jump too close to overflow");
+            }
+            // Stack: val ref N-1 arg[n-1] ... arg[1]
         }
         if let Some(mark) = no_init {
             chunk.fixup(mark)?;
@@ -3535,7 +3563,15 @@ impl BindingPattern {
         text: &str,
         has_duplicates: bool,
     ) -> anyhow::Result<AbruptResult> {
-        todo!()
+        // Something to make errors, for coverage. Remove when real impl happens.
+        chunk.add_to_string_pool("nothing but nonsense".into())?;
+        chunk.op(Insn::ToDo);
+        if has_duplicates {
+            for _ in 0..32768 {
+                chunk.op(Insn::Nop);
+            }
+        }
+        Ok(AbruptResult::Maybe)
     }
 }
 

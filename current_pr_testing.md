@@ -19,6 +19,11 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t StashedFunctionData`
 * `./t FunctionBody`
 * `./t FunctionStatementList`
+* `./t CompilerBindingIdentifier`
+* `./t CompilerBindingElement`
+* `./t CompilerAssignmentExpression`
+
+* `./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody Insn BindingStatus ConciseBody InternalSlotName make_basic_object Chunk Chunk_add_to_func_stash NameableProduction StashedFunctionData FunctionBody FunctionStatementList CompilerBindingIdentifier CompilerBindingElement CompilerAssignmentExpression`
 
 ## To Check
 
@@ -95,7 +100,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `AssignmentExpression`
 * `Statement`
 * `Declaration`
 * `FcnDef`
@@ -116,10 +120,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `ArrowFormalParameters`
 * `UniqueFormalParameters`
 * `compile_initialize_bound_name`
-* `BindingIdentifier`
 * `FormalParameterList`
 * `FormalParameter`
-* `BindingElement`
 * `SingleNameBinding`
 * `BindingPattern`
 * `FunctionRestParameter`

@@ -458,6 +458,23 @@ impl PrimaryExpression {
     pub fn is_identifier_ref(&self) -> bool {
         matches!(self, PrimaryExpression::IdentifierReference { .. })
     }
+    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+        match self {
+            PrimaryExpression::IdentifierReference { node } => Some(node.clone()),
+            PrimaryExpression::This { .. } |
+            PrimaryExpression::Literal { .. } |
+            PrimaryExpression::ArrayLiteral { .. } |
+            PrimaryExpression::ObjectLiteral { .. } |
+            PrimaryExpression::Parenthesized { .. } |
+            PrimaryExpression::TemplateLiteral { .. } |
+            PrimaryExpression::Function { .. } |
+            PrimaryExpression::Class { .. } |
+            PrimaryExpression::Generator { .. } |
+            PrimaryExpression::AsyncFunction { .. } |
+            PrimaryExpression::AsyncGenerator { .. } |
+            PrimaryExpression::RegularExpression { .. } => None,
+        }
+    }
 
     pub fn is_named_function(&self) -> bool {
         match self {
@@ -1246,6 +1263,10 @@ impl Initializer {
     /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
     pub fn is_anonymous_function_definition(&self) -> bool {
         self.ae.is_anonymous_function_definition()
+    }
+
+    pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
+        self.ae.anonymous_function_definition()
     }
 }
 

@@ -488,6 +488,28 @@ impl AssignmentExpression {
         self.is_function_definition() && !self.is_named_function()
     }
 
+    pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
+        match self.function_definition() {
+            Some(fd) => if fd.is_named_function() { None } else { Some(NameableProduction::from(fd)) },
+            None => None,
+        }
+    }
+
+    pub fn function_definition(&self) -> Option<NameableProduction> {
+        match self {
+            AssignmentExpression::FallThru(node) => NameableProduction::try_from(node.clone()).ok(),
+            AssignmentExpression::Arrow(node) => Some(NameableProduction::Arrow(node.clone())),
+            AssignmentExpression::AsyncArrow(node) => Some(NameableProduction::AsyncArrow(node.clone())),
+            AssignmentExpression::Yield(_) |
+            AssignmentExpression::Assignment(_, _) |
+            AssignmentExpression::OpAssignment(_, _, _) |
+            AssignmentExpression::LandAssignment(_, _) |
+            AssignmentExpression::LorAssignment(_, _) |
+            AssignmentExpression::CoalAssignment(_, _) |
+            AssignmentExpression::Destructuring(_, _) => None,
+        }
+    }
+
     pub fn is_named_function(&self) -> bool {
         match self {
             AssignmentExpression::Yield(_)

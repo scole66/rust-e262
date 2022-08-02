@@ -466,7 +466,7 @@ mod nameable_production {
         let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
         let mut c = Chunk::new("x");
         let id = c.add_to_string_pool("my_function_name".into()).unwrap();
-        node.compile_named_evaluation(&mut c, strict, src, id)
+        node.compile_named_evaluation(&mut c, strict, src, NameLoc::Index(id))
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -477,6 +477,22 @@ mod nameable_production {
             .map_err(|e| e.to_string())
     }
 
+    #[test_case("function (){}" => false; "function, unnamed")]
+    #[test_case("function foo(){}" => true; "function, named")]
+    #[test_case("(x => x)" => false; "arrow")]
+    #[test_case("(async x => 0)" => false; "async arrow")]
+    #[test_case("function *(){}" => false; "generator, unnamed")]
+    #[test_case("function *foo(){}" => true; "generator, named")]
+    #[test_case("async function (){}" => false; "async fn, unnamed")]
+    #[test_case("async function foo (){}" => true; "async fn, named")]
+    #[test_case("async function *(){}" => false; "async gen, unnamed")]
+    #[test_case("async function *foo(){}" => true; "async gen, named")]
+    #[test_case("class {}" => false; "class, unnamed")]
+    #[test_case("class foo {}" => true; "class, named")]
+    fn is_named_function(src: &str) -> bool {
+        let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
+        node.is_named_function()
+    }
 }
 
 // A note about compile tests: These are really unit tests; they check that all the code paths are run, and that the
@@ -504,6 +520,44 @@ fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
     c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
+    c
+}
+
+#[derive(Copy, Clone)]
+enum Fillable {
+    Float,
+    String,
+    BigInt,
+    LabelSet,
+    FunctionStash,
+}
+fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
+    let mut c = Chunk::new(name);
+    const LIMIT: usize = 65536;
+    for &(section, slots_left) in what {
+        match section {
+            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0),
+            Fillable::String => c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler")),
+            Fillable::BigInt => c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783))),
+            Fillable::LabelSet => {
+                let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
+                c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
+            }
+            Fillable::FunctionStash => {
+                let src = "function (a, b) { return a + b; }";
+                let func_def = Maker::new(src).function_declaration();
+                let sample = StashedFunctionData {
+                    source_text: src.to_string(),
+                    params: func_def.params.clone().into(),
+                    body: func_def.body.clone().into(),
+                    to_compile: func_def.into(),
+                    strict: true,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                c.function_object_data.resize(LIMIT - slots_left.min(LIMIT), sample);
+            }
+        }
+    }
     c
 }
 
@@ -2041,9 +2095,9 @@ mod assignment_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a=6", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a=6", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "JUMP_IF_ABRUPT 5",
@@ -2052,7 +2106,7 @@ mod assignment_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true, false)); "strict assignment expr")]
-    #[test_case("a=6", false, None => Ok((svec(&[
+    #[test_case("a=6", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "JUMP_IF_ABRUPT 5",
@@ -2061,10 +2115,60 @@ mod assignment_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true, false)); "non-strict assignment expr")]
-    #[test_case("a=1", true, Some(0) => serr("Out of room for strings in this compilation unit"); "lhse errs")]
-    #[test_case("a=function(){}", true, None => panics "not yet implemented"; "anonymous func")]
-    #[test_case("a=b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "ae errs")]
-    #[test_case("a=b", true, None => Ok((svec(&[
+    #[test_case("a=1", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "lhse errs")]
+    #[test_case("a=function(){}", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 0 (a)",
+        "FUNC_IIFE 0",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "anonymous func/strict")]
+    #[test_case("a=function(){}", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 0 (a)",
+        "FUNC_IIFE 0",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "anonymous func/non-strict")]
+    #[test_case("a=function(){}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "full function table")]
+    #[test_case("a[1]=function(){}", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 10",
+        "FLOAT 0 (1)",
+        "TO_KEY",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "REF",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 ()",
+        "FUNC_IIFE 0",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "non-id lref in anon func")]
+    #[test_case("a=b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "ae errs")]
+    #[test_case("a=b", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "JUMP_IF_ABRUPT 13",
@@ -2079,7 +2183,7 @@ mod assignment_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true, false)); "ae is reference; strict")]
-    #[test_case("a=b", false, None => Ok((svec(&[
+    #[test_case("a=b", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "JUMP_IF_ABRUPT 13",
@@ -2094,19 +2198,25 @@ mod assignment_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true, false)); "ae is reference; non-strict")]
-    #[test_case("a+=3", true, None => panics "not yet implemented"; "mutating assignment")]
-    #[test_case("a=@@@", true, None => serr("out of range integral type conversion attempted"); "ae is too big")]
-    #[test_case("1=0", true, None => Ok((svec(&[
+    #[test_case("a+=3", true, &[] => panics "not yet implemented"; "mutating assignment")]
+    #[test_case("a=@@@", true, &[] => serr("out of range integral type conversion attempted"); "ae is too big")]
+    #[test_case("1=0", true, &[] => Ok((svec(&[
         "FLOAT 0 (1)",
         "FLOAT 1 (0)",
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true, false)); "lhse not abrupt")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case("x => 0", true, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
+    #[test_case("yield 1", true, &[] => panics "not yet implemented"; "yield expr")]
+    #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
+    #[test_case("a &&= b", true, &[] => panics "not yet implemented"; "logical and assignment")]
+    #[test_case("a ||= b", true, &[] => panics "not yet implemented"; "logical or assignment")]
+    #[test_case("c ??= b", true, &[] => panics "not yet implemented"; "coalesce assignment")]
+    #[test_case("{a} = b", true, &[] => panics "not yet implemented"; "destructuring assignment")]
+    fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).assignment_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slots_left);
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
@@ -3565,6 +3675,73 @@ mod labelled_statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod binding_identifier {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("alpha", true, true, None => Ok((svec(&["STRING 0 (alpha)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/has_dupes/normal")]
+    #[test_case("alpha", false, true, None => Ok((svec(&["STRING 0 (alpha)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/has_dupes/normal")]
+    #[test_case("alpha", true, false, None => Ok((svec(&["ILB 0 (alpha)"]), false, false)); "strict/no_dupes/normal")]
+    #[test_case("alpha", false, false, None => Ok((svec(&["ILB 0 (alpha)"]), false, false)); "non-strict/no_dupes/normal")]
+    #[test_case("yield", true, false, None => Ok((svec(&["ILB 0 (yield)"]), false, false)); "strict/no_dupes/yield")]
+    #[test_case("await", true, false, None => Ok((svec(&["ILB 0 (await)"]), false, false)); "strict/no_dupes/await")]
+    #[test_case("alpha", true, false, Some(0) => serr("Out of room for strings in this compilation unit"); "no space left")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dupes: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).yield_ok(false).await_ok(false).binding_identifier();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile_binding_initialization(&mut c, strict, has_dupes)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod binding_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("alpha", true, false, None => Ok((svec(&[
+        "EXTRACT_ARG", "STRING 0 (alpha)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"
+    ]), false, false)); "single name/strict")]
+    #[test_case("{alpha}", true, false, None => Ok((svec(&["EXTRACT_ARG", "TODO"]), true, false)); "no-init pattern")]
+    #[test_case("{alpha}=beta", true, false, None => Ok((svec(&["EXTRACT_ARG", "JUMP_NOT_UNDEF 10", "POP", "STRING 0 (beta)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 3", "UNWIND_LIST", "JUMP 1", "TODO"]), true, false)); "init pattern")]
+    #[test_case("{alpha}=3", true, false, None => Ok((svec(&["EXTRACT_ARG", "JUMP_NOT_UNDEF 3", "POP", "FLOAT 0 (3)", "TODO"]), true, false)); "init by errorfree")]
+    #[test_case("{alpha}=beta", false, false, Some(0) => serr("Out of room for strings in this compilation unit"); "no room")]
+    #[test_case("{alhpa}=@@@", false, false, None => serr("out of range integral type conversion attempted"); "initializer too large")]
+    #[test_case("{alpha}=xxx", false, false, Some(1) => serr("Out of room for strings in this compilation unit"); "almost no room")]
+    #[test_case("{alpha}=a", false, true, None => serr("out of range integral type conversion attempted"); "pattern too complex")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dupes: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).binding_element();
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile_binding_initialization(&mut c, strict, src, has_dupes)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
