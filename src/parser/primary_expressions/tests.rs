@@ -604,6 +604,23 @@ mod primary_expression {
         Maker::new(src).primary_expression().is_identifier_ref()
     }
 
+    #[test_case("this" => None; "this")]
+    #[test_case("a" => ssome("a"); "identifier ref")]
+    #[test_case("1" => None; "literal")]
+    #[test_case("[1]" => None; "array literal")]
+    #[test_case("{a:1}" => None; "object literal")]
+    #[test_case("function (){}" => None; "function expression")]
+    #[test_case("class {}" => None; "class expression")]
+    #[test_case("function *(){}" => None; "generator expression")]
+    #[test_case("async function (){}" => None; "async fn")]
+    #[test_case("async function *(){}" => None; "async gen")]
+    #[test_case("/a/" => None; "regex")]
+    #[test_case("``" => None; "template")]
+    #[test_case("(a)" => None; "parenthesized")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).primary_expression().identifier_ref().map(|id| id.to_string())
+    }
+
     #[test_case("this" => false; "this")]
     #[test_case("a" => false; "identifier ref")]
     #[test_case("1" => false; "literal")]
@@ -1731,6 +1748,13 @@ mod initializer {
     #[test_case("=function (){}" => true; "anon func")]
     fn is_anonymous_function_definition(src: &str) -> bool {
         Maker::new(src).initializer().is_anonymous_function_definition()
+    }
+
+    #[test_case("=a" => None; "not function")]
+    #[test_case("=function a(){}" => None; "named function")]
+    #[test_case("=function (){}" => ssome("function (  ) {  }"); "unnamed function")]
+    fn anonymous_function_definition(src: &str) -> Option<String> {
+        Maker::new(src).initializer().anonymous_function_definition().map(|fd| fd.to_string())
     }
 }
 

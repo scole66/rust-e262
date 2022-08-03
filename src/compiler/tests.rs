@@ -862,11 +862,7 @@ mod property_definition {
     ]), true, false)); "rest object, non-strict")]
     #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest object, ae errs")]
     #[test_case("...true", false, &[] => Ok((svec(&["TRUE", "COPY_DATA_PROPS"]), true, false)); "rest object, not reference")]
-    fn compile(
-        src: &str,
-        strict: bool,
-        what: &[(Fillable, usize)]
-    ) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition();
         let mut c = complex_filled_chunk("x", what);
         node.property_definition_evaluation(&mut c, strict, src)
@@ -3551,7 +3547,11 @@ mod function_declaration {
     #[test_case("function (){}", true, &[] => Ok((svec(&["FUNC_OBJ 0 default"]), true, false)); "unnamed function")]
     #[test_case("function (){}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no room for strings")]
     #[test_case("function (){}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "no room for functions")]
-    fn compile_fo_instantiation(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile_fo_instantiation(
+        src: &str,
+        strict: bool,
+        slots_left: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_declaration();
         let mut c = complex_filled_chunk("x", slots_left);
         node.compile_fo_instantiation(&mut c, strict, src, node.clone())
@@ -3837,11 +3837,7 @@ mod return_statement {
     #[test_case("return a;", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "RETURN"]), true, false)); "exp return; strict")]
     #[test_case("return a;", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "RETURN"]), true, false)); "exp return; non-strict")]
     #[test_case("return a;", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expr compilation fails")]
-    fn compile(
-        src: &str,
-        strict: bool,
-        what: &[(Fillable, usize)]
-    ) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).return_statement();
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
@@ -3854,5 +3850,4 @@ mod return_statement {
             })
             .map_err(|e| e.to_string())
     }
-
 }

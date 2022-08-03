@@ -461,18 +461,18 @@ impl PrimaryExpression {
     pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
         match self {
             PrimaryExpression::IdentifierReference { node } => Some(node.clone()),
-            PrimaryExpression::This { .. } |
-            PrimaryExpression::Literal { .. } |
-            PrimaryExpression::ArrayLiteral { .. } |
-            PrimaryExpression::ObjectLiteral { .. } |
-            PrimaryExpression::Parenthesized { .. } |
-            PrimaryExpression::TemplateLiteral { .. } |
-            PrimaryExpression::Function { .. } |
-            PrimaryExpression::Class { .. } |
-            PrimaryExpression::Generator { .. } |
-            PrimaryExpression::AsyncFunction { .. } |
-            PrimaryExpression::AsyncGenerator { .. } |
-            PrimaryExpression::RegularExpression { .. } => None,
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::ArrayLiteral { .. }
+            | PrimaryExpression::ObjectLiteral { .. }
+            | PrimaryExpression::Parenthesized { .. }
+            | PrimaryExpression::TemplateLiteral { .. }
+            | PrimaryExpression::Function { .. }
+            | PrimaryExpression::Class { .. }
+            | PrimaryExpression::Generator { .. }
+            | PrimaryExpression::AsyncFunction { .. }
+            | PrimaryExpression::AsyncGenerator { .. }
+            | PrimaryExpression::RegularExpression { .. } => None,
         }
     }
 

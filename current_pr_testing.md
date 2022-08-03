@@ -33,6 +33,16 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerDeclaration`
 * `./t CompilerReturnStatement`
 * `./t CompilerLabelledItem`
+* `./t AssignmentExpression`
+* `./t FcnDef`
+* `./t AsyncFunctionBody`
+* `./t AsyncGeneratorBody`
+* `./t LabelledItem`
+* `./t MemberExpression`
+* `./t NewExpression`
+* `./t LeftHandSideExpression`
+* `./t PrimaryExpression`
+* `./t Initializer`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -41,7 +51,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerBindingElement CompilerAssignmentExpression CompilerFcnDef CompilerBindingPattern \
     CompilerFunctionDeclaration CompilerPropertyDefinition CompilerLexicalBinding CompilerBlock \
     CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
-    CompilerLabelledItem
+    CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
+    MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer
 ```
 
 ## To Check
@@ -65,15 +76,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `FcnDef::instantiate_function_object`
 * `global_declaration_instantiation`
 * `script_evaluation`
-
-### `src/parser/async_generator_function_definitions/mod.rs`
-
-* `AsyncGeneratorBody::lexically_declared_names`
-* `AsyncGeneratorBody::lexically_scoped_declarations`
-
-### `src/parser/async_function_definitions/mod.rs`
-
-* `AsyncFunctionBody::lexically_scoped_declarations`
 
 ### `src/object/mod.rs`
 
@@ -144,15 +146,6 @@ Uncovered Items:
 * SymbolObject
 * SymbolRegistry
 * provision_symbol_intrinsic
-* AssignmentExpression
-* AsyncFunctionBody
-* AsyncGeneratorBody
-* LabelledItem
-* MemberExpression
-* NewExpression
-* LeftHandSideExpression
-* PrimaryExpression
-* Initializer
 * Agent
 * Agent_initialize_host_defined_realm
 * Agent_prefix_decrement
@@ -164,7 +157,6 @@ Uncovered Items:
 * Agent_prefix_increment
 * Agent_current_lexical_environment
 * Agent_set_realm_global_object
-* FcnDef
 * global_declaration_instantiation
 * ObjectEnvironmentRecord
 * FunctionEnvironmentRecord
