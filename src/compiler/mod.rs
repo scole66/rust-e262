@@ -2581,7 +2581,7 @@ impl ReturnStatement {
                 };
                 chunk.op(Insn::Return);
                 if let Some(mark) = exit {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).expect("jump too short to fail");
                 }
             }
         }

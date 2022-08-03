@@ -22,8 +22,27 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerBindingIdentifier`
 * `./t CompilerBindingElement`
 * `./t CompilerAssignmentExpression`
+* `./t CompilerFcnDef`
+* `./t CompilerBindingPattern`
+* `./t CompilerFunctionDeclaration`
+* `./t CompilerPropertyDefinition`
+* `./t CompilerLexicalBinding`
+* `./t CompilerBlock`
+* `./t CompilerVariableDeclaration`
+* `./t CompilerStatement`
+* `./t CompilerDeclaration`
+* `./t CompilerReturnStatement`
+* `./t CompilerLabelledItem`
 
-* `./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody Insn BindingStatus ConciseBody InternalSlotName make_basic_object Chunk Chunk_add_to_func_stash NameableProduction StashedFunctionData FunctionBody FunctionStatementList CompilerBindingIdentifier CompilerBindingElement CompilerAssignmentExpression`
+```bash
+./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
+    Insn BindingStatus ConciseBody InternalSlotName make_basic_object Chunk Chunk_add_to_func_stash \
+    NameableProduction StashedFunctionData FunctionBody FunctionStatementList CompilerBindingIdentifier \
+    CompilerBindingElement CompilerAssignmentExpression CompilerFcnDef CompilerBindingPattern \
+    CompilerFunctionDeclaration CompilerPropertyDefinition CompilerLexicalBinding CompilerBlock \
+    CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
+    CompilerLabelledItem
+```
 
 ## To Check
 
@@ -100,15 +119,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `Statement`
-* `Declaration`
-* `FcnDef`
-* `Block`
-* `LexicalBinding`
-* `VariableDeclaration`
-* `ReturnStatement`
-* `LabelledItem`
-* `FunctionDeclaration`
 * `FunctionExpression`
 * `compile_fdi`
 * `ArrowFunction`
@@ -123,7 +133,39 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `FormalParameterList`
 * `FormalParameter`
 * `SingleNameBinding`
-* `BindingPattern`
 * `FunctionRestParameter`
 * `FunctionBody`
 * `FunctionStatementList`
+
+### Existing Test Framework Coverage Misses
+
+Uncovered Items:
+
+* SymbolObject
+* SymbolRegistry
+* provision_symbol_intrinsic
+* AssignmentExpression
+* AsyncFunctionBody
+* AsyncGeneratorBody
+* LabelledItem
+* MemberExpression
+* NewExpression
+* LeftHandSideExpression
+* PrimaryExpression
+* Initializer
+* Agent
+* Agent_initialize_host_defined_realm
+* Agent_prefix_decrement
+* Agent_intrinsic
+* Agent_set_default_global_bindings
+* Agent_binary_operation
+* Agent_evaluate
+* Agent_execute
+* Agent_prefix_increment
+* Agent_current_lexical_environment
+* Agent_set_realm_global_object
+* FcnDef
+* global_declaration_instantiation
+* ObjectEnvironmentRecord
+* FunctionEnvironmentRecord
+* GlobalEnvironmentRecord

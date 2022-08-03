@@ -127,6 +127,9 @@ for name in ${names[@]}; do
     NameableProduction) data=($name nameable_production compiler) ;;
     CompilerBindingIdentifier) data=(parser::identifiers::BindingIdentifier binding_identifier compiler) ;;
     CompilerBindingElement) data=(parser::declarations_and_variables::BindingElement binding_element compiler) ;;
+    CompilerBindingPattern) data=(parser::declarations_and_variables::BindingPattern binding_pattern compiler) ;;
+    CompilerReturnStatement) data=(parser::return_statement::ReturnStatement return_statement compiler) ;;
+    CompilerFunctionExpression) data=(parser::function_definitions::FunctionExpression function_expression compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
@@ -439,15 +442,28 @@ for name in ${names[@]}; do
   namelist=${location}/namelist
   report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
 
+  echo "$name" > ${location}/name.txt
 done
 
+has_uncovered=()
 for d in ${results[@]}; do
   namelist=${d}/namelist
   echo "Rendering:"
   rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
-  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata
+  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata | tee ${d}/lines.txt
+  if [ $(wc -l < ${d}/lines.txt) -gt 0 ]; then
+    has_uncovered=("${has_uncovered[@]}" "$(< ${d}/name.txt)")
+  fi
 done
 
 for d in ${results[@]}; do
   rm -rf $d
 done
+
+if [ ${#has_uncovered[@]} -gt 0 -a ${#results[@]} -gt 1 ]; then
+  echo
+  echo "Uncovered Items:"
+  for item in ${has_uncovered[@]}; do
+    echo " * $item"
+  done
+fi

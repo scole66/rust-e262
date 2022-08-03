@@ -490,8 +490,8 @@ impl AssignmentExpression {
 
     pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
         match self.function_definition() {
-            Some(fd) => if fd.is_named_function() { None } else { Some(NameableProduction::from(fd)) },
-            None => None,
+            Some(fd) if !fd.is_named_function() => Some(fd),
+            Some(_) | None => None
         }
     }
 
