@@ -5,7 +5,7 @@ use itertools::Itertools;
 use num::bigint::BigInt;
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StashedFunctionData {
     pub source_text: String,
     pub params: ParamSource,

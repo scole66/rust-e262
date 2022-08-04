@@ -759,6 +759,11 @@ mod async_function_body {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_function_body().var_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("let a; const b=0; var c; function d(){}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).async_function_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
 }
 
 // AWAIT EXPRESSION

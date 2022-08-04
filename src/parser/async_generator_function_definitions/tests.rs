@@ -835,4 +835,14 @@ mod async_generator_body {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_generator_body().var_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["a", "b"]); "typical")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).async_generator_body().lexically_declared_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).async_generator_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
 }

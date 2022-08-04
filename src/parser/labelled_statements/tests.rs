@@ -399,4 +399,10 @@ mod labelled_item {
     fn location(src: &str) -> Location {
         Maker::new(src).labelled_item().location()
     }
+
+    #[test_case("10;" => svec(&[]); "statement")]
+    #[test_case("function blue(){}" => svec(&["function blue (  ) {  }"]); "function")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
 }

@@ -474,6 +474,19 @@ mod member_expression {
         Maker::new(src).member_expression().is_identifier_ref()
     }
 
+    #[test_case("a[b]" => None; "brackets")]
+    #[test_case("a.b" => None; "property id")]
+    #[test_case("a`${b}`" => None; "template")]
+    #[test_case("super.a" => None; "super prop")]
+    #[test_case("new.target" => None; "meta")]
+    #[test_case("new a(b)" => None; "new me")]
+    #[test_case("a.#b" => None; "private id")]
+    #[test_case("beetle" => ssome("beetle"); "id")]
+    #[test_case("1" => None; "literal fallthru")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).member_expression().identifier_ref().map(|node| node.to_string())
+    }
+
     #[test_case("  a[b]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "brackets")]
     #[test_case("  a.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "property id")]
     #[test_case("  a`${b}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "template")]
@@ -1248,6 +1261,13 @@ mod new_expression {
     #[test_case("new a" => false; "other new expr")]
     fn is_identifier_ref(src: &str) -> bool {
         Maker::new(src).new_expression().is_identifier_ref()
+    }
+
+    #[test_case("idref" => ssome("idref"); "Id Ref")]
+    #[test_case("10" => None; "literal")]
+    #[test_case("new a" => None; "other new expr")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).new_expression().identifier_ref().map(|id| id.to_string())
     }
 }
 
@@ -2813,6 +2833,32 @@ mod left_hand_side_expression {
     #[test_case("a?.b" => false; "optional")]
     fn is_identifier_ref(src: &str) -> bool {
         Maker::new(src).left_hand_side_expression().is_identifier_ref()
+    }
+
+    #[test_case("idref" => ssome("idref"); "Id Ref")]
+    #[test_case("this" => None; "this kwd")]
+    #[test_case("10" => None; "literal")]
+    #[test_case("[10, 11, 12]" => None; "array literal")]
+    #[test_case("{ a: 12 }" => None; "object literal")]
+    #[test_case("function a(){}" => None; "function expression")]
+    #[test_case("function *a(){}" => None; "generator expression")]
+    #[test_case("async function () {}" => None; "async func expr")]
+    #[test_case("async function *(){}" => None; "async gen expr")]
+    #[test_case("/abcd/" => None; "regex literal")]
+    #[test_case("`template`" => None; "template literal")]
+    #[test_case("(id)" => None; "parentheszied expr")]
+    #[test_case("a[0]" => None; "expression member access")]
+    #[test_case("a.a" => None; "name member access")]
+    #[test_case("a`${b}`" => None; "tagged template")]
+    #[test_case("super.a" => None; "super prop")]
+    #[test_case("new.target" => None; "meta prop")]
+    #[test_case("new a()" => None; "new expr")]
+    #[test_case("a.#b" => None; "private member access")]
+    #[test_case("new a" => None; "other new expr")]
+    #[test_case("a()" => None; "call")]
+    #[test_case("a?.b" => None; "optional")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).left_hand_side_expression().identifier_ref().map(|id| id.to_string())
     }
 
     #[test_case("  1" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "literal")]

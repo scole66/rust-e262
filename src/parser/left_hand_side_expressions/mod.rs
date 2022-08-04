@@ -438,6 +438,18 @@ impl MemberExpression {
             | MemberExpression::PrivateId(..) => false,
         }
     }
+    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+        match self {
+            MemberExpression::PrimaryExpression(x) => x.identifier_ref(),
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::TemplateLiteral(..)
+            | MemberExpression::SuperProperty(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..)
+            | MemberExpression::PrivateId(..) => None,
+        }
+    }
 
     pub fn is_named_function(&self) -> bool {
         match self {
@@ -1255,6 +1267,12 @@ impl NewExpression {
             NewExpression::MemberExpression(x) => x.is_identifier_ref(),
         }
     }
+    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+        match self {
+            NewExpression::NewExpression(..) => None,
+            NewExpression::MemberExpression(x) => x.identifier_ref(),
+        }
+    }
 
     pub fn is_named_function(&self) -> bool {
         match self {
@@ -2025,6 +2043,12 @@ impl LeftHandSideExpression {
         match self {
             LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => false,
             LeftHandSideExpression::New(x) => x.is_identifier_ref(),
+        }
+    }
+    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+        match self {
+            LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => None,
+            LeftHandSideExpression::New(x) => x.identifier_ref(),
         }
     }
 
