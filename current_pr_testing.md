@@ -15,6 +15,52 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t make_basic_object`
 * `./t Chunk`
 * `./t Chunk_add_to_func_stash`
+* `./t NameableProduction`
+* `./t StashedFunctionData`
+* `./t FunctionBody`
+* `./t FunctionStatementList`
+* `./t CompilerBindingIdentifier`
+* `./t CompilerBindingElement`
+* `./t CompilerAssignmentExpression`
+* `./t CompilerFcnDef`
+* `./t CompilerBindingPattern`
+* `./t CompilerFunctionDeclaration`
+* `./t CompilerPropertyDefinition`
+* `./t CompilerLexicalBinding`
+* `./t CompilerBlock`
+* `./t CompilerVariableDeclaration`
+* `./t CompilerStatement`
+* `./t CompilerDeclaration`
+* `./t CompilerReturnStatement`
+* `./t CompilerLabelledItem`
+* `./t AssignmentExpression`
+* `./t FcnDef`
+* `./t AsyncFunctionBody`
+* `./t AsyncGeneratorBody`
+* `./t LabelledItem`
+* `./t MemberExpression`
+* `./t NewExpression`
+* `./t LeftHandSideExpression`
+* `./t PrimaryExpression`
+* `./t Initializer`
+* `./t ObjectEnvironmentRecord`
+* `./t CompilerFunctionExpression`
+* `./t CompilerFunctionExpression_instantiate_ordinary_function_expression`
+* `./t GlobalEnvironmentRecord`
+* `./t compile_fdi`
+
+```bash
+./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
+    Insn BindingStatus ConciseBody InternalSlotName make_basic_object Chunk Chunk_add_to_func_stash \
+    NameableProduction StashedFunctionData FunctionBody FunctionStatementList CompilerBindingIdentifier \
+    CompilerBindingElement CompilerAssignmentExpression CompilerFcnDef CompilerBindingPattern \
+    CompilerFunctionDeclaration CompilerPropertyDefinition CompilerLexicalBinding CompilerBlock \
+    CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
+    CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
+    MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
+    ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord \
+    CompilerFunctionExpression_instantiate_ordinary_function_expression
+```
 
 ## To Check
 
@@ -37,24 +83,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `FcnDef::instantiate_function_object`
 * `global_declaration_instantiation`
 * `script_evaluation`
-
-### `src/chunk/mod.rs`
-
-* `StashedFunctionData`
-
-### `src/parser/function_definitions/mod.rs`
-
-* `FunctionBody::lexically_scoped_declarations`
-* `FunctionStatementList::lexically_scoped_declarations`
-
-### `src/parser/async_generator_function_definitions/mod.rs`
-
-* `AsyncGeneratorBody::lexically_declared_names`
-* `AsyncGeneratorBody::lexically_scoped_declarations`
-
-### `src/parser/async_function_definitions/mod.rs`
-
-* `AsyncFunctionBody::lexically_scoped_declarations`
 
 ### `src/object/mod.rs`
 
@@ -100,19 +128,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `NameableProduction`
-* `AssignmentExpression`
-* `Statement`
-* `Declaration`
-* `FcnDef`
-* `Block`
-* `LexicalBinding`
-* `VariableDeclaration`
-* `ReturnStatement`
-* `LabelledItem`
-* `FunctionDeclaration`
-* `FunctionExpression`
-* `compile_fdi`
 * `ArrowFunction`
 * `ConciseBody`
 * `ExpressionBody`
@@ -122,12 +137,30 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `ArrowFormalParameters`
 * `UniqueFormalParameters`
 * `compile_initialize_bound_name`
-* `BindingIdentifier`
 * `FormalParameterList`
 * `FormalParameter`
-* `BindingElement`
 * `SingleNameBinding`
-* `BindingPattern`
 * `FunctionRestParameter`
 * `FunctionBody`
 * `FunctionStatementList`
+
+### Existing Test Framework Coverage Misses
+
+Uncovered Items:
+
+* SymbolObject
+* SymbolRegistry
+* provision_symbol_intrinsic
+* Agent
+* Agent_initialize_host_defined_realm
+* Agent_prefix_decrement
+* Agent_intrinsic
+* Agent_set_default_global_bindings
+* Agent_binary_operation
+* Agent_evaluate
+* Agent_execute
+* Agent_prefix_increment
+* Agent_current_lexical_environment
+* Agent_set_realm_global_object
+* global_declaration_instantiation
+* FunctionEnvironmentRecord

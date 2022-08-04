@@ -56,6 +56,19 @@ impl From<Rc<ConciseBody>> for BodySource {
     }
 }
 
+impl PartialEq for BodySource {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Function(l0), Self::Function(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::Generator(l0), Self::Generator(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncFunction(l0), Self::AsyncFunction(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncGenerator(l0), Self::AsyncGenerator(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ConciseBody(l0), Self::ConciseBody(r0)) => Rc::ptr_eq(l0, r0),
+            _ => false,
+        }
+    }
+}
+
 impl TryFrom<BodySource> for Rc<FunctionBody> {
     type Error = anyhow::Error;
     fn try_from(value: BodySource) -> Result<Self, Self::Error> {
@@ -123,6 +136,16 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
 }
 
+impl PartialEq for ParamSource {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::FormalParameters(l0), Self::FormalParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
+            _ => false,
+        }
+    }
+}
+
 impl From<Rc<FormalParameters>> for ParamSource {
     fn from(src: Rc<FormalParameters>) -> Self {
         Self::FormalParameters(src)
@@ -185,6 +208,25 @@ pub enum FunctionSource {
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
+}
+
+impl PartialEq for FunctionSource {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::FunctionExpression(l0), Self::FunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::GeneratorExpression(l0), Self::GeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncGeneratorExpression(l0), Self::AsyncGeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncFunctionExpression(l0), Self::AsyncFunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ArrowFunction(l0), Self::ArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::MethodDefinition(l0), Self::MethodDefinition(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::HoistableDeclaration(l0), Self::HoistableDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::FieldDefinition(l0), Self::FieldDefinition(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ClassStaticBlock(l0), Self::ClassStaticBlock(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            _ => false,
+        }
+    }
 }
 impl From<Rc<FunctionExpression>> for FunctionSource {
     fn from(fe: Rc<FunctionExpression>) -> Self {

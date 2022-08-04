@@ -1067,17 +1067,20 @@ mod fcn_def {
         part.bound_name().to_string()
     }
 
-    //    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => panics "not yet implemented"; "function decl")]
-    //    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => panics "not yet implemented"; "generator decl")]
-    //    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => panics "not yet implemented"; "async function decl")]
-    //    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => panics "not yet implemented"; "async generator decl")]
-    //    fn instantiate_function_object(part: FcnDef) {
-    //        let mut agent = test_agent();
-    //        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-    //        let env = global_env as Rc<dyn EnvironmentRecord>;
-    //
-    //        part.instantiate_function_object(&mut agent, env, None);
-    //    }
+    #[test_case({ let src = "function red(){}"; (FcnDef::Function(Maker::new(src).function_declaration()), src.into()) } => sok("red"); "function decl")]
+    #[test_case({ let src = "function *blue(){}"; (FcnDef::Generator(Maker::new(src).generator_declaration()), src.into()) } => panics "not yet implemented"; "generator decl")]
+    #[test_case({ let src = "async function green(){}"; (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.into()) } => panics "not yet implemented"; "async function decl")]
+    #[test_case({ let src = "async function *orange(){}"; (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.into()) } => panics "not yet implemented"; "async generator decl")]
+    fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
+        let (part, src) = part;
+        let mut agent = test_agent();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let env = global_env as Rc<dyn EnvironmentRecord>;
+
+        part.instantiate_function_object(&mut agent, env, None, true, &src)
+            .map_err(|err| err.to_string())
+            .map(|value| getv(&mut agent, &value, &"name".into()).unwrap().to_string())
+    }
 }
 
 mod top_level_var_decl {

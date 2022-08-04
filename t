@@ -125,6 +125,14 @@ for name in ${names[@]}; do
     NeverAbruptRefResult) data=($name never_abrupt_ref_result compiler) ;;
     CompilerFcnDef) data=(agent::FcnDef fcn_def compiler) ;;
     NameableProduction) data=($name nameable_production compiler) ;;
+    CompilerBindingIdentifier) data=(parser::identifiers::BindingIdentifier binding_identifier compiler) ;;
+    CompilerBindingElement) data=(parser::declarations_and_variables::BindingElement binding_element compiler) ;;
+    CompilerBindingPattern) data=(parser::declarations_and_variables::BindingPattern binding_pattern compiler) ;;
+    CompilerReturnStatement) data=(parser::return_statement::ReturnStatement return_statement compiler) ;;
+    CompilerFunctionExpression) data=(parser::function_definitions::FunctionExpression function_expression compiler) ;;
+    CompilerFunctionExpression_instantiate_ordinary_function_expression) data=(parser::function_definitions::FunctionExpression::instantiate_ordinary_function_expression function_expression::instantiate_ordinary_function_expression compiler) ;;
+    compile_fdi) data=($name $name compiler) ;;
+    CompilerArrowFunction) data=(parser::arrow_function_definitions::ArrowFunction arrow_function compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
@@ -364,6 +372,7 @@ for name in ${names[@]}; do
 
     Chunk) data=($name chunk chunk) ;;
     Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
+    StashedFunctionData) data=($name stashed_function_data chunk) ;;
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;
@@ -436,15 +445,28 @@ for name in ${names[@]}; do
   namelist=${location}/namelist
   report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
 
+  echo "$name" > ${location}/name.txt
 done
 
+has_uncovered=()
 for d in ${results[@]}; do
   namelist=${d}/namelist
   echo "Rendering:"
   rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
-  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata
+  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata | tee ${d}/lines.txt
+  if [ $(wc -l < ${d}/lines.txt) -gt 0 ]; then
+    has_uncovered=("${has_uncovered[@]}" "$(< ${d}/name.txt)")
+  fi
 done
 
 for d in ${results[@]}; do
   rm -rf $d
 done
+
+if [ ${#has_uncovered[@]} -gt 0 -a ${#results[@]} -gt 1 ]; then
+  echo
+  echo "Uncovered Items:"
+  for item in ${has_uncovered[@]}; do
+    echo " * $item"
+  done
+fi

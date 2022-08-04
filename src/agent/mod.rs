@@ -1708,7 +1708,7 @@ impl Agent {
         let env = self.current_lexical_environment().expect("Lexical environment must exist if code is running");
         let priv_env = self.current_private_environment();
 
-        let name = JSString::try_from(
+        let name = PropertyKey::try_from(
             ECMAScriptValue::try_from(
                 self.execution_context_stack[index]
                     .stack
@@ -1718,7 +1718,7 @@ impl Agent {
             )
             .expect("Argument must be a value"),
         )
-        .expect("Argument must be a string");
+        .expect("Argument must be a property key");
 
         let function_prototype = self.intrinsic(IntrinsicId::FunctionPrototype);
 
