@@ -3951,17 +3951,11 @@ mod compile_fdi {
     }
 
     fn insane(strict: bool) -> (StashedFunctionData, String) {
-        // So; this works when the number of test threads is one. The default (which is more), establishes
-        // smaller than huge stack sizes for each of the test threads, and the parse of this insanely large
-        // var statement blows past it. The right fix is probably to switch out those recursive list
-        // definitions to something iterative, but that's for a future fix.
-        //
-        // This test does prove my error spot is hit when things get too large, so it definitely is a valid
-        // thing to have.
+        // lots of variables in one statement, to overflow jumps
         let header = "function insane(a=b){var v0";
         let trailer = ";}";
-        let mut src = String::with_capacity(16384 * 7) + header;
-        for idx in 1..16384 {
+        let mut src = String::with_capacity(6554 * 6) + header;
+        for idx in 1..6554 {
             write!(src, ",v{idx}").unwrap();
         }
         src += trailer;
@@ -4091,7 +4085,7 @@ mod compile_fdi {
     ]), false, false)); "lexical instantiation")]
     #[test_case(|s| function("function a(){let x; const y=1;}", s), false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "string table full (lexical instantiation)")]
     #[test_case(|s| function("function a(){function b(){}}", s), false, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full (function initialization)")]
-    #[test_case(insane, false, &[] => ignore serr("out of range integral type conversion attempted"); "branch too far")]
+    #[test_case(insane, false, &[] => serr("out of range integral type conversion attempted"); "branch too far")]
     fn compile_fdi(
         make_function: impl FnOnce(bool) -> (StashedFunctionData, String),
         strict: bool,
