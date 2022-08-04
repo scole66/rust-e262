@@ -1657,22 +1657,20 @@ impl ExpressionStatement {
 
 impl StatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        match self {
-            StatementList::Item(sli) => sli.compile(chunk, strict, text),
-            StatementList::List(sl, sli) => {
-                let mut mark = None;
-                let status = sl.compile(chunk, strict, text)?;
-                if status == AbruptResult::Maybe {
-                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
-                let second_status = sli.compile(chunk, strict, text)?;
-                chunk.op(Insn::UpdateEmpty);
-                if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
-                }
-                Ok((status == AbruptResult::Maybe || second_status == AbruptResult::Maybe).into())
+        let mut status = self.list[0].compile(chunk, strict, text)?;
+        let mut exits = vec![];
+        for item in self.list[1..].iter() {
+            if status.maybe_abrupt() {
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
             }
+            status = item.compile(chunk, strict, text)?;
+            chunk.op(Insn::UpdateEmpty);
         }
+        let might_have_been_abrupt = status.maybe_abrupt() || !exits.is_empty();
+        for mark in exits {
+            chunk.fixup(mark)?;
+        }
+        Ok(AbruptResult::from(might_have_been_abrupt))
     }
 }
 
