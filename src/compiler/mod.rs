@@ -3089,9 +3089,10 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         // b. Let varEnv be NewDeclarativeEnvironment(env).
         // c. Set the VariableEnvironment of calleeContext to varEnv.
         chunk.op(Insn::PushNewVarEnvFromLex);
-        let instantiated_var_names = AHashSet::<JSString>::new();
+        let mut instantiated_var_names = AHashSet::<JSString>::new();
         for n in var_names {
             if !instantiated_var_names.contains(&n) {
+                instantiated_var_names.insert(n.clone());
                 let idx = chunk.add_to_string_pool(n.clone())?;
                 chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx);
                 if !parameter_names.contains(&n) || function_names.contains(&n) {
@@ -3142,7 +3143,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     // 35-36.
     for f in functions_to_initialize {
         let fname = f.bound_name();
-        let idx = chunk.add_to_string_pool(fname)?;
+        let idx = chunk.add_to_string_pool(fname).expect("Name already present (steps 27-28)");
         f.compile_fo_instantiation(chunk, strict, text)?;
         chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
     }

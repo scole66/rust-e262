@@ -440,7 +440,7 @@ mod object_environment_record {
         let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None, "test");
 
-        println!("{:#?}", oer);
+        assert_ne!(format!("{:#?}", oer), "");
         assert_ne!(format!("{:?}", oer), "");
     }
     #[test]
@@ -945,6 +945,40 @@ mod object_environment_record {
         let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
         oer.get_this_binding(&mut agent).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
+        oer.bind_this_value(&mut agent, 29.into()).unwrap();
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "sentinel");
+        assert_eq!(oer.name(), "sentinel");
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "sentinel");
+        oer.create_mutable_binding(&mut agent, "bill".into(), true).unwrap();
+        oer.create_mutable_binding(&mut agent, "alice".into(), true).unwrap();
+
+        let bindings = oer.binding_names();
+        assert_eq!(bindings.len(), 2);
+        assert!(bindings.contains(&"bill".into()));
+        assert!(bindings.contains(&"alice".into()));
     }
 }
 
@@ -1899,6 +1933,55 @@ mod global_environment_record {
         assert_eq!(ger.object_record.binding_object, global_object);
         assert_eq!(ger.global_this_value, this_object);
         assert_eq!(ger.var_names.borrow().len(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        ger.bind_this_value(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        assert_eq!(ger.name(), "test");
+    }
+
+    #[test]
+    fn var_decls() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let vd_list = ger.var_decls();
+        assert_eq!(vd_list.len(), 1);
+        assert!(vd_list.contains(&JSString::from("normal_var")));
+    }
+
+    #[test]
+    fn lex_decls() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let lex_list = ger.lex_decls();
+        assert_eq!(lex_list.len(), 4);
+        assert!(lex_list.contains(&JSString::from("lexical_sloppy")));
+        assert!(lex_list.contains(&JSString::from("lexical_permanent")));
+        assert!(lex_list.contains(&JSString::from("lexical_strict")));
+        assert!(lex_list.contains(&JSString::from("lexical_deletable")));
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let bindings = ger.binding_names();
+        assert_eq!(bindings.len(), 5);
+        assert!(bindings.contains(&JSString::from("lexical_sloppy")));
+        assert!(bindings.contains(&JSString::from("lexical_permanent")));
+        assert!(bindings.contains(&JSString::from("lexical_strict")));
+        assert!(bindings.contains(&JSString::from("lexical_deletable")));
+        assert!(bindings.contains(&JSString::from("normal_var")));
     }
 }
 

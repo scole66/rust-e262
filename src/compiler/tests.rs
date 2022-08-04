@@ -3566,6 +3566,83 @@ mod function_declaration {
     }
 }
 
+mod function_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("function foo(){}", true, &[] => Ok((svec(&["STRING 0 (foo)", "FUNC_IOFE 0"]), true, false)); "typical")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_expression();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src, node.clone())
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("function (){}", true, &[] => Ok((svec(&["FUNC_IIFE 0"]), true, false)); "typical")]
+    fn compile_named_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_expression();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_named_evaluation(&mut c, strict, src, node.clone(), NameLoc::OnStack)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    enum TestLoc {
+        None,
+        Stack,
+        Index,
+    }
+
+    #[test_case("function (){}", TestLoc::None, true, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IIFE 0"]), true, false)); "nameless")]
+    #[test_case("function (){}", TestLoc::Stack, true, &[] => Ok((svec(&["FUNC_IIFE 0"]), true, false)); "name on stack")]
+    #[test_case("function (){}", TestLoc::Index, true, &[] => Ok((svec(&["STRING 0 (myname)", "FUNC_IIFE 0"]), true, false)); "named")]
+    #[test_case("function (){}", TestLoc::None, true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("function (){}", TestLoc::Stack, true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full")]
+    #[test_case("function a(){}", TestLoc::None, true, &[] => Ok((svec(&["STRING 0 (a)", "FUNC_IOFE 0"]), true, false)); "has ident")]
+    #[test_case("function a(){}", TestLoc::None, true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "ident + string table full")]
+    #[test_case("function a(){}", TestLoc::None, true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "ident + function table full")]
+    fn instantiate_ordinary_function_expression(
+        src: &str,
+        name: TestLoc,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_expression();
+        let mut c = complex_filled_chunk("x", what);
+        let name = match name {
+            TestLoc::None => NameLoc::None,
+            TestLoc::Stack => NameLoc::OnStack,
+            TestLoc::Index => NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap()),
+        };
+        node.instantiate_ordinary_function_expression(&mut c, strict, name, src, node.clone())
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
 mod labelled_item {
     use super::*;
     use test_case::test_case;
@@ -3841,6 +3918,188 @@ mod return_statement {
         let node = Maker::new(src).return_statement();
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod compile_fdi {
+    use super::*;
+    use test_case::test_case;
+
+    fn function(src: &str, strict: bool) -> (StashedFunctionData, String) {
+        let fd = Maker::new(src).function_declaration();
+        let span = fd.location().span;
+        let source_text = src[span.starting_index..(span.starting_index + span.length)].to_string();
+
+        let stash = StashedFunctionData {
+            source_text,
+            params: fd.params.clone().into(),
+            body: fd.body.clone().into(),
+            to_compile: fd.into(),
+            strict,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (stash, src.into())
+    }
+
+    fn insane(strict: bool) -> (StashedFunctionData, String) {
+        // So; this works when the number of test threads is one. The default (which is more), establishes
+        // smaller than huge stack sizes for each of the test threads, and the parse of this insanely large
+        // var statement blows past it. The right fix is probably to switch out those recursive list
+        // definitions to something iterative, but that's for a future fix.
+        //
+        // This test does prove my error spot is hit when things get too large, so it definitely is a valid
+        // thing to have.
+        let header = "function insane(a=b){var v0";
+        let trailer = ";}";
+        let mut src = String::with_capacity(16384 * 7) + header;
+        for idx in 1..16384 {
+            src.push_str(&format!(",v{idx}"));
+        }
+        src = src + trailer;
+        println!("insane string length: {}", src.len());
+        function(&src, strict)
+    }
+
+    #[test_case(|s| function("function a(){}", s), true, &[] => Ok((svec(&["CUA", "CNSILB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS"]), false, false)); "simplest/strict")]
+    #[test_case(|s| function("function a(){}", s), false, &[] => Ok((svec(&["CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE"]), false, false)); "simplest/non-strict")]
+    #[test_case(|s| function("function a(x){ function one() { return 1; } function two() { return 2; } function one() { return 42; } }", s), true, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "CUA",
+        "CNSILB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "POP",
+        "FINISH_ARGS",
+        "CPMLB 2 (one)",
+        "UNDEFINED",
+        "ILB 2 (one)",
+        "CPMLB 3 (two)",
+        "UNDEFINED",
+        "ILB 3 (two)",
+        "FUNC_OBJ 0 two",
+        "SMVB 3 (two)",
+        "FUNC_OBJ 1 one",
+        "SMVB 2 (one)"
+    ]), false, false)); "multiple inner functions")]
+    #[test_case(|s| function("function(x=blue()){}", s), false, &[] => Ok((svec(&[
+        "PNLE",
+        "CPMLBM 0 (x)",
+        "CUA",
+        "CPMLB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 22",
+        "POP",
+        "STRING 2 (blue)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND 1",
+        "UNWIND_LIST",
+        "JUMP 2",
+        "IRB",
+        "POP",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FINISH_ARGS",
+        "PNVEFL",
+        "PNLEFV"
+    ]), true, false)); "has_parameter_expressions")]
+    #[test_case(|s| function("function a(x=0, x=3){}", s), false, &[] => Ok((svec(&[
+        "PNLE",
+        "CIPMLBM 0 (x)",
+        "CIPMLBM 0 (x)",
+        "CUA",
+        "CPMLB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (0)",
+        "PUT_VALUE",
+        "POP",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 1 (3)",
+        "PUT_VALUE",
+        "POP",
+        "FINISH_ARGS",
+        "PNVEFL",
+        "PNLEFV"
+    ]), false, false)); "duplicates in parameters")]
+    #[test_case(|s| function("function x(a){}", s), false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full (parameters)")]
+    #[test_case(|s| function("function x(){}", s), false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full (args obj)")]
+    #[test_case(|s| function("function a(){let arguments = null;}", s), false, &[] => Ok((svec(&["FINISH_ARGS", "PNLE", "CPMLB 0 (arguments)"]), false, false)); "no args object")]
+    #[test_case(|s| function("function a(first=canfail(), b=@@@){}", s), false, &[] => serr("out of range integral type conversion attempted"); "failed parameter compilation")]
+    #[test_case(|s| function("function a(){var b;}", s), true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "string table full (var instantiation)")]
+    #[test_case(|s| function("function a(x=0){var a, x; var a;}", s), true, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "CUA",
+        "CNSILB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (0)",
+        "IRB",
+        "POP",
+        "FINISH_ARGS",
+        "PNVEFL",
+        "CPMVB 2 (a)",
+        "UNDEFINED",
+        "IVB 2 (a)",
+        "CPMVB 0 (x)",
+        "GLB 0 (x)",
+        "IVB 0 (x)",
+        "SLETVE"
+    ]), false, false)); "var instantiation")]
+    #[test_case(|s| function("function a(x=0){var a, x; var a;}", s), false, &[(Fillable::String, 2)] => serr("Out of room for strings in this compilation unit"); "string table full (var binding)")]
+    #[test_case(|s| function("function a(){let x; const y=1;}", s), false, &[] => Ok((svec(&[
+        "CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE", "CPMLB 1 (x)", "CSILB 2 (y)"
+    ]), false, false)); "lexical instantiation")]
+    #[test_case(|s| function("function a(){let x; const y=1;}", s), false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "string table full (lexical instantiation)")]
+    #[test_case(|s| function("function a(){function b(){}}", s), false, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full (function initialization)")]
+    #[test_case(insane, false, &[] => ignore serr("out of range integral type conversion attempted"); "branch too far")]
+    fn compile_fdi(
+        make_function: impl FnOnce(bool) -> (StashedFunctionData, String),
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let (info, text) = make_function(strict);
+        let mut c = complex_filled_chunk("compile-fdi-test", what);
+        super::compile_fdi(&mut c, &text, &info)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

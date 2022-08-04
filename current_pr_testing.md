@@ -43,6 +43,11 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t LeftHandSideExpression`
 * `./t PrimaryExpression`
 * `./t Initializer`
+* `./t ObjectEnvironmentRecord`
+* `./t CompilerFunctionExpression`
+* `./t CompilerFunctionExpression_instantiate_ordinary_function_expression`
+* `./t GlobalEnvironmentRecord`
+* `./t compile_fdi`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -52,7 +57,9 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerFunctionDeclaration CompilerPropertyDefinition CompilerLexicalBinding CompilerBlock \
     CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
     CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
-    MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer
+    MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
+    ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord \
+    CompilerFunctionExpression_instantiate_ordinary_function_expression
 ```
 
 ## To Check
@@ -121,8 +128,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `FunctionExpression`
-* `compile_fdi`
 * `ArrowFunction`
 * `ConciseBody`
 * `ExpressionBody`
@@ -158,6 +163,4 @@ Uncovered Items:
 * Agent_current_lexical_environment
 * Agent_set_realm_global_object
 * global_declaration_instantiation
-* ObjectEnvironmentRecord
 * FunctionEnvironmentRecord
-* GlobalEnvironmentRecord

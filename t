@@ -130,6 +130,9 @@ for name in ${names[@]}; do
     CompilerBindingPattern) data=(parser::declarations_and_variables::BindingPattern binding_pattern compiler) ;;
     CompilerReturnStatement) data=(parser::return_statement::ReturnStatement return_statement compiler) ;;
     CompilerFunctionExpression) data=(parser::function_definitions::FunctionExpression function_expression compiler) ;;
+    CompilerFunctionExpression_instantiate_ordinary_function_expression) data=(parser::function_definitions::FunctionExpression::instantiate_ordinary_function_expression function_expression::instantiate_ordinary_function_expression compiler) ;;
+    compile_fdi) data=($name $name compiler) ;;
+    CompilerArrowFunction) data=(parser::arrow_function_definitions::ArrowFunction arrow_function compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
