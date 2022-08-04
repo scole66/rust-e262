@@ -301,7 +301,7 @@ fn statement_list_test_01() {
 fn statement_list_test_02() {
     let (node, scanner) = check(StatementList::parse(&mut newparser("a; b;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementList: a ;", "StatementListItem: b ;"]);
+    pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementListItem: a ;", "StatementListItem: b ;"]);
     concise_check(&*node, "StatementList: a ; b ;", vec!["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
     format!("{:?}", node);
 }

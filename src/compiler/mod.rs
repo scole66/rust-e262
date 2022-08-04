@@ -2037,22 +2037,20 @@ impl ExpressionStatement {
 
 impl StatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        match self {
-            StatementList::Item(sli) => sli.compile(chunk, strict, text),
-            StatementList::List(sl, sli) => {
-                let mut mark = None;
-                let status = sl.compile(chunk, strict, text)?;
-                if status == AbruptResult::Maybe {
-                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
-                let second_status = sli.compile(chunk, strict, text)?;
-                chunk.op(Insn::UpdateEmpty);
-                if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
-                }
-                Ok((status == AbruptResult::Maybe || second_status == AbruptResult::Maybe).into())
+        let mut status = self.list[0].compile(chunk, strict, text)?;
+        let mut exits = vec![];
+        for item in self.list[1..].iter() {
+            if status.maybe_abrupt() {
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
             }
+            status = item.compile(chunk, strict, text)?;
+            chunk.op(Insn::UpdateEmpty);
         }
+        let might_have_been_abrupt = status.maybe_abrupt() || !exits.is_empty();
+        for mark in exits {
+            chunk.fixup(mark)?;
+        }
+        Ok(AbruptResult::from(might_have_been_abrupt))
     }
 }
 
@@ -2311,30 +2309,27 @@ impl VariableStatement {
 
 impl VariableDeclarationList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        match self {
-            VariableDeclarationList::Item(item) => item.compile(chunk, strict, text),
-            VariableDeclarationList::List(list, item) => {
-                // Runtime Semantics: Evaluation
-                //      VariableDeclarationList : VariableDeclarationList , VariableDeclaration
-                //  1. Let next be the result of evaluating VariableDeclarationList.
-                //  2. ReturnIfAbrupt(next).
-                //  3. Return the result of evaluating VariableDeclaration.
-
-                // Stack: ...
-                let first = list.compile(chunk, strict, text)?; // Stack: empty/err ...
-                let tgt = if first.maybe_abrupt() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt)) // Stack: empty ...
-                } else {
-                    None
-                };
-                chunk.op(Insn::Pop); // Stack: ...
-                let second = item.compile(chunk, strict, text)?; // Stack: empty/err ...
-                if let Some(tgt) = tgt {
-                    chunk.fixup(tgt)?; // Stack: empty/err ...
-                }
-                Ok((first.maybe_abrupt() || second.maybe_abrupt()).into())
+        // Stack: ...
+        let mut status = self.list[0].compile(chunk, strict, text)?;
+        // Stack: empty/err ...
+        let mut exits = vec![];
+        for item in self.list[1..].iter() {
+            // Stack: empty/err ...
+            if status.maybe_abrupt() {
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
             }
+            // Stack: empty ...
+            chunk.op(Insn::Pop);
+            // Stack: ...
+            status = item.compile(chunk, strict, text)?;
+            // Stack: empty/err ...
         }
+        let might_have_been_abrupt = status.maybe_abrupt() || !exits.is_empty();
+        // Stack: emtpy/err ...
+        for mark in exits {
+            chunk.fixup(mark)?;
+        }
+        Ok(AbruptResult::from(might_have_been_abrupt))
     }
 }
 
@@ -3419,7 +3414,7 @@ impl ConciseBody {
                 let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
 
                 // Stack: func ...
-                let strict = info.strict || self.concise_body_contains_use_strict();
+                let strict = info.strict;
                 let eval_status = exp.compile(chunk, strict, text)?;
                 // Stack: result func ...
 

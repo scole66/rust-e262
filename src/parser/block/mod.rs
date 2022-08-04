@@ -1,5 +1,6 @@
 use super::*;
 use ahash::AHashSet;
+use non_empty_vec::{ne_vec, NonEmpty};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -338,17 +339,17 @@ impl Block {
 //      StatementListItem[?Yield, ?Await, ?Return]
 //      StatementList[?Yield, ?Await, ?Return] StatementListItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum StatementList {
-    Item(Rc<StatementListItem>),
-    List(Rc<StatementList>, Rc<StatementListItem>),
+pub struct StatementList {
+    pub list: NonEmpty<Rc<StatementListItem>>,
 }
 
 impl fmt::Display for StatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            StatementList::Item(node) => node.fmt(f),
-            StatementList::List(lst, item) => write!(f, "{} {}", lst, item),
+        self.list[0].fmt(f)?;
+        for item in self.list[1..].iter() {
+            write!(f, " {}", item)?;
         }
+        Ok(())
     }
 }
 
@@ -359,26 +360,26 @@ impl PrettyPrint for StatementList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}StatementList: {}", first, self)?;
-        match self {
-            StatementList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            StatementList::List(lst, item) => {
-                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                item.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
+        let not_final_length = usize::from(self.list.len()) - 1;
+        for item in self.list[0..not_final_length].iter() {
+            item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
+        self.list[not_final_length].pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        match self {
-            StatementList::Item(node) => node.concise_with_leftpad(writer, pad, state),
-            StatementList::List(lst, item) => {
-                writeln!(writer, "{}StatementList: {}", first, self)?;
-                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                item.concise_with_leftpad(writer, &successive, Spot::Final)
+        if usize::from(self.list.len()) == 1 {
+            self.list[0].concise_with_leftpad(writer, pad, state)
+        } else {
+            writeln!(writer, "{}StatementList: {}", first, self)?;
+            let not_final_length = usize::from(self.list.len()) - 1;
+            for item in self.list[0..not_final_length].iter() {
+                item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
+            self.list[not_final_length].concise_with_leftpad(writer, &successive, Spot::Final)
         }
     }
 }
@@ -392,15 +393,15 @@ impl StatementList {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (item, after_item) = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        let mut current = Rc::new(StatementList::Item(item));
+        let mut items = ne_vec![item];
         let mut current_scanner = after_item;
         while let Ok((next, after_next)) =
             StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag)
         {
-            current = Rc::new(StatementList::List(current, next));
+            items.push(next);
             current_scanner = after_next;
         }
-        Ok((current, current_scanner))
+        Ok((Rc::new(StatementList { list: items }), current_scanner))
     }
 
     pub fn parse(
@@ -422,131 +423,65 @@ impl StatementList {
     }
 
     pub fn location(&self) -> Location {
-        match self {
-            StatementList::Item(item) => item.location(),
-            StatementList::List(list, item) => list.location().merge(&item.location()),
+        match usize::from(self.list.len()) {
+            1 => self.list[0].location(),
+            n => self.list[0].location().merge(&self.list[n - 1].location()),
         }
     }
 
     pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.top_level_lexically_declared_names(),
-            StatementList::List(list, item) => {
-                let mut result = list.top_level_lexically_declared_names();
-                result.extend(item.top_level_lexically_declared_names());
-                result
-            }
+        let mut result = vec![];
+        for item in self.list.iter() {
+            result.extend(item.top_level_lexically_declared_names());
         }
+        result
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
-        match self {
-            StatementList::Item(node) => {
-                // StatementList : StatementListItem
-                //  1. Return LexicallyDeclaredNames of StatementListItem
-                node.lexically_declared_names()
-            }
-            StatementList::List(list, item) => {
-                // StatementList : StatementList StatementListItem
-                //  1. Let names1 be LexicallyDeclaredNames of StatementList.
-                //  2. Let names2 be LexicallyDeclaredNames of StatementListItem.
-                //  3. Return the list-concatenation of names1 and names2.
-                let mut result = list.lexically_declared_names();
-                result.extend(item.lexically_declared_names());
-                result
-            }
-        }
+        //
+        // StatementList : StatementListItem
+        //  1. Return LexicallyDeclaredNames of StatementListItem
+        //
+        // StatementList : StatementList StatementListItem
+        //  1. Let names1 be LexicallyDeclaredNames of StatementList.
+        //  2. Let names2 be LexicallyDeclaredNames of StatementListItem.
+        //  3. Return the list-concatenation of names1 and names2.
+        self.list.iter().flat_map(|item| item.lexically_declared_names()).collect()
     }
 
     pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.top_level_var_declared_names(),
-            StatementList::List(lst, item) => {
-                let mut names = lst.top_level_var_declared_names();
-                names.extend(item.top_level_var_declared_names());
-                names
-            }
-        }
+        self.list.iter().flat_map(|item| item.top_level_var_declared_names()).collect()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.var_declared_names(),
-            StatementList::List(lst, item) => {
-                let mut names = lst.var_declared_names();
-                names.extend(item.var_declared_names());
-                names
-            }
-        }
+        self.list.iter().flat_map(|item| item.var_declared_names()).collect()
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_undefined_break_target(label_set),
-            StatementList::List(lst, item) => {
-                lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set)
-            }
-        }
+        self.list.iter().any(|item| item.contains_undefined_break_target(label_set))
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            StatementList::Item(node) => kind == ParseNodeKind::StatementListItem || node.contains(kind),
-            StatementList::List(lst, item) => {
-                kind == ParseNodeKind::StatementList
-                    || kind == ParseNodeKind::StatementListItem
-                    || lst.contains(kind)
-                    || item.contains(kind)
-            }
-        }
+        kind == ParseNodeKind::StatementListItem
+            || (usize::from(self.list.len()) > 1 && kind == ParseNodeKind::StatementList)
+            || self.list.iter().any(|item| item.contains(kind))
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_duplicate_labels(label_set),
-            StatementList::List(lst, item) => {
-                lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set)
-            }
-        }
+        self.list.iter().any(|item| item.contains_duplicate_labels(label_set))
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_undefined_continue_target(iteration_set, label_set),
-            StatementList::List(lst, item) => {
-                lst.contains_undefined_continue_target(iteration_set, &[])
-                    || item.contains_undefined_continue_target(iteration_set, &[])
-            }
+        match usize::from(self.list.len()) {
+            1 => self.list[0].contains_undefined_continue_target(iteration_set, label_set),
+            _ => self.list.iter().any(|item| item.contains_undefined_continue_target(iteration_set, &[])),
         }
     }
 
-    // Returns the list of string tokens which comprise the first expression statements of a statement list, along with
-    // a boolean value which is true if all of the items in the statement list were string literal expressions.
-    fn initial_string_tokens_internal(&self) -> (Vec<StringToken>, bool) {
-        match self {
-            StatementList::Item(node) => {
-                node.as_string_literal().map_or((Vec::new(), false), |token| (vec![token], true))
-            }
-            StatementList::List(lst, item) => {
-                let (mut head, all) = lst.initial_string_tokens_internal();
-                if all {
-                    let next = item.as_string_literal();
-                    match next {
-                        None => (head, false),
-                        Some(token) => {
-                            head.push(token);
-                            (head, true)
-                        }
-                    }
-                } else {
-                    (head, false)
-                }
-            }
-        }
-    }
+    // Returns the list of string tokens which comprise the first expression statements of a statement list.
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {
-        self.initial_string_tokens_internal().0
+        self.list.iter().map_while(|item| item.as_string_literal()).collect()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -556,12 +491,7 @@ impl StatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match self {
-            StatementList::Item(node) => node.all_private_identifiers_valid(names),
-            StatementList::List(lst, item) => {
-                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
-            }
-        }
+        self.list.iter().all(|item| item.all_private_identifiers_valid(names))
     }
 
     pub fn early_errors(
@@ -572,12 +502,8 @@ impl StatementList {
         within_iteration: bool,
         within_switch: bool,
     ) {
-        match self {
-            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            StatementList::List(lst, item) => {
-                lst.early_errors(agent, errs, strict, within_iteration, within_switch);
-                item.early_errors(agent, errs, strict, within_iteration, within_switch);
-            }
+        for item in self.list.iter() {
+            item.early_errors(agent, errs, strict, within_iteration, within_switch);
         }
     }
 
@@ -592,10 +518,7 @@ impl StatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match self {
-            StatementList::Item(sli) => sli.contains_arguments(),
-            StatementList::List(sl, sli) => sl.contains_arguments() || sli.contains_arguments(),
-        }
+        self.list.iter().any(|item| item.contains_arguments())
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -605,53 +528,25 @@ impl StatementList {
     ///
     /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
     pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        match self {
-            StatementList::Item(sli) => sli.top_level_var_scoped_declarations(),
-            StatementList::List(sl, sli) => {
-                let mut list = sl.top_level_var_scoped_declarations();
-                list.extend(sli.top_level_var_scoped_declarations());
-                list
-            }
-        }
+        self.list.iter().flat_map(|item| item.top_level_var_scoped_declarations()).collect()
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        match self {
-            StatementList::Item(sli) => sli.var_scoped_declarations(),
-            StatementList::List(sl, sli) => {
-                let mut list = sl.var_scoped_declarations();
-                list.extend(sli.var_scoped_declarations());
-                list
-            }
-        }
+        self.list.iter().flat_map(|item| item.var_scoped_declarations()).collect()
     }
 
     /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
     ///
     /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
     pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
-        match self {
-            StatementList::Item(sli) => sli.top_level_lexically_scoped_declarations(),
-            StatementList::List(sl, sli) => {
-                let mut list = sl.top_level_lexically_scoped_declarations();
-                list.extend(sli.top_level_lexically_scoped_declarations());
-                list
-            }
-        }
+        self.list.iter().flat_map(|item| item.top_level_lexically_scoped_declarations()).collect()
     }
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
-        match self {
-            StatementList::Item(item) => item.lexically_scoped_declarations(),
-            StatementList::List(list, item) => {
-                let mut list = list.lexically_scoped_declarations();
-                list.extend(item.lexically_scoped_declarations());
-                list
-            }
-        }
+        self.list.iter().flat_map(|item| item.lexically_scoped_declarations()).collect()
     }
 }
 
