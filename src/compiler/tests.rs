@@ -4277,3 +4277,85 @@ mod concise_body {
             .map_err(|e| e.to_string())
     }
 }
+
+mod expression_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("true", true, &[] => Ok((svec(&["TRUE", "RETURN"]), true, false)); "literal only")]
+    #[test_case("a", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN"
+    ]), true, false)); "fallible expression")]
+    #[test_case("a", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN"
+    ]), true, false)); "fallible/non-strict")]
+    #[test_case(
+        "a",
+        true,
+        &[(Fillable::String, 0)]
+        => serr("Out of room for strings in this compilation unit");
+        "expr compile fails"
+    )]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).expression_body();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod param_source {
+    use super::*;
+    use test_case::test_case;
+
+    enum Kind {
+        Formal,
+        Arrow,
+    }
+
+    #[test_case("a", Kind::Formal, true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups/formal")]
+    #[test_case("a", Kind::Formal, false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups/formal")]
+    #[test_case("a", Kind::Formal, true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "strict/no-dups/formal")]
+    #[test_case("a", Kind::Formal, false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "non-strict/no-dups/formal")]
+    #[test_case("a", Kind::Arrow, true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups/arrow")]
+    #[test_case("a", Kind::Arrow, false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups/arrow")]
+    #[test_case("a", Kind::Arrow, true, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "strict/no-dups/arrow")]
+    #[test_case("a", Kind::Arrow, false, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "non-strict/no-dups/arrow")]
+    fn compile_binding_initialization(
+        src: &str,
+        which: Kind,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = match which {
+            Kind::Formal => ParamSource::FormalParameters(Maker::new(src).formal_parameters()),
+            Kind::Arrow => ParamSource::ArrowParameters(Maker::new(src).arrow_parameters()),
+        };
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}

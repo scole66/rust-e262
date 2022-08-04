@@ -50,6 +50,9 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t compile_fdi`
 * `./t CompilerArrowFunction`
 * `./t CompilerArrowFunction_instantiate_arrow_function_expression`
+* `./t CompilerConciseBody`
+* `./t CompilerExpressionBody`
+* `./t CompilerParamSource`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -61,8 +64,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
     MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
     ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerArrowFunction \
-    CompilerFunctionExpression_instantiate_ordinary_function_expression \
-    CompilerArrowFunction_instantiate_arrow_function_expression
+    CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody \
+    CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource
 ```
 
 ## To Check
@@ -131,9 +134,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `ConciseBody`
-* `ExpressionBody`
-* `ParamSource`
 * `FormalParameters`
 * `ArrowParameters`
 * `ArrowFormalParameters`

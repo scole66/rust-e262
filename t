@@ -135,6 +135,8 @@ for name in ${names[@]}; do
     CompilerArrowFunction) data=(parser::arrow_function_definitions::ArrowFunction arrow_function compiler) ;;
     CompilerArrowFunction_instantiate_arrow_function_expression) data=(parser::arrow_function_definitions::ArrowFunction::instantiate_arrow_function_expression arrow_function::instantiate_arrow_function_expression compiler) ;;
     CompilerConciseBody) data=(parser::arrow_function_definitions::ConciseBody concise_body compiler) ;;
+    CompilerExpressionBody) data=(parser::arrow_function_definitions::ExpressionBody expression_body compiler) ;;
+    CompilerParamSource) data=(function_object::ParamSource param_source compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
