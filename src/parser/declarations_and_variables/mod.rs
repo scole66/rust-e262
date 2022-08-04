@@ -1,5 +1,6 @@
 use super::*;
 use counter::Counter;
+use non_empty_vec::{ne_vec, NonEmpty};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -606,19 +607,17 @@ impl VariableStatement {
 //      VariableDeclaration[?In, ?Yield, ?Await]
 //      VariableDeclarationList[?In, ?Yield, ?Await] , VariableDeclaration[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum VariableDeclarationList {
-    Item(Rc<VariableDeclaration>),
-    List(Rc<VariableDeclarationList>, Rc<VariableDeclaration>),
+pub struct VariableDeclarationList {
+    pub list: NonEmpty<Rc<VariableDeclaration>>,
 }
 
 impl fmt::Display for VariableDeclarationList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            VariableDeclarationList::Item(node) => node.fmt(f),
-            VariableDeclarationList::List(lst, item) => {
-                write!(f, "{} , {}", lst, item)
-            }
+        self.list[0].fmt(f)?;
+        for item in self.list[1..].iter() {
+            write!(f, " , {item}")?;
         }
+        Ok(())
     }
 }
 
@@ -629,27 +628,27 @@ impl PrettyPrint for VariableDeclarationList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}VariableDeclarationList: {}", first, self)?;
-        match self {
-            VariableDeclarationList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            VariableDeclarationList::List(lst, item) => {
-                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                item.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
+        let last_item_index = usize::from(self.list.len()) - 1;
+        for item in self.list[0..last_item_index].iter() {
+            item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
+        self.list[last_item_index].pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        match self {
-            VariableDeclarationList::Item(node) => node.concise_with_leftpad(writer, pad, state),
-            VariableDeclarationList::List(lst, item) => {
+        match usize::from(self.list.len()) {
+            1 => self.list[0].concise_with_leftpad(writer, pad, state),
+            _ => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}VariableDeclarationList: {}", first, self)?;
-                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                item.concise_with_leftpad(writer, &successive, Spot::Final)
+                for item in self.list[0..usize::from(self.list.len()) - 1].iter() {
+                    item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                }
+                self.list[usize::from(self.list.len()) - 1].concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -664,17 +663,17 @@ impl VariableDeclarationList {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (decl, after_dcl) = VariableDeclaration::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        let mut current = Rc::new(VariableDeclarationList::Item(decl));
+        let mut items = ne_vec![decl];
         let mut current_scanner = after_dcl;
         while let Ok((next, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
                 |(_, after_comma)| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
             )
         {
-            current = Rc::new(VariableDeclarationList::List(current, next));
+            items.push(next);
             current_scanner = after_next;
         }
-        Ok((current, current_scanner))
+        Ok((Rc::new(VariableDeclarationList { list: items }), current_scanner))
     }
 
     pub fn parse(
@@ -696,21 +695,11 @@ impl VariableDeclarationList {
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
-        match self {
-            VariableDeclarationList::Item(node) => node.bound_names(),
-            VariableDeclarationList::List(lst, item) => {
-                let mut names = lst.bound_names();
-                names.extend(item.bound_names());
-                names
-            }
-        }
+        self.list.iter().flat_map(|item| item.bound_names()).collect()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            VariableDeclarationList::Item(node) => node.contains(kind),
-            VariableDeclarationList::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
+        self.list.iter().any(|item| item.contains(kind))
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -720,12 +709,7 @@ impl VariableDeclarationList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match self {
-            VariableDeclarationList::Item(node) => node.all_private_identifiers_valid(names),
-            VariableDeclarationList::List(lst, item) => {
-                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
-            }
-        }
+        self.list.iter().all(|item| item.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -739,19 +723,12 @@ impl VariableDeclarationList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match self {
-            VariableDeclarationList::Item(vd) => vd.contains_arguments(),
-            VariableDeclarationList::List(vdl, vd) => vdl.contains_arguments() || vd.contains_arguments(),
-        }
+        self.list.iter().any(|item| item.contains_arguments())
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match self {
-            VariableDeclarationList::Item(vd) => vd.early_errors(agent, errs, strict),
-            VariableDeclarationList::List(vdl, vd) => {
-                vdl.early_errors(agent, errs, strict);
-                vd.early_errors(agent, errs, strict);
-            }
+        for item in self.list.iter() {
+            item.early_errors(agent, errs, strict);
         }
     }
 
@@ -759,16 +736,7 @@ impl VariableDeclarationList {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        match self {
-            VariableDeclarationList::Item(vd) => {
-                vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))]
-            }
-            VariableDeclarationList::List(vdl, vd) => {
-                let mut list = vdl.var_scoped_declarations();
-                list.push(VarScopeDecl::VariableDeclaration(Rc::clone(vd)));
-                list
-            }
-        }
+        self.list.iter().map(|item| VarScopeDecl::VariableDeclaration(item.clone())).collect()
     }
 }
 
