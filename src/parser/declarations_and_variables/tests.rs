@@ -512,7 +512,6 @@ fn variable_declaration_list_test_01() {
     let (node, scanner) =
         check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*node, VariableDeclarationList::Item(..)));
     pretty_check(&*node, "VariableDeclarationList: a", vec!["VariableDeclaration: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
     format!("{:?}", node);
@@ -524,12 +523,7 @@ fn variable_declaration_list_test_02() {
     let (node, scanner) =
         check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, VariableDeclarationList::List(..)));
-    pretty_check(
-        &*node,
-        "VariableDeclarationList: a , b",
-        vec!["VariableDeclarationList: a", "VariableDeclaration: b"],
-    );
+    pretty_check(&*node, "VariableDeclarationList: a , b", vec!["VariableDeclaration: a", "VariableDeclaration: b"]);
     concise_check(
         &*node,
         "VariableDeclarationList: a , b",
