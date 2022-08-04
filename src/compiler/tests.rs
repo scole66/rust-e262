@@ -6,6 +6,7 @@ use crate::tests::*;
 use ahash::AHashSet;
 use num::BigInt;
 use std::rc::Rc;
+use std::fmt::Write;
 
 mod insn {
     use super::*;
@@ -3993,10 +3994,9 @@ mod compile_fdi {
         let trailer = ";}";
         let mut src = String::with_capacity(16384 * 7) + header;
         for idx in 1..16384 {
-            src.push_str(&format!(",v{idx}"));
+            write!(src, ",v{idx}").unwrap();
         }
-        src = src + trailer;
-        println!("insane string length: {}", src.len());
+        src += trailer;
         function(&src, strict)
     }
 
