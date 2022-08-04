@@ -5,8 +5,8 @@ use crate::parser::testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 use num::BigInt;
-use std::rc::Rc;
 use std::fmt::Write;
+use std::rc::Rc;
 
 mod insn {
     use super::*;
@@ -4094,6 +4094,179 @@ mod compile_fdi {
         let (info, text) = make_function(strict);
         let mut c = complex_filled_chunk("compile-fdi-test", what);
         super::compile_fdi(&mut c, &text, &info)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod arrow_function {
+    use super::*;
+    use test_case::test_case;
+
+    enum TestLoc {
+        None,
+        Stack,
+        Index,
+    }
+
+    #[test_case(TestLoc::None, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "nameless")]
+    #[test_case(TestLoc::Stack, &[] => Ok((svec(&["FUNC_IAE 0"]), true, false)); "name on stack")]
+    #[test_case(TestLoc::Index, &[] => Ok((svec(&["STRING 0 (myname)", "FUNC_IAE 0"]), true, false)); "named")]
+    #[test_case(TestLoc::None, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case(TestLoc::Stack, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full")]
+    fn instantiate_arrow_function_expression(
+        name: TestLoc,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let src = "x=>x";
+        let strict = true;
+        let node = Maker::new(src).arrow_function();
+        let mut c = complex_filled_chunk("x", what);
+        let name = match name {
+            TestLoc::None => NameLoc::None,
+            TestLoc::Stack => NameLoc::OnStack,
+            TestLoc::Index => NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap()),
+        };
+        node.instantiate_arrow_function_expression(&mut c, strict, src, name, node.clone())
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("x => x", &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "typical")]
+    fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arrow_function();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, true, src, node.clone())
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("x => x", &[] => Ok((svec(&["FUNC_IAE 0"]), true, false)); "typical")]
+    fn compile_named_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arrow_function();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_named_evaluation(&mut c, true, src, node.clone(), NameLoc::OnStack)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod concise_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("x => x * 2", true, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "EXTRACT_ARG",
+        "ILB 0 (x)",
+        "FINISH_ARGS",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (2)",
+        "MULTIPLY",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN",
+        "END_FUNCTION"
+    ]), true, false)); "simple expr function")]
+    #[test_case("x => { return x; }", true, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "EXTRACT_ARG",
+        "ILB 0 (x)",
+        "FINISH_ARGS",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN",
+        "END_FUNCTION"
+    ]), true, false)); "function body")]
+    #[test_case("x => x", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "instantiation compile fails")]
+    #[test_case("(x=b) => x", true, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "EXTRACT_ARG",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 12",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND 1",
+        "UNWIND_LIST",
+        "JUMP 2",
+        "IRB",
+        "POP",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FINISH_ARGS",
+        "PNVEFL",
+        "SLETVE",
+        "JUMP_IF_ABRUPT 7",
+        "STRING 0 (x)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN",
+        "END_FUNCTION"
+    ]), true, false)); "fallible initializers")]
+    #[test_case("x=>x", false, &[] => Ok((svec(&[
+        "CPMLBM 0 (x)",
+        "EXTRACT_ARG",
+        "ILB 0 (x)",
+        "FINISH_ARGS",
+        "PNLE",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "RETURN",
+        "END_FUNCTION"
+    ]), true, false)); "non-strict/simple")]
+    #[test_case("x=>b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "expr compile fails")]
+    #[test_case("(x=a)=>@@@", true, &[] => serr("out of range integral type conversion attempted"); "expr too big")]
+    fn compile_body(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arrow_function();
+        let mut c = complex_filled_chunk("x", what);
+        let data = StashedFunctionData {
+            source_text: src.to_string(),
+            params: node.parameters.clone().into(),
+            body: node.body.clone().into(),
+            to_compile: node.clone().into(),
+            strict,
+            this_mode: ThisLexicality::LexicalThis,
+        };
+
+        node.body
+            .compile_body(&mut c, src, &data)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

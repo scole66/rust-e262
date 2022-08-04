@@ -3237,7 +3237,7 @@ impl ConciseBody {
                 let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
 
                 // Stack: func ...
-                let strict = info.strict || self.concise_body_contains_use_strict();
+                let strict = info.strict;
                 let eval_status = exp.compile(chunk, strict, text)?;
                 // Stack: result func ...
 

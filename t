@@ -133,6 +133,8 @@ for name in ${names[@]}; do
     CompilerFunctionExpression_instantiate_ordinary_function_expression) data=(parser::function_definitions::FunctionExpression::instantiate_ordinary_function_expression function_expression::instantiate_ordinary_function_expression compiler) ;;
     compile_fdi) data=($name $name compiler) ;;
     CompilerArrowFunction) data=(parser::arrow_function_definitions::ArrowFunction arrow_function compiler) ;;
+    CompilerArrowFunction_instantiate_arrow_function_expression) data=(parser::arrow_function_definitions::ArrowFunction::instantiate_arrow_function_expression arrow_function::instantiate_arrow_function_expression compiler) ;;
+    CompilerConciseBody) data=(parser::arrow_function_definitions::ConciseBody concise_body compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
