@@ -3289,8 +3289,8 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
 
     // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
 
-    let strict = info.strict;
     let code = &info.body;
+    let strict = info.strict || code.contains_use_strict();
     let formals = &info.params;
     let mut parameter_names = formals.bound_names();
     let has_duplicates = parameter_names.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
@@ -3584,6 +3584,7 @@ impl ParamSource {
 }
 
 impl FormalParameters {
+    #[allow(unused_variables)]
     pub fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
@@ -3599,8 +3600,9 @@ impl FormalParameters {
             }
             FormalParameters::ListRest(list, rest) => {
                 let list_status = list.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
-                let rest_status = rest.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
-                Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
+                todo!()
+                //let rest_status = rest.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                //Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
             }
         }
     }
@@ -3655,7 +3657,7 @@ fn compile_initialize_bound_name(
     strict: bool,
     has_duplicates: bool,
     idx: u16,
-) -> anyhow::Result<NeverAbruptRefResult> {
+) -> NeverAbruptRefResult {
     match has_duplicates {
         true => {
             chunk.op_plus_arg(Insn::String, idx);
@@ -3666,7 +3668,7 @@ fn compile_initialize_bound_name(
         }
         false => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
     }
-    Ok(NeverAbruptRefResult {})
+    NeverAbruptRefResult {}
 }
 
 impl BindingIdentifier {
@@ -3683,7 +3685,8 @@ impl BindingIdentifier {
             BindingIdentifier::Await { .. } => JSString::from("await"),
         };
         let id_idx = chunk.add_to_string_pool(binding_id)?;
-        compile_initialize_bound_name(chunk, strict, has_duplicates, id_idx)
+        compile_initialize_bound_name(chunk, strict, has_duplicates, id_idx);
+        Ok(NeverAbruptRefResult {})
     }
 }
 
@@ -3833,7 +3836,7 @@ impl SingleNameBinding {
         }
         chunk.op(Insn::Pop);
         if let Some(&mark) = exit.as_ref() {
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).expect("jump too short to overflow");
         }
         // Stack: N-1 arg[n-1] ... arg[1] ...  --or-- err ...
 

@@ -7,6 +7,7 @@ use ahash::AHashSet;
 use num::BigInt;
 use std::fmt::Write;
 use std::rc::Rc;
+use test_case::test_case;
 
 mod insn {
     use super::*;
@@ -4381,6 +4382,321 @@ mod param_source {
         };
         let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod formal_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "simple/strict/no-dup")]
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "simple/strict/dup")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "simple/non-strict/no-dup")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "simple/non-strict/dup")]
+    #[test_case("", false, false, &[] => Ok((svec(&[]), false, false)); "empty/non-strict/no-dup")]
+    #[test_case("...a", true, false, &[] => panics "not yet implemented"; "rest/strict/no-dup")]
+    #[test_case("a,", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "comma/strict/no-dup")]
+    #[test_case("a,...b", true, false, &[] => panics "not yet implemented"; "list+rest/strict/no-dup")]
+    #[test_case("a,...b", true, false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+rest/string table full")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).formal_parameters();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod arrow_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "id/strict/dups")]
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "id/strict/no-dups")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "id/non-strict/dups")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "id/non-strict/no-dups")]
+    #[test_case("(a)", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "afp/strict/dups")]
+    #[test_case("(a)", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "afp/strict/no-dups")]
+    #[test_case("(a)", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "afp/non-strict/dups")]
+    #[test_case("(a)", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "afp/non-strict/no-dups")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arrow_parameters();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod arrow_formal_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("(a)", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "afp/strict/dups")]
+    #[test_case("(a)", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "afp/strict/no-dups")]
+    #[test_case("(a)", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "afp/non-strict/dups")]
+    #[test_case("(a)", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "afp/non-strict/no-dups")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arrow_formal_parameters();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod unique_formal_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "ufp/strict/dups")]
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "ufp/strict/no-dups")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "ufp/non-strict/dups")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "ufp/non-strict/no-dups")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).unique_formal_parameters();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[test_case(true, true => svec(&["STRING 0 (simply_fascinating)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]); "strict/dups")]
+#[test_case(true, false => svec(&["ILB 0 (simply_fascinating)"]); "strict/no-dups")]
+#[test_case(false, true => svec(&["STRING 0 (simply_fascinating)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]); "non-strict/dups")]
+#[test_case(false, false => svec(&["ILB 0 (simply_fascinating)"]); "non-strict/no-dups")]
+fn compile_initialize_bound_name(strict: bool, has_dups: bool) -> Vec<String> {
+    let mut c = Chunk::new("cibn");
+    let string_idx = c.add_to_string_pool("simply_fascinating".into()).unwrap();
+    super::compile_initialize_bound_name(&mut c, strict, has_dups, string_idx);
+    c.disassemble().into_iter().filter_map(disasm_filt).collect()
+}
+
+mod formal_parameter_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups")]
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "strict/no-dups")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "non-strict/no-dups")]
+    #[test_case("a,b", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP", "EXTRACT_ARG", "STRING 1 (b)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "list - strict/dups")]
+    #[test_case("a,b", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "EXTRACT_ARG", "STRING 1 (b)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "list - strict/no-dups")]
+    #[test_case("a,b", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP", "EXTRACT_ARG", "STRING 1 (b)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "list - non-strict/dups")]
+    #[test_case("a,b", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP", "EXTRACT_ARG", "STRING 1 (b)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "list - non-strict/no-dups")]
+    #[test_case("a=x,b", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 1 (x)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP", "EXTRACT_ARG", "STRING 2 (b)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), true, false)); "list - left:fallible")]
+    #[test_case("a,b=x", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "EXTRACT_ARG", "STRING 1 (b)", "STRICT_RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 2 (x)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP"]), true, false)); "list - right:fallible")]
+    #[test_case("a,b", false, false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "left: compilation fails")]
+    #[test_case("a,b", false, false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "right: compilation fails")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).formal_parameter_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod formal_parameter {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups")]
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "strict/no-dups")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "non-strict/no-dups")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).formal_parameter();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod single_name_binding {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups")]
+    #[test_case("a", true, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "strict/no-dups")]
+    #[test_case("a", false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups")]
+    #[test_case("a", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "non-strict/no-dups")]
+    #[test_case("a", false, false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("a=0", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "JUMP_NOT_UNDEF 3", "POP", "FLOAT 0 (0)", "IRB", "POP"]), false, false)); "non-strict/no-dupes/simple initializer")]
+    #[test_case("a=b", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP"]), true, false)); "non-strict/no-dupes/fallible initializer")]
+    #[test_case("a=function(){}", false, false, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 0 (a)", "FUNC_IIFE 0", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP"]), true, false)); "non-strict/no-dupes/anonymous fcn")]
+    #[test_case("a=function(){}", false, false, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "fcn comp fails")]
+    #[test_case("a=b", false, false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "initializer comp fails")]
+    #[test_case("a=@@@", false, false, &[] => serr("out of range integral type conversion attempted"); "value-present branch too far")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).single_name_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod function_rest_parameter {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a", false, false, &[] => panics "not yet implemented"; "panic")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        has_dups: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_rest_parameter();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, has_dups)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod function_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("function a(){}", true, &[] => Ok((svec(&["CUA", "CNSILB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/empty params")]
+    #[test_case("function a(q){}", true, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/simple params/strict")]
+    #[test_case("function a(q){}", false, &[] => Ok((svec(&["CPMLBM 0 (q)", "CMA", "CPMLB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "PNLE", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/simple params/non-strict")]
+    #[test_case("function a(q){'use strict';}", false, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "STRING 2 (use strict)", "END_FUNCTION"]), false, false)); "typical/simple params/directive")]
+    #[test_case("function a(q=b){}", true, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 2 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FINISH_ARGS", "PNVEFL", "SLETVE", "JUMP_IF_ABRUPT 1", "UNDEFINED", "END_FUNCTION"]), true, false)); "fallible instantiation")]
+    #[test_case("function a(q){}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "instantiation fails")]
+    #[test_case("function a(){b;}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "statements fail")]
+    #[test_case("function a(q=b){@@@;}", true, &[] => serr("out of range integral type conversion attempted"); "function too large")]
+    fn compile_body(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_declaration();
+        let mut c = complex_filled_chunk("x", what);
+        let data = StashedFunctionData {
+            source_text: src.to_string(),
+            params: node.params.clone().into(),
+            body: node.body.clone().into(),
+            to_compile: node.clone().into(),
+            strict,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+
+        node.body
+            .compile_body(&mut c, src, &data)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod function_statement_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false, false)); "empty")]
+    #[test_case("a;", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), true, false)); "fallible statement list/strict")]
+    #[test_case("a;", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE"]), true, false)); "fallible statement list/non-strict")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_statement_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

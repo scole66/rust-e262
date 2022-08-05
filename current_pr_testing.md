@@ -53,6 +53,17 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerConciseBody`
 * `./t CompilerExpressionBody`
 * `./t CompilerParamSource`
+* `./t CompilerFormalParameters`
+* `./t CompilerArrowParameters`
+* `./t CompilerArrowFormalParameters`
+* `./t CompilerUniqueFormalParameters`
+* `./t compile_initialize_bound_name`
+* `./t CompilerFormalParameterList`
+* `./t CompilerFormalParameter`
+* `./t CompilerSingleNameBinding`
+* `./t CompilerFunctionRestParameter`
+* `./t CompilerFunctionBody`
+* `./t CompilerFunctionStatementList`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -63,9 +74,12 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
     CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
     MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
-    ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerArrowFunction \
+    ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerFunctionStatementList \
     CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody \
-    CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource
+    CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource \
+    CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
+    CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList \
+    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction
 ```
 
 ## To Check
@@ -131,20 +145,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 * `FunctionEnvironmentRecord`
 * `FunctionEnvironmentRecord::bind_this_value`
-
-### `src/compiler/mod.rs`
-
-* `FormalParameters`
-* `ArrowParameters`
-* `ArrowFormalParameters`
-* `UniqueFormalParameters`
-* `compile_initialize_bound_name`
-* `FormalParameterList`
-* `FormalParameter`
-* `SingleNameBinding`
-* `FunctionRestParameter`
-* `FunctionBody`
-* `FunctionStatementList`
 
 ### Existing Test Framework Coverage Misses
 
