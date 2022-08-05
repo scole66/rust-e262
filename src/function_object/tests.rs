@@ -185,3 +185,28 @@ mod this_lexicality {
         assert_eq!(l1, l2);
     }
 }
+
+mod constructor_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ConstructorKind::Derived => with |s| assert_ne!(s, ""); "derived")]
+    #[test_case(ConstructorKind::Base => with |s| assert_ne!(s, ""); "base")]
+    fn debug(item: ConstructorKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(ConstructorKind::Derived, ConstructorKind::Derived => true; "equal")]
+    #[test_case(ConstructorKind::Base, ConstructorKind::Derived => false; "unequal")]
+    fn eq(left: ConstructorKind, right: ConstructorKind) -> bool {
+        left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let l1 = ConstructorKind::Derived;
+        let l2 = l1.clone();
+        assert_eq!(l1, l2);
+    }
+}

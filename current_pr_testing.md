@@ -65,6 +65,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerFunctionBody`
 * `./t CompilerFunctionStatementList`
 * `./t ThisLexicality`
+* `./t ConstructorKind`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -80,7 +81,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource \
     CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
     CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList \
-    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction
+    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction \
+    ConstructorKind
 ```
 
 ## To Check
@@ -114,7 +116,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/function_object/mod.rs`
 
-* `ConstructorKind`
 * `ClassName`
 * `ClassFieldDefinitionRecord`
 * `BodySource`
