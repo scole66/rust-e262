@@ -147,6 +147,7 @@ for name in ${names[@]}; do
     CompilerSingleNameBinding) data=(parser::declarations_and_variables::SingleNameBinding single_name_binding compiler) ;;
     CompilerFunctionRestParameter) data=(parser::parameter_lists::FunctionRestParameter function_rest_parameter compiler) ;;
     CompilerFunctionBody) data=(parser::function_definitions::FunctionBody function_body compiler) ;;
+    CompilerFunctionStatementList) data=(parser::function_definitions::FunctionStatementList function_statement_list compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;

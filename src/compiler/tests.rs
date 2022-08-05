@@ -4653,3 +4653,25 @@ mod function_body {
             .map_err(|e| e.to_string())
     }
 }
+
+mod function_statement_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false, false)); "empty")]
+    #[test_case("a;", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), true, false)); "fallible statement list/strict")]
+    #[test_case("a;", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE"]), true, false)); "fallible statement list/non-strict")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).function_statement_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
