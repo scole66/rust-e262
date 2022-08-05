@@ -845,4 +845,10 @@ mod async_generator_body {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_generator_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("'use strict';" => true; "present")]
+    #[test_case("'bob is a putz';" => false; "not present")]
+    fn function_body_contains_use_strict(src: &str) -> bool {
+        Maker::new(src).async_generator_body().function_body_contains_use_strict()
+    }
 }

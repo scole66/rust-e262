@@ -477,6 +477,10 @@ impl AsyncGeneratorBody {
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
     }
+
+    pub fn function_body_contains_use_strict(&self) -> bool {
+        self.0.function_body_contains_use_strict()
+    }
 }
 
 #[cfg(test)]
