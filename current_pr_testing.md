@@ -53,6 +53,16 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerConciseBody`
 * `./t CompilerExpressionBody`
 * `./t CompilerParamSource`
+* `./t CompilerFormalParameters`
+* `./t CompilerArrowParameters`
+* `./t CompilerArrowFormalParameters`
+* `./t CompilerUniqueFormalParameters`
+* `./t compile_initialize_bound_name`
+* `./t CompilerFormalParameterList`
+* `./t CompilerFormalParameter`
+* `./t CompilerSingleNameBinding`
+* `./t CompilerFunctionRestParameter`
+* `./t CompilerFunctionBody`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -65,7 +75,10 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
     ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerArrowFunction \
     CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody \
-    CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource
+    CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource \
+    CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
+    CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList \
+    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody
 ```
 
 ## To Check
@@ -134,16 +147,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/compiler/mod.rs`
 
-* `FormalParameters`
-* `ArrowParameters`
-* `ArrowFormalParameters`
-* `UniqueFormalParameters`
-* `compile_initialize_bound_name`
-* `FormalParameterList`
-* `FormalParameter`
-* `SingleNameBinding`
-* `FunctionRestParameter`
-* `FunctionBody`
 * `FunctionStatementList`
 
 ### Existing Test Framework Coverage Misses

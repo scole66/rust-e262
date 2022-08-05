@@ -128,6 +128,16 @@ impl BodySource {
             BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
         }
     }
+
+    pub fn contains_use_strict(&self) -> bool {
+        match self {
+            BodySource::Function(node) => node.function_body_contains_use_strict(),
+            BodySource::Generator(node) => node.function_body_contains_use_strict(),
+            BodySource::AsyncFunction(node) => node.function_body_contains_use_strict(),
+            BodySource::AsyncGenerator(node) => node.function_body_contains_use_strict(),
+            BodySource::ConciseBody(node) => node.concise_body_contains_use_strict(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

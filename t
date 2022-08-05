@@ -137,6 +137,16 @@ for name in ${names[@]}; do
     CompilerConciseBody) data=(parser::arrow_function_definitions::ConciseBody concise_body compiler) ;;
     CompilerExpressionBody) data=(parser::arrow_function_definitions::ExpressionBody expression_body compiler) ;;
     CompilerParamSource) data=(function_object::ParamSource param_source compiler) ;;
+    CompilerFormalParameters) data=(parser::parameter_lists::FormalParameters formal_parameters compiler) ;;
+    CompilerArrowParameters) data=(parser::arrow_function_definitions::ArrowParameters arrow_parameters compiler) ;;
+    CompilerArrowFormalParameters) data=(parser::arrow_function_definitions::ArrowFormalParameters arrow_formal_parameters compiler) ;;
+    CompilerUniqueFormalParameters) data=(parser::parameter_lists::UniqueFormalParameters unique_formal_parameters compiler) ;;
+    compile_initialize_bound_name) data=($name $name compiler) ;;
+    CompilerFormalParameterList) data=(parser::parameter_lists::FormalParameterList formal_parameter_list compiler) ;;
+    CompilerFormalParameter) data=(parser::parameter_lists::FormalParameter formal_parameter:: compiler) ;;
+    CompilerSingleNameBinding) data=(parser::declarations_and_variables::SingleNameBinding single_name_binding compiler) ;;
+    CompilerFunctionRestParameter) data=(parser::parameter_lists::FunctionRestParameter function_rest_parameter compiler) ;;
+    CompilerFunctionBody) data=(parser::function_definitions::FunctionBody function_body compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
