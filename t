@@ -401,6 +401,8 @@ for name in ${names[@]}; do
     Intrinsics) data=($name intrinsics realm) ;;
 
     FunctionDeclaration_instantiate_function_object) data=(parser::function_definitions::FunctionDeclaration::instantiate_function_object function_declaration::instantiate_function_object function_object) ;;
+    ThisLexicality) data=($name this_lexicality function_object) ;;
+    ConstructorKind) data=($name constructor_kind function_object) ;;
 
     *) echo "No type called $name"; exit ;;
   esac

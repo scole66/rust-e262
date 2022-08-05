@@ -64,6 +64,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerFunctionRestParameter`
 * `./t CompilerFunctionBody`
 * `./t CompilerFunctionStatementList`
+* `./t ThisLexicality`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -75,7 +76,7 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
     MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
     ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerFunctionStatementList \
-    CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody \
+    CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody ThisLexicality \
     CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource \
     CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
     CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList \
@@ -114,7 +115,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 ### `src/function_object/mod.rs`
 
 * `ConstructorKind`
-* `ThisLexicality`
 * `ClassName`
 * `ClassFieldDefinitionRecord`
 * `BodySource`

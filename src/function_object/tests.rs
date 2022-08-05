@@ -160,3 +160,28 @@ mod async_generator_declaration {
         fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
+
+mod this_lexicality {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ThisLexicality::LexicalThis => with |s| assert_ne!(s, ""); "lexical")]
+    #[test_case(ThisLexicality::NonLexicalThis => with |s| assert_ne!(s, ""); "non-lexical")]
+    fn debug(item: ThisLexicality) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(ThisLexicality::LexicalThis, ThisLexicality::LexicalThis => true; "equal")]
+    #[test_case(ThisLexicality::NonLexicalThis, ThisLexicality::LexicalThis => false; "unequal")]
+    fn eq(left: ThisLexicality, right: ThisLexicality) -> bool {
+        left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let l1 = ThisLexicality::LexicalThis;
+        let l2 = l1.clone();
+        assert_eq!(l1, l2);
+    }
+}
