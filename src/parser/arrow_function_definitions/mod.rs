@@ -409,14 +409,14 @@ impl ArrowFormalParameters {
         self.params.early_errors(agent, errs, strict);
     }
 
-    fn expected_argument_count(&self) -> f64 {
+    pub fn expected_argument_count(&self) -> f64 {
         self.params.expected_argument_count()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    fn contains_expression(&self) -> bool {
+    pub fn contains_expression(&self) -> bool {
         self.params.contains_expression()
     }
 }

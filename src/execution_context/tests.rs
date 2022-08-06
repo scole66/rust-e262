@@ -28,6 +28,7 @@ mod script_record {
         assert!(Rc::ptr_eq(&sr.realm, &sr2.realm));
         assert!(Rc::ptr_eq(&sr.ecmascript_code, &sr2.ecmascript_code));
         assert!(Rc::ptr_eq(&sr.compiled, &sr2.compiled));
+        assert_eq!(&sr.text, &sr2.text);
     }
 }
 
@@ -48,6 +49,19 @@ mod script_or_module {
     fn debug() {
         let som = ScriptOrModule::Module(Rc::new(ModuleRecord {}));
         assert_ne!(format!("{:?}", som), "");
+    }
+
+    #[test]
+    fn clone() {
+        let agent = test_agent();
+        let s1 = ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(agent.current_realm_record().unwrap())));
+        let s2 = s1.clone();
+
+        if let (ScriptOrModule::Script(original), ScriptOrModule::Script(duplicate)) = (s1, s2) {
+            assert!(Rc::ptr_eq(&original, &duplicate));
+        } else {
+            panic!("Clone failed; differing enum types");
+        }
     }
 }
 

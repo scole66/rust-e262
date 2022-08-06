@@ -223,6 +223,24 @@ mod symbol_object {
     }
 
     #[test]
+    fn is_plain_object() {
+        let mut agent = test_agent();
+        let sym = agent.wks(WksId::ToPrimitive);
+        let obj = create_symbol_object(&mut agent, sym);
+
+        assert!(!obj.o.is_plain_object());
+    }
+
+    #[test]
+    fn to_arguments_object() {
+        let mut agent = test_agent();
+        let sym = agent.wks(WksId::ToPrimitive);
+        let obj = create_symbol_object(&mut agent, sym);
+
+        assert!(obj.o.to_arguments_object().is_none());
+    }
+
+    #[test]
     fn get_prototype_of() {
         let mut agent = test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
@@ -531,6 +549,16 @@ mod symbol_registry {
         sr.add("2".into(), s2);
         sr.add("3".into(), s3);
         assert_eq!(sr.len(), 3);
+    }
+
+    #[test]
+    fn is_empty() {
+        let mut sr = SymbolRegistry::new();
+        assert!(sr.is_empty());
+        let mut agent = test_agent();
+        let s1 = Symbol::new(&mut agent, Some("fisrt".into()));
+        sr.add("1".into(), s1);
+        assert!(!sr.is_empty());
     }
 
     mod add {

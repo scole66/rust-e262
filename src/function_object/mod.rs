@@ -42,6 +42,7 @@ pub enum BodySource {
     AsyncFunction(Rc<AsyncFunctionBody>),
     AsyncGenerator(Rc<AsyncGeneratorBody>),
     ConciseBody(Rc<ConciseBody>),
+    AsyncConciseBody(Rc<AsyncConciseBody>),
 }
 
 impl From<Rc<FunctionBody>> for BodySource {
@@ -49,10 +50,29 @@ impl From<Rc<FunctionBody>> for BodySource {
         Self::Function(src)
     }
 }
-
+impl From<Rc<AsyncFunctionBody>> for BodySource {
+    fn from(src: Rc<AsyncFunctionBody>) -> Self {
+        Self::AsyncFunction(src)
+    }
+}
 impl From<Rc<ConciseBody>> for BodySource {
     fn from(src: Rc<ConciseBody>) -> Self {
         Self::ConciseBody(src)
+    }
+}
+impl From<Rc<AsyncConciseBody>> for BodySource {
+    fn from(src: Rc<AsyncConciseBody>) -> Self {
+        Self::AsyncConciseBody(src)
+    }
+}
+impl From<Rc<GeneratorBody>> for BodySource {
+    fn from(src: Rc<GeneratorBody>) -> Self {
+        Self::Generator(src)
+    }
+}
+impl From<Rc<AsyncGeneratorBody>> for BodySource {
+    fn from(src: Rc<AsyncGeneratorBody>) -> Self {
+        Self::AsyncGenerator(src)
     }
 }
 
@@ -64,6 +84,7 @@ impl PartialEq for BodySource {
             (Self::AsyncFunction(l0), Self::AsyncFunction(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncGenerator(l0), Self::AsyncGenerator(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ConciseBody(l0), Self::ConciseBody(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncConciseBody(l0), Self::AsyncConciseBody(r0)) => Rc::ptr_eq(l0, r0),
             _ => false,
         }
     }
@@ -93,6 +114,7 @@ impl BodySource {
             BodySource::AsyncFunction(af) => af.var_declared_names(),
             BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
             BodySource::ConciseBody(cb) => cb.var_declared_names(),
+            BodySource::AsyncConciseBody(acb) => acb.var_declared_names(),
         }
     }
 
@@ -106,6 +128,7 @@ impl BodySource {
             BodySource::AsyncFunction(af) => af.var_scoped_declarations(),
             BodySource::AsyncGenerator(ag) => ag.var_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.var_scoped_declarations(),
+            BodySource::AsyncConciseBody(acb) => acb.var_scoped_declarations(),
         }
     }
 
@@ -116,6 +139,7 @@ impl BodySource {
             BodySource::AsyncFunction(af) => af.lexically_declared_names(),
             BodySource::AsyncGenerator(ag) => ag.lexically_declared_names(),
             BodySource::ConciseBody(cb) => cb.lexically_declared_names(),
+            BodySource::AsyncConciseBody(acb) => acb.lexically_declared_names(),
         }
     }
 
@@ -126,6 +150,7 @@ impl BodySource {
             BodySource::AsyncFunction(af) => af.lexically_scoped_declarations(),
             BodySource::AsyncGenerator(ag) => ag.lexically_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
+            BodySource::AsyncConciseBody(acb) => acb.lexically_scoped_declarations(),
         }
     }
 
@@ -136,6 +161,7 @@ impl BodySource {
             BodySource::AsyncFunction(node) => node.function_body_contains_use_strict(),
             BodySource::AsyncGenerator(node) => node.function_body_contains_use_strict(),
             BodySource::ConciseBody(node) => node.concise_body_contains_use_strict(),
+            BodySource::AsyncConciseBody(acb) => acb.contains_use_strict(),
         }
     }
 }
@@ -144,6 +170,8 @@ impl BodySource {
 pub enum ParamSource {
     FormalParameters(Rc<FormalParameters>),
     ArrowParameters(Rc<ArrowParameters>),
+    AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
+    ArrowFormals(Rc<ArrowFormalParameters>),
 }
 
 impl PartialEq for ParamSource {
@@ -151,6 +179,8 @@ impl PartialEq for ParamSource {
         match (self, other) {
             (Self::FormalParameters(l0), Self::FormalParameters(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
             _ => false,
         }
     }
@@ -164,6 +194,16 @@ impl From<Rc<FormalParameters>> for ParamSource {
 impl From<Rc<ArrowParameters>> for ParamSource {
     fn from(src: Rc<ArrowParameters>) -> Self {
         Self::ArrowParameters(src)
+    }
+}
+impl From<Rc<AsyncArrowBindingIdentifier>> for ParamSource {
+    fn from(src: Rc<AsyncArrowBindingIdentifier>) -> Self {
+        Self::AsyncArrowBinding(src)
+    }
+}
+impl From<Rc<ArrowFormalParameters>> for ParamSource {
+    fn from(src: Rc<ArrowFormalParameters>) -> Self {
+        Self::ArrowFormals(src)
     }
 }
 impl TryFrom<ParamSource> for Rc<FormalParameters> {
@@ -180,6 +220,8 @@ impl ParamSource {
         match self {
             ParamSource::FormalParameters(formals) => formals.expected_argument_count(),
             ParamSource::ArrowParameters(arrow) => arrow.expected_argument_count(),
+            ParamSource::AsyncArrowBinding(node) => node.expected_argument_count(),
+            ParamSource::ArrowFormals(node) => node.expected_argument_count(),
         }
     }
 
@@ -187,6 +229,8 @@ impl ParamSource {
         match self {
             ParamSource::FormalParameters(formals) => formals.bound_names(),
             ParamSource::ArrowParameters(arrow) => arrow.bound_names(),
+            ParamSource::AsyncArrowBinding(node) => node.bound_names(),
+            ParamSource::ArrowFormals(node) => node.bound_names(),
         }
     }
 
@@ -194,6 +238,8 @@ impl ParamSource {
         match self {
             ParamSource::FormalParameters(formals) => formals.is_simple_parameter_list(),
             ParamSource::ArrowParameters(arrow) => arrow.is_simple_parameter_list(),
+            ParamSource::AsyncArrowBinding(node) => node.is_simple_parameter_list(),
+            ParamSource::ArrowFormals(node) => node.is_simple_parameter_list(),
         }
     }
 
@@ -201,6 +247,8 @@ impl ParamSource {
         match self {
             ParamSource::FormalParameters(formals) => formals.contains_expression(),
             ParamSource::ArrowParameters(arrow) => arrow.contains_expression(),
+            ParamSource::AsyncArrowBinding(node) => node.contains_expression(),
+            ParamSource::ArrowFormals(node) => node.contains_expression(),
         }
     }
 }
