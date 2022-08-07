@@ -252,9 +252,9 @@ impl AsyncFunctionDeclaration {
 //      async [no LineTerminator here] function BindingIdentifier[~Yield, +Await]opt ( FormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
 #[derive(Debug)]
 pub struct AsyncFunctionExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncFunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<AsyncFunctionBody>,
     location: Location,
 }
 
@@ -653,7 +653,7 @@ impl AsyncMethod {
 // AsyncFunctionBody :
 //      FunctionBody[~Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncFunctionBody(Rc<FunctionBody>);
+pub struct AsyncFunctionBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for AsyncFunctionBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

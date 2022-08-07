@@ -276,9 +276,9 @@ impl AsyncGeneratorDeclaration {
 //      async [no LineTerminator here] function * BindingIdentifier[+Yield, +Await]opt ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncGeneratorBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<AsyncGeneratorBody>,
     location: Location,
 }
 
@@ -391,7 +391,7 @@ impl AsyncGeneratorExpression {
 // AsyncGeneratorBody :
 //      FunctionBody[+Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncGeneratorBody(Rc<FunctionBody>);
+pub struct AsyncGeneratorBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for AsyncGeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
