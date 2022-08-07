@@ -1245,7 +1245,7 @@ impl Agent {
                     let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
                     self.execution_context_stack[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    self.instantiate_arrow_function_expression(index, text, info)
+                    self.instantiate_arrow_function_expression(Some(index), text, info)
                 }
                 Insn::InstantiateOrdinaryFunctionObject => {
                     let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
@@ -1254,7 +1254,7 @@ impl Agent {
                     let func_index = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
                     self.execution_context_stack[index].pc += 1;
                     let info = &chunk.function_object_data[func_index as usize];
-                    self.instantiate_ordinary_function_object(index, text, string, info)
+                    self.instantiate_ordinary_function_object(Some(index), text, string, info)
                 }
                 Insn::LeftShift => self.binary_operation(index, BinOp::LeftShift),
                 Insn::SignedRightShift => self.binary_operation(index, BinOp::SignedRightShift),
@@ -1887,7 +1887,13 @@ impl Agent {
         self.execution_context_stack[index].stack.push(Ok(closure.into()));
     }
 
-    fn instantiate_arrow_function_expression(&mut self, index: usize, text: &str, info: &StashedFunctionData) {
+    pub fn instantiate_arrow_function_expression(
+        &mut self,
+        index: Option<usize>,
+        text: &str,
+        info: &StashedFunctionData,
+    ) {
+        let index = index.unwrap_or(self.execution_context_stack.len() - 1);
         let env = self.current_lexical_environment().unwrap();
         let priv_env = self.current_private_environment();
 
@@ -1930,13 +1936,14 @@ impl Agent {
         self.execution_context_stack[index].stack.push(Ok(closure.into()));
     }
 
-    fn instantiate_ordinary_function_object(
+    pub fn instantiate_ordinary_function_object(
         &mut self,
-        index: usize,
+        index: Option<usize>,
         text: &str,
         name: &JSString,
         info: &StashedFunctionData,
     ) {
+        let index = index.unwrap_or(self.execution_context_stack.len() - 1);
         let to_compile: Rc<FunctionDeclaration> =
             info.to_compile.clone().try_into().expect("This routine only used with Function Declarations");
         let chunk_name = nameify(&info.source_text, 50);

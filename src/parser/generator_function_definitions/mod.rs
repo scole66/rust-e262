@@ -347,9 +347,9 @@ impl GeneratorDeclaration {
 //      function * BindingIdentifier[+Yield, ~Await]opt ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<GeneratorBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<GeneratorBody>,
     location: Location,
 }
 
@@ -487,7 +487,7 @@ impl GeneratorExpression {
 // GeneratorBody :
 //      FunctionBody[+Yield, ~Await]
 #[derive(Debug)]
-pub struct GeneratorBody(Rc<FunctionBody>);
+pub struct GeneratorBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for GeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

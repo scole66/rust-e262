@@ -495,6 +495,44 @@ mod nameable_production {
         let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
         node.is_named_function()
     }
+
+    #[test_case("function foo(a, b) { return 'I am groot'; }" => "Function: return 'I am groot' ;"; "function")]
+    #[test_case("function *foo(a) { yield a; }" => "Generator: yield a ;"; "generator")]
+    #[test_case("async function foo(x) { return x; }" => "AsyncFunction: return x ;"; "async function")]
+    #[test_case("async function *foo(x) { yield x; }" => "AsyncGenerator: yield x ;"; "async generator")]
+    #[test_case("x => x" => "ConciseBody: x"; "arrow function")]
+    #[test_case("async x => x" => "AsyncConciseBody: x"; "async arrow")]
+    #[test_case("class oops {}" => panics "Trying to get the body of a class"; "class")]
+    fn body(src: &str) -> String {
+        let node = NameableProduction::try_from(Maker::new(src).assignment_expression()).unwrap();
+        let body = node.body();
+        match body {
+            BodySource::Function(node) => format!("Function: {node}"),
+            BodySource::Generator(node) => format!("Generator: {node}"),
+            BodySource::AsyncFunction(node) => format!("AsyncFunction: {node}"),
+            BodySource::AsyncGenerator(node) => format!("AsyncGenerator: {node}"),
+            BodySource::ConciseBody(node) => format!("ConciseBody: {node}"),
+            BodySource::AsyncConciseBody(node) => format!("AsyncConciseBody: {node}"),
+        }
+    }
+
+    #[test_case("function foo(a, b=20){}" => "FormalParameters: a , b = 20"; "function")]
+    #[test_case("function *foo(a, b=20){}" => "FormalParameters: a , b = 20"; "generator")]
+    #[test_case("async function foo(a, b=20){}" => "FormalParameters: a , b = 20"; "async function")]
+    #[test_case("async function *foo(a, b=20){}" => "FormalParameters: a , b = 20"; "async generator")]
+    #[test_case("class bob {}" => panics "Trying to get the parameters block from a class"; "class")]
+    #[test_case("x => x" => "ArrowParameters: x"; "arrow")]
+    #[test_case("async x => x" => "AsyncArrowBinding: x"; "async arrow")]
+    fn params(src: &str) -> String {
+        let node = NameableProduction::try_from(Maker::new(src).assignment_expression()).unwrap();
+        let params = node.params();
+        match params {
+            ParamSource::FormalParameters(node) => format!("FormalParameters: {node}"),
+            ParamSource::ArrowParameters(node) => format!("ArrowParameters: {node}"),
+            ParamSource::AsyncArrowBinding(node) => format!("AsyncArrowBinding: {node}"),
+            ParamSource::ArrowFormals(node) => format!("ArrowFormals: {node}"),
+        }
+    }
 }
 
 // A note about compile tests: These are really unit tests; they check that all the code paths are run, and that the
@@ -4359,6 +4397,8 @@ mod param_source {
     enum Kind {
         Formal,
         Arrow,
+        AsyncArrowBinding,
+        ArrowFormals,
     }
 
     #[test_case("a", Kind::Formal, true, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups/formal")]
@@ -4369,6 +4409,8 @@ mod param_source {
     #[test_case("a", Kind::Arrow, false, true, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups/arrow")]
     #[test_case("a", Kind::Arrow, true, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "strict/no-dups/arrow")]
     #[test_case("a", Kind::Arrow, false, false, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "non-strict/no-dups/arrow")]
+    #[test_case("a", Kind::AsyncArrowBinding, false, false, &[] => panics "not yet implemented"; "async arrow binding")]
+    #[test_case("(a)", Kind::ArrowFormals, false, false, &[] => panics "not yet implemented"; "arrow formals")]
     fn compile_binding_initialization(
         src: &str,
         which: Kind,
@@ -4379,6 +4421,8 @@ mod param_source {
         let node = match which {
             Kind::Formal => ParamSource::FormalParameters(Maker::new(src).formal_parameters()),
             Kind::Arrow => ParamSource::ArrowParameters(Maker::new(src).arrow_parameters()),
+            Kind::AsyncArrowBinding => ParamSource::AsyncArrowBinding(Maker::new(src).async_arrow_binding_identifier()),
+            Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new(src).arrow_formal_parameters()),
         };
         let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, has_dups)

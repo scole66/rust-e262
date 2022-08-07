@@ -1,4 +1,5 @@
 use super::*;
+use crate::parser::testhelp::*;
 use crate::tests::*;
 
 const ALL_REMOVABILITY: &[Removability] = &[Removability::Deletable, Removability::Permanent];
@@ -1011,6 +1012,79 @@ mod binding_status {
 
 // Function Environment Record testing should go here, but there's currently no good way to make a function object, so
 // testing is deferred.
+mod function_environment_record {
+    use super::*;
+    use test_case::test_case;
+
+    fn make_fer(agent: &mut Agent, src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
+        let ae = Maker::new(src).assignment_expression();
+        let this_mode = if ae.contains(ParseNodeKind::ArrowFunction) || ae.contains(ParseNodeKind::AsyncArrowFunction) {
+            ThisLexicality::LexicalThis
+        } else {
+            ThisLexicality::NonLexicalThis
+        };
+        let node = ae.function_definition().unwrap();
+        let params = node.params();
+        let body = node.body();
+
+        let realm = agent.current_realm_record().unwrap();
+        let global_env = realm.borrow().global_env.clone().unwrap();
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let chunk = Rc::new(Chunk::new("empty"));
+        let closure = ordinary_function_create(
+            agent,
+            function_prototype,
+            src,
+            params,
+            body,
+            this_mode,
+            global_env,
+            None,
+            true,
+            chunk,
+        );
+        (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
+    }
+
+    #[test_case("function foo(left, right) { return left * right; }" => BindingStatus::Uninitialized; "non-lexical")]
+    #[test_case("(left, right) => { return left * right; }" => BindingStatus::Lexical; "lexical")]
+    fn new(source: &str) -> BindingStatus {
+        let mut agent = test_agent();
+
+        let (closure, fer) = make_fer(&mut agent, source, None);
+
+        assert_eq!(fer.name, "environment_tag");
+        assert!(fer.new_target.is_none());
+        assert_eq!(fer.function_object, closure);
+        assert_eq!(&*fer.this_value.borrow(), &ECMAScriptValue::Undefined);
+        assert!(fer.base.bindings.borrow().is_empty());
+
+        fer.this_binding_status.get()
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let (_, fer) = make_fer(&mut agent, "function a(){}", None);
+
+        assert_eq!(fer.name(), "environment_tag");
+    }
+
+    #[test]
+    fn create_immutable_binding() {
+        let mut agent = test_agent();
+        let (_, fer) = make_fer(&mut agent, "function a(){}", None);
+
+        fer.create_immutable_binding(&mut agent, "bob".into(), false).unwrap();
+        assert_eq!(fer.binding_names(), &[JSString::from("bob")]);
+
+        // But was it immutable?
+        fer.initialize_binding(&mut agent, &"bob".into(), "initialized".into()).unwrap();
+        fer.set_mutable_binding(&mut agent, "bob".into(), "illegal".into(), true).expect_err("Should be immutable");
+        let val = fer.get_binding_value(&mut agent, &"bob".into(), true).unwrap();
+        assert_eq!(val, ECMAScriptValue::from("initialized"));
+    }
+}
 
 mod global_environment_record {
     use super::*;

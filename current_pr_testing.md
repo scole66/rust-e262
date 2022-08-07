@@ -64,22 +64,30 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t CompilerFunctionRestParameter`
 * `./t CompilerFunctionBody`
 * `./t CompilerFunctionStatementList`
+* `./t ThisLexicality`
+* `./t ConstructorKind`
+* `./t ScriptRecord`
+* `./t ScriptOrModule`
+* `./t ExecutionContext`
+* `./t SymbolObject`
+* `./t SymbolRegistry`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
     Insn BindingStatus ConciseBody InternalSlotName make_basic_object Chunk Chunk_add_to_func_stash \
     NameableProduction StashedFunctionData FunctionBody FunctionStatementList CompilerBindingIdentifier \
-    CompilerBindingElement CompilerAssignmentExpression CompilerFcnDef CompilerBindingPattern \
+    CompilerBindingElement CompilerAssignmentExpression CompilerFcnDef CompilerBindingPattern SymbolObject \
     CompilerFunctionDeclaration CompilerPropertyDefinition CompilerLexicalBinding CompilerBlock \
     CompilerVariableDeclaration CompilerStatement CompilerDeclaration CompilerReturnStatement \
     CompilerLabelledItem AssignmentExpression FcnDef AsyncFunctionBody AsyncGeneratorBody LabelledItem \
     MemberExpression NewExpression LeftHandSideExpression PrimaryExpression Initializer compile_fdi \
     ObjectEnvironmentRecord CompilerFunctionExpression GlobalEnvironmentRecord CompilerFunctionStatementList \
-    CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody \
+    CompilerFunctionExpression_instantiate_ordinary_function_expression CompilerConciseBody ThisLexicality \
     CompilerArrowFunction_instantiate_arrow_function_expression CompilerExpressionBody CompilerParamSource \
     CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
-    CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList \
-    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction
+    CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList ScriptRecord \
+    CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction \
+    ConstructorKind ScriptOrModule ExecutionContext SymbolRegistry
 ```
 
 ## To Check
@@ -113,8 +121,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 ### `src/function_object/mod.rs`
 
-* `ConstructorKind`
-* `ThisLexicality`
 * `ClassName`
 * `ClassFieldDefinitionRecord`
 * `BodySource`
@@ -135,12 +141,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `ordinary_function_create`
 * `make_constructor`
 
-### `src/execution_context/mod.rs`
-
-* `ScriptRecord`
-* `ScriptOrModule`
-* `ExecutionContext`
-
 ### `src/environment_record/mod.rs`
 
 * `FunctionEnvironmentRecord`
@@ -150,8 +150,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 
 Uncovered Items:
 
-* SymbolObject
-* SymbolRegistry
 * provision_symbol_intrinsic
 * Agent
 * Agent_initialize_host_defined_realm

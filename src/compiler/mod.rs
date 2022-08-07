@@ -721,6 +721,45 @@ impl NameableProduction {
             NameableProduction::AsyncArrow(_) => false,
         }
     }
+
+    pub fn params(&self) -> ParamSource {
+        match self {
+            NameableProduction::Function(node) => node.params.clone().into(),
+            NameableProduction::Generator(node) => node.params.clone().into(),
+            NameableProduction::AsyncFunction(node) => node.params.clone().into(),
+            NameableProduction::AsyncGenerator(node) => node.params.clone().into(),
+            NameableProduction::Class(_) => panic!("Trying to get the parameters block from a class"),
+            NameableProduction::Arrow(node) => node.parameters.clone().into(),
+            NameableProduction::AsyncArrow(node) => node.params(),
+        }
+    }
+
+    pub fn body(&self) -> BodySource {
+        match self {
+            NameableProduction::Function(node) => node.body.clone().into(),
+            NameableProduction::Generator(node) => node.body.clone().into(),
+            NameableProduction::AsyncFunction(node) => node.body.clone().into(),
+            NameableProduction::AsyncGenerator(node) => node.body.clone().into(),
+            NameableProduction::Class(_) => panic!("Trying to get the body of a class"),
+            NameableProduction::Arrow(node) => node.body.clone().into(),
+            NameableProduction::AsyncArrow(node) => node.body(),
+        }
+    }
+}
+
+impl AsyncArrowFunction {
+    pub fn params(&self) -> ParamSource {
+        match self {
+            AsyncArrowFunction::IdentOnly(id, _, _) => id.clone().into(),
+            AsyncArrowFunction::Formals(ah, _) => ah.params.clone().into(),
+        }
+    }
+
+    pub fn body(&self) -> BodySource {
+        match self {
+            AsyncArrowFunction::IdentOnly(_, body, _) | AsyncArrowFunction::Formals(_, body) => body.clone().into(),
+        }
+    }
 }
 
 impl IdentifierReference {
@@ -3579,6 +3618,8 @@ impl ParamSource {
             ParamSource::ArrowParameters(params) => {
                 params.compile_binding_initialization(chunk, strict, text, has_duplicates)
             }
+            ParamSource::AsyncArrowBinding(_) => todo!(),
+            ParamSource::ArrowFormals(_) => todo!(),
         }
     }
 }
