@@ -146,8 +146,8 @@ impl ObjectInterface for BooleanObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

@@ -679,6 +679,15 @@ where
     }
 }
 
+pub fn is_compatible_property_descriptor<'a>(
+    extensible: bool,
+    desc: PotentialPropertyDescriptor,
+    current: &PropertyDescriptor,
+) -> bool {
+    let oo: Option<&'a dyn ObjectInterface> = None;
+    validate_and_apply_property_descriptor(oo, None, extensible, desc, Some(current))
+}
+
 // OrdinaryHasProperty ( O, P )
 //
 // The abstract operation OrdinaryHasProperty takes arguments O (an Object) and P (a property key). It performs the
@@ -935,7 +944,7 @@ where
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys<'a, T>(agent: &mut Agent, o: T) -> Vec<PropertyKey>
+pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -945,7 +954,7 @@ where
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
     for (key, desc) in data.properties.iter() {
-        if key.is_array_index(agent) {
+        if key.is_array_index() {
             keys.push(key.clone())
         } else {
             match key {
@@ -969,7 +978,7 @@ where
     }
     keys
 }
-fn array_index_key(item: &PropertyKey) -> u32 {
+pub fn array_index_key(item: &PropertyKey) -> u32 {
     match item {
         PropertyKey::String(s) => String::from_utf16_lossy(s.as_slice()).parse::<u32>().unwrap(),
         PropertyKey::Symbol(_) => unreachable!(),
@@ -1007,6 +1016,9 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
+        None
+    }
+    fn to_string_obj(&self) -> Option<&StringObject> {
         None
     }
     /// True if this object has no special behavior and no additional slots
@@ -1339,8 +1351,8 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -1453,6 +1465,7 @@ pub enum InternalSlotName {
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     ParameterMap,
+    StringData,
     // Function Object Slots
     Environment,
     PrivateEnvironment,
@@ -1509,6 +1522,8 @@ pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
 pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
+pub const STRING_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::StringData];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -2340,8 +2355,8 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

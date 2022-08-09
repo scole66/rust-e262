@@ -453,8 +453,8 @@ impl ObjectInterface for FunctionObject {
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -1172,8 +1172,8 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

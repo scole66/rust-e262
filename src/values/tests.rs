@@ -721,19 +721,19 @@ mod property_key {
     }
     #[test]
     fn is_array_index() {
-        let mut agent = test_agent();
-        assert_eq!(PropertyKey::from("0").is_array_index(&mut agent), true);
-        assert_eq!(PropertyKey::from("10").is_array_index(&mut agent), true);
-        assert_eq!(PropertyKey::from("0.25").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("0  ").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("  0").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("-20").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("4294967294").is_array_index(&mut agent), true);
-        assert_eq!(PropertyKey::from("4294967295").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("4294967296").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("010").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from("000").is_array_index(&mut agent), false);
-        assert_eq!(PropertyKey::from(agent.wks(WksId::ToPrimitive)).is_array_index(&mut agent), false);
+        let agent = test_agent();
+        assert_eq!(PropertyKey::from("0").is_array_index(), true);
+        assert_eq!(PropertyKey::from("10").is_array_index(), true);
+        assert_eq!(PropertyKey::from("0.25").is_array_index(), false);
+        assert_eq!(PropertyKey::from("0  ").is_array_index(), false);
+        assert_eq!(PropertyKey::from("  0").is_array_index(), false);
+        assert_eq!(PropertyKey::from("-20").is_array_index(), false);
+        assert_eq!(PropertyKey::from("4294967294").is_array_index(), true);
+        assert_eq!(PropertyKey::from("4294967295").is_array_index(), false);
+        assert_eq!(PropertyKey::from("4294967296").is_array_index(), false);
+        assert_eq!(PropertyKey::from("010").is_array_index(), false);
+        assert_eq!(PropertyKey::from("000").is_array_index(), false);
+        assert_eq!(PropertyKey::from(agent.wks(WksId::ToPrimitive)).is_array_index(), false);
     }
     #[test_case(|_| PropertyKey::from("alice"), |_| ECMAScriptValue::from("alice"); "string")]
     #[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)), |a| ECMAScriptValue::from(a.wks(WksId::ToPrimitive)); "symbol")]
@@ -1644,13 +1644,11 @@ mod canonical_numeric_index_string {
     #[test_case("0.250000" => None; "trailing zeroes")]
     #[test_case("Infinity" => Some(f64::INFINITY); "infinity")]
     fn f(src: &str) -> Option<f64> {
-        let mut agent = test_agent();
-        canonical_numeric_index_string(&mut agent, src.into())
+        canonical_numeric_index_string(src.into())
     }
     #[test]
     fn negzero() {
-        let mut agent = test_agent();
-        let result = canonical_numeric_index_string(&mut agent, "-0".into()).unwrap();
+        let result = canonical_numeric_index_string("-0".into()).unwrap();
         assert_eq!(result, 0.0);
         assert_eq!(result.signum(), -1.0);
     }

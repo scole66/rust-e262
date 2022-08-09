@@ -90,7 +90,7 @@ impl ObjectInterface for ArrayObject {
         let length_key = PropertyKey::from("length");
         if key == length_key {
             self.set_length(agent, desc)
-        } else if key.is_array_index(agent) {
+        } else if key.is_array_index() {
             let p = JSString::try_from(key).unwrap();
             let old_len_desc = DataDescriptor::try_from(ordinary_get_own_property(self, &length_key).unwrap()).unwrap();
             let old_len = to_uint32(agent, old_len_desc.value).unwrap();
@@ -140,8 +140,8 @@ impl ObjectInterface for ArrayObject {
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
     fn is_array_object(&self) -> bool {
         true

@@ -24,6 +24,8 @@ pub enum IntrinsicId {
     RangeErrorPrototype,
     ReferenceError,
     ReferenceErrorPrototype,
+    String,
+    StringPrototype,
     Symbol,
     SymbolPrototype,
     SyntaxError,
@@ -99,6 +101,7 @@ pub struct Intrinsics {
     pub set_iterator_prototype: Object, // The prototype of Set iterator objects (24.2.5)
     pub shared_array_buffer: Object, // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
     pub string: Object,             // String	The String constructor (22.1.1)
+    pub string_prototype: Object,   // Initial value of %String.prototype%.
     pub string_iterator_prototype: Object, // The prototype of String iterator objects (22.1.5)
     pub symbol: Object,             // Symbol	The Symbol constructor (20.4.1)
     pub symbol_prototype: Object,   //
@@ -192,6 +195,7 @@ impl Intrinsics {
             set_iterator_prototype: dead.clone(),
             shared_array_buffer: dead.clone(),
             string: dead.clone(),
+            string_prototype: dead.clone(),
             string_iterator_prototype: dead.clone(),
             symbol: dead.clone(),
             symbol_prototype: dead.clone(),
@@ -232,6 +236,8 @@ impl Intrinsics {
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
+            IntrinsicId::String => &self.string,
+            IntrinsicId::StringPrototype => &self.string_prototype,
             IntrinsicId::Symbol => &self.symbol,
             IntrinsicId::SymbolPrototype => &self.symbol_prototype,
             IntrinsicId::SyntaxError => &self.syntax_error,

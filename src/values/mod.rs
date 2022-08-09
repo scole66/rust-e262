@@ -266,13 +266,13 @@ pub enum PropertyKey {
 }
 
 impl PropertyKey {
-    pub fn is_array_index(&self, agent: &mut Agent) -> bool {
+    pub fn is_array_index(&self) -> bool {
         // A String property name P is an array index if and only if ToString(ToUint32(P)) equals P and ToUint32(P) is not the same value as 𝔽(2**32 - 1).
         match self {
             PropertyKey::Symbol(_) => false,
             PropertyKey::String(s) => {
-                let as_u32 = to_uint32(agent, s).unwrap();
-                let restrung = to_string(agent, as_u32).unwrap();
+                let as_u32 = to_uint32_agentless(s).expect("strings always convert to numbers");
+                let restrung = to_string_agentless(as_u32).expect("numbers always convert to strings");
                 as_u32 != 0xFFFFFFFF && restrung == *s
             }
         }
@@ -804,6 +804,18 @@ pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> Comple
         }
     }
 }
+pub fn to_number_agentless(value: impl Into<ECMAScriptValue>) -> anyhow::Result<f64> {
+    match value.into() {
+        ECMAScriptValue::Undefined => Ok(f64::NAN),
+        ECMAScriptValue::Null => Ok(0_f64),
+        ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
+        ECMAScriptValue::Number(n) => Ok(n),
+        ECMAScriptValue::String(s) => Ok(string_to_number(s)),
+        ECMAScriptValue::BigInt(_) => Err(anyhow!("BigInt values cannot be converted to Number values")),
+        ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbol values cannot be converted to Number values")),
+        ECMAScriptValue::Object(_) => Err(anyhow!("Number conversion from objects requires an agent")),
+    }
+}
 
 fn string_to_number(string: JSString) -> f64 {
     lazy_static! {
@@ -915,6 +927,15 @@ fn to_core_int(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptVal
         }
     })
 }
+fn to_core_int_agentless(modulo: f64, argument: impl Into<ECMAScriptValue>) -> anyhow::Result<f64> {
+    let number = to_number_agentless(argument)?;
+    if !number.is_finite() || number == 0.0 {
+        Ok(0.0)
+    } else {
+        let i = number.signum() * number.abs().floor();
+        Ok(i % modulo)
+    }
+}
 fn to_core_signed(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     Ok({
         let intval = to_core_int(agent, modulo, argument)?;
@@ -950,6 +971,10 @@ pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Comp
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
 pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
     let i = to_core_int(agent, 4294967296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+}
+pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
+    let i = to_core_int_agentless(4294967296.0, argument)? as i64;
     Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
@@ -1054,6 +1079,10 @@ pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completi
     }
 }
 
+pub fn to_string_agentless(val: impl Into<ECMAScriptValue>) -> anyhow::Result<JSString> {
+    JSString::try_from(val.into())
+}
+
 impl TryFrom<ECMAScriptValue> for JSString {
     type Error = anyhow::Error;
     fn try_from(val: ECMAScriptValue) -> Result<Self, Self::Error> {
@@ -1099,7 +1128,7 @@ pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completi
         }
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
         ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
-        ECMAScriptValue::String(s) => Ok(create_string_object(agent, s)),
+        ECMAScriptValue::String(s) => Ok(agent.create_string_object(s)),
         ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(agent, s)),
         ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(agent, b)),
         ECMAScriptValue::Object(o) => Ok(o),
@@ -1149,12 +1178,12 @@ pub fn to_length(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Com
 //
 // A canonical numeric string is any String value for which the CanonicalNumericIndexString abstract operation does not
 // return undefined.
-pub fn canonical_numeric_index_string(agent: &mut Agent, argument: JSString) -> Option<f64> {
+pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
     if argument == "-0" {
         Some(-0.0)
     } else {
-        let n = to_number(agent, argument.clone()).unwrap();
-        if argument == to_string(agent, n).unwrap() {
+        let n = to_number_agentless(argument.clone()).unwrap();
+        if argument == to_string_agentless(n).unwrap() {
             Some(n)
         } else {
             None

@@ -21,6 +21,8 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::RangeErrorPrototype,
     IntrinsicId::ReferenceError,
     IntrinsicId::ReferenceErrorPrototype,
+    IntrinsicId::String,
+    IntrinsicId::StringPrototype,
     IntrinsicId::Symbol,
     IntrinsicId::SymbolPrototype,
     IntrinsicId::SyntaxError,
