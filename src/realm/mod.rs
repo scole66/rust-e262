@@ -372,6 +372,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_object_intrinsic(agent, &realm_rec);
     provision_array_intrinsic(agent, &realm_rec);
     provision_symbol_intrinsic(agent, &realm_rec);
+    agent.provision_string_intrinsic(&realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 }

@@ -281,3 +281,529 @@ impl StringObject {
         }
     }
 }
+
+impl Agent {
+    pub fn provision_string_intrinsic(&mut self, realm: &Rc<RefCell<Realm>>) {
+        let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+        let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+
+        // The String Constructor
+        //
+        // * is %String%.
+        // * is the initial value of the "String" property of the global object.
+        // * creates and initializes a new String object when called as a constructor.
+        // * performs a type conversion when called as a function rather than as a constructor.
+        // * may be used as the value of an extends clause of a class definition. Subclass constructors that
+        //   intend to inherit the specified String behaviour must include a super call to the String
+        //   constructor to create and initialize the subclass instance with a [[StringData]] internal slot.
+        //
+        // Properties of the String Constructor
+        // The String constructor:
+        //
+        // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+        let string_constructor = create_builtin_function(
+            self,
+            string_constructor_function,
+            true,
+            0.0,
+            PropertyKey::from("String"),
+            BUILTIN_FUNCTION_SLOTS,
+            Some(realm.clone()),
+            Some(function_prototype.clone()),
+            None,
+        );
+
+        // Constructor Function Properties
+        macro_rules! constructor_function {
+            ( $steps:expr, $name:expr, $length:expr ) => {
+                let key = PropertyKey::from($name);
+                let function_object = create_builtin_function(
+                    self,
+                    $steps,
+                    false,
+                    $length,
+                    key.clone(),
+                    BUILTIN_FUNCTION_SLOTS,
+                    Some(realm.clone()),
+                    Some(function_prototype.clone()),
+                    None,
+                );
+                define_property_or_throw(
+                    self,
+                    &string_constructor,
+                    key,
+                    PotentialPropertyDescriptor::new()
+                        .value(function_object)
+                        .writable(true)
+                        .enumerable(false)
+                        .configurable(true),
+                )
+                .unwrap();
+            };
+        }
+
+        constructor_function!(string_from_char_code, "fromCharCode", 1.0);
+        constructor_function!(string_from_code_point, "fromCodePoint", 1.0);
+        constructor_function!(string_raw, "raw", 1.0);
+
+        // Constructor Data Properties
+        macro_rules! constructor_data {
+            ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+                define_property_or_throw(
+                    self,
+                    &string_constructor,
+                    $name,
+                    PotentialPropertyDescriptor::new()
+                        .value(ECMAScriptValue::from($value))
+                        .writable($writable)
+                        .enumerable($enumerable)
+                        .configurable($configurable),
+                )
+                .unwrap();
+            };
+        }
+
+        // The String prototype object:
+        //
+        // * is %String.prototype%.
+        // * is a String exotic object and has the internal methods specified for such objects.
+        // * has a [[StringData]] internal slot whose value is the empty String.
+        // * has a "length" property whose initial value is +0𝔽 and whose attributes are { [[Writable]]:
+        //   false, [[Enumerable]]: false, [[Configurable]]: false }.
+        // * has a [[Prototype]] internal slot whose value is %Object.prototype%.
+        let string_prototype = self.string_create("".into(), Some(object_prototype));
+
+        // Prototype Function Properties
+        macro_rules! prototype_function {
+            ( $steps:expr, $name:expr, $length:expr ) => {
+                let key = PropertyKey::from($name);
+                let function_object = create_builtin_function(
+                    self,
+                    $steps,
+                    false,
+                    $length,
+                    key.clone(),
+                    BUILTIN_FUNCTION_SLOTS,
+                    Some(realm.clone()),
+                    Some(function_prototype.clone()),
+                    None,
+                );
+                define_property_or_throw(
+                    self,
+                    &string_prototype,
+                    key,
+                    PotentialPropertyDescriptor::new()
+                        .value(function_object)
+                        .writable(true)
+                        .enumerable(false)
+                        .configurable(true),
+                )
+                .unwrap();
+            };
+        }
+        prototype_function!(string_prototype_at, "at", 1.0);
+        prototype_function!(string_prototype_char_at, "charAt", 1.0);
+        prototype_function!(string_prototype_char_code_at, "charCodeAt", 1.0);
+        prototype_function!(string_prototype_code_point_at, "codePointAt", 1.0);
+        prototype_function!(string_prototype_concat, "concat", 1.0);
+        prototype_function!(string_prototype_ends_with, "endsWith", 1.0);
+        prototype_function!(string_prototype_includes, "includes", 1.0);
+        prototype_function!(string_prototype_index_of, "indexOf", 1.0);
+        prototype_function!(string_prototype_last_index_of, "lastIndexOf", 1.0);
+        prototype_function!(string_prototype_locale_compare, "localeCompare", 1.0);
+        prototype_function!(string_prototype_match, "match", 1.0);
+        prototype_function!(string_prototype_match_all, "matchAll", 1.0);
+        prototype_function!(string_prototype_normalize, "normalize", 0.0);
+        prototype_function!(string_prototype_pad_end, "padEnd", 1.0);
+        prototype_function!(string_prototype_pad_start, "padStart", 1.0);
+        prototype_function!(string_prototype_repeat, "repeat", 1.0);
+        prototype_function!(string_prototype_replace, "replace", 2.0);
+        prototype_function!(string_prototype_replace_all, "replaceAll", 2.0);
+        prototype_function!(string_prototype_search, "search", 1.0);
+        prototype_function!(string_prototype_slice, "slice", 1.0);
+        prototype_function!(string_prototype_split, "split", 2.0);
+        prototype_function!(string_prototype_starts_with, "startsWith", 1.0);
+        prototype_function!(string_prototype_substring, "substring", 2.0);
+        prototype_function!(string_prototype_to_locale_lower_case, "toLocaleLowerCase", 0.0);
+        prototype_function!(string_prototype_to_locale_upper_case, "toLocaleUpperCase", 0.0);
+        prototype_function!(string_prototype_to_lower_case, "toLowerCase", 0.0);
+        prototype_function!(string_prototype_to_string, "toString", 0.0);
+        prototype_function!(string_prototype_to_upper_case, "toUpperCase", 0.0);
+        prototype_function!(string_prototype_trim, "trim", 0.0);
+        prototype_function!(string_prototype_trim_end, "trimEnd", 0.0);
+        prototype_function!(string_prototype_trim_start, "trimStart", 0.0);
+        prototype_function!(string_prototype_value_of, "valueOf", 0.0);
+
+        // 22.1.3.34 String.prototype [ @@iterator ] ( )
+        //prototype_function!(string_prototype_[, "[", 1.0);
+
+        macro_rules! prototype_data {
+            ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+                define_property_or_throw(
+                    self,
+                    &string_prototype,
+                    $name,
+                    PotentialPropertyDescriptor::new()
+                        .value(ECMAScriptValue::from($value))
+                        .writable($writable)
+                        .enumerable($enumerable)
+                        .configurable($configurable),
+                )
+                .unwrap();
+            };
+        }
+
+        constructor_data!("prototype", string_prototype.clone(), false, false, false);
+        prototype_data!("constructor", string_constructor.clone(), true, false, true);
+
+        realm.borrow_mut().intrinsics.string = string_constructor;
+        realm.borrow_mut().intrinsics.string_prototype = string_prototype;
+    }
+}
+
+fn string_constructor_function(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // String ( value )
+    // This function performs the following steps when called:
+    //
+    //  1. If value is not present, let s be the empty String.
+    //  2. Else,
+    //      a. If NewTarget is undefined and Type(value) is Symbol, return SymbolDescriptiveString(value).
+    //      b. Let s be ? ToString(value).
+    //  3. If NewTarget is undefined, return s.
+    //  4. Return StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%String.prototype%")).
+    let s = if arguments.is_empty() {
+        JSString::from("")
+    } else {
+        let value = &arguments[0];
+        if let (None, ECMAScriptValue::Symbol(sym)) = (new_target, value) {
+            return Ok(ECMAScriptValue::from(sym.descriptive_string()));
+        }
+        to_string(agent, value.clone())?
+    };
+    if let Some(nt) = new_target {
+        let prototype = agent.get_prototype_from_constructor(nt, IntrinsicId::StringPrototype)?;
+        let s_obj = agent.string_create(s, Some(prototype));
+        Ok(ECMAScriptValue::from(s_obj))
+    } else {
+        Ok(ECMAScriptValue::from(s))
+    }
+}
+
+fn string_from_char_code(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn string_from_code_point(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn string_raw(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+// 22.1.3.1 String.prototype.at ( index )
+fn string_prototype_at(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.2 String.prototype.charAt ( pos )
+fn string_prototype_char_at(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.3 String.prototype.charCodeAt ( pos )
+fn string_prototype_char_code_at(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.4 String.prototype.codePointAt ( pos )
+fn string_prototype_code_point_at(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.5 String.prototype.concat ( ...args )
+fn string_prototype_concat(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.7 String.prototype.endsWith ( searchString [ , endPosition ] )
+fn string_prototype_ends_with(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.8 String.prototype.includes ( searchString [ , position ] )
+fn string_prototype_includes(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] )
+fn string_prototype_index_of(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
+fn string_prototype_last_index_of(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.11 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] )
+fn string_prototype_locale_compare(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.12 String.prototype.match ( regexp )
+fn string_prototype_match(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.13 String.prototype.matchAll ( regexp )
+fn string_prototype_match_all(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.14 String.prototype.normalize ( [ form ] )
+fn string_prototype_normalize(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.15 String.prototype.padEnd ( maxLength [ , fillString ] )
+fn string_prototype_pad_end(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.16 String.prototype.padStart ( maxLength [ , fillString ] )
+fn string_prototype_pad_start(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.17 String.prototype.repeat ( count )
+fn string_prototype_repeat(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.18 String.prototype.replace ( searchValue, replaceValue )
+fn string_prototype_replace(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.19 String.prototype.replaceAll ( searchValue, replaceValue )
+fn string_prototype_replace_all(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.20 String.prototype.search ( regexp )
+fn string_prototype_search(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.21 String.prototype.slice ( start, end )
+fn string_prototype_slice(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.22 String.prototype.split ( separator, limit )
+fn string_prototype_split(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
+fn string_prototype_starts_with(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.24 String.prototype.substring ( start, end )
+fn string_prototype_substring(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.25 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] )
+fn string_prototype_to_locale_lower_case(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.26 String.prototype.toLocaleUpperCase ( [ reserved1 [ , reserved2 ] ] )
+fn string_prototype_to_locale_upper_case(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.27 String.prototype.toLowerCase ( )
+fn string_prototype_to_lower_case(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.28 String.prototype.toString ( )
+fn string_prototype_to_string(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.29 String.prototype.toUpperCase ( )
+fn string_prototype_to_upper_case(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.30 String.prototype.trim ( )
+fn string_prototype_trim(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.31 String.prototype.trimEnd ( )
+fn string_prototype_trim_end(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.32 String.prototype.trimStart ( )
+fn string_prototype_trim_start(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+// 22.1.3.33 String.prototype.valueOf ( )
+fn string_prototype_value_of(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
