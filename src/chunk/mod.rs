@@ -5,6 +5,16 @@ use itertools::Itertools;
 use num::bigint::BigInt;
 use std::rc::Rc;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct StashedFunctionData {
+    pub source_text: String,
+    pub params: ParamSource,
+    pub body: BodySource,
+    pub to_compile: FunctionSource,
+    pub strict: bool,
+    pub this_mode: ThisLexicality,
+}
+
 /// A compilation unit
 #[derive(Debug, Default)]
 pub struct Chunk {
@@ -14,6 +24,7 @@ pub struct Chunk {
     pub floats: Vec<f64>,
     pub bigints: Vec<Rc<BigInt>>,
     pub label_sets: Vec<AHashSet<JSString>>,
+    pub function_object_data: Vec<StashedFunctionData>,
 }
 
 impl Chunk {
@@ -52,6 +63,12 @@ impl Chunk {
         (collection.len() - 1)
             .try_into()
             .map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
+    }
+
+    pub fn add_to_func_stash(&mut self, fd: StashedFunctionData) -> anyhow::Result<u16> {
+        let result = self.function_object_data.len();
+        self.function_object_data.push(fd);
+        result.try_into().map_err(|_| anyhow!("Out of room for more functions!"))
     }
 
     pub fn op(&mut self, opcode: Insn) {
@@ -104,7 +121,15 @@ impl Chunk {
         match insn {
             Insn::String
             | Insn::CreateStrictImmutableLexBinding
+            | Insn::CreateNonStrictImmutableLexBinding
             | Insn::CreatePermanentMutableLexBinding
+            | Insn::CreateInitializedPermanentMutableLexIfMissing
+            | Insn::CreatePermanentMutableLexIfMissing
+            | Insn::CreatePermanentMutableVarBinding
+            | Insn::InitializeLexBinding
+            | Insn::GetLexBinding
+            | Insn::InitializeVarBinding
+            | Insn::SetMutableVarBinding
             | Insn::TargetedContinue
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak => {
@@ -119,7 +144,10 @@ impl Chunk {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
-            Insn::Unwind => {
+            Insn::Unwind
+            | Insn::InstantiateIdFreeFunctionExpression
+            | Insn::InstantiateArrowFunctionExpression
+            | Insn::InstantiateOrdinaryFunctionExpression => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{}", insn, arg))
             }
@@ -128,10 +156,13 @@ impl Chunk {
             | Insn::Resolve
             | Insn::StrictResolve
             | Insn::Nop
+            | Insn::ToDo
             | Insn::InitializeReferencedBinding
             | Insn::PopLexEnv
             | Insn::PushNewLexEnv
-            | Insn::InitializeLexBinding
+            | Insn::PushNewVarEnvFromLex
+            | Insn::PushNewLexEnvFromVar
+            | Insn::SetLexEnvToVarEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -145,6 +176,8 @@ impl Chunk {
             | Insn::GetValue
             | Insn::PutValue
             | Insn::Call
+            | Insn::EndFunction
+            | Insn::Return
             | Insn::UpdateEmpty
             | Insn::Swap
             | Insn::Pop
@@ -191,6 +224,9 @@ impl Chunk {
             | Insn::CoalesceValue
             | Insn::Continue
             | Insn::Break
+            | Insn::ExtractArg
+            | Insn::FinishArgs
+            | Insn::UnwindList
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
@@ -199,11 +235,12 @@ impl Chunk {
             | Insn::JumpIfTrue
             | Insn::JumpPopIfFalse
             | Insn::JumpPopIfTrue
-            | Insn::JumpIfNotNullish => {
+            | Insn::JumpIfNotNullish
+            | Insn::JumpIfNotUndef => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))
             }
-            Insn::AddMappedArgument => {
+            Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))

@@ -180,7 +180,7 @@ impl AsyncArrowFunction {
 //      async [no LineTerminator here] ArrowFormalParameters[~Yield, +Await]
 #[derive(Debug)]
 pub struct AsyncArrowHead {
-    params: Rc<ArrowFormalParameters>,
+    pub params: Rc<ArrowFormalParameters>,
     location: Location,
 }
 
@@ -381,6 +381,41 @@ impl AsyncConciseBody {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            AsyncConciseBody::Expression(_) => vec![],
+            AsyncConciseBody::Function(node, _) => node.var_declared_names(),
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            AsyncConciseBody::Expression(_) => vec![],
+            AsyncConciseBody::Function(node, _) => node.var_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        match self {
+            AsyncConciseBody::Expression(_) => vec![],
+            AsyncConciseBody::Function(node, _) => node.lexically_declared_names(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            AsyncConciseBody::Expression(_) => vec![],
+            AsyncConciseBody::Function(node, _) => node.lexically_scoped_declarations(),
+        }
+    }
+
+    pub fn contains_use_strict(&self) -> bool {
+        match self {
+            AsyncConciseBody::Expression(_) => false,
+            AsyncConciseBody::Function(node, _) => node.function_body_contains_use_strict(),
+        }
+    }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :
@@ -426,6 +461,22 @@ impl AsyncArrowBindingIdentifier {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn expected_argument_count(&self) -> f64 {
+        1.0
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.0.bound_names()
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        true
+    }
+
+    pub fn contains_expression(&self) -> bool {
+        false
     }
 }
 

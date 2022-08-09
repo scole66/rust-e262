@@ -252,9 +252,9 @@ impl AsyncFunctionDeclaration {
 //      async [no LineTerminator here] function BindingIdentifier[~Yield, +Await]opt ( FormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
 #[derive(Debug)]
 pub struct AsyncFunctionExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncFunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<AsyncFunctionBody>,
     location: Location,
 }
 
@@ -653,7 +653,7 @@ impl AsyncMethod {
 // AsyncFunctionBody :
 //      FunctionBody[~Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncFunctionBody(Rc<FunctionBody>);
+pub struct AsyncFunctionBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for AsyncFunctionBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -761,6 +761,10 @@ impl AsyncFunctionBody {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.0.lexically_scoped_declarations()
     }
 }
 

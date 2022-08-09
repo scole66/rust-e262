@@ -6,13 +6,14 @@ use std::rc::Rc;
 pub struct ScriptRecord {
     pub realm: Rc<RefCell<Realm>>,
     pub ecmascript_code: Rc<Script>,
+    pub text: String,
     pub compiled: Rc<Chunk>,
 }
 
 #[derive(Debug)]
 pub struct ModuleRecord {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScriptOrModule {
     Script(Rc<ScriptRecord>),
     Module(Rc<ModuleRecord>),
@@ -27,7 +28,7 @@ pub struct ExecutionContext {
     // for code contexts
     pub lexical_environment: Option<Rc<dyn EnvironmentRecord>>,
     pub variable_environment: Option<Rc<dyn EnvironmentRecord>>,
-    pub private_environment: Option<Rc<PrivateEnvironmentRecord>>,
+    pub private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
 
     // code evaluation state
     pub stack: Vec<FullCompletion>,

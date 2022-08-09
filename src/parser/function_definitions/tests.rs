@@ -499,6 +499,11 @@ mod function_body {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).function_body().var_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
 }
 
 // FUNCTION STATEMENT LIST
@@ -623,5 +628,11 @@ mod function_statement_list {
     #[test_case("" => svec(&[]); "empty")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).function_statement_list().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("let a, b, c; function pp(){}" => svec(&["let a , b , c ;"]); "stuff")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_statement_list().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }

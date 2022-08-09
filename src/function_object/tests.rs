@@ -2,7 +2,7 @@ use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
 
-mod arguments {
+mod func_args {
     use super::*;
     #[test]
     fn empty() {
@@ -46,18 +46,64 @@ mod arguments {
 
 mod function_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let fd = Maker::new("function a(){}").function_declaration();
-        let mut agent = test_agent();
-        let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
 
-        fd.instantiate_function_object(&mut agent, global_env, None);
+    mod instantiate_function_object {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("a" => "a"; "named")]
+        #[test_case("" => "default"; "unnamed")]
+        fn typical(name: &str) -> String {
+            let src = format!("function {name}(){{}}");
+            let fd = Maker::new(&src).function_declaration();
+            let mut agent = test_agent();
+            let realm_rc = agent.current_realm_record().unwrap();
+            let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+            let fvalue =
+                fd.instantiate_function_object(&mut agent, global_env.clone(), None, false, &src, fd.clone()).unwrap();
+            let fobj = Object::try_from(fvalue).unwrap();
+
+            let result = String::from(JSString::try_from(get(&mut agent, &fobj, &"name".into()).unwrap()).unwrap());
+
+            let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
+            assert_eq!(function.environment.name(), global_env.name());
+            assert!(function.private_environment.is_none());
+            let params: Rc<FormalParameters> = function.formal_parameters.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&fd.params, &params));
+            let body: Rc<FunctionBody> = function.ecmascript_code.clone().try_into().unwrap();
+            assert!(Rc::ptr_eq(&fd.body, &body));
+            assert_eq!(function.constructor_kind, ConstructorKind::Base);
+            assert!(Rc::ptr_eq(&function.realm, &realm_rc));
+            assert!(function.script_or_module.is_none()); // No scripts in test agents
+            assert_eq!(function.this_mode, ThisMode::Global);
+            assert_eq!(function.strict, false);
+            assert!(function.home_object.is_none());
+            assert_eq!(function.source_text, src);
+            assert!(function.fields.is_empty());
+            assert!(function.private_methods.is_empty());
+            assert!(matches!(function.class_field_initializer_name, ClassName::Empty));
+            assert!(!function.is_class_constructor);
+            assert!(function.is_constructor);
+
+            result
+        }
+
+        #[test]
+        fn compile_error() {
+            let src = "function a(){ if (true) { @@@; } return 3; }";
+            let fd = Maker::new(src).function_declaration();
+            let mut agent = test_agent();
+            let realm_rc = agent.current_realm_record().unwrap();
+            let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+            let fvalue = fd
+                .instantiate_function_object(&mut agent, global_env.clone(), None, false, src, fd.clone())
+                .unwrap_err();
+
+            let msg = unwind_any_error(&mut agent, fvalue);
+            assert_eq!(msg, "TypeError: out of range integral type conversion attempted");
+        }
     }
 }
 
@@ -66,7 +112,8 @@ mod generator_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
-        let fd = Maker::new("function *a(){}").generator_declaration();
+        let src = "function *a(){}";
+        let fd = Maker::new(src).generator_declaration();
         let mut agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
@@ -74,7 +121,7 @@ mod generator_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None);
+        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -83,7 +130,8 @@ mod async_function_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
-        let fd = Maker::new("async function a(){}").async_function_declaration();
+        let src = "async function a(){}";
+        let fd = Maker::new(src).async_function_declaration();
         let mut agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
@@ -91,7 +139,7 @@ mod async_function_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None);
+        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -100,7 +148,8 @@ mod async_generator_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
-        let fd = Maker::new("async function *a(){}").async_generator_declaration();
+        let src = "async function *a(){}";
+        let fd = Maker::new(src).async_generator_declaration();
         let mut agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
@@ -108,6 +157,56 @@ mod async_generator_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None);
+        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
+    }
+}
+
+mod this_lexicality {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ThisLexicality::LexicalThis => with |s| assert_ne!(s, ""); "lexical")]
+    #[test_case(ThisLexicality::NonLexicalThis => with |s| assert_ne!(s, ""); "non-lexical")]
+    fn debug(item: ThisLexicality) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(ThisLexicality::LexicalThis, ThisLexicality::LexicalThis => true; "equal")]
+    #[test_case(ThisLexicality::NonLexicalThis, ThisLexicality::LexicalThis => false; "unequal")]
+    fn eq(left: ThisLexicality, right: ThisLexicality) -> bool {
+        left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let l1 = ThisLexicality::LexicalThis;
+        let l2 = l1.clone();
+        assert_eq!(l1, l2);
+    }
+}
+
+mod constructor_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ConstructorKind::Derived => with |s| assert_ne!(s, ""); "derived")]
+    #[test_case(ConstructorKind::Base => with |s| assert_ne!(s, ""); "base")]
+    fn debug(item: ConstructorKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(ConstructorKind::Derived, ConstructorKind::Derived => true; "equal")]
+    #[test_case(ConstructorKind::Base, ConstructorKind::Derived => false; "unequal")]
+    fn eq(left: ConstructorKind, right: ConstructorKind) -> bool {
+        left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let l1 = ConstructorKind::Derived;
+        let l2 = l1.clone();
+        assert_eq!(l1, l2);
     }
 }

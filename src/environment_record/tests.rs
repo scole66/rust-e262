@@ -1,4 +1,5 @@
 use super::*;
+use crate::parser::testhelp::*;
 use crate::tests::*;
 
 const ALL_REMOVABILITY: &[Removability] = &[Removability::Deletable, Removability::Permanent];
@@ -139,6 +140,8 @@ mod binding {
 
 mod declarative_environment_record {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     fn debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
@@ -148,6 +151,24 @@ mod declarative_environment_record {
     fn fancy_debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         assert_ne!(format!("{:#?}", der), "");
+    }
+
+    #[test_case("&str"; "string slice")]
+    #[test_case(JSString::from("JSString"); "JSString")]
+    fn new(name: impl Into<String> + Clone) {
+        let agent = test_agent();
+        let name_dup: String = name.clone().into();
+        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let der = DeclarativeEnvironmentRecord::new(Some(global_env.clone()), name);
+        assert_eq!(der.outer_env.unwrap().name(), global_env.name());
+        assert_eq!(der.name, name_dup);
+        assert!(der.bindings.borrow().is_empty());
+    }
+
+    #[test_case("bob" => "bob"; "typical")]
+    fn name(name: &str) -> String {
+        let der = DeclarativeEnvironmentRecord::new(None, name);
+        der.name()
     }
 
     #[test]
@@ -389,6 +410,26 @@ mod declarative_environment_record {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         der.get_this_binding(&mut agent).unwrap();
     }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        der.bind_this_value(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let der = DeclarativeEnvironmentRecord::new(None, "test");
+        der.create_mutable_binding(&mut agent, JSString::from("a"), true).unwrap();
+        der.create_mutable_binding(&mut agent, JSString::from("greasy"), true).unwrap();
+
+        let mut names = der.binding_names();
+        names.sort();
+        assert_eq!(names, vec!["a", "greasy"]);
+    }
 }
 
 mod object_environment_record {
@@ -400,7 +441,7 @@ mod object_environment_record {
         let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None, "test");
 
-        println!("{:#?}", oer);
+        assert_ne!(format!("{:#?}", oer), "");
         assert_ne!(format!("{:?}", oer), "");
     }
     #[test]
@@ -906,6 +947,40 @@ mod object_environment_record {
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
         oer.get_this_binding(&mut agent).unwrap();
     }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
+        oer.bind_this_value(&mut agent, 29.into()).unwrap();
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "sentinel");
+        assert_eq!(oer.name(), "sentinel");
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+        let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "sentinel");
+        oer.create_mutable_binding(&mut agent, "bill".into(), true).unwrap();
+        oer.create_mutable_binding(&mut agent, "alice".into(), true).unwrap();
+
+        let bindings = oer.binding_names();
+        assert_eq!(bindings.len(), 2);
+        assert!(bindings.contains(&"bill".into()));
+        assert!(bindings.contains(&"alice".into()));
+    }
 }
 
 mod binding_status {
@@ -926,10 +1001,90 @@ mod binding_status {
             }
         }
     }
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let bs1 = BindingStatus::Lexical;
+        let bs2 = bs1.clone();
+        assert_eq!(bs1, bs2);
+    }
 }
 
 // Function Environment Record testing should go here, but there's currently no good way to make a function object, so
 // testing is deferred.
+mod function_environment_record {
+    use super::*;
+    use test_case::test_case;
+
+    fn make_fer(agent: &mut Agent, src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
+        let ae = Maker::new(src).assignment_expression();
+        let this_mode = if ae.contains(ParseNodeKind::ArrowFunction) || ae.contains(ParseNodeKind::AsyncArrowFunction) {
+            ThisLexicality::LexicalThis
+        } else {
+            ThisLexicality::NonLexicalThis
+        };
+        let node = ae.function_definition().unwrap();
+        let params = node.params();
+        let body = node.body();
+
+        let realm = agent.current_realm_record().unwrap();
+        let global_env = realm.borrow().global_env.clone().unwrap();
+        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let chunk = Rc::new(Chunk::new("empty"));
+        let closure = ordinary_function_create(
+            agent,
+            function_prototype,
+            src,
+            params,
+            body,
+            this_mode,
+            global_env,
+            None,
+            true,
+            chunk,
+        );
+        (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
+    }
+
+    #[test_case("function foo(left, right) { return left * right; }" => BindingStatus::Uninitialized; "non-lexical")]
+    #[test_case("(left, right) => { return left * right; }" => BindingStatus::Lexical; "lexical")]
+    fn new(source: &str) -> BindingStatus {
+        let mut agent = test_agent();
+
+        let (closure, fer) = make_fer(&mut agent, source, None);
+
+        assert_eq!(fer.name, "environment_tag");
+        assert!(fer.new_target.is_none());
+        assert_eq!(fer.function_object, closure);
+        assert_eq!(&*fer.this_value.borrow(), &ECMAScriptValue::Undefined);
+        assert!(fer.base.bindings.borrow().is_empty());
+
+        fer.this_binding_status.get()
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let (_, fer) = make_fer(&mut agent, "function a(){}", None);
+
+        assert_eq!(fer.name(), "environment_tag");
+    }
+
+    #[test]
+    fn create_immutable_binding() {
+        let mut agent = test_agent();
+        let (_, fer) = make_fer(&mut agent, "function a(){}", None);
+
+        fer.create_immutable_binding(&mut agent, "bob".into(), false).unwrap();
+        assert_eq!(fer.binding_names(), &[JSString::from("bob")]);
+
+        // But was it immutable?
+        fer.initialize_binding(&mut agent, &"bob".into(), "initialized".into()).unwrap();
+        fer.set_mutable_binding(&mut agent, "bob".into(), "illegal".into(), true).expect_err("Should be immutable");
+        let val = fer.get_binding_value(&mut agent, &"bob".into(), true).unwrap();
+        assert_eq!(val, ECMAScriptValue::from("initialized"));
+    }
+}
 
 mod global_environment_record {
     use super::*;
@@ -1852,6 +2007,55 @@ mod global_environment_record {
         assert_eq!(ger.object_record.binding_object, global_object);
         assert_eq!(ger.global_this_value, this_object);
         assert_eq!(ger.var_names.borrow().len(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "unreachable")]
+    fn bind_this_value() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        ger.bind_this_value(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    }
+
+    #[test]
+    fn name() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        assert_eq!(ger.name(), "test");
+    }
+
+    #[test]
+    fn var_decls() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let vd_list = ger.var_decls();
+        assert_eq!(vd_list.len(), 1);
+        assert!(vd_list.contains(&JSString::from("normal_var")));
+    }
+
+    #[test]
+    fn lex_decls() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let lex_list = ger.lex_decls();
+        assert_eq!(lex_list.len(), 4);
+        assert!(lex_list.contains(&JSString::from("lexical_sloppy")));
+        assert!(lex_list.contains(&JSString::from("lexical_permanent")));
+        assert!(lex_list.contains(&JSString::from("lexical_strict")));
+        assert!(lex_list.contains(&JSString::from("lexical_deletable")));
+    }
+
+    #[test]
+    fn binding_names() {
+        let mut agent = test_agent();
+        let ger = setup(&mut agent);
+        let bindings = ger.binding_names();
+        assert_eq!(bindings.len(), 5);
+        assert!(bindings.contains(&JSString::from("lexical_sloppy")));
+        assert!(bindings.contains(&JSString::from("lexical_permanent")));
+        assert!(bindings.contains(&JSString::from("lexical_strict")));
+        assert!(bindings.contains(&JSString::from("lexical_deletable")));
+        assert!(bindings.contains(&JSString::from("normal_var")));
     }
 }
 

@@ -2085,6 +2085,7 @@ fn ordinary_object_create_03c() {
 #[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
 #[test_case(SYMBOL_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_symbol_object()); "symbol obj")]
 #[test_case(ARGUMENTS_OBJECT_SLOTS => panics "Additional info needed for arguments object; use direct constructor"; "args obj")]
+#[test_case(FUNCTION_OBJECT_SLOTS => panics "More items are needed for initialization. Use FunctionObject::object directly instead"; "function obj")]
 fn make_basic_object(slots: &[InternalSlotName]) -> Object {
     let mut agent = test_agent();
     super::make_basic_object(&mut agent, slots, None)

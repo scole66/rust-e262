@@ -7,7 +7,7 @@ use std::io::Write;
 //      FormalParameters[?Yield, ?Await]
 #[derive(Debug)]
 pub struct UniqueFormalParameters {
-    formals: Rc<FormalParameters>,
+    pub formals: Rc<FormalParameters>,
 }
 
 impl fmt::Display for UniqueFormalParameters {
@@ -712,7 +712,7 @@ impl FunctionRestParameter {
 //      BindingElement[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FormalParameter {
-    element: Rc<BindingElement>,
+    pub element: Rc<BindingElement>,
 }
 
 impl fmt::Display for FormalParameter {

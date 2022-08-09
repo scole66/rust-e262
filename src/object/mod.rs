@@ -1000,7 +1000,7 @@ pub trait ObjectInterface: Debug {
         // Whereas this is anything that implements [[Call]]
         None
     }
-    fn to_constructable(&self) -> Option<&dyn ConstructableObject> {
+    fn to_constructable(&self) -> Option<&dyn CallableObject> {
         None
     }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
@@ -1398,7 +1398,7 @@ impl Object {
         }
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
+        write!(f, "<Object {}>", self.o.id())
     }
 
     // IsArray ( argument )
@@ -1453,6 +1453,22 @@ pub enum InternalSlotName {
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     ParameterMap,
+    // Function Object Slots
+    Environment,
+    PrivateEnvironment,
+    FormalParameters,
+    ECMAScriptCode,
+    ConstructorKind,
+    ScriptOrModule,
+    ThisMode,
+    Strict,
+    HomeObject,
+    SourceText,
+    Fields,
+    PrivateMethods,
+    ClassFieldInitializerName,
+    IsClassConstructor,
+
     Nonsense, // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
@@ -1465,6 +1481,25 @@ pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Extensible,
     InternalSlotName::InitialName,
     InternalSlotName::Realm,
+];
+pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::Realm,
+    InternalSlotName::Environment,
+    InternalSlotName::PrivateEnvironment,
+    InternalSlotName::FormalParameters,
+    InternalSlotName::ECMAScriptCode,
+    InternalSlotName::ConstructorKind,
+    InternalSlotName::ScriptOrModule,
+    InternalSlotName::ThisMode,
+    InternalSlotName::Strict,
+    InternalSlotName::HomeObject,
+    InternalSlotName::SourceText,
+    InternalSlotName::Fields,
+    InternalSlotName::PrivateMethods,
+    InternalSlotName::ClassFieldInitializerName,
+    InternalSlotName::IsClassConstructor,
 ];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
@@ -1510,6 +1545,9 @@ pub fn make_basic_object(
         ArrayObject::object(agent, prototype)
     } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
         SymbolObject::object(agent, prototype)
+    } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
+        //FunctionObject::object(agent, prototype)
+        panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
     } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
         panic!("Additional info needed for arguments object; use direct constructor");
     } else {
@@ -1721,12 +1759,28 @@ pub fn call(
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
+    initiate_call(agent, func, this_value, args);
+    agent
+        .ec_pop()
+        .expect("Call must return a Completion")
+        .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
+}
+
+pub fn initiate_call(
+    agent: &mut Agent,
+    func: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
+    args: &[ECMAScriptValue],
+) {
     let maybe_callable = to_callable(func);
     match maybe_callable {
-        None => Err(create_type_error(agent, "Value not callable")),
+        None => {
+            let err = Err(create_type_error(agent, "Value not callable"));
+            agent.ec_push(err);
+        }
         Some(callable) => {
             let self_obj = to_object(agent, func.clone()).unwrap();
-            callable.call(agent, &self_obj, this_value, args)
+            callable.call(agent, &self_obj, this_value, args);
         }
     }
 }
@@ -1754,10 +1808,14 @@ pub fn construct(
 ) -> Completion<ECMAScriptValue> {
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
-    cstr.construct(agent, func, args, nt)
+    cstr.construct(agent, func, args, nt);
+    agent
+        .ec_pop()
+        .expect("Construct must return a completion")
+        .map(|nc| ECMAScriptValue::try_from(nc).expect("Construct must return a language value"))
 }
 
-pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject> {
+pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
     match val {
         ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
         _ => None,

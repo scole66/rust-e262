@@ -124,6 +124,30 @@ for name in ${names[@]}; do
     AlwaysAbruptRefResult) data=($name always_abrupt_ref_result compiler) ;;
     NeverAbruptRefResult) data=($name never_abrupt_ref_result compiler) ;;
     CompilerFcnDef) data=(agent::FcnDef fcn_def compiler) ;;
+    NameableProduction) data=($name nameable_production compiler) ;;
+    CompilerBindingIdentifier) data=(parser::identifiers::BindingIdentifier binding_identifier compiler) ;;
+    CompilerBindingElement) data=(parser::declarations_and_variables::BindingElement binding_element compiler) ;;
+    CompilerBindingPattern) data=(parser::declarations_and_variables::BindingPattern binding_pattern compiler) ;;
+    CompilerReturnStatement) data=(parser::return_statement::ReturnStatement return_statement compiler) ;;
+    CompilerFunctionExpression) data=(parser::function_definitions::FunctionExpression function_expression compiler) ;;
+    CompilerFunctionExpression_instantiate_ordinary_function_expression) data=(parser::function_definitions::FunctionExpression::instantiate_ordinary_function_expression function_expression::instantiate_ordinary_function_expression compiler) ;;
+    compile_fdi) data=($name $name compiler) ;;
+    CompilerArrowFunction) data=(parser::arrow_function_definitions::ArrowFunction arrow_function compiler) ;;
+    CompilerArrowFunction_instantiate_arrow_function_expression) data=(parser::arrow_function_definitions::ArrowFunction::instantiate_arrow_function_expression arrow_function::instantiate_arrow_function_expression compiler) ;;
+    CompilerConciseBody) data=(parser::arrow_function_definitions::ConciseBody concise_body compiler) ;;
+    CompilerExpressionBody) data=(parser::arrow_function_definitions::ExpressionBody expression_body compiler) ;;
+    CompilerParamSource) data=(function_object::ParamSource param_source compiler) ;;
+    CompilerFormalParameters) data=(parser::parameter_lists::FormalParameters formal_parameters compiler) ;;
+    CompilerArrowParameters) data=(parser::arrow_function_definitions::ArrowParameters arrow_parameters compiler) ;;
+    CompilerArrowFormalParameters) data=(parser::arrow_function_definitions::ArrowFormalParameters arrow_formal_parameters compiler) ;;
+    CompilerUniqueFormalParameters) data=(parser::parameter_lists::UniqueFormalParameters unique_formal_parameters compiler) ;;
+    compile_initialize_bound_name) data=($name $name compiler) ;;
+    CompilerFormalParameterList) data=(parser::parameter_lists::FormalParameterList formal_parameter_list compiler) ;;
+    CompilerFormalParameter) data=(parser::parameter_lists::FormalParameter formal_parameter:: compiler) ;;
+    CompilerSingleNameBinding) data=(parser::declarations_and_variables::SingleNameBinding single_name_binding compiler) ;;
+    CompilerFunctionRestParameter) data=(parser::parameter_lists::FunctionRestParameter function_rest_parameter compiler) ;;
+    CompilerFunctionBody) data=(parser::function_definitions::FunctionBody function_body compiler) ;;
+    CompilerFunctionStatementList) data=(parser::function_definitions::FunctionStatementList function_statement_list compiler) ;;
 
     ArrowParameters) data=($name arrow_parameters parser::arrow_function_definitions) ;;
     ExpressionBody) data=($name expression_body parser::arrow_function_definitions) ;;
@@ -355,13 +379,36 @@ for name in ${names[@]}; do
     GlobalEnvironmentRecord) data=($name global_environment_record environment_record) ;;
     get_identifier_reference) data=($name $name environment_record) ;;
     PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
+    FunctionEnvironmentRecord_has_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_binding function_environment_record::has_binding environment_record) ;;
+    FunctionEnvironmentRecord_create_mutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::create_mutable_binding function_environment_record::create_mutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_create_immutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::create_immutable_binding function_environment_record::create_immutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_initialize_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::initialize_binding function_environment_record::initialize_binding environment_record) ;;
+    FunctionEnvironmentRecord_set_mutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::set_mutable_binding function_environment_record::set_mutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_get_binding_value) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_binding_value function_environment_record::get_binding_value environment_record) ;;
+    FunctionEnvironmentRecord_delete_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::delete_binding function_environment_record::delete_binding environment_record) ;;
+    FunctionEnvironmentRecord_with_base_object) data=(FunctionEnvironmentRecord@EnvironmentRecord::with_base_object function_environment_record::with_base_object environment_record) ;;
+    FunctionEnvironmentRecord_has_this_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_this_binding function_environment_record::has_this_binding environment_record) ;;
+    FunctionEnvironmentRecord_has_super_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_super_binding function_environment_record::has_super_binding environment_record) ;;
+    FunctionEnvironmentRecord_get_outer_env) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_outer_env function_environment_record::get_outer_env environment_record) ;;
+    FunctionEnvironmentRecord_get_this_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_this_binding function_environment_record::get_this_binding environment_record) ;;
+    FunctionEnvironmentRecord_bind_this_value) data=(FunctionEnvironmentRecord@EnvironmentRecord::bind_this_value function_environment_record::bind_this_value environment_record) ;;
+    FunctionEnvironmentRecord_name) data=(FunctionEnvironmentRecord@EnvironmentRecord::name function_environment_record::name environment_record) ;;
+    FunctionEnvironmentRecord_binding_names) data=(FunctionEnvironmentRecord@EnvironmentRecord::binding_names function_environment_record::binding_names environment_record) ;;
+    FunctionEnvironmentRecord_get_super_base) data=(FunctionEnvironmentRecord::get_super_base function_environment_record::get_super_base environment_record) ;;
+    FunctionEnvironmentRecord_new) data=(FunctionEnvironmentRecord::new function_environment_record::new environment_record) ;;
 
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
     PropertyDescriptor) data=($name property_descriptor object) ;;
     InternalSlotName) data=($name internal_slot_name object) ;;
     make_basic_object) data=($name $name object) ;;
+    call) data=(call object::tests::call object) ;;
+    initiate_call) data=($name $name object) ;;
+    construct) data=($name object::tests::construct:: object) ;;
+    to_constructor) data=($name $name object) ;;
 
     Chunk) data=($name chunk chunk) ;;
+    Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
+    StashedFunctionData) data=($name stashed_function_data chunk) ;;
 
     ParameterMap) data=($name parameter_map arguments_object) ;;
     ArgumentsObject) data=($name arguments_object arguments_object) ;;
@@ -373,6 +420,34 @@ for name in ${names[@]}; do
 
     IntrinsicId) data=($name intrinsic_id realm) ;;
     Intrinsics) data=($name intrinsics realm) ;;
+
+    FunctionDeclaration_instantiate_function_object) data=(parser::function_definitions::FunctionDeclaration::instantiate_function_object function_declaration::instantiate_function_object function_object) ;;
+    ThisLexicality) data=($name this_lexicality function_object) ;;
+    ConstructorKind) data=($name constructor_kind function_object) ;;
+    ordinary_function_create) data=($name $name function_object) ;;
+    make_constructor) data=($name $name function_object) ;;
+    ClassName) data=($name class_name function_object) ;;
+    ClassFieldDefinitionRecord) data=($name class_field_definition_record function_object) ;;
+    BodySource) data=($name body_source function_object) ;;
+    ParamSource) data=($name param_source function_object) ;;
+    FunctionSource) data=($name function_source function_object) ;;
+    FunctionObjectData) data=($name function_object_data function_object) ;;
+    FunctionObject_call) data=(FunctionObject@CallableObject::call function_object::call function_object) ;;
+    FunctionObject_construct) data=(FunctionObject@CallableObject::construct function_object::construct function_object) ;;
+    FunctionObject_object) data=(FunctionObject::object function_object::object function_object) ;;
+    FunctionObject_Agent_prepare_for_ordinary_call) data=(agent::Agent::prepare_for_ordinary_call agent::prepare_for_ordinary_call function_object) ;;
+    FunctionObject_Agent_ordinary_call_bind_this) data=(agent::Agent::ordinary_call_bind_this agent::ordinary_call_bind_this function_object) ;;
+    FunctionObject_Agent_ordinary_call_evaluate_body) data=(agent::Agent::ordinary_call_evaluate_body agent::ordinary_call_evaluate_body function_object) ;;
+    nameify) data=($name $name function_object) ;;
+    BuiltInFunctionObject) data=($name built_in_function_object function_object) ;;
+    FunctionObject_GeneratorDeclaration_instantiate_function_object) data=(parser::generator_function_definitions::GeneratorDeclaration generator_declaration::instantiate_function_object function_object) ;;
+    FunctionObject_AsyncFunctionDeclaration_instantiate_function_object) data=(parser::async_function_definitions::AsyncFunctionDeclaration async_function_declaration::instantiate_function_object function_object) ;;
+    FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object) data=(parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object) ;;
+
+
+    ScriptRecord) data=($name script_record execution_context) ;;
+    ScriptOrModule) data=($name script_or_module execution_context) ;;
+    ExecutionContext) data=($name execution_context execution_context) ;;
 
     *) echo "No type called $name"; exit ;;
   esac
@@ -432,15 +507,28 @@ for name in ${names[@]}; do
   namelist=${location}/namelist
   report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
 
+  echo "$name" > ${location}/name.txt
 done
 
+has_uncovered=()
 for d in ${results[@]}; do
   namelist=${d}/namelist
   echo "Rendering:"
   rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
-  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata
+  report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata | tee ${d}/lines.txt
+  if [ $(wc -l < ${d}/lines.txt) -gt 0 ]; then
+    has_uncovered=("${has_uncovered[@]}" "$(< ${d}/name.txt)")
+  fi
 done
 
 for d in ${results[@]}; do
   rm -rf $d
 done
+
+if [ ${#has_uncovered[@]} -gt 0 -a ${#results[@]} -gt 1 ]; then
+  echo
+  echo "Uncovered Items:"
+  for item in ${has_uncovered[@]}; do
+    echo " * $item"
+  done
+fi

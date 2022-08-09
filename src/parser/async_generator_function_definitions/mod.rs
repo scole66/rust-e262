@@ -276,9 +276,9 @@ impl AsyncGeneratorDeclaration {
 //      async [no LineTerminator here] function * BindingIdentifier[+Yield, +Await]opt ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncGeneratorBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<AsyncGeneratorBody>,
     location: Location,
 }
 
@@ -391,7 +391,7 @@ impl AsyncGeneratorExpression {
 // AsyncGeneratorBody :
 //      FunctionBody[+Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncGeneratorBody(Rc<FunctionBody>);
+pub struct AsyncGeneratorBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for AsyncGeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -468,6 +468,18 @@ impl AsyncGeneratorBody {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        self.0.lexically_declared_names()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.0.lexically_scoped_declarations()
+    }
+
+    pub fn function_body_contains_use_strict(&self) -> bool {
+        self.0.function_body_contains_use_strict()
     }
 }
 

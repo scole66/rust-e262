@@ -496,6 +496,22 @@ mod assignment_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).assignment_expression().location()
     }
+
+    #[test_case("10" => None; "literal")]
+    #[test_case("function(){}" => ssome("function (  ) {  }"); "fall-thru; function")]
+    #[test_case("x => x" => ssome("x => x"); "arrow")]
+    #[test_case("async x => x" => ssome("async x => x"); "async arrow")]
+    #[test_case("x = 10" => None; "other assignment")]
+    fn function_definition(src: &str) -> Option<String> {
+        Maker::new(src).assignment_expression().function_definition().map(|x| x.to_string())
+    }
+
+    #[test_case("function(){}" => ssome("function (  ) {  }"); "nameless function")]
+    #[test_case("function foo(){}" => None; "named function")]
+    #[test_case("x = 10" => None; "not a function")]
+    fn anonymous_function_definition(src: &str) -> Option<String> {
+        Maker::new(src).assignment_expression().anonymous_function_definition().map(|x| x.to_string())
+    }
 }
 
 mod assignment_operator {

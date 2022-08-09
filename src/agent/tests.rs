@@ -60,6 +60,7 @@ mod agent {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
             compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
         agent.push_execution_context(test_ec);
@@ -79,6 +80,7 @@ mod agent {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
             compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
         agent.push_execution_context(test_ec);
@@ -875,9 +877,9 @@ mod parse_script {
     #[test]
     fn happy() {
         let mut agent = test_agent();
-        let src = "'hello world';";
+        let src = "/* hello! */ 'hello world';";
         let starting_realm = agent.current_realm_record().unwrap();
-        let ScriptRecord { realm, ecmascript_code, compiled } =
+        let ScriptRecord { realm, ecmascript_code, compiled, text } =
             super::parse_script(&mut agent, src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
         assert_eq!(format!("{}", ecmascript_code), "'hello world' ;");
@@ -886,6 +888,7 @@ mod parse_script {
             compiled.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
             svec(&["STRING 0 (hello world)",])
         );
+        assert_eq!(text, src);
     }
 
     #[test_case("for [i=0, i<10, i++] {}" => sset(&["1:5: ‘(’ expected"]); "parse time syntax")]
@@ -1064,16 +1067,19 @@ mod fcn_def {
         part.bound_name().to_string()
     }
 
-    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => panics "not yet implemented"; "function decl")]
-    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => panics "not yet implemented"; "generator decl")]
-    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => panics "not yet implemented"; "async function decl")]
-    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => panics "not yet implemented"; "async generator decl")]
-    fn instantiate_function_object(part: FcnDef) {
+    #[test_case({ let src = "function red(){}"; (FcnDef::Function(Maker::new(src).function_declaration()), src.into()) } => sok("red"); "function decl")]
+    #[test_case({ let src = "function *blue(){}"; (FcnDef::Generator(Maker::new(src).generator_declaration()), src.into()) } => panics "not yet implemented"; "generator decl")]
+    #[test_case({ let src = "async function green(){}"; (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.into()) } => panics "not yet implemented"; "async function decl")]
+    #[test_case({ let src = "async function *orange(){}"; (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.into()) } => panics "not yet implemented"; "async generator decl")]
+    fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
+        let (part, src) = part;
         let mut agent = test_agent();
         let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let env = global_env as Rc<dyn EnvironmentRecord>;
 
-        part.instantiate_function_object(&mut agent, env, None);
+        part.instantiate_function_object(&mut agent, env, None, true, &src)
+            .map_err(|err| err.to_string())
+            .map(|value| getv(&mut agent, &value, &"name".into()).unwrap().to_string())
     }
 }
 
@@ -1137,7 +1143,7 @@ mod global_declaration_instantiation {
     #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
     #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
     #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
-    #[test_case("function f(){}" => panics "not yet implemented"; "functions")]
+    #[test_case("function f(){}" => Ok((sset(&["f"]), sset(&[]))); "functions")]
     #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
     #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
@@ -1151,7 +1157,7 @@ mod global_declaration_instantiation {
         let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
         let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        let result = super::global_declaration_instantiation(&mut agent, script, global_env.clone());
+        let result = super::global_declaration_instantiation(&mut agent, script, global_env.clone(), false, src);
 
         result.map_err(|err| unwind_any_error(&mut agent, err)).map(|_| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();

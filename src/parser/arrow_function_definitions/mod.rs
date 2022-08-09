@@ -7,8 +7,8 @@ use std::io::Write;
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
 #[derive(Debug)]
 pub struct ArrowFunction {
-    parameters: Rc<ArrowParameters>,
-    body: Rc<ConciseBody>,
+    pub parameters: Rc<ArrowParameters>,
+    pub body: Rc<ConciseBody>,
 }
 
 impl fmt::Display for ArrowFunction {
@@ -305,7 +305,7 @@ impl ArrowParameters {
 //      ( UniqueFormalParameters[?Yield, ?Await] )
 #[derive(Debug)]
 pub struct ArrowFormalParameters {
-    params: Rc<UniqueFormalParameters>,
+    pub params: Rc<UniqueFormalParameters>,
     location: Location,
 }
 
@@ -409,14 +409,14 @@ impl ArrowFormalParameters {
         self.params.early_errors(agent, errs, strict);
     }
 
-    fn expected_argument_count(&self) -> f64 {
+    pub fn expected_argument_count(&self) -> f64 {
         self.params.expected_argument_count()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    fn contains_expression(&self) -> bool {
+    pub fn contains_expression(&self) -> bool {
         self.params.contains_expression()
     }
 }
@@ -595,13 +595,20 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.var_scoped_declarations(),
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :
 //      AssignmentExpression[?In, ~Yield, ?Await]
 #[derive(Debug)]
 pub struct ExpressionBody {
-    expression: Rc<AssignmentExpression>,
+    pub expression: Rc<AssignmentExpression>,
 }
 
 impl fmt::Display for ExpressionBody {

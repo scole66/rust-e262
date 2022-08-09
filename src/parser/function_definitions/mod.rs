@@ -8,9 +8,9 @@ use std::io::Write;
 //      [+Default] function ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
     location: Location,
 }
 
@@ -226,9 +226,9 @@ pub fn function_early_errors(
 //      function BindingIdentifier[~Yield, ~Await]opt ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
     location: Location,
 }
 
@@ -334,7 +334,7 @@ impl FunctionExpression {
 //      FunctionStatementList[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionBody {
-    statements: Rc<FunctionStatementList>,
+    pub statements: Rc<FunctionStatementList>,
 }
 
 impl fmt::Display for FunctionBody {
@@ -496,6 +496,10 @@ impl FunctionBody {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statements.var_scoped_declarations()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.statements.lexically_scoped_declarations()
     }
 }
 
@@ -666,6 +670,13 @@ impl FunctionStatementList {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_var_scoped_declarations(),
+            FunctionStatementList::Empty(_) => vec![],
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
         }
     }
