@@ -2144,7 +2144,7 @@ impl AssignmentExpression {
                 // Stack: lref lref ...
                 chunk.op(Insn::GetValue);
                 // Stack: lval/err lref ...
-                let short= chunk.op_jump(Insn::JumpIfNormal);
+                let short = chunk.op_jump(Insn::JumpIfNormal);
                 // Stack: err lref ...
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 // Stack: err ...
@@ -2169,8 +2169,7 @@ impl AssignmentExpression {
                     None
                 };
                 // Stack: rval lval lref ...
-                chunk.op(
-                match op {
+                chunk.op(match op {
                     AssignmentOperator::Multiply => Insn::Multiply,
                     AssignmentOperator::Divide => Insn::Divide,
                     AssignmentOperator::Modulo => Insn::Modulo,
@@ -2213,7 +2212,7 @@ impl AssignmentExpression {
                     chunk.fixup(mark)?;
                 }
                 chunk.fixup(lval_exit)?;
-                Ok(AlwaysAbruptResult{}.into())
+                Ok(AlwaysAbruptResult {}.into())
             }
             AssignmentExpression::LandAssignment(_, _) => todo!(),
             AssignmentExpression::LorAssignment(_, _) => todo!(),
