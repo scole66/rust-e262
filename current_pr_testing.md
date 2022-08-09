@@ -71,6 +71,9 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t ExecutionContext`
 * `./t SymbolObject`
 * `./t SymbolRegistry`
+* `./t FunctionEnvironmentRecord_new`
+* `./t FunctionEnvironmentRecord_name`
+* `./t FunctionEnvironmentRecord_create_immutable_binding`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -87,7 +90,8 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     CompilerFormalParameters CompilerArrowParameters CompilerArrowFormalParameters CompilerFormalParameter \
     CompilerUniqueFormalParameters compile_initialize_bound_name CompilerFormalParameterList ScriptRecord \
     CompilerSingleNameBinding CompilerFunctionRestParameter CompilerFunctionBody CompilerArrowFunction \
-    ConstructorKind ScriptOrModule ExecutionContext SymbolRegistry
+    ConstructorKind ScriptOrModule ExecutionContext SymbolRegistry FunctionEnvironmentRecord_new \
+    FunctionEnvironmentRecord_name FunctionEnvironmentRecord_create_immutable_binding
 ```
 
 ## To Check
