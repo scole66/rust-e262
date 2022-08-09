@@ -379,6 +379,24 @@ for name in ${names[@]}; do
     GlobalEnvironmentRecord) data=($name global_environment_record environment_record) ;;
     get_identifier_reference) data=($name $name environment_record) ;;
     PrivateEnvironmentRecord) data=($name private_environment_record environment_record) ;;
+    FunctionEnvironmentRecord_has_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_binding function_environment_record::has_binding environment_record) ;;
+    FunctionEnvironmentRecord_create_mutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::create_mutable_binding function_environment_record::create_mutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_create_immutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::create_immutable_binding function_environment_record::create_immutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_initialize_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::initialize_binding function_environment_record::initialize_binding environment_record) ;;
+    FunctionEnvironmentRecord_set_mutable_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::set_mutable_binding function_environment_record::set_mutable_binding environment_record) ;;
+    FunctionEnvironmentRecord_get_binding_value) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_binding_value function_environment_record::get_binding_value environment_record) ;;
+    FunctionEnvironmentRecord_delete_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::delete_binding function_environment_record::delete_binding environment_record) ;;
+    FunctionEnvironmentRecord_with_base_object) data=(FunctionEnvironmentRecord@EnvironmentRecord::with_base_object function_environment_record::with_base_object environment_record) ;;
+    FunctionEnvironmentRecord_has_this_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_this_binding function_environment_record::has_this_binding environment_record) ;;
+    FunctionEnvironmentRecord_has_super_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::has_super_binding function_environment_record::has_super_binding environment_record) ;;
+    FunctionEnvironmentRecord_get_outer_env) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_outer_env function_environment_record::get_outer_env environment_record) ;;
+    FunctionEnvironmentRecord_get_this_binding) data=(FunctionEnvironmentRecord@EnvironmentRecord::get_this_binding function_environment_record::get_this_binding environment_record) ;;
+    FunctionEnvironmentRecord_bind_this_value) data=(FunctionEnvironmentRecord@EnvironmentRecord::bind_this_value function_environment_record::bind_this_value environment_record) ;;
+    FunctionEnvironmentRecord_name) data=(FunctionEnvironmentRecord@EnvironmentRecord::name function_environment_record::name environment_record) ;;
+    FunctionEnvironmentRecord_binding_names) data=(FunctionEnvironmentRecord@EnvironmentRecord::binding_names function_environment_record::binding_names environment_record) ;;
+    FunctionEnvironmentRecord_get_super_base) data=(FunctionEnvironmentRecord::get_super_base function_environment_record::get_super_base environment_record) ;;
+    FunctionEnvironmentRecord_new) data=(FunctionEnvironmentRecord::new function_environment_record::new environment_record) ;;
+
 
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
     PropertyDescriptor) data=($name property_descriptor object) ;;

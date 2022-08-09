@@ -144,7 +144,19 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 ### `src/environment_record/mod.rs`
 
 * `FunctionEnvironmentRecord`
-* `FunctionEnvironmentRecord::bind_this_value`
+* `FunctionEnvironmentRecord_has_binding`
+* `FunctionEnvironmentRecord_create_mutable_binding`
+* `FunctionEnvironmentRecord_initialize_binding`
+* `FunctionEnvironmentRecord_set_mutable_binding`
+* `FunctionEnvironmentRecord_get_binding_value`
+* `FunctionEnvironmentRecord_delete_binding`
+* `FunctionEnvironmentRecord_with_base_object`
+* `FunctionEnvironmentRecord_has_this_binding`
+* `FunctionEnvironmentRecord_has_super_binding`
+* `FunctionEnvironmentRecord_get_outer_env`
+* `FunctionEnvironmentRecord_get_this_binding`
+* `FunctionEnvironmentRecord_binding_names`
+* `FunctionEnvironmentRecord_get_super_base`
 
 ### Existing Test Framework Coverage Misses
 
