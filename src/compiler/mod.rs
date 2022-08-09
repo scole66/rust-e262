@@ -2130,7 +2130,90 @@ impl AssignmentExpression {
                 arrow_function.compile(chunk, strict, text, arrow_function.clone()).map(CompilerStatusFlags::from)
             }
             AssignmentExpression::AsyncArrow(_) => todo!(),
-            AssignmentExpression::OpAssignment(_, _, _) => todo!(),
+            AssignmentExpression::OpAssignment(lhse, op, rhs) => {
+                // Stack: ...
+                let lhs_status = lhse.compile(chunk, strict, text)?;
+                let lhs_exit = if lhs_status.maybe_abrupt() {
+                    let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                    Some(mark)
+                } else {
+                    None
+                };
+                // Stack: lref ...
+                chunk.op(Insn::Dup);
+                // Stack: lref lref ...
+                chunk.op(Insn::GetValue);
+                // Stack: lval/err lref ...
+                let short = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err lref ...
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                // Stack: err ...
+                let lval_exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(short).expect("Short jump won't fail");
+                // Stack: lval lref ...
+                let rhs_status = rhs.compile(chunk, strict, text)?;
+                // Stack: rval/rref/err lval lref ...
+                if rhs_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack: rval/err lval lref ...
+                let rhs_exit = if rhs_status.maybe_abrupt() || rhs_status.maybe_ref() {
+                    let short = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err lval lref ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: err ...
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(short).expect("Short jump won't overflow");
+                    Some(exit)
+                } else {
+                    None
+                };
+                // Stack: rval lval lref ...
+                chunk.op(match op {
+                    AssignmentOperator::Multiply => Insn::Multiply,
+                    AssignmentOperator::Divide => Insn::Divide,
+                    AssignmentOperator::Modulo => Insn::Modulo,
+                    AssignmentOperator::Add => Insn::Add,
+                    AssignmentOperator::Subtract => Insn::Subtract,
+                    AssignmentOperator::LeftShift => Insn::LeftShift,
+                    AssignmentOperator::SignedRightShift => Insn::SignedRightShift,
+                    AssignmentOperator::UnsignedRightShift => Insn::UnsignedRightShift,
+                    AssignmentOperator::BitwiseAnd => Insn::BitwiseAnd,
+                    AssignmentOperator::BitwiseXor => Insn::BitwiseXor,
+                    AssignmentOperator::BitwiseOr => Insn::BitwiseOr,
+                    AssignmentOperator::Exponentiate => Insn::Exponentiate,
+                });
+                // Stack: r/err lref ...
+                let short = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err lref ...
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                let op_exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(short).expect("Short jumps won't fail");
+                // Stack: r lref ...
+                chunk.op(Insn::Pop2Push3);
+                // Stack: r lref r ...
+                chunk.op(Insn::PutValue);
+                // Stack: empty/err r ...
+                let short = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err r ...
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                let set_exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(short).expect("Short jumps won't fail");
+                // Stack: empty r ...
+                chunk.op(Insn::Pop);
+                // Stack: r ...
+                chunk.fixup(set_exit).expect("Short jumps won't fail");
+                // Stack: err/r ...
+                chunk.fixup(op_exit).expect("Short jumps won't fail");
+                if let Some(mark) = rhs_exit {
+                    chunk.fixup(mark).expect("Short jumps won't fail");
+                }
+                if let Some(mark) = lhs_exit {
+                    chunk.fixup(mark)?;
+                }
+                chunk.fixup(lval_exit)?;
+                Ok(AlwaysAbruptResult {}.into())
+            }
             AssignmentExpression::LandAssignment(_, _) => todo!(),
             AssignmentExpression::LorAssignment(_, _) => todo!(),
             AssignmentExpression::CoalAssignment(_, _) => todo!(),
