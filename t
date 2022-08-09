@@ -397,11 +397,14 @@ for name in ${names[@]}; do
     FunctionEnvironmentRecord_get_super_base) data=(FunctionEnvironmentRecord::get_super_base function_environment_record::get_super_base environment_record) ;;
     FunctionEnvironmentRecord_new) data=(FunctionEnvironmentRecord::new function_environment_record::new environment_record) ;;
 
-
     ordinary_has_instance) data=(agent::Agent::ordinary_has_instance ordinary_has_instance object) ;;
     PropertyDescriptor) data=($name property_descriptor object) ;;
     InternalSlotName) data=($name internal_slot_name object) ;;
     make_basic_object) data=($name $name object) ;;
+    call) data=(call object::tests::call object) ;;
+    initiate_call) data=($name $name object) ;;
+    construct) data=($name object::tests::construct:: object) ;;
+    to_constructor) data=($name $name object) ;;
 
     Chunk) data=($name chunk chunk) ;;
     Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
@@ -421,6 +424,26 @@ for name in ${names[@]}; do
     FunctionDeclaration_instantiate_function_object) data=(parser::function_definitions::FunctionDeclaration::instantiate_function_object function_declaration::instantiate_function_object function_object) ;;
     ThisLexicality) data=($name this_lexicality function_object) ;;
     ConstructorKind) data=($name constructor_kind function_object) ;;
+    ordinary_function_create) data=($name $name function_object) ;;
+    make_constructor) data=($name $name function_object) ;;
+    ClassName) data=($name class_name function_object) ;;
+    ClassFieldDefinitionRecord) data=($name class_field_definition_record function_object) ;;
+    BodySource) data=($name body_source function_object) ;;
+    ParamSource) data=($name param_source function_object) ;;
+    FunctionSource) data=($name function_source function_object) ;;
+    FunctionObjectData) data=($name function_object_data function_object) ;;
+    FunctionObject_call) data=(FunctionObject@CallableObject::call function_object::call function_object) ;;
+    FunctionObject_construct) data=(FunctionObject@CallableObject::construct function_object::construct function_object) ;;
+    FunctionObject_object) data=(FunctionObject::object function_object::object function_object) ;;
+    FunctionObject_Agent_prepare_for_ordinary_call) data=(agent::Agent::prepare_for_ordinary_call agent::prepare_for_ordinary_call function_object) ;;
+    FunctionObject_Agent_ordinary_call_bind_this) data=(agent::Agent::ordinary_call_bind_this agent::ordinary_call_bind_this function_object) ;;
+    FunctionObject_Agent_ordinary_call_evaluate_body) data=(agent::Agent::ordinary_call_evaluate_body agent::ordinary_call_evaluate_body function_object) ;;
+    nameify) data=($name $name function_object) ;;
+    BuiltInFunctionObject) data=($name built_in_function_object function_object) ;;
+    FunctionObject_GeneratorDeclaration_instantiate_function_object) data=(parser::generator_function_definitions::GeneratorDeclaration generator_declaration::instantiate_function_object function_object) ;;
+    FunctionObject_AsyncFunctionDeclaration_instantiate_function_object) data=(parser::async_function_definitions::AsyncFunctionDeclaration async_function_declaration::instantiate_function_object function_object) ;;
+    FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object) data=(parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object) ;;
+
 
     ScriptRecord) data=($name script_record execution_context) ;;
     ScriptOrModule) data=($name script_or_module execution_context) ;;

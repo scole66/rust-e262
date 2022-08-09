@@ -74,6 +74,9 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `./t FunctionEnvironmentRecord_new`
 * `./t FunctionEnvironmentRecord_name`
 * `./t FunctionEnvironmentRecord_create_immutable_binding`
+* `FunctionObject_GeneratorDeclaration_instantiate_function_object`
+* `FunctionObject_AsyncFunctionDeclaration_instantiate_function_object`
+* `FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object`
 
 ```bash
 ./t CompilerPrimaryExpression parse_script FunctionDeclaration_instantiate_function_object GeneratorBody \
@@ -93,6 +96,51 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
     ConstructorKind ScriptOrModule ExecutionContext SymbolRegistry FunctionEnvironmentRecord_new \
     FunctionEnvironmentRecord_name FunctionEnvironmentRecord_create_immutable_binding
 ```
+
+## Coverage Blocks Established
+
+### `src/environment_record/mod.rs`
+
+* `FunctionEnvironmentRecord`
+* `FunctionEnvironmentRecord_has_binding`
+* `FunctionEnvironmentRecord_create_mutable_binding`
+* `FunctionEnvironmentRecord_initialize_binding`
+* `FunctionEnvironmentRecord_set_mutable_binding`
+* `FunctionEnvironmentRecord_get_binding_value`
+* `FunctionEnvironmentRecord_delete_binding`
+* `FunctionEnvironmentRecord_with_base_object`
+* `FunctionEnvironmentRecord_has_this_binding`
+* `FunctionEnvironmentRecord_has_super_binding`
+* `FunctionEnvironmentRecord_get_outer_env`
+* `FunctionEnvironmentRecord_get_this_binding`
+* `FunctionEnvironmentRecord_binding_names`
+* `FunctionEnvironmentRecord_get_super_base`
+
+### `src/function_object/mod.rs`
+
+* `ordinary_function_create`
+* `make_constructor`
+* `ClassName`
+* `ClassFieldDefinitionRecord`
+* `BodySource`
+* `ParamSource`
+* `FunctionSource`
+* `FunctionObjectData`
+* `FunctionObject_call`
+* `FunctionObject_construct`
+* `FunctionObject_object`
+* `FunctionObject_Agent_prepare_for_ordinary_call`
+* `FunctionObject_Agent_ordinary_call_bind_this`
+* `FunctionObject_Agent_ordinary_call_evaluate_body`
+* `nameify`
+* `BuiltInFunctionObject`
+
+### `src/object/mod.rs`
+
+* `call`
+* `initiate_call`
+* `construct`
+* `to_constructor`
 
 ## To Check
 
@@ -116,51 +164,6 @@ Note: This file should be removed prior to merge. It should exist _only_ on the 
 * `global_declaration_instantiation`
 * `script_evaluation`
 
-### `src/object/mod.rs`
-
-* `call`
-* `initiate_call`
-* `construct`
-* `to_constructor`
-
-### `src/function_object/mod.rs`
-
-* `ClassName`
-* `ClassFieldDefinitionRecord`
-* `BodySource`
-* `ParamSource`
-* `FunctionSource`
-* `FunctionObjectData`
-* `FunctionObject::call`
-* `FunctionObject::construct`
-* `FunctionObject::object`
-* `Agent::prepare_for_ordinary_call`
-* `Agent::ordinary_call_bind_this`
-* `Agent::ordinary_call_evaluate_body`
-* `namify`
-* `BuiltInFunctionObject`
-* `GeneratorDeclaration::instantiate_function_object`
-* `AsyncFunctionDeclaration::instantiate_function_object`
-* `AsyncGeneratorDeclaration::instantiate_function_object`
-* `ordinary_function_create`
-* `make_constructor`
-
-### `src/environment_record/mod.rs`
-
-* `FunctionEnvironmentRecord`
-* `FunctionEnvironmentRecord_has_binding`
-* `FunctionEnvironmentRecord_create_mutable_binding`
-* `FunctionEnvironmentRecord_initialize_binding`
-* `FunctionEnvironmentRecord_set_mutable_binding`
-* `FunctionEnvironmentRecord_get_binding_value`
-* `FunctionEnvironmentRecord_delete_binding`
-* `FunctionEnvironmentRecord_with_base_object`
-* `FunctionEnvironmentRecord_has_this_binding`
-* `FunctionEnvironmentRecord_has_super_binding`
-* `FunctionEnvironmentRecord_get_outer_env`
-* `FunctionEnvironmentRecord_get_this_binding`
-* `FunctionEnvironmentRecord_binding_names`
-* `FunctionEnvironmentRecord_get_super_base`
 
 ### Existing Test Framework Coverage Misses
 
