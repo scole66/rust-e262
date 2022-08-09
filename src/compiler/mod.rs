@@ -38,6 +38,7 @@ pub enum Insn {
     JumpPopIfTrue,
     JumpPopIfFalse,
     JumpIfNotUndef,
+    JumpNotThrow,
     Call,
     EndFunction,
     Return,
@@ -123,6 +124,7 @@ pub enum Insn {
     TargetedBreak,
     ExtractArg,
     FinishArgs,
+    ExtractThrownValue,
 }
 
 impl fmt::Display for Insn {
@@ -152,6 +154,7 @@ impl fmt::Display for Insn {
             Insn::JumpPopIfTrue => "JUMPPOP_TRUE",
             Insn::JumpPopIfFalse => "JUMPPOP_FALSE",
             Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
+            Insn::JumpNotThrow => "JUMP_NOT_THROW",
             Insn::Call => "CALL",
             Insn::EndFunction => "END_FUNCTION",
             Insn::Return => "RETURN",
@@ -237,6 +240,7 @@ impl fmt::Display for Insn {
             Insn::TargetedBreak => "BREAK_FROM",
             Insn::ExtractArg => "EXTRACT_ARG",
             Insn::FinishArgs => "FINISH_ARGS",
+            Insn::ExtractThrownValue => "EXTRACT_THROW",
         })
     }
 }
@@ -2113,7 +2117,7 @@ impl Statement {
             Statement::With(_) => todo!(),
             Statement::Labelled(lbl) => lbl.compile(chunk, strict, text),
             Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
-            Statement::Try(_) => todo!(),
+            Statement::Try(try_statement) => try_statement.compile(chunk, strict, text),
             Statement::Debugger(_) => todo!(),
         }
     }
@@ -2692,6 +2696,179 @@ impl ThrowStatement {
             chunk.fixup(tgt).expect("Jump too short to overflow");
         }
         Ok(AlwaysAbruptResult {})
+    }
+}
+
+impl TryStatement {
+    /// Compile the TryStatement production
+    ///
+    /// See [TryStatement evaluation](https://tc39.es/ecma262/#sec-try-statement-runtime-semantics-evaluation)
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            TryStatement::Catch { block, catch, .. } => {
+                // TryStatement : try Block Catch
+                //  1. Let B be the result of evaluating Block.
+                //  2. If B.[[Type]] is throw, let C be Completion(CatchClauseEvaluation of Catch with argument B.[[Value]]).
+                //  3. Else, let C be B.
+                //  4. Return ? UpdateEmpty(C, undefined).
+                chunk.op(Insn::Undefined);
+                let status = block.compile(chunk, strict, text)?;
+                // Stack: val/empty/err undefined ...
+                if status.maybe_abrupt() {
+                    let exit = chunk.op_jump(Insn::JumpNotThrow);
+                    // Stack: err undefined ...
+                    catch.compile_catch_clause_evaluation(chunk, strict, text)?;
+                    // Stack: catch: val/empty/err undefined ...
+                    chunk.fixup(exit)?;
+                };
+                // Stack: (block: val/empty/abrupt -or- catch: val/empty/err) undefined ...
+                chunk.op(Insn::UpdateEmpty);
+                // Stack: val/err ...
+                Ok(AbruptResult::from(status.maybe_abrupt()))
+            }
+            TryStatement::Finally { block, finally, .. } => {
+                // TryStatement : try Block Finally
+                //  1. Let B be the result of evaluating Block.
+                //  2. Let F be the result of evaluating Finally.
+                //  3. If F.[[Type]] is normal, set F to B.
+                //  4. Return ? UpdateEmpty(F, undefined).
+                chunk.op(Insn::Undefined);
+                // Stack: undefined ...
+                let status = block.compile(chunk, strict, text)?;
+                // Stack: block:val/empty/err undefined ...
+                let finally_status = finally.compile(chunk, strict, text)?;
+                // Stack: finally:val/empty/err block:val/empty/err undefined ...
+                let short_jump =
+                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                // Stack: finally:val/empty block:val/empty/err undefined ...
+                chunk.op(Insn::Pop);
+                // Stack: block: val/empty/err undefined ...
+                chunk.op(Insn::UpdateEmpty);
+                // Stack: block: val/err ...
+                if finally_status.maybe_abrupt() {
+                    let short_exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
+                    // Stack: finally:err block: val/empty/err undefined ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: finally:err ...
+                    chunk.fixup(short_exit).expect("Jump too short to fail");
+                }
+                // Stack: finally:err or block:val/err ...
+                Ok(AbruptResult::from(status.maybe_abrupt() || finally_status.maybe_abrupt()))
+            }
+            TryStatement::Full { block, catch, finally, .. } => {
+                // TryStatement : try Block Catch Finally
+                //  1. Let B be the result of evaluating Block.
+                //  2. If B.[[Type]] is throw, let C be Completion(CatchClauseEvaluation of Catch with argument B.[[Value]]).
+                //  3. Else, let C be B.
+                //  4. Let F be the result of evaluating Finally.
+                //  5. If F.[[Type]] is normal, set F to C.
+                //  6. Return ? UpdateEmpty(F, undefined).
+                chunk.op(Insn::Undefined);
+                // Stack: undefined ...
+                let block_status = block.compile(chunk, strict, text)?;
+                // Stack: val/empty/err undefined ...
+                if block_status.maybe_abrupt() {
+                    let after_catch = chunk.op_jump(Insn::JumpNotThrow);
+                    // Stack: err undefined ...
+                    catch.compile_catch_clause_evaluation(chunk, strict, text)?;
+                    // Stack: catch: val/empty/err undefined ...
+                    chunk.fixup(after_catch)?;
+                };
+                // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined
+                let finally_status = finally.compile(chunk, strict, text)?;
+                // Stack: finally: val/empty/err (block: val/empty/abt -or- catch: val/empty/err) undefined
+                let short_jump =
+                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                // Stack: finally:val/empty (block: val/empty/abt -or- catch: val/empty/err) undefined ...
+                chunk.op(Insn::Pop);
+                // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined ...
+                chunk.op(Insn::UpdateEmpty);
+                // Stack: (block: val/abt -or- catch: val/err) ...
+                if finally_status.maybe_abrupt() {
+                    let short_exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
+                    // Stack: finally:err (block: val/empty/abt -or- catch: val/empty/err) undefined ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: finally:err ...
+                    chunk.fixup(short_exit).expect("Jump too short to fail");
+                }
+                // Stack: (finally:err -or- block: val/abt -or- catch: val/err) ...
+                Ok(AbruptResult::from(block_status.maybe_abrupt() || finally_status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl Catch {
+    fn compile_catch_clause_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        // Stack: Throw(value) ...
+        match &self.parameter {
+            None => {
+                chunk.op(Insn::Pop);
+                self.block.compile(chunk, strict, text)
+            }
+            Some(catch_parameter) => {
+                // Catch : catch ( CatchParameter ) Block
+                //  1. Let oldEnv be the running execution context's LexicalEnvironment.
+                //  2. Let catchEnv be NewDeclarativeEnvironment(oldEnv).
+                //  3. For each element argName of the BoundNames of CatchParameter, do
+                //      a. Perform ! catchEnv.CreateMutableBinding(argName, false).
+                //  4. Set the running execution context's LexicalEnvironment to catchEnv.
+                //  5. Let status be Completion(BindingInitialization of CatchParameter with arguments
+                //     thrownValue and catchEnv).
+                //  6. If status is an abrupt completion, then
+                //      a. Set the running execution context's LexicalEnvironment to oldEnv.
+                //      b. Return ? status.
+                //  7. Let B be the result of evaluating Block.
+                //  8. Set the running execution context's LexicalEnvironment to oldEnv.
+                //  9. Return ? B.
+                chunk.op(Insn::PushNewLexEnv);
+                for arg_name in catch_parameter.bound_names() {
+                    let idx = chunk.add_to_string_pool(arg_name)?;
+                    chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                }
+                chunk.op(Insn::ExtractThrownValue);
+                let param_status = catch_parameter.compile_binding_initialization(chunk, strict, text)?;
+                if param_status.maybe_abrupt() {
+                    todo!();
+                    // I don't have identifier binding init putting anything back on the stack, but the
+                    // unimplemented binding patterns might. Without anything on the stack, we can't even
+                    // _check_ for errors. So until patterns are in, this is going to stay todo.
+                }
+                let block_status = self.block.compile(chunk, strict, text)?;
+                chunk.op(Insn::PopLexEnv);
+
+                Ok(AbruptResult::from(param_status.maybe_abrupt() || block_status.maybe_abrupt()))
+            }
+        }
+    }
+}
+
+impl Finally {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        self.block.compile(chunk, strict, text)
+    }
+}
+
+impl CatchParameter {
+    fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            CatchParameter::Ident(node) => {
+                node.compile_binding_initialization(chunk, strict, false).map(AbruptResult::from)
+            }
+            CatchParameter::Pattern(node) => node.compile_binding_initialization(chunk, strict, text, false),
+        }
     }
 }
 

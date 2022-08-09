@@ -2472,7 +2472,7 @@ mod statement {
         "JUMP_IF_ABRUPT 1",
         "THROW"
     ]); "non-strict throw")]
-    #[test_case("try {} catch {}", true => panics "not yet implemented"; "try statement")]
+    #[test_case("try {} catch {}", true => svec(&["UNDEFINED", "EMPTY", "UPDATE_EMPTY"]); "try statement")]
     #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
