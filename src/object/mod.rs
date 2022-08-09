@@ -1806,13 +1806,17 @@ pub fn construct(
     args: &[ECMAScriptValue],
     new_target: Option<&Object>,
 ) -> Completion<ECMAScriptValue> {
-    let nt = new_target.unwrap_or(func);
-    let cstr = func.o.to_constructable().unwrap();
-    cstr.construct(agent, func, args, nt);
+    initiate_construct(agent, func, args, new_target);
     agent
         .ec_pop()
         .expect("Construct must return a completion")
         .map(|nc| ECMAScriptValue::try_from(nc).expect("Construct must return a language value"))
+}
+
+pub fn initiate_construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) {
+    let nt = new_target.unwrap_or(func);
+    let cstr = func.o.to_constructable().unwrap();
+    cstr.construct(agent, func, args, nt);
 }
 
 pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
@@ -2442,6 +2446,11 @@ pub fn private_method_or_accessor_add(agent: &mut Agent, obj: &Object, method: R
         obj.o.common_object_data().borrow_mut().private_elements.push(method);
         Ok(())
     }
+}
+
+#[allow(unused_variables)]
+pub fn define_field(agent: &mut Agent, obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
+    todo!()
 }
 
 // PrivateGet ( O, P )

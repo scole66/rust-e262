@@ -143,6 +143,10 @@ fn run_file(vm: &mut VM, fname: &str) {
 }
 
 fn run_app() -> Result<(), i32> {
+    println!("sizeof(FullCompletion): {}", std::mem::size_of::<FullCompletion>());
+    println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
+    println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
+
     let mut vm: VM = VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {

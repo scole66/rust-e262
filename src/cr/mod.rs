@@ -2,11 +2,27 @@ use super::*;
 use anyhow::{anyhow, bail};
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum NormalCompletion {
     Empty,
     Value(ECMAScriptValue),
     Reference(Box<Reference>),
+    Environment(Rc<dyn EnvironmentRecord>),
+}
+impl PartialEq for NormalCompletion {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Value(left), Self::Value(right)) => left == right,
+            (Self::Reference(left), Self::Reference(right)) => left == right,
+            (Self::Environment(left), Self::Environment(right)) => {
+                //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
+                let left = &**left as *const dyn EnvironmentRecord as *const u8;
+                let right = &**right as *const dyn EnvironmentRecord as *const u8;
+                std::ptr::eq(left, right)
+            }
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 impl fmt::Display for NormalCompletion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -16,6 +32,7 @@ impl fmt::Display for NormalCompletion {
             NormalCompletion::Reference(r) => {
                 write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name)
             }
+            NormalCompletion::Environment(x) => write!(f, "{:?}", x),
         }
     }
 }
@@ -79,7 +96,9 @@ impl TryFrom<NormalCompletion> for ECMAScriptValue {
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
         match src {
             NormalCompletion::Value(v) => Ok(v),
-            NormalCompletion::Reference(_) | NormalCompletion::Empty => Err(anyhow!("Not a language value!")),
+            NormalCompletion::Reference(_) | NormalCompletion::Empty | NormalCompletion::Environment(..) => {
+                Err(anyhow!("Not a language value!"))
+            }
         }
     }
 }
@@ -90,7 +109,7 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
         match src {
             NormalCompletion::Value(v) => Ok(Some(v)),
             NormalCompletion::Empty => Ok(None),
-            NormalCompletion::Reference(_) => Err(anyhow!("Not a language value!")),
+            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -119,6 +138,16 @@ impl TryFrom<NormalCompletion> for Numeric {
         let v: ECMAScriptValue = src.try_into()?;
         let numeric: Numeric = v.try_into()?;
         Ok(numeric)
+    }
+}
+
+impl TryFrom<NormalCompletion> for Rc<dyn EnvironmentRecord> {
+    type Error = anyhow::Error;
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Environment(cd) => Ok(cd),
+            _ => Err(anyhow!("Not environment data")),
+        }
     }
 }
 

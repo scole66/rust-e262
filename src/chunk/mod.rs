@@ -228,6 +228,9 @@ impl Chunk {
             | Insn::FinishArgs
             | Insn::UnwindList
             | Insn::ExtractThrownValue
+            | Insn::SwapList
+            | Insn::RequireConstructor
+            | Insn::Construct
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump

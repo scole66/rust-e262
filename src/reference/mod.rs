@@ -264,6 +264,7 @@ pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<
             }
         },
         NormalCompletion::Empty => Err(create_reference_error(agent, "Unresolvable Reference")),
+        NormalCompletion::Environment(_) => unreachable!(),
     }
 }
 
@@ -301,6 +302,7 @@ pub fn put_value(
     let v = v_completion?;
     let w = w_completion?;
     match v {
+        NormalCompletion::Environment(_) => unreachable!(),
         NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error(agent, "Invalid Reference")),
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {
