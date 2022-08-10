@@ -495,7 +495,8 @@ fn string_constructor_function(
 
 impl Agent {
     fn this_string_value(&mut self, value: ECMAScriptValue, from_where: &str) -> Completion<JSString> {
-        // The abstract operation thisStringValue takes argument value. It performs the following steps when called:
+        // The abstract operation thisStringValue takes argument value. It performs the following steps when
+        // called:
         //
         //  1. If Type(value) is String, return value.
         //  2. If Type(value) is Object and value has a [[StringData]] internal slot, then
@@ -611,9 +612,10 @@ fn string_prototype_index_of(
 ) -> Completion<ECMAScriptValue> {
     // String.prototype.indexOf ( searchString [ , position ] )
     //
-    // NOTE 1: If searchString appears as a substring of the result of converting this object to a String, at one or
-    // more indices that are greater than or equal to position, then the smallest such index is returned; otherwise,
-    // -1𝔽 is returned. If position is undefined, +0𝔽 is assumed, so as to search all of the String.
+    // NOTE 1: If searchString appears as a substring of the result of converting this object to a String, at
+    // one or more indices that are greater than or equal to position, then the smallest such index is
+    // returned; otherwise, -1𝔽 is returned. If position is undefined, +0𝔽 is assumed, so as to search all
+    // of the String.
     //
     // This method performs the following steps when called:
     //
@@ -626,8 +628,8 @@ fn string_prototype_index_of(
     //  7. Let start be the result of clamping pos between 0 and len.
     //  8. Return 𝔽(StringIndexOf(S, searchStr, start)).
     //
-    // NOTE 2: This method is intentionally generic; it does not require that its this value be a String object.
-    // Therefore, it can be transferred to other kinds of objects for use as a method.
+    // NOTE 2: This method is intentionally generic; it does not require that its this value be a String
+    // object. Therefore, it can be transferred to other kinds of objects for use as a method.
     let mut args = FuncArgs::from(arguments);
     let search_string = args.next_arg();
     let position = args.next_arg();
@@ -640,6 +642,7 @@ fn string_prototype_index_of(
     let start = pos.clamp(0.0, len as f64) as u64;
     Ok(s.index_of(&search_str, start).into())
 }
+
 // 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
 fn string_prototype_last_index_of(
     _: &mut Agent,
