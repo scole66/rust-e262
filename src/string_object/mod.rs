@@ -1,6 +1,5 @@
 use super::*;
 use std::cell::RefCell;
-//use std::rc::Rc;
 
 /// String Objects
 ///
@@ -264,10 +263,10 @@ impl StringObject {
         if let PropertyKey::String(p) = key {
             let index = canonical_numeric_index_string(p.clone())?;
             is_integral_number(&index.into()).then_some(())?;
-            (index == 0.0 && index.signum() == -1.0).then_some(())?;
+            (index != 0.0 || index.signum() != -1.0).then_some(())?;
             let string = self.string_data.borrow();
             let len = string.len();
-            (index < 0.0 || index >= len as f64).then_some(())?;
+            (index >= 0.0 && index < len as f64).then_some(())?;
             let idx = index as usize;
             let value = JSString::from(&string.as_slice()[idx..idx + 1]);
             Some(PropertyDescriptor {
@@ -486,11 +485,32 @@ fn string_constructor_function(
         to_string(agent, value.clone())?
     };
     if let Some(nt) = new_target {
-        let prototype = agent.get_prototype_from_constructor(nt, IntrinsicId::StringPrototype)?;
+        let prototype = get_prototype_from_constructor(agent, nt, IntrinsicId::StringPrototype)?;
         let s_obj = agent.string_create(s, Some(prototype));
         Ok(ECMAScriptValue::from(s_obj))
     } else {
         Ok(ECMAScriptValue::from(s))
+    }
+}
+
+impl Agent {
+    fn this_string_value(&mut self, value: ECMAScriptValue, from_where: &str) -> Completion<JSString> {
+        // The abstract operation thisStringValue takes argument value. It performs the following steps when called:
+        //
+        //  1. If Type(value) is String, return value.
+        //  2. If Type(value) is Object and value has a [[StringData]] internal slot, then
+        //      a. Let s be value.[[StringData]].
+        //      b. Assert: Type(s) is String.
+        //      c. Return s.
+        //  3. Throw a TypeError exception.
+        match value {
+            ECMAScriptValue::String(s) => Ok(s),
+            ECMAScriptValue::Object(obj) if obj.o.is_string_object() => {
+                let sobj = obj.o.to_string_obj().unwrap();
+                Ok(sobj.string_data.borrow().clone())
+            }
+            _ => Err(create_type_error(self, format!("{from_where} requires that 'this' be a String"))),
+        }
     }
 }
 
@@ -584,12 +604,41 @@ fn string_prototype_includes(
 }
 // 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] )
 fn string_prototype_index_of(
-    _: &mut Agent,
-    _: ECMAScriptValue,
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.indexOf ( searchString [ , position ] )
+    //
+    // NOTE 1: If searchString appears as a substring of the result of converting this object to a String, at one or
+    // more indices that are greater than or equal to position, then the smallest such index is returned; otherwise,
+    // -1𝔽 is returned. If position is undefined, +0𝔽 is assumed, so as to search all of the String.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. Let S be ? ToString(O).
+    //  3. Let searchStr be ? ToString(searchString).
+    //  4. Let pos be ? ToIntegerOrInfinity(position).
+    //  5. Assert: If position is undefined, then pos is 0.
+    //  6. Let len be the length of S.
+    //  7. Let start be the result of clamping pos between 0 and len.
+    //  8. Return 𝔽(StringIndexOf(S, searchStr, start)).
+    //
+    // NOTE 2: This method is intentionally generic; it does not require that its this value be a String object.
+    // Therefore, it can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let search_string = args.next_arg();
+    let position = args.next_arg();
+
+    require_object_coercible(agent, &this_value)?;
+    let s = to_string(agent, this_value)?;
+    let search_str = to_string(agent, search_string)?;
+    let pos = to_integer_or_infinity(agent, position)?;
+    let len = s.len();
+    let start = pos.clamp(0.0, len as f64) as u64;
+    Ok(s.index_of(&search_str, start).into())
 }
 // 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
 fn string_prototype_last_index_of(
@@ -755,12 +804,17 @@ fn string_prototype_to_lower_case(
 }
 // 22.1.3.28 String.prototype.toString ( )
 fn string_prototype_to_string(
-    _: &mut Agent,
-    _: ECMAScriptValue,
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.toString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Return ? thisStringValue(this value).
+    let s = agent.this_string_value(this_value, "String.prototype.toString")?;
+    Ok(s.into())
 }
 // 22.1.3.29 String.prototype.toUpperCase ( )
 fn string_prototype_to_upper_case(
@@ -800,10 +854,15 @@ fn string_prototype_trim_start(
 }
 // 22.1.3.33 String.prototype.valueOf ( )
 fn string_prototype_value_of(
-    _: &mut Agent,
-    _: ECMAScriptValue,
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.valueOf ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Return ? thisStringValue(this value).
+    let s = agent.this_string_value(this_value, "String.prototype.valueOf")?;
+    Ok(s.into())
 }

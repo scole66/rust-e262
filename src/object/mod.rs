@@ -2115,7 +2115,7 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-fn get_prototype_from_constructor(
+pub fn get_prototype_from_constructor(
     agent: &mut Agent,
     constructor: &Object,
     intrinsic_default_proto: IntrinsicId,
