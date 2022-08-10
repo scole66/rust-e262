@@ -405,6 +405,10 @@ for name in ${names[@]}; do
     initiate_call) data=($name $name object) ;;
     construct) data=($name object::tests::construct:: object) ;;
     to_constructor) data=($name $name object) ;;
+    is_compatible_property_descriptor) data=($name $name object) ;;
+    ordinary_own_property_keys) data=($name $name object) ;;
+    OrdinaryObject_own_property_keys) data=(OrdinaryObject@ObjectInterface::own_property_keys ordinary_object::own_property_keys object) ;;
+    ImmutablePrototypeExoticObject_own_property_keys) data=(ImmutablePrototypeExoticObject@ObjectInterface::own_property_keys immutable_prototype_exotic_object::own_property_keys object) ;;
 
     Chunk) data=($name chunk chunk) ;;
     Chunk_add_to_func_stash) data=(chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk) ;;
