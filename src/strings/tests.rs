@@ -234,3 +234,19 @@ mod lt {
 fn max(left: &str, right: &str) -> String {
     String::from(JSString::from(left).max(JSString::from(right)))
 }
+
+mod jsstring {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("12345", "", 1 => 1; "empty search")]
+    #[test_case("12345", "12", 0 => 0; "match at start")]
+    #[test_case("12345", "45", 0 => 3; "match at end")]
+    #[test_case("12345", "", 10000 => -1; "empty search, large start")]
+    #[test_case("12345", "g", 3 => -1; "not found")]
+    fn index_of(src: impl Into<JSString>, needle: impl Into<JSString>, start: u64) -> i64 {
+        let src = src.into();
+        let needle = needle.into();
+        src.index_of(&needle, start)
+    }
+}
