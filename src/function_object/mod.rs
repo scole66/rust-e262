@@ -1605,5 +1605,78 @@ pub fn make_constructor(agent: &mut Agent, func: &Object, args: Option<(bool, Ob
     .expect("Valid defs don't throw");
 }
 
+fn function_prototype_call(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype.call ( thisArg, ...args )
+    // This method performs the following steps when called:
+    //
+    //  1. Let func be the this value.
+    //  2. If IsCallable(func) is false, throw a TypeError exception.
+    //  3. Perform PrepareForTailCall().
+    //  4. Return ? Call(func, thisArg, args).
+    //
+    // NOTE 1: The thisArg value is passed without modification as the this value. This is a change from Edition 3,
+    // where an undefined or null thisArg is replaced with the global object and ToObject is applied to all other
+    // values and that result is passed as the this value. Even though the thisArg is passed without modification,
+    // non-strict functions still perform these transformations upon entry to the function.
+    //
+    // NOTE 2: If func is an arrow function or a bound function exotic object then the thisArg will be ignored by the
+    // function [[Call]] in step 4.
+    let (first_arg, remaining) = if arguments.is_empty() {
+        let first_arg = ECMAScriptValue::Undefined;
+        let remaining: &[ECMAScriptValue] = &[];
+        (first_arg, remaining)
+    } else {
+        (arguments[0].clone(), &arguments[1..])
+    };
+    let func = this_value;
+    if is_callable(&func) {
+        call(agent, &func, &first_arg, remaining)
+    } else {
+        Err(create_type_error(agent, "this isn't a function"))
+    }
+}
+
+impl Agent {
+    pub fn provision_function_intrinsic(&mut self, realm: &Rc<RefCell<Realm>>) {
+        //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+        let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+
+        // Prototype Function Properties
+        macro_rules! prototype_function {
+            ( $steps:expr, $name:expr, $length:expr ) => {
+                let key = PropertyKey::from($name);
+                let function_object = create_builtin_function(
+                    self,
+                    $steps,
+                    false,
+                    $length,
+                    key.clone(),
+                    BUILTIN_FUNCTION_SLOTS,
+                    Some(realm.clone()),
+                    Some(function_prototype.clone()),
+                    None,
+                );
+                define_property_or_throw(
+                    self,
+                    &function_prototype,
+                    key,
+                    PotentialPropertyDescriptor::new()
+                        .value(function_object)
+                        .writable(true)
+                        .enumerable(false)
+                        .configurable(true),
+                )
+                .unwrap();
+            };
+        }
+        prototype_function!(function_prototype_call, "call", 1.0);
+    }
+}
+
 #[cfg(test)]
 mod tests;

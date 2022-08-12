@@ -41,8 +41,8 @@ impl JSString {
         } else {
             let search_len = search_value.len();
             for i in from_index as usize..=(len - search_len) {
-                if self.s[i..(i+search_len)] == search_value.s[..] {
-                    return i64::try_from(i).unwrap()
+                if self.s[i..(i + search_len)] == search_value.s[..] {
+                    return i64::try_from(i).unwrap();
                 }
             }
         }
