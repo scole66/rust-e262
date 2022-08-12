@@ -37,7 +37,7 @@ impl JSString {
     pub fn index_of(&self, search_value: &JSString, from_index: u64) -> i64 {
         let len = self.len();
         if search_value.is_empty() && from_index as usize <= len {
-            return i64::try_from(from_index).unwrap();
+            i64::try_from(from_index).unwrap()
         } else {
             let search_len = search_value.len();
             for i in from_index as usize..=(len - search_len) {
@@ -45,8 +45,8 @@ impl JSString {
                     return i64::try_from(i).unwrap();
                 }
             }
+            -1
         }
-        -1
     }
 }
 

@@ -32,6 +32,13 @@ for name in ${names[@]}; do
     same_value) data=(ECMAScriptValue::$name ecmascript_value::${name}:: values) ;;
     is_strictly_equal) data=(ECMAScriptValue::$name ecmascript_value::${name} values) ;;
     is_loosely_equal) data=(agent::Agent::$name agent::$name values) ;;
+    PropertyKey_is_array_index) data=(PropertyKey::is_array_index property_key::is_array_index values) ;;
+    to_number_agentless) data=(to_number_agentless to_number_agentless values);;
+    to_core_int_agentless) data=(to_core_int_agentless to_core_int_agentless values);;
+    to_uint32_agentless) data=(to_uint32_agentless to_uint32_agentless values);;
+    to_string_agentless) data=($name $name values);;
+    to_object) data=($name $name values);;
+    canonical_numeric_index_string) data=($name $name values);;
 
     SymbolObject) data=($name symbol_object symbol_object) ;;
     SymbolRegistry) data=($name symbol_registry symbol_object) ;;
@@ -45,6 +52,7 @@ for name in ${names[@]}; do
     | symbol_value_of \
     | symbol_description \
     ) data=($name $name symbol_object) ;;
+    SymbolObject_own_property_keys) data=(SymbolObject@ObjectInterface::own_property_keys symbol_object::own_property_keys symbol_object) ;;
 
     # compiler
     Insn) data=($name insn compiler) ;;
@@ -434,6 +442,7 @@ for name in ${names[@]}; do
 
     IntrinsicId) data=($name intrinsic_id realm) ;;
     Intrinsics) data=($name intrinsics realm) ;;
+    create_intrinsics) data=($name $name realm) ;;
 
     FunctionDeclaration_instantiate_function_object) data=(parser::function_definitions::FunctionDeclaration::instantiate_function_object function_declaration::instantiate_function_object function_object) ;;
     ThisLexicality) data=($name this_lexicality function_object) ;;
@@ -463,6 +472,50 @@ for name in ${names[@]}; do
     ScriptRecord) data=($name script_record execution_context) ;;
     ScriptOrModule) data=($name script_or_module execution_context) ;;
     ExecutionContext) data=($name execution_context execution_context) ;;
+
+    JSString_index_of) data=(JSString::index_of jsstring::index_of strings);;
+
+    StringObject) data=($name string_object string_object);;
+    Agent_string_create) data=(agent::Agent::string_create agent::string_create string_object);;
+    Agent_create_string_object) data=(agent::Agent::create_string_object agent::create_string_object string_object);;
+    Agent_provision_string_intrinsic) data=(agent::Agent::provision_string_intrinsic agent::provision_string_intrinsic string_object);;
+    string_constructor_function) data=($name $name string_object);;
+    Agent_this_string_value) data=(agent::Agent::this_string_value agent::this_string_value string_object);;
+    string_from_char_code) data=($name $name string_object);;
+    string_from_code_point) data=($name $name string_object);;
+    string_raw) data=($name $name string_object);;
+    string_prototype_char_at) data=($name $name string_object);;
+    string_prototype_char_code_at) data=($name $name string_object);;
+    string_prototype_code_point_at) data=($name $name string_object);;
+    string_prototype_concat) data=($name $name string_object);;
+    string_prototype_ends_with) data=($name $name string_object);;
+    string_prototype_includes) data=($name $name string_object);;
+    string_prototype_index_of) data=($name $name string_object);;
+    string_prototype_last_index_of) data=($name $name string_object);;
+    string_prototype_locale_compare) data=($name $name string_object);;
+    string_prototype_match) data=($name $name string_object);;
+    string_prototype_match_all) data=($name $name string_object);;
+    string_prototype_normalize) data=($name $name string_object);;
+    string_prototype_pad_end) data=($name $name string_object);;
+    string_prototype_pad_start) data=($name $name string_object);;
+    string_prototype_repeat) data=($name $name string_object);;
+    string_prototype_replace) data=($name $name string_object);;
+    string_prototype_replace_all) data=($name $name string_object);;
+    string_prototype_search) data=($name $name string_object);;
+    string_prototype_slice) data=($name $name string_object);;
+    string_prototype_split) data=($name $name string_object);;
+    string_prototype_starts_with) data=($name $name string_object);;
+    string_prototype_substring) data=($name $name string_object);;
+    string_prototype_to_locale_lower_case) data=($name $name string_object);;
+    string_prototype_to_locale_upper_case) data=($name $name string_object);;
+    string_prototype_to_lower_case) data=($name $name string_object);;
+    string_prototype_to_string) data=($name $name string_object);;
+    string_prototype_to_upper_case) data=($name $name string_object);;
+    string_prototype_trim) data=($name $name string_object);;
+    string_prototype_trim_end) data=($name $name string_object);;
+    string_prototype_trim_start) data=($name $name string_object);;
+    string_prototype_value_of) data=($name $name string_object);;
+
 
     *) echo "No type called $name"; exit ;;
   esac
