@@ -443,6 +443,7 @@ for name in ${names[@]}; do
     FunctionObject_GeneratorDeclaration_instantiate_function_object) data=(parser::generator_function_definitions::GeneratorDeclaration generator_declaration::instantiate_function_object function_object) ;;
     FunctionObject_AsyncFunctionDeclaration_instantiate_function_object) data=(parser::async_function_definitions::AsyncFunctionDeclaration async_function_declaration::instantiate_function_object function_object) ;;
     FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object) data=(parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object) ;;
+    function_prototype_call) data=($name $name function_object);;
 
     ScriptRecord) data=($name script_record execution_context) ;;
     ScriptOrModule) data=($name script_or_module execution_context) ;;
