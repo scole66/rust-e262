@@ -210,3 +210,20 @@ mod constructor_kind {
         assert_eq!(l1, l2);
     }
 }
+
+mod function_prototype_call {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|_| ECMAScriptValue::Undefined, &[] => serr("TypeError: this isn't a function"); "bad this")]
+    #[test_case(|agent| ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
+    fn function_prototype_call(
+        get_this: impl FnOnce(&mut Agent) -> ECMAScriptValue,
+        args: &[ECMAScriptValue],
+    ) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        let this_value = get_this(&mut agent);
+        super::function_prototype_call(&mut agent, this_value, None, args)
+            .map_err(|err| unwind_any_error(&mut agent, err))
+    }
+}

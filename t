@@ -455,6 +455,7 @@ for name in ${names[@]}; do
     FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object) data=(parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object) ;;
     FunctionObject_own_property_keys) data=(FunctionObject@ObjectInterface::own_property_keys function_object::own_property_keys function_object) ;;
     BuiltInFunctionObject_own_property_keys) data=(BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object) ;;
+    function_prototype_call) data=($name $name function_object);;
 
     ScriptRecord) data=($name script_record execution_context) ;;
     ScriptOrModule) data=($name script_or_module execution_context) ;;

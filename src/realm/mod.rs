@@ -322,7 +322,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(agent, realm_rec.clone());
 
     agent.provision_function_intrinsic(&realm_rec);
-    
+
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
     let boolean_prototype = ordinary_object_create(agent, Some(object_prototype), &[InternalSlotName::BooleanData]);

@@ -1626,13 +1626,8 @@ fn function_prototype_call(
     //
     // NOTE 2: If func is an arrow function or a bound function exotic object then the thisArg will be ignored by the
     // function [[Call]] in step 4.
-    let (first_arg, remaining) = if arguments.is_empty() {
-        let first_arg = ECMAScriptValue::Undefined;
-        let remaining: &[ECMAScriptValue] = &[];
-        (first_arg, remaining)
-    } else {
-        (arguments[0].clone(), &arguments[1..])
-    };
+    let (first_arg, remaining): (_, &[ECMAScriptValue]) =
+        if arguments.is_empty() { (ECMAScriptValue::Undefined, &[]) } else { (arguments[0].clone(), &arguments[1..]) };
     let func = this_value;
     if is_callable(&func) {
         call(agent, &func, &first_arg, remaining)
