@@ -679,12 +679,20 @@ where
     }
 }
 
-pub fn is_compatible_property_descriptor<'a>(
+/// Returns true if this potential property descriptor could be successfully applied.
+///
+/// Usually, this is for the case of trying to set a value of an immutable or automatic set of properties,
+/// where what you're actually doing is setting a value to what the value already is. Those assignments are
+/// actually allowed, and this routine is essentially how that's checked.
+///
+/// See [IsCompatiblePropertyDescriptor][1] in ECMA-262.
+/// [1]: https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
+pub fn is_compatible_property_descriptor(
     extensible: bool,
     desc: PotentialPropertyDescriptor,
     current: &PropertyDescriptor,
 ) -> bool {
-    let oo: Option<&'a dyn ObjectInterface> = None;
+    let oo: Option<&dyn ObjectInterface> = None;
     validate_and_apply_property_descriptor(oo, None, extensible, desc, Some(current))
 }
 
