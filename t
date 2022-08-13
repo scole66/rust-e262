@@ -42,16 +42,15 @@ for name in ${names[@]}; do
 
     SymbolObject) data=($name symbol_object symbol_object) ;;
     SymbolRegistry) data=($name symbol_registry symbol_object) ;;
-    ( create_symbol_object \
-    | provision_symbol_intrinsic \
-    | symbol_constructor_function \
-    | symbol_for \
-    | symbol_key_for \
-    | this_symbol_value \
-    | symbol_to_string \
-    | symbol_value_of \
-    | symbol_description \
-    ) data=($name $name symbol_object) ;;
+    create_symbol_object) data=($name $name symbol_object) ;;
+    provision_symbol_intrinsic) data=($name $name symbol_object) ;;
+    symbol_constructor_function) data=($name $name symbol_object) ;;
+    symbol_for) data=($name $name symbol_object) ;;
+    symbol_key_for) data=($name $name symbol_object) ;;
+    this_symbol_value) data=($name $name symbol_object) ;;
+    symbol_to_string) data=($name $name symbol_object) ;;
+    symbol_value_of) data=($name $name symbol_object) ;;
+    symbol_description) data=($name $name symbol_object) ;;
     SymbolObject_own_property_keys) data=(SymbolObject@ObjectInterface::own_property_keys symbol_object::own_property_keys symbol_object) ;;
 
     # compiler
