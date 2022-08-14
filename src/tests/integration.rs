@@ -256,3 +256,14 @@ mod labelled_statement {
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
 }
+
+mod function_prototype_call {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("(x => x * 2).call(undefined, 99);" => vok(198); "call a user defined func")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}

@@ -405,6 +405,7 @@ pub trait CallableObject: ObjectInterface {
         new_target: &Object,
     );
     fn end_evaluation(&self, agent: &mut Agent, result: FullCompletion);
+    fn complete_call(&self, agent: &mut Agent) -> Completion<ECMAScriptValue>;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -663,6 +664,13 @@ impl CallableObject for FunctionObject {
             Some(obj) => ECMAScriptValue::Object(obj).into(),
         }));
         agent.ordinary_call_evaluate_body(self_object, arguments_list);
+    }
+
+    fn complete_call(&self, agent: &mut Agent) -> Completion<ECMAScriptValue> {
+        let empty = String::new();
+        let fod = self.function_data.borrow();
+        let text = fod.script_or_module.as_ref().map_or(&empty, ScriptOrModule::source_text);
+        agent.execute(text)
     }
 }
 
@@ -1271,6 +1279,13 @@ impl CallableObject for BuiltInFunctionObject {
 
     fn end_evaluation(&self, _: &mut Agent, _: FullCompletion) {
         unreachable!("end_evaluation called for builtin callable")
+    }
+
+    fn complete_call(&self, agent: &mut Agent) -> Completion<ECMAScriptValue> {
+        agent
+            .ec_pop()
+            .expect("Call must return a Completion")
+            .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
     }
 }
 

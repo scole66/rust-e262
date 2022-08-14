@@ -1760,10 +1760,7 @@ pub fn call(
     args: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     initiate_call(agent, func, this_value, args);
-    agent
-        .ec_pop()
-        .expect("Call must return a Completion")
-        .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
+    complete_call(agent, func)
 }
 
 pub fn initiate_call(
@@ -1783,6 +1780,11 @@ pub fn initiate_call(
             callable.call(agent, &self_obj, this_value, args);
         }
     }
+}
+
+pub fn complete_call(agent: &mut Agent, func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    let callable = to_callable(func).unwrap();
+    callable.complete_call(agent)
 }
 
 // Construct ( F [ , argumentsList [ , newTarget ] ] )
