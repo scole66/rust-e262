@@ -364,7 +364,7 @@ impl From<RefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug)]
-pub struct AlwaysAbruptResult {}
+pub struct AlwaysAbruptResult;
 impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptResult) -> Self {
         Self::new().abrupt(true)
@@ -380,7 +380,7 @@ impl AlwaysAbruptResult {
 }
 
 #[derive(Debug)]
-pub struct AlwaysRefResult {}
+pub struct AlwaysRefResult;
 impl From<AlwaysRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysRefResult) -> Self {
         Self::new().reference(true)
@@ -388,7 +388,7 @@ impl From<AlwaysRefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug)]
-pub struct AlwaysAbruptRefResult {}
+pub struct AlwaysAbruptRefResult;
 impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptRefResult) -> Self {
         Self::new().reference(true).abrupt(true)
@@ -396,7 +396,7 @@ impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug)]
-pub struct NeverAbruptRefResult {}
+pub struct NeverAbruptRefResult;
 impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     fn from(_: NeverAbruptRefResult) -> Self {
         Self::new()
@@ -788,7 +788,7 @@ impl IdentifierReference {
         })?;
         chunk.op_plus_arg(Insn::String, string_id);
         chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-        Ok(AlwaysAbruptRefResult {})
+        Ok(AlwaysAbruptRefResult)
     }
 }
 
@@ -908,7 +908,7 @@ impl Literal {
                 compile_debug_lit(chunk, ch);
             }
         }
-        Ok(NeverAbruptRefResult {})
+        Ok(NeverAbruptRefResult)
     }
 }
 
@@ -1113,18 +1113,18 @@ impl LiteralPropertyName {
             LiteralPropertyName::IdentifierName { data: id, .. } => {
                 let idx = chunk.add_to_string_pool(id.string_value.clone())?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(NeverAbruptRefResult {})
+                Ok(NeverAbruptRefResult)
             }
             LiteralPropertyName::StringLiteral { data: st, .. } => {
                 let idx = chunk.add_to_string_pool(st.value.clone())?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(NeverAbruptRefResult {})
+                Ok(NeverAbruptRefResult)
             }
             LiteralPropertyName::NumericLiteral { data: n, .. } => {
                 let name = JSString::try_from(ECMAScriptValue::from(n)).expect("Numbers always have string forms.");
                 let idx = chunk.add_to_string_pool(name)?;
                 chunk.op_plus_arg(Insn::String, idx);
-                Ok(NeverAbruptRefResult {})
+                Ok(NeverAbruptRefResult)
             }
         }
     }
@@ -1158,7 +1158,7 @@ impl ComputedPropertyName {
         for mark in exits {
             chunk.fixup(mark).expect("Jump is too short to overflow.");
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -1175,7 +1175,7 @@ impl MemberExpression {
         // Stack: name base ...
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref
-        Ok(AlwaysRefResult {})
+        Ok(AlwaysRefResult)
     }
 
     /// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
@@ -1218,7 +1218,7 @@ impl MemberExpression {
         for exit in exits {
             chunk.fixup(exit).expect("Jump is too short to overflow.");
         }
-        Ok(AlwaysAbruptRefResult {})
+        Ok(AlwaysAbruptRefResult)
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
@@ -1439,7 +1439,7 @@ impl CallMemberExpression {
         for mark in exits {
             chunk.fixup(mark)?;
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -1585,7 +1585,7 @@ impl UpdateExpression {
         chunk.fixup(exit1).expect("Jump is too short to overflow.");
         chunk.fixup(exit2).expect("Jump is too short to overflow.");
 
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 
     fn pre_op(
@@ -1599,7 +1599,7 @@ impl UpdateExpression {
         exp.compile(chunk, strict, text)?;
         // Stack: exp/err
         chunk.op(insn);
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
@@ -1632,7 +1632,7 @@ impl UnaryExpression {
         ) -> anyhow::Result<AlwaysAbruptResult> {
             exp.compile(chunk, strict, text)?;
             chunk.op(insn);
-            Ok(AlwaysAbruptResult {})
+            Ok(AlwaysAbruptResult)
         }
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict, text),
@@ -1703,7 +1703,7 @@ macro_rules! compile_binary_expression {
         if let Some(mark) = second_exit {
             $chunk.fixup(mark).expect("Jump is too short to overflow.");
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }};
 }
 
@@ -2123,7 +2123,7 @@ impl AssignmentExpression {
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
-                Ok(AlwaysAbruptResult {}.into())
+                Ok(AlwaysAbruptResult.into())
             }
             AssignmentExpression::Yield(_) => todo!(),
             AssignmentExpression::Arrow(arrow_function) => {
@@ -2212,7 +2212,7 @@ impl AssignmentExpression {
                     chunk.fixup(mark)?;
                 }
                 chunk.fixup(lval_exit)?;
-                Ok(AlwaysAbruptResult {}.into())
+                Ok(AlwaysAbruptResult.into())
             }
             AssignmentExpression::LandAssignment(_, _) => todo!(),
             AssignmentExpression::LorAssignment(_, _) => todo!(),
@@ -2402,7 +2402,7 @@ impl FcnDef {
             }
             FcnDef::Generator(_) | FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => chunk.op(Insn::ToDo),
         }
-        Ok(NeverAbruptRefResult {}.into())
+        Ok(NeverAbruptRefResult.into())
     }
 }
 
@@ -2411,7 +2411,7 @@ impl Block {
         match &self.statements {
             None => {
                 chunk.op(Insn::Empty);
-                Ok(NeverAbruptRefResult {}.into())
+                Ok(NeverAbruptRefResult.into())
             }
             Some(sl) => {
                 chunk.op(Insn::PushNewLexEnv);
@@ -2452,7 +2452,7 @@ impl LexicalDeclaration {
         chunk.op(Insn::Pop);
         chunk.op(Insn::Empty);
         chunk.fixup(mark).expect("Jump is too short to overflow.");
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -2466,7 +2466,7 @@ impl BindingList {
                 chunk.op(Insn::Pop);
                 item.compile(chunk, strict, text)?;
                 chunk.fixup(mark)?;
-                Ok(AlwaysAbruptResult {})
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -2516,7 +2516,7 @@ impl LexicalBinding {
                 if let Some(mark) = exit_tgt {
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
-                Ok(AlwaysAbruptResult {})
+                Ok(AlwaysAbruptResult)
             }
             LexicalBinding::Pattern(_, _) => todo!(),
         }
@@ -2628,7 +2628,7 @@ impl VariableDeclaration {
 impl EmptyStatement {
     fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
-        NeverAbruptRefResult {}
+        NeverAbruptRefResult
     }
 }
 
@@ -2660,7 +2660,7 @@ impl IfStatement {
             IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, text)?,
             IfStatement::WithoutElse(..) => {
                 chunk.op(Insn::Undefined);
-                NeverAbruptRefResult {}.into()
+                NeverAbruptRefResult.into()
             }
         };
         if false_path_status.maybe_abrupt() {
@@ -2780,7 +2780,7 @@ impl ContinueStatement {
                 chunk.op_plus_arg(Insn::TargetedContinue, str_idx);
             }
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -2793,7 +2793,7 @@ impl BreakStatement {
                 chunk.op_plus_arg(Insn::TargetedBreak, str_idx);
             }
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -2820,7 +2820,7 @@ impl ReturnStatement {
                 }
             }
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -2892,7 +2892,7 @@ impl ThrowStatement {
         if let Some(tgt) = abort_target {
             chunk.fixup(tgt).expect("Jump too short to overflow");
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -3072,7 +3072,7 @@ impl CatchParameter {
 impl FunctionDeclaration {
     fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         chunk.op(Insn::Empty);
-        Ok(NeverAbruptRefResult {})
+        Ok(NeverAbruptRefResult)
     }
 
     #[allow(unused_variables)]
@@ -3127,7 +3127,7 @@ impl FunctionDeclaration {
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(Insn::InstantiateOrdinaryFunctionObject, name_id, func_id);
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -3203,7 +3203,7 @@ impl FunctionExpression {
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id);
-                Ok(AlwaysAbruptResult {})
+                Ok(AlwaysAbruptResult)
             }
             Some(bi) => {
                 let name = bi.string_value();
@@ -3223,7 +3223,7 @@ impl FunctionExpression {
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id);
-                Ok(AlwaysAbruptResult {})
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -3597,7 +3597,7 @@ impl ArrowFunction {
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 
     pub fn compile(
@@ -3682,7 +3682,7 @@ impl ExpressionBody {
         if let Some(mark) = exit {
             chunk.fixup(mark).expect("Jump too short to overflow");
         }
-        Ok(AlwaysAbruptResult {})
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -3792,7 +3792,7 @@ fn compile_initialize_bound_name(
         }
         false => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
     }
-    NeverAbruptRefResult {}
+    NeverAbruptRefResult
 }
 
 impl BindingIdentifier {
@@ -3810,7 +3810,7 @@ impl BindingIdentifier {
         };
         let id_idx = chunk.add_to_string_pool(binding_id)?;
         compile_initialize_bound_name(chunk, strict, has_duplicates, id_idx);
-        Ok(NeverAbruptRefResult {})
+        Ok(NeverAbruptRefResult)
     }
 }
 
@@ -4055,7 +4055,7 @@ impl FunctionStatementList {
             FunctionStatementList::Statements(s) => s.compile(chunk, strict, text),
             FunctionStatementList::Empty(_) => {
                 chunk.op(Insn::Undefined);
-                Ok(NeverAbruptRefResult {}.into())
+                Ok(NeverAbruptRefResult.into())
             }
         }
     }
