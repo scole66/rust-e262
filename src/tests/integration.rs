@@ -262,6 +262,7 @@ mod function_prototype_call {
     use test_case::test_case;
 
     #[test_case("(x => x * 2).call(undefined, 99);" => vok(198); "call a user defined func")]
+    #[test_case("Number.prototype.toString.call(991)" => vok("991"); "call a builtin func")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         let mut agent = test_agent();
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
