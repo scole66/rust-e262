@@ -494,13 +494,10 @@ impl Agent {
     }
 
     pub fn execute(&mut self, text: &str) -> Completion<ECMAScriptValue> {
+        // If our ec index drops below this, we exit.
+        let initial_context_index = self.execution_context_stack.len() - 1;
         loop {
             let index = self.execution_context_stack.len() - 1;
-            let chunk = match self.execution_context_stack[index].chunk.clone() {
-                Some(r) => Ok(r),
-                None => Err(create_type_error(self, "No compiled units!")),
-            }?;
-
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
@@ -516,6 +513,16 @@ impl Agent {
                     .join(" ] [ ")
             );
             println!(" ]");
+
+            if index < initial_context_index {
+                break;
+            }
+
+            let chunk = match self.execution_context_stack[index].chunk.clone() {
+                Some(r) => Ok(r),
+                None => Err(create_type_error(self, "No compiled units!")),
+            }?;
+
             if self.execution_context_stack[index].pc >= chunk.opcodes.len() {
                 break;
             }

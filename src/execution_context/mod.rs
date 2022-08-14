@@ -19,6 +19,15 @@ pub enum ScriptOrModule {
     Module(Rc<ModuleRecord>),
 }
 
+impl ScriptOrModule {
+    pub fn source_text(&self) -> &String {
+        match self {
+            ScriptOrModule::Script(som) => &som.text,
+            ScriptOrModule::Module(_) => todo!(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ExecutionContext {
     pub realm: Rc<RefCell<Realm>>,

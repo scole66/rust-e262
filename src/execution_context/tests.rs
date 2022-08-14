@@ -44,6 +44,7 @@ mod module_record {
 
 mod script_or_module {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn debug() {
@@ -62,6 +63,19 @@ mod script_or_module {
         } else {
             panic!("Clone failed; differing enum types");
         }
+    }
+
+    #[test_case(|agent| {
+        let mut sr = ScriptRecord::new_empty(agent.current_realm_record().unwrap());
+        sr.text = String::from("I am a walrus");
+        ScriptOrModule::Script(Rc::new(sr))
+    } => "I am a walrus"; "Script")]
+    #[test_case(|_| ScriptOrModule::Module(Rc::new(ModuleRecord{})) => panics "not yet implemented"; "module")]
+    fn source_text(maker: impl FnOnce(&mut Agent) -> ScriptOrModule) -> String {
+        let mut agent = test_agent();
+        let som = maker(&mut agent);
+        let text = som.source_text();
+        text.clone()
     }
 }
 
