@@ -5455,7 +5455,11 @@ mod catch {
     #[test_case("catch({a}){x;}", true, &[] => panics "not yet implemented"; "binding maybe abrupt")]
     #[test_case("catch(e){0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "block compile fail")]
     #[test_case("catch({e}){}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "binding init compile fails")]
-    fn compile_catch_clause_evaluation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile_catch_clause_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).catch();
         let mut c = complex_filled_chunk("x", what);
         node.compile_catch_clause_evaluation(&mut c, strict, src)
