@@ -935,7 +935,7 @@ where
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys<'a, T>(agent: &mut Agent, o: T) -> Vec<PropertyKey>
+pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -945,7 +945,7 @@ where
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
     for (key, desc) in data.properties.iter() {
-        if key.is_array_index(agent) {
+        if key.is_array_index() {
             keys.push(key.clone())
         } else {
             match key {
@@ -969,7 +969,7 @@ where
     }
     keys
 }
-fn array_index_key(item: &PropertyKey) -> u32 {
+pub fn array_index_key(item: &PropertyKey) -> u32 {
     match item {
         PropertyKey::String(s) => String::from_utf16_lossy(s.as_slice()).parse::<u32>().unwrap(),
         PropertyKey::Symbol(_) => unreachable!(),
@@ -1339,8 +1339,8 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -2340,8 +2340,8 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

@@ -254,7 +254,7 @@ impl ObjectInterface for TestObject {
         if self.own_property_keys_throws {
             Err(create_type_error(agent, "[[OwnPropertyKeys]] called on TestObject"))
         } else {
-            Ok(ordinary_own_property_keys(agent, self))
+            Ok(ordinary_own_property_keys(self))
         }
     }
 }
@@ -482,7 +482,7 @@ impl ObjectInterface for AdaptableObject {
     fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         match &self.own_property_keys_override {
             Some(func) => func(agent, self),
-            None => Ok(ordinary_own_property_keys(agent, self)),
+            None => Ok(ordinary_own_property_keys(self)),
         }
     }
 }
