@@ -277,6 +277,16 @@ fn string_constructor(src: &str) -> Result<ECMAScriptValue, String> {
     process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
 }
 
+#[test_case("String.fromCharCode(112, 97, 115, 115)" => vok("pass"); "normal")]
+#[test_case("String.fromCharCode()" => vok(""); "empty")]
+#[test_case("String.fromCharCode(112, 97, 115, 115, Symbol('a'), 88)" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "bad args")]
+#[test_case("String.fromCharCode.name" => vok("fromCharCode"); "name")]
+#[test_case("String.fromCharCode.length" => vok(1); "length")]
+fn string_from_char_code(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
 #[test_case("'12345'.indexOf('2')" => vok(1); "found a match")]
 #[test_case("'12345'.indexOf('25')" => vok(-1); "no match")]
 #[test_case("'12345'.indexOf('23', 2)" => vok(-1); "start after substring")]
@@ -287,6 +297,22 @@ fn string_constructor(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'a'.indexOf('a', Symbol('a'))" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "fail location 4")]
 #[test_case("'what if things are undefined?'.indexOf()" => vok(19); "first arg missing")]
 fn string_prototype_index_of(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("String.prototype.toString.call(0)" => serr("Thrown: TypeError: String.prototype.toString requires that 'this' be a String"); "bad this")]
+#[test_case("new String('alpha').toString()" => vok("alpha"); "string object")]
+#[test_case("'alpha'.toString()" => vok("alpha"); "string literal")]
+fn string_prototype_to_string(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("String.prototype.valueOf.call(0)" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this")]
+#[test_case("new String('alpha').valueOf()" => vok("alpha"); "string object")]
+#[test_case("'alpha'.valueOf()" => vok("alpha"); "string literal")]
+fn string_prototype_value_of(src: &str) -> Result<ECMAScriptValue, String> {
     let mut agent = test_agent();
     process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
 }
