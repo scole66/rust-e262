@@ -34,6 +34,13 @@ test_defs[same_value_zero]="ECMAScriptValue::same_value_zero ecmascript_value::s
 test_defs[same_value]="ECMAScriptValue::same_value ecmascript_value::same_value:: values"
 test_defs[is_strictly_equal]="ECMAScriptValue::is_strictly_equal ecmascript_value::is_strictly_equal values"
 test_defs[is_loosely_equal]="agent::Agent::is_loosely_equal agent::is_loosely_equal values"
+test_defs[PropertyKey_is_array_index]="PropertyKey::is_array_index property_key::is_array_index values"
+test_defs[to_number_agentless]="to_number_agentless to_number_agentless values"
+test_defs[to_core_int_agentless]="to_core_int_agentless to_core_int_agentless values"
+test_defs[to_uint32_agentless]="to_uint32_agentless to_uint32_agentless values"
+test_defs[to_string_agentless]="to_string_agentless to_string_agentless values"
+test_defs[to_object]="to_object to_object values"
+test_defs[canonical_numeric_index_string]="canonical_numeric_index_string canonical_numeric_index_string values"
 
 test_defs[SymbolObject]="SymbolObject symbol_object symbol_object"
 test_defs[SymbolRegistry]="SymbolRegistry symbol_registry symbol_object"
@@ -46,6 +53,7 @@ test_defs[this_symbol_value]="this_symbol_value this_symbol_value symbol_object"
 test_defs[symbol_to_string]="symbol_to_string symbol_to_string symbol_object"
 test_defs[symbol_value_of]="symbol_value_of symbol_value_of symbol_object"
 test_defs[symbol_description]="symbol_description symbol_description symbol_object"
+test_defs[SymbolObject_own_property_keys]="SymbolObject@ObjectInterface::own_property_keys symbol_object::own_keys symbol_object"
 
 test_defs[Insn]="Insn insn compiler"
 test_defs[CompilerStatusFlags]="CompilerStatusFlags compiler_status_flags compiler"
@@ -412,6 +420,10 @@ test_defs[call]="call object::tests::call object"
 test_defs[initiate_call]="initiate_call initiate_call object"
 test_defs[construct]="construct object::tests::construct:: object"
 test_defs[to_constructor]="to_constructor to_constructor object"
+test_defs[is_compatible_property_descriptor]="is_compatible_property_descriptor is_compatible_property_descriptor object"
+test_defs[ordinary_own_property_keys]="ordinary_own_property_keys ordinary_own_property_keys object"
+test_defs[OrdinaryObject_own_property_keys]="OrdinaryObject@ObjectInterface::own_property_keys ordinary_object::own_property_keys object"
+test_defs[ImmutablePrototypeExoticObject_own_property_keys]="ImmutablePrototypeExoticObject@ObjectInterface::own_property_keys immutable_prototype_exotic_object::own_property_keys object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="chunk::Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
@@ -424,9 +436,23 @@ test_defs[ArgumentsObject_define_own_property]="ArgumentsObject@object::ObjectIn
 test_defs[ArgumentsObject_set]="ArgumentsObject@object::ObjectInterface::set arguments_object::set arguments_object"
 test_defs[ArgumentsObject_get]="ArgumentsObject@object::ObjectInterface::get arguments_object::get:: arguments_object"
 test_defs[ArgumentsObject_delete]="ArgumentsObject@object::ObjectInterface::delete arguments_object::delete arguments_object"
+test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInterface::own_property_keys arguments_object::own_property_keys arguments_object"
 
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
+
+test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
+test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
+
+test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
+
+test_defs[ErrorObject_own_property_keys]="ErrorObject@object::ObjectInterface::own_property_keys error_object_own_property_keys errors"
+
+test_defs[NumberObject_own_property_keys]="NumberObject@object::ObjectInterface::own_property_keys number_object_own_property_keys number_object"
+
+test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
+test_defs[Intrinsics]="Intrinsics intrinsics realm"
+test_defs[create_intrinsics]="create_intrinsics create_intrinsics realm"
 
 test_defs[FunctionDeclaration_instantiate_function_object]="parser::function_definitions::FunctionDeclaration::instantiate_function_object function_declaration::instantiate_function_object function_object"
 test_defs[ThisLexicality]="ThisLexicality this_lexicality function_object"
@@ -451,6 +477,8 @@ test_defs[FunctionObject_GeneratorDeclaration_instantiate_function_object]="pars
 test_defs[FunctionObject_AsyncFunctionDeclaration_instantiate_function_object]="parser::async_function_definitions::AsyncFunctionDeclaration async_function_declaration::instantiate_function_object function_object"
 test_defs[FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object]="parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object"
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
+test_defs[FunctionObject_own_property_keys]="FunctionObject@ObjectInterface::own_property_keys function_object::own_property_keys function_object"
+test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object"
 
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
