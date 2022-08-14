@@ -516,12 +516,27 @@ impl Agent {
 }
 
 fn string_from_char_code(
-    _agent: &mut Agent,
+    agent: &mut Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.fromCharCode ( ...codeUnits )
+    //
+    // This function may be called with any number of arguments which form the rest parameter codeUnits.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let elements be a new empty List.
+    //  2. For each element next of codeUnits, do
+    //      a. Let nextCU be ℝ(? ToUint16(next)).
+    //      b. Append nextCU to elements.
+    //  3. Return the String value whose code units are the elements in the List elements. If codeUnits is empty, the
+    //     empty String is returned.
+    Ok(JSString::from(
+        arguments.iter().map(|v| to_uint16(agent, v.clone())).collect::<Result<Vec<u16>, AbruptCompletion>>()?,
+    )
+    .into())
 }
 fn string_from_code_point(
     _agent: &mut Agent,
