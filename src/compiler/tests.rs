@@ -122,6 +122,11 @@ mod insn {
     #[test_case(Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ"; "InstantiateOrdinaryFunctionObject instruction")]
     #[test_case(Insn::ExtractArg => "EXTRACT_ARG"; "ExtractArg instruction")]
     #[test_case(Insn::FinishArgs => "FINISH_ARGS"; "FinishArgs instruction")]
+    #[test_case(Insn::ExtractThrownValue => "EXTRACT_THROW"; "ExtractThrownValue instruction")]
+    #[test_case(Insn::SwapList => "SWAP_LIST"; "SwapList instruction")]
+    #[test_case(Insn::RequireConstructor => "REQ_CSTR"; "RequireConstructor instruction")]
+    #[test_case(Insn::Construct => "CONSTRUCT"; "Construct instruction")]
+    #[test_case(Insn::JumpNotThrow => "JUMP_NOT_THROW"; "JumpNotThrow instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -5020,6 +5025,440 @@ mod function_statement_list {
         let node = Maker::new(src).function_statement_list();
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod async_arrow_function {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("async x => 2*x" => "2 * x"; "ident only")]
+    #[test_case("async (a, b) => a + b" => "a + b"; "formals")]
+    fn body(src: &str) -> String {
+        Maker::new(src).async_arrow_function().body().to_string()
+    }
+
+    #[test_case("async x => 2 * x" => "x"; "ident only")]
+    #[test_case("async (a, b) => a + b" => "( a , b )"; "formals")]
+    fn params(src: &str) -> String {
+        Maker::new(src).async_arrow_function().params().to_string()
+    }
+}
+
+mod construct_expr {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", ConstructExpr::New(Maker::new("new Boolean").new_expression())), "");
+    }
+
+    #[test_case("new Boolean", |s| ConstructExpr::New(Maker::new(s).new_expression()), true, &[] => Ok((svec(&[
+        "STRING 0 (Boolean)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "DUP",
+        "DUP",
+        "FLOAT 0 (0)",
+        "SWAP_LIST",
+        "REQ_CSTR",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND_LIST",
+        "UNWIND 2",
+        "JUMP 2",
+        "POP",
+        "CONSTRUCT"
+    ]), true, false)); "new expr")]
+    #[test_case("new Boolean()", |s| ConstructExpr::Member(Maker::new(s).member_expression()), true, &[] => Ok((svec(&[
+        "STRING 0 (Boolean)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "DUP",
+        "DUP",
+        "FLOAT 0 (0)",
+        "SWAP_LIST",
+        "REQ_CSTR",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND_LIST",
+        "UNWIND 2",
+        "JUMP 2",
+        "POP",
+        "CONSTRUCT"
+    ]), true, false)); "member expression")]
+    fn compile(
+        src: &str,
+        make_node: impl FnOnce(&str) -> ConstructExpr,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = make_node(src);
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[test_case("new Symbol", true, &[] => Ok((svec(&[
+    "STRING 0 (Symbol)",
+    "STRICT_RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 15",
+    "DUP",
+    "DUP",
+    "FLOAT 0 (0)",
+    "SWAP_LIST",
+    "REQ_CSTR",
+    "JUMP_IF_NORMAL 5",
+    "UNWIND_LIST",
+    "UNWIND 2",
+    "JUMP 2",
+    "POP",
+    "CONSTRUCT"
+]), true, false)); "no args/strict")]
+#[test_case("new Symbol", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expr compile error")]
+#[test_case("new 3", true, &[] => Ok((svec(&[
+    "FLOAT 0 (3)",
+    "DUP",
+    "DUP",
+    "FLOAT 1 (0)",
+    "SWAP_LIST",
+    "REQ_CSTR",
+    "JUMP_IF_NORMAL 5",
+    "UNWIND_LIST",
+    "UNWIND 2",
+    "JUMP 2",
+    "POP",
+    "CONSTRUCT"
+]), true, false)); "expr not a ref")]
+#[test_case("new a", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "float table full, no args")]
+#[test_case("new a(0)", true, &[] => Ok((svec(&[
+    "STRING 0 (a)",
+    "STRICT_RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 17",
+    "DUP",
+    "DUP",
+    "FLOAT 0 (0)",
+    "FLOAT 1 (1)",
+    "SWAP_LIST",
+    "REQ_CSTR",
+    "JUMP_IF_NORMAL 5",
+    "UNWIND_LIST",
+    "UNWIND 2",
+    "JUMP 2",
+    "POP",
+    "CONSTRUCT"
+]), true, false)); "with infallible args/strict")]
+#[test_case("new a(0)", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "argeval fails")]
+#[test_case("new a(b)", true, &[] => Ok((svec(&[
+    "STRING 0 (a)",
+    "STRICT_RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 27",
+    "DUP",
+    "DUP",
+    "STRING 1 (b)",
+    "STRICT_RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 2",
+    "FLOAT 0 (1)",
+    "JUMP_IF_NORMAL 4",
+    "UNWIND 3",
+    "JUMP 11",
+    "SWAP_LIST",
+    "REQ_CSTR",
+    "JUMP_IF_NORMAL 5",
+    "UNWIND_LIST",
+    "UNWIND 2",
+    "JUMP 2",
+    "POP",
+    "CONSTRUCT"
+]), true, false)); "with fallible args/strict")]
+#[test_case("new a(b)", false, &[] => Ok((svec(&[
+    "STRING 0 (a)",
+    "RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 27",
+    "DUP",
+    "DUP",
+    "STRING 1 (b)",
+    "RESOLVE",
+    "GET_VALUE",
+    "JUMP_IF_ABRUPT 2",
+    "FLOAT 0 (1)",
+    "JUMP_IF_NORMAL 4",
+    "UNWIND 3",
+    "JUMP 11",
+    "SWAP_LIST",
+    "REQ_CSTR",
+    "JUMP_IF_NORMAL 5",
+    "UNWIND_LIST",
+    "UNWIND 2",
+    "JUMP 2",
+    "POP",
+    "CONSTRUCT"
+]), true, false)); "with fallible args/non-strict")]
+#[test_case("new a(@@@)", true, &[] => serr("out of range integral type conversion attempted"); "arguments too large")]
+fn compile_new_evaluator(
+    src: &str,
+    strict: bool,
+    what: &[(Fillable, usize)],
+) -> Result<(Vec<String>, bool, bool), String> {
+    let node = Maker::new(src).new_expression();
+    let (constructor_expression, potential_arguments) = match &*node {
+        NewExpression::MemberExpression(me) => match &**me {
+            MemberExpression::NewArguments(me, args, _) => (ConstructExpr::Member(me.clone()), Some(args.clone())),
+            _ => panic!("Invalid test case. Please don't get fancy."),
+        },
+        NewExpression::NewExpression(ne, _) => (ConstructExpr::New(ne.clone()), None),
+    };
+    let mut c = complex_filled_chunk("x", what);
+
+    super::compile_new_evaluator(&mut c, strict, src, constructor_expression, potential_arguments)
+        .map(|status| {
+            (
+                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                status.maybe_abrupt(),
+                status.maybe_ref(),
+            )
+        })
+        .map_err(|e| e.to_string())
+}
+
+mod catch_parameter {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, &[] => Ok((svec(&["ILB 0 (a)"]), false, false)); "ident")]
+    #[test_case("{a}", true, &[] => Ok((svec(&["TODO"]), true, false)); "pattern")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let mut c = complex_filled_chunk("x", what);
+        let node = Maker::new(src).catch_parameter();
+
+        node.compile_binding_initialization(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod try_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("try {} catch {}", true, &[] => Ok((svec(&[
+        "UNDEFINED", "EMPTY", "UPDATE_EMPTY"
+    ]), false, false)); "minimal (catch not even compiled)")]
+    #[test_case("try {a;} catch {}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "block compile fails")]
+    #[test_case("try {a;} catch {b;}", true, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_NOT_THROW 7",
+        "POP",
+        "PNLE",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "fallible try block/strict")]
+    #[test_case("try {a;} catch {b;}", false, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_NOT_THROW 7",
+        "POP",
+        "PNLE",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "UPDATE_EMPTY"
+    ]), true, false)); "fallible try block/non-strict")]
+    #[test_case("try {a;} catch {0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "catch compile fails")]
+    #[test_case("try {a;} catch {@@@;}", true, &[] => serr("out of range integral type conversion attempted"); "catch clause too large")]
+    #[test_case("try {} finally {}", true, &[] => Ok((svec(&["UNDEFINED", "EMPTY", "EMPTY", "POP", "UPDATE_EMPTY"]), false, false)); "minimal finally")]
+    #[test_case("try {a;} finally {}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "try-finally: block compile fails")]
+    #[test_case("try {a;} finally {0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "try-finally: finally compile fails")]
+    #[test_case("try {a;} finally {b;}", true, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "PNLE",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_IF_ABRUPT 4",
+        "POP",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 2"
+    ]), true, false)); "try-finally; finally is fallible")]
+    #[test_case("try {a;} finally {b;}", false, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "PNLE",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_IF_ABRUPT 4",
+        "POP",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 2"
+    ]), true, false)); "try-finally; finally is fallible; non-strict")]
+    #[test_case("try{}catch{}finally{}", true, &[] => Ok((svec(&["UNDEFINED", "EMPTY", "EMPTY", "POP", "UPDATE_EMPTY"]), false, false)); "try-full/minimal")]
+    #[test_case("try{a;}catch{b;}finally{c;}", true, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_NOT_THROW 7",
+        "POP",
+        "PNLE",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "PNLE",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_IF_ABRUPT 4",
+        "POP",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 2"
+    ]), true, false)); "try-full all fallible/strict")]
+    #[test_case("try{a;}catch{b;}finally{c;}", false, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "PNLE",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_NOT_THROW 7",
+        "POP",
+        "PNLE",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "PNLE",
+        "STRING 2 (c)",
+        "RESOLVE",
+        "GET_VALUE",
+        "PLE",
+        "JUMP_IF_ABRUPT 4",
+        "POP",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 2"
+    ]), true, false)); "try-full all fallible/non-strict")]
+    #[test_case("try{a;}catch{}finally{}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "try-full block fails")]
+    #[test_case("try{a;}catch{0;}finally{}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "try-full catch fails")]
+    #[test_case("try{a;}catch{@@@;}finally{}", true, &[] => serr("out of range integral type conversion attempted"); "try-full catch too big")]
+    #[test_case("try{a;}catch{b;}finally{0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "try-full finally fails")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).try_statement();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod finally {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("finally{a;}", true, &[] => Ok((svec(&["PNLE", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "PLE"]), true, false)); "fallible/strict")]
+    #[test_case("finally{a;}", false, &[] => Ok((svec(&["PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true, false)); "fallible/non-strict")]
+    #[test_case("finally{}", true, &[] => Ok((svec(&["EMPTY"]), false, false)); "minimal")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).finally();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod catch {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("catch{}", true, &[] => Ok((svec(&["POP", "EMPTY"]), false, false)); "minimal")]
+    #[test_case("catch{a;}", true, &[] => Ok((svec(&["POP", "PNLE", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no-param/fallible/strict")]
+    #[test_case("catch{a;}", false, &[] => Ok((svec(&["POP", "PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no-param/fallible/non-strict")]
+    #[test_case("catch(e){e;}", true, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "PNLE", "STRING 0 (e)", "STRICT_RESOLVE", "GET_VALUE", "PLE", "PLE"]), true, false)); "param/fallible/strict")]
+    #[test_case("catch(e){e;}", false, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "PNLE", "STRING 0 (e)", "RESOLVE", "GET_VALUE", "PLE", "PLE"]), true, false)); "param/fallible/non-strict")]
+    #[test_case("catch(e){0;}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("catch({a}){x;}", true, &[] => panics "not yet implemented"; "binding maybe abrupt")]
+    #[test_case("catch(e){0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "block compile fail")]
+    #[test_case("catch({e}){}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "binding init compile fails")]
+    fn compile_catch_clause_evaluation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).catch();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_catch_clause_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

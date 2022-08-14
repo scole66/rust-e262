@@ -100,6 +100,19 @@ impl TryFrom<BodySource> for Rc<FunctionBody> {
     }
 }
 
+impl fmt::Display for BodySource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BodySource::Function(node) => node.fmt(f),
+            BodySource::Generator(node) => node.fmt(f),
+            BodySource::AsyncFunction(node) => node.fmt(f),
+            BodySource::AsyncGenerator(node) => node.fmt(f),
+            BodySource::ConciseBody(node) => node.fmt(f),
+            BodySource::AsyncConciseBody(node) => node.fmt(f),
+        }
+    }
+}
+
 impl BodySource {
     /// Return a list of identifiers defined by the `var` statement for this node.
     ///
@@ -172,6 +185,17 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
+}
+
+impl fmt::Display for ParamSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParamSource::FormalParameters(node) => node.fmt(f),
+            ParamSource::ArrowParameters(node) => node.fmt(f),
+            ParamSource::AsyncArrowBinding(node) => node.fmt(f),
+            ParamSource::ArrowFormals(node) => node.fmt(f),
+        }
+    }
 }
 
 impl PartialEq for ParamSource {

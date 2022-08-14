@@ -148,6 +148,13 @@ test_defs[CompilerSingleNameBinding]="parser::declarations_and_variables::Single
 test_defs[CompilerFunctionRestParameter]="parser::parameter_lists::FunctionRestParameter function_rest_parameter compiler"
 test_defs[CompilerFunctionBody]="parser::function_definitions::FunctionBody function_body compiler"
 test_defs[CompilerFunctionStatementList]="parser::function_definitions::FunctionStatementList function_statement_list compiler"
+test_defs[ConstructExpr]="ConstructExpr construct_expr compiler"
+test_defs[CompilerAsyncArrowFunction]="parser::async_arrow_function_definitions::AsyncArrowFunction async_arrow_function compiler"
+test_defs[compile_new_evaluator]="compile_new_evaluator compile_new_evaluator compiler"
+test_defs[CompilerCatchParameter]="parser::try_statement::CatchParameter catch_parameter compiler"
+test_defs[CompilerTryStatement]="parser::try_statement::TryStatement try_statement compiler"
+test_defs[CompilerFinally]="parser::try_statement::Finally finally compiler"
+test_defs[CompilerCatch]="parser::try_statement::Catch catch:: compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
