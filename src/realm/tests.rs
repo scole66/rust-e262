@@ -13,6 +13,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::EvalError,
     IntrinsicId::EvalErrorPrototype,
     IntrinsicId::FunctionPrototype,
+    IntrinsicId::IteratorPrototype,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
     IntrinsicId::Number,

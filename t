@@ -542,6 +542,9 @@ test_defs[string_prototype_trim_start]="string_prototype_trim_start string_proto
 test_defs[string_prototype_value_of]="string_prototype_value_of string_prototype_value_of string_object"
 test_defs[string_prototype_iterator]="string_prototype_iterator string_prototype_iterator string_object"
 
+test_defs[Agent_provision_iterator_prototype]="agent::Agent::provision_iterator_prototype agent::provision_iterator_prototype control_abstraction"
+test_defs[iterator_prototype_iterator]="iterator_prototype_iterator iterator_prototype_iterator control_abstraction"
+
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
 test_defs[ExecutionContext]="ExecutionContext execution_context execution_context"
