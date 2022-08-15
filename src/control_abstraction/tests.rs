@@ -4,6 +4,7 @@ use test_case::test_case;
 
 mod agent {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn provision_iterator_prototype() {
@@ -120,6 +121,18 @@ mod agent {
             let length = to_string(&mut agent, length).unwrap();
             format!("{};{}", String::from(name), length)
         }
+    }
+
+    #[test_case("a value".into(), true; "is done")]
+    #[test_case(ECMAScriptValue::Undefined, false; "not done")]
+    fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
+        let mut agent = test_agent();
+        let obj = agent.create_iter_result_object(value.clone(), done);
+        let value_res = get(&mut agent, &obj, &"value".into()).unwrap();
+        let done_res = get(&mut agent, &obj, &"done".into()).unwrap();
+
+        assert_eq!(value_res, value);
+        assert_eq!(done_res, ECMAScriptValue::from(done));
     }
 }
 

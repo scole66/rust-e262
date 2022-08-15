@@ -261,5 +261,26 @@ fn generator_prototype_throw(
     todo!()
 }
 
+impl Agent {
+    fn create_iter_result_object(&mut self, value: ECMAScriptValue, done: bool) -> Object {
+        // CreateIterResultObject ( value, done )
+        //
+        // The abstract operation CreateIterResultObject takes arguments value (an ECMAScript language value)
+        // and done (a Boolean) and returns an Object that conforms to the IteratorResult interface. It
+        // creates an object that conforms to the IteratorResult interface. It performs the following steps
+        // when called:
+        //
+        //  1. Let obj be OrdinaryObjectCreate(%Object.prototype%).
+        //  2. Perform ! CreateDataPropertyOrThrow(obj, "value", value).
+        //  3. Perform ! CreateDataPropertyOrThrow(obj, "done", done).
+        //  4. Return obj.
+        let object_prototype = self.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(self, Some(object_prototype), &[]);
+        create_data_property_or_throw(self, &obj, "value", value).unwrap();
+        create_data_property_or_throw(self, &obj, "done", done).unwrap();
+        obj
+    }
+}
+
 #[cfg(test)]
 mod tests;
