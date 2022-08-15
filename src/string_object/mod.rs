@@ -169,9 +169,8 @@ impl ObjectInterface for StringObject {
         for (key, desc) in bindings.iter() {
             if key.is_array_index() {
                 let keyval = array_index_key(key);
-                if keyval as usize >= len {
-                    extra_numbers.push((key.clone(), keyval));
-                }
+                assert!(keyval as usize >= len); // All lower array indices are part of the string, and no one should have been able to make them independently.
+                extra_numbers.push((key.clone(), keyval));
             } else {
                 match key {
                     PropertyKey::String(_) => {
@@ -884,3 +883,6 @@ fn string_prototype_value_of(
     let s = agent.this_string_value(this_value, "String.prototype.valueOf")?;
     Ok(s.into())
 }
+
+#[cfg(test)]
+mod tests;
