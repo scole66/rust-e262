@@ -544,6 +544,11 @@ test_defs[string_prototype_iterator]="string_prototype_iterator string_prototype
 
 test_defs[Agent_provision_iterator_prototype]="agent::Agent::provision_iterator_prototype agent::provision_iterator_prototype control_abstraction"
 test_defs[iterator_prototype_iterator]="iterator_prototype_iterator iterator_prototype_iterator control_abstraction"
+test_defs[Agent_provision_generator_function_intrinsics]="agent::Agent::provision_generator_function_intrinsics agent::provision_generator_function_intrinsics control_abstraction"
+test_defs[generator_function]="generator_function generator_function control_abstraction"
+test_defs[generator_prototype_next]="generator_prototype_next generator_prototype_next control_abstraction"
+test_defs[generator_prototype_return]="generator_prototype_return generator_prototype_return control_abstraction"
+test_defs[generator_prototype_throw]="generator_prototype_throw generator_prototype_throw control_abstraction"
 
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"

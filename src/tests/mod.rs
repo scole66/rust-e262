@@ -635,4 +635,16 @@ impl From<PropertyDescriptor> for IdealizedPropertyDescriptor {
     }
 }
 
+#[macro_export]
+macro_rules! tbd_function {
+    ( $name:ident ) => {
+        #[test]
+        #[should_panic(expected = "not yet implemented")]
+        fn $name() {
+            let mut agent = test_agent();
+            super::$name(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap();
+        }
+    };
+}
+
 mod integration;

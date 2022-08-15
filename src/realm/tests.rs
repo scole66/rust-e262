@@ -12,8 +12,12 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::ErrorPrototype,
     IntrinsicId::EvalError,
     IntrinsicId::EvalErrorPrototype,
+    IntrinsicId::Function,
     IntrinsicId::FunctionPrototype,
     IntrinsicId::IteratorPrototype,
+    IntrinsicId::GeneratorFunction,
+    IntrinsicId::GeneratorFunctionPrototype,
+    IntrinsicId::GeneratorFunctionPrototypePrototype,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
     IntrinsicId::Number,
@@ -89,7 +93,15 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::ErrorPrototype), intrinsics.error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
     assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::Function), intrinsics.function);
     assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::IteratorPrototype), intrinsics.iterator_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunction), intrinsics.generator_function);
+    assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunctionPrototype), intrinsics.generator_function_prototype);
+    assert_eq!(
+        intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototype),
+        intrinsics.generator_function_prototype_prototype
+    );
     assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
     assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
@@ -98,6 +110,8 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::String), intrinsics.string);
+    assert_eq!(intrinsics.get(IntrinsicId::StringPrototype), intrinsics.string_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
     assert_eq!(intrinsics.get(IntrinsicId::SymbolPrototype), intrinsics.symbol_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::SyntaxError), intrinsics.syntax_error);
