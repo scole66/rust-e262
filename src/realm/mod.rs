@@ -15,8 +15,12 @@ pub enum IntrinsicId {
     ErrorPrototype,
     EvalError,
     EvalErrorPrototype,
+    Function,
     FunctionPrototype,
     IteratorPrototype,
+    GeneratorFunction,
+    GeneratorFunctionPrototype,
+    GeneratorFunctionPrototypePrototype,
     Number,
     NumberPrototype,
     Object,
@@ -73,6 +77,8 @@ pub struct Intrinsics {
     pub function: Object,                 // Function	The Function constructor (20.2.1)
     pub function_prototype: Object,       //
     pub generator_function: Object,       // The constructor of generator objects (27.3.1)
+    pub generator_function_prototype: Object, //
+    pub generator_function_prototype_prototype: Object, //
     pub int8_array: Object,               // Int8Array	The Int8Array constructor (23.2)
     pub int16_array: Object,              // Int16Array	The Int16Array constructor (23.2)
     pub int32_array: Object,              // Int32Array	The Int32Array constructor (23.2)
@@ -167,6 +173,8 @@ impl Intrinsics {
             function: dead.clone(),
             function_prototype: dead.clone(),
             generator_function: dead.clone(),
+            generator_function_prototype: dead.clone(),
+            generator_function_prototype_prototype: dead.clone(),
             int8_array: dead.clone(),
             int16_array: dead.clone(),
             int32_array: dead.clone(),
@@ -228,8 +236,12 @@ impl Intrinsics {
             IntrinsicId::ErrorPrototype => &self.error_prototype,
             IntrinsicId::EvalError => &self.eval_error,
             IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
+            IntrinsicId::Function => &self.function,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
             IntrinsicId::IteratorPrototype => &self.iterator_prototype,
+            IntrinsicId::GeneratorFunction => &self.generator_function,
+            IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
+            IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
@@ -379,6 +391,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_symbol_intrinsic(agent, &realm_rec);
     agent.provision_string_intrinsic(&realm_rec);
     agent.provision_iterator_prototype(&realm_rec);
+    agent.provision_generator_function_intrinsics(&realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 }

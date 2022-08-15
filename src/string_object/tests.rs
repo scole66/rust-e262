@@ -908,17 +908,6 @@ fn string_prototype_value_of(make_params: impl FnOnce(&mut Agent) -> ECMAScriptV
         .map_err(|e| unwind_any_error(&mut agent, e))
 }
 
-macro_rules! tbd_function {
-    ( $name:ident ) => {
-        #[test]
-        #[should_panic(expected = "not yet implemented")]
-        fn $name() {
-            let mut agent = test_agent();
-            super::$name(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap();
-        }
-    };
-}
-
 tbd_function!(string_from_code_point);
 tbd_function!(string_raw);
 tbd_function!(string_prototype_at);
