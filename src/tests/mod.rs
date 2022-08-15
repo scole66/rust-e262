@@ -608,4 +608,31 @@ pub fn disasm_filt(s: String) -> Option<String> {
     Some(s.split_whitespace().join(" "))
 }
 
+#[derive(Debug, PartialEq)]
+pub struct IdealizedPropertyDescriptor {
+    pub configurable: bool,
+    pub enumerable: bool,
+    pub writable: Option<bool>,
+    pub value: Option<ECMAScriptValue>,
+    pub get: Option<ECMAScriptValue>,
+    pub set: Option<ECMAScriptValue>,
+}
+
+impl From<PropertyDescriptor> for IdealizedPropertyDescriptor {
+    fn from(pd: PropertyDescriptor) -> Self {
+        let (writable, value, get, set) = match pd.property {
+            PropertyKind::Data(dp) => (Some(dp.writable), Some(dp.value), None, None),
+            PropertyKind::Accessor(ap) => (None, None, Some(ap.get), Some(ap.set)),
+        };
+        IdealizedPropertyDescriptor {
+            configurable: pd.configurable,
+            enumerable: pd.enumerable,
+            writable,
+            value,
+            get,
+            set,
+        }
+    }
+}
+
 mod integration;

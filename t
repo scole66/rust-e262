@@ -508,6 +508,7 @@ test_defs[Agent_this_string_value]="agent::Agent::this_string_value agent::this_
 test_defs[string_from_char_code]="string_from_char_code string_from_char_code string_object"
 test_defs[string_from_code_point]="string_from_code_point string_from_code_point string_object"
 test_defs[string_raw]="string_raw string_raw string_object"
+test_defs[string_prototype_at]="string_prototype_at string_prototype_at string_object"
 test_defs[string_prototype_char_at]="string_prototype_char_at string_prototype_char_at string_object"
 test_defs[string_prototype_char_code_at]="string_prototype_char_code_at string_prototype_char_code_at string_object"
 test_defs[string_prototype_code_point_at]="string_prototype_code_point_at string_prototype_code_point_at string_object"
@@ -539,6 +540,7 @@ test_defs[string_prototype_trim]="string_prototype_trim string_prototype_trim st
 test_defs[string_prototype_trim_end]="string_prototype_trim_end string_prototype_trim_end string_object"
 test_defs[string_prototype_trim_start]="string_prototype_trim_start string_prototype_trim_start string_object"
 test_defs[string_prototype_value_of]="string_prototype_value_of string_prototype_value_of string_object"
+test_defs[string_prototype_iterator]="string_prototype_iterator string_prototype_iterator string_object"
 
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"

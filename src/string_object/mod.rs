@@ -431,9 +431,7 @@ impl Agent {
         prototype_function!(string_prototype_trim_end, "trimEnd", 0.0);
         prototype_function!(string_prototype_trim_start, "trimStart", 0.0);
         prototype_function!(string_prototype_value_of, "valueOf", 0.0);
-
-        // 22.1.3.34 String.prototype [ @@iterator ] ( )
-        //prototype_function!(string_prototype_[, "[", 1.0);
+        prototype_function!(string_prototype_iterator, self.wks(WksId::Iterator), 0.0);
 
         macro_rules! prototype_data {
             ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
@@ -882,6 +880,15 @@ fn string_prototype_value_of(
     //  1. Return ? thisStringValue(this value).
     let s = agent.this_string_value(this_value, "String.prototype.valueOf")?;
     Ok(s.into())
+}
+
+fn string_prototype_iterator(
+    _: &mut Agent,
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
 }
 
 #[cfg(test)]
