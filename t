@@ -549,6 +549,7 @@ test_defs[generator_function]="generator_function generator_function control_abs
 test_defs[generator_prototype_next]="generator_prototype_next generator_prototype_next control_abstraction"
 test_defs[generator_prototype_return]="generator_prototype_return generator_prototype_return control_abstraction"
 test_defs[generator_prototype_throw]="generator_prototype_throw generator_prototype_throw control_abstraction"
+test_defs[Agent_create_iter_result_object]="agent::Agent::create_iter_result_object agent::create_iter_result_object control_abstraction"
 
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
