@@ -391,6 +391,7 @@ impl Agent {
         // Set ( . . . )
         // SharedArrayBuffer ( . . . )
         // String ( . . . )
+        constructor_property!(String);
         // Symbol ( . . . )
         constructor_property!(Symbol);
         // SyntaxError ( . . . )

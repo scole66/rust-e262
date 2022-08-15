@@ -1128,7 +1128,7 @@ pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completi
         }
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
         ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
-        ECMAScriptValue::String(s) => Ok(create_string_object(agent, s)),
+        ECMAScriptValue::String(s) => Ok(agent.create_string_object(s)),
         ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(agent, s)),
         ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(agent, b)),
         ECMAScriptValue::Object(o) => Ok(o),

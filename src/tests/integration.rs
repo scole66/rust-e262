@@ -1,5 +1,6 @@
 use super::*;
 use num::BigInt;
+use test_case::test_case;
 
 mod update_expression {
     use super::*;
@@ -257,14 +258,68 @@ mod labelled_statement {
     }
 }
 
-mod function_prototype_call {
-    use super::*;
-    use test_case::test_case;
+#[test_case(r"new String('9876543210')[3];" => vok("6"); "as-object string items as indexed properties")]
+#[test_case(r"new String('9876543210').length;" => vok(10); "as-object string length")]
+#[test_case(r"'9876543210'[2];" => vok("7"); "coerced string indexed properties")]
+#[test_case(r"'9876543210'.length;" => vok(10); "coerced string length")]
+fn string_exotic_object(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
 
-    #[test_case("(x => x * 2).call(undefined, 99);" => vok(198); "call a user defined func")]
-    #[test_case("Number.prototype.toString.call(991)" => vok("991"); "call a builtin func")]
-    fn run(src: &str) -> Result<ECMAScriptValue, String> {
-        let mut agent = test_agent();
-        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
-    }
+#[test_case("String()" => vok(""); "no args")]
+#[test_case("String('hhhh')" => vok("hhhh"); "one string")]
+#[test_case("typeof new String('apple')" => vok("object"); "constructed")]
+#[test_case("new String(Symbol('oops'))" => serr("Thrown: TypeError: Symbols may not be converted to strings"); "error in constructor")]
+#[test_case("String(Symbol('oops'))" => vok("Symbol(oops)"); "symbol in function")]
+fn string_constructor(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("String.fromCharCode(112, 97, 115, 115)" => vok("pass"); "normal")]
+#[test_case("String.fromCharCode()" => vok(""); "empty")]
+#[test_case("String.fromCharCode(112, 97, 115, 115, Symbol('a'), 88)" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "bad args")]
+#[test_case("String.fromCharCode.name" => vok("fromCharCode"); "name")]
+#[test_case("String.fromCharCode.length" => vok(1); "length")]
+fn string_from_char_code(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("'12345'.indexOf('2')" => vok(1); "found a match")]
+#[test_case("'12345'.indexOf('25')" => vok(-1); "no match")]
+#[test_case("'12345'.indexOf('23', 2)" => vok(-1); "start after substring")]
+#[test_case("'123..123'.indexOf('23', 3)" => vok(6); "second match")]
+#[test_case("String.prototype.indexOf.call(null)" => serr("Thrown: TypeError: Undefined and null are not allowed in this context"); "fail location 1")]
+#[test_case("String.prototype.indexOf.call(Symbol('a'))" => serr("Thrown: TypeError: Symbols may not be converted to strings"); "fail location 2")]
+#[test_case("'a'.indexOf(Symbol('a'))" => serr("Thrown: TypeError: Symbols may not be converted to strings"); "fail location 3")]
+#[test_case("'a'.indexOf('a', Symbol('a'))" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "fail location 4")]
+#[test_case("'what if things are undefined?'.indexOf()" => vok(19); "first arg missing")]
+fn string_prototype_index_of(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("String.prototype.toString.call(0)" => serr("Thrown: TypeError: String.prototype.toString requires that 'this' be a String"); "bad this")]
+#[test_case("new String('alpha').toString()" => vok("alpha"); "string object")]
+#[test_case("'alpha'.toString()" => vok("alpha"); "string literal")]
+fn string_prototype_to_string(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("String.prototype.valueOf.call(0)" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this")]
+#[test_case("new String('alpha').valueOf()" => vok("alpha"); "string object")]
+#[test_case("'alpha'.valueOf()" => vok("alpha"); "string literal")]
+fn string_prototype_value_of(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+}
+
+#[test_case("(x => x * 2).call(undefined, 99);" => vok(198); "call a user defined func")]
+#[test_case("Number.prototype.toString.call(991)" => vok("991"); "call a builtin func")]
+fn function_prototype_call(src: &str) -> Result<ECMAScriptValue, String> {
+    let mut agent = test_agent();
+    process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
 }

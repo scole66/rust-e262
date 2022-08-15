@@ -1127,11 +1127,13 @@ fn to_object_04() {
     assert_eq!(*number_obj.number_data().borrow(), test_value);
 }
 #[test]
-#[should_panic(expected = "not yet implemented")] // An XFAIL. String objects not yet implemented.
 fn to_object_05() {
     let mut agent = test_agent();
     let test_value = "orange";
-    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+
+    let val = to_string(&mut agent, result).unwrap();
+    assert_eq!(val, JSString::from(test_value));
 }
 #[test]
 fn to_object_06() {

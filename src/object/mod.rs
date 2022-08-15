@@ -679,6 +679,23 @@ where
     }
 }
 
+/// Returns true if this potential property descriptor could be successfully applied.
+///
+/// Usually, this is for the case of trying to set a value of an immutable or automatic set of properties,
+/// where what you're actually doing is setting a value to what the value already is. Those assignments are
+/// actually allowed, and this routine is essentially how that's checked.
+///
+/// See [IsCompatiblePropertyDescriptor][1] in ECMA-262.
+/// [1]: https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
+pub fn is_compatible_property_descriptor(
+    extensible: bool,
+    desc: PotentialPropertyDescriptor,
+    current: &PropertyDescriptor,
+) -> bool {
+    let oo: Option<&dyn ObjectInterface> = None;
+    validate_and_apply_property_descriptor(oo, None, extensible, desc, Some(current))
+}
+
 // OrdinaryHasProperty ( O, P )
 //
 // The abstract operation OrdinaryHasProperty takes arguments O (an Object) and P (a property key). It performs the
@@ -1007,6 +1024,9 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
+        None
+    }
+    fn to_string_obj(&self) -> Option<&StringObject> {
         None
     }
     /// True if this object has no special behavior and no additional slots
@@ -1453,6 +1473,7 @@ pub enum InternalSlotName {
     NumberData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     ParameterMap,
+    StringData,
     // Function Object Slots
     Environment,
     PrivateEnvironment,
@@ -1509,6 +1530,8 @@ pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
 pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
+pub const STRING_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::StringData];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -2102,7 +2125,7 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-fn get_prototype_from_constructor(
+pub fn get_prototype_from_constructor(
     agent: &mut Agent,
     constructor: &Object,
     intrinsic_default_proto: IntrinsicId,
