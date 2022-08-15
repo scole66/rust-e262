@@ -16,6 +16,7 @@ pub enum IntrinsicId {
     EvalError,
     EvalErrorPrototype,
     FunctionPrototype,
+    IteratorPrototype,
     Number,
     NumberPrototype,
     Object,
@@ -228,6 +229,7 @@ impl Intrinsics {
             IntrinsicId::EvalError => &self.eval_error,
             IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
+            IntrinsicId::IteratorPrototype => &self.iterator_prototype,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
@@ -376,6 +378,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_array_intrinsic(agent, &realm_rec);
     provision_symbol_intrinsic(agent, &realm_rec);
     agent.provision_string_intrinsic(&realm_rec);
+    agent.provision_iterator_prototype(&realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 }
