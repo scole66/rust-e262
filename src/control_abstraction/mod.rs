@@ -92,7 +92,7 @@ impl Agent {
             "GeneratorFunction".into(),
             BUILTIN_FUNCTION_SLOTS,
             Some(realm.clone()),
-            Some(function.clone()),
+            Some(function),
             None,
         );
 
@@ -152,7 +152,7 @@ impl Agent {
         //  * is not a Generator instance and does not have a [[GeneratorState]] internal slot.
         //  * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
         //  * has properties that are indirectly inherited by all Generator instances.
-        let generator_prototype = ordinary_object_create(self, Some(iterator_prototype.clone()), &[]);
+        let generator_prototype = ordinary_object_create(self, Some(iterator_prototype), &[]);
         gf_prototype_data!("prototype", generator_prototype.clone(), false, false, true);
 
         macro_rules! gen_prototype_data {
