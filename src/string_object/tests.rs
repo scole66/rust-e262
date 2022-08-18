@@ -30,8 +30,8 @@ mod string_object {
         let sobj = so.o.to_string_obj().unwrap();
         assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
     }
-    #[test]
 
+    #[test]
     fn is_boolean_object() {
         let mut agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);

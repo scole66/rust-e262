@@ -646,5 +646,335 @@ macro_rules! tbd_function {
         }
     };
 }
+#[macro_export]
+macro_rules! false_function {
+    ( $name:ident ) => {
+        #[test]
+        fn $name() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            assert!(!obj.o.$name());
+        }
+    };
+}
+#[macro_export]
+macro_rules! none_function {
+    ( $name:ident ) => {
+        #[test]
+        fn $name() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            assert!(obj.o.$name().is_none());
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_get_prototype_of_test {
+    ( $proto:ident ) => {
+        #[test]
+        fn get_prototype_of() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let proto = obj.o.get_prototype_of(&mut agent).unwrap().unwrap();
+            assert_eq!(proto, agent.intrinsic(IntrinsicId::$proto));
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_set_prototype_of_test {
+    () => {
+        #[test]
+        fn set_prototype_of() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let res = obj.o.set_prototype_of(&mut agent, None).unwrap();
+            assert!(res);
+            assert!(obj.o.get_prototype_of(&mut agent).unwrap().is_none());
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_is_extensible_test {
+    () => {
+        #[test]
+        fn is_extensible() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let res = obj.o.is_extensible(&mut agent).unwrap();
+            assert!(res);
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_prevent_extensions_test {
+    () => {
+        #[test]
+        fn prevent_extensions() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let res = obj.o.prevent_extensions(&mut agent).unwrap();
+            assert!(res);
+            assert!(!obj.o.is_extensible(&mut agent).unwrap());
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_delete_test {
+    () => {
+        #[test]
+        fn delete() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let res = obj.o.delete(&mut agent, &PropertyKey::from("rust")).unwrap();
+            assert_eq!(res, true);
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_id_test {
+    () => {
+        #[test]
+        fn id() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let obj2 = make(&mut agent);
+            assert_ne!(obj.o.id(), obj2.o.id());
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_has_property_test {
+    () => {
+        #[test]
+        fn has_property() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let res = obj.o.has_property(&mut agent, &PropertyKey::from("test_sentinel")).unwrap();
+            assert_eq!(res, false);
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "test_sentinel".into(),
+                    PotentialPropertyDescriptor::new()
+                        .value("present")
+                        .writable(true)
+                        .enumerable(true)
+                        .configurable(true),
+                )
+                .unwrap();
+            let res2 = obj.o.has_property(&mut agent, &PropertyKey::from("test_sentinel")).unwrap();
+            assert_eq!(res2, true);
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_is_ordinary_test {
+    () => {
+        #[test]
+        fn is_ordinary() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            assert!(obj.o.is_ordinary());
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_get_own_property_test {
+    () => {
+        #[test_case("test_sentinel" => Some(IdealizedPropertyDescriptor{configurable: true, enumerable: true, writable: Some(true), value: Some(ECMAScriptValue::from("present")), get: None, set: None}); "key present")]
+        #[test_case("color" => None; "key not present")]
+        fn get_own_property(key: &str) -> Option<IdealizedPropertyDescriptor> {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "test_sentinel".into(),
+                    PotentialPropertyDescriptor::new().value("present").writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o.get_own_property(&mut agent, &key.into()).unwrap().map(IdealizedPropertyDescriptor::from)
+        }
+    }
+}
+#[macro_export]
+macro_rules! default_define_own_property_test {
+    () => {
+        #[test_case(
+                            PotentialPropertyDescriptor::new()
+                                .value(ECMAScriptValue::from(67))
+                                .writable(true)
+                                .configurable(true)
+                                .enumerable(true),
+                            "sixty-seven"
+                            => (
+                                true,
+                                [
+                                    (
+                                        PropertyKey::from("sixty-seven"),
+                                        IdealizedPropertyDescriptor {
+                                            configurable: true,
+                                            enumerable: true,
+                                            writable: Some(true),
+                                            value: Some(ECMAScriptValue::from(67)),
+                                            get: None,
+                                            set: None
+                                        }
+                                    )
+                                    ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+                                ); "ordinary property"
+                        )]
+        fn define_own_property(
+            new_value: PotentialPropertyDescriptor,
+            key: &str,
+        ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+
+            let success = obj.o.define_own_property(&mut agent, key.into(), new_value).unwrap();
+            let properties = obj
+                .o
+                .common_object_data()
+                .borrow()
+                .properties
+                .iter()
+                .map(|(a, b)| (a.clone(), IdealizedPropertyDescriptor::from(b.clone())))
+                .collect::<AHashMap<_, _>>();
+            (success, properties)
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_get_test {
+    ( $key_on_proto:expr, $val_on_proto:expr ) => {
+        #[test_case(|_| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
+        #[test_case(|_| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
+        #[test_case($key_on_proto => $val_on_proto; "from prototype")]
+        fn get(make_key: impl FnOnce(&mut Agent) -> PropertyKey) -> ECMAScriptValue {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let key = make_key(&mut agent);
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "test_sentinel".into(),
+                    PotentialPropertyDescriptor::new()
+                        .value("present")
+                        .writable(true)
+                        .enumerable(true)
+                        .configurable(true),
+                )
+                .unwrap();
+
+            let receiver = ECMAScriptValue::from(obj.clone());
+            obj.o.get(&mut agent, &key, &receiver).unwrap()
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_set_test {
+    () => {
+        #[test_case(
+                            776, "numberly"
+                            => (
+                                true,
+                                [
+                                    (
+                                        PropertyKey::from("numberly"),
+                                        IdealizedPropertyDescriptor {
+                                            configurable: true,
+                                            enumerable: true,
+                                            writable: Some(true),
+                                            value: Some(ECMAScriptValue::from(776)),
+                                            get: None,
+                                            set: None
+                                        }
+                                    )
+                                    ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+                            ); "ordinary set"
+                        )]
+        fn set(
+            new_val: impl Into<ECMAScriptValue>,
+            key: impl Into<PropertyKey>,
+        ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+            let receiver = ECMAScriptValue::Object(obj.clone());
+            let success = obj.o.set(&mut agent, key.into(), new_val.into(), &receiver).unwrap();
+            let properties = obj
+                .o
+                .common_object_data()
+                .borrow()
+                .properties
+                .iter()
+                .map(|(a, b)| (a.clone(), IdealizedPropertyDescriptor::from(b.clone())))
+                .collect::<AHashMap<_, _>>();
+            (success, properties)
+        }
+    };
+}
+#[macro_export]
+macro_rules! default_own_property_keys_test {
+    () => {
+        #[test]
+        fn own_property_keys() {
+            let mut agent = test_agent();
+            let obj = make(&mut agent);
+
+            let to_prim = agent.wks(WksId::ToPrimitive);
+            let species = agent.wks(WksId::Species);
+
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "60".into(),
+                    PotentialPropertyDescriptor::new().value("q").writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "6".into(),
+                    PotentialPropertyDescriptor::new().value("s").writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "zebra".into(),
+                    PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    "alpha".into(),
+                    PotentialPropertyDescriptor::new().value(1).writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    to_prim.clone().into(),
+                    PotentialPropertyDescriptor::new().value(2).writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+            obj.o
+                .define_own_property(
+                    &mut agent,
+                    species.clone().into(),
+                    PotentialPropertyDescriptor::new().value(3).writable(true).enumerable(true).configurable(true),
+                )
+                .unwrap();
+
+            let keys = obj.o.own_property_keys(&mut agent).unwrap();
+
+            assert_eq!(
+                keys,
+                vec!["6".into(), "60".into(), "zebra".into(), "alpha".into(), to_prim.into(), species.into()]
+            );
+        }
+    };
+}
 
 mod integration;

@@ -1069,6 +1069,12 @@ pub trait ObjectInterface: Debug {
     fn is_symbol_object(&self) -> bool {
         false
     }
+    fn is_generator_object(&self) -> bool {
+        false
+    }
+    fn to_generator_object(&self) -> Option<&GeneratorObject> {
+        None
+    }
 
     fn get_prototype_of(&self, agent: &mut Agent) -> Completion<Option<Object>>;
     fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> Completion<bool>;
@@ -1474,6 +1480,9 @@ pub enum InternalSlotName {
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     ParameterMap,
     StringData,
+    GeneratorState,
+    GeneratorContext,
+    GeneratorBrand,
     // Function Object Slots
     Environment,
     PrivateEnvironment,
@@ -1532,6 +1541,13 @@ pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
 pub const STRING_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::StringData];
+pub const GENERATOR_OBJECT_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::GeneratorState,
+    InternalSlotName::GeneratorContext,
+    InternalSlotName::GeneratorBrand,
+];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1573,6 +1589,8 @@ pub fn make_basic_object(
         panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
     } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
         panic!("Additional info needed for arguments object; use direct constructor");
+    } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
+        panic!("Additional info needed for generator object; use direct constructor");
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
