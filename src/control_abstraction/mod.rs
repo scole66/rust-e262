@@ -491,7 +491,8 @@ impl GeneratorObject {
         //  6. If state is executing, throw a TypeError exception.
         //  7. Return state.
 
-        // This is steps 3-7.
+        // This is steps 3-7. (If you want to call the function GeneratorValidate like the specification does,
+        // use Agent::generator_validate.)
         let data = self.generator_data.borrow();
         if data.generator_brand != generator_brand {
             Err(GeneratorError::BrandMismatch)
