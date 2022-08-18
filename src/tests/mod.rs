@@ -801,29 +801,29 @@ macro_rules! default_get_own_property_test {
 macro_rules! default_define_own_property_test {
     () => {
         #[test_case(
-                                    PotentialPropertyDescriptor::new()
-                                        .value(ECMAScriptValue::from(67))
-                                        .writable(true)
-                                        .configurable(true)
-                                        .enumerable(true),
-                                    "sixty-seven"
-                                    => (
-                                        true,
-                                        [
-                                            (
-                                                PropertyKey::from("sixty-seven"),
-                                                IdealizedPropertyDescriptor {
-                                                    configurable: true,
-                                                    enumerable: true,
-                                                    writable: Some(true),
-                                                    value: Some(ECMAScriptValue::from(67)),
-                                                    get: None,
-                                                    set: None
-                                                }
-                                            )
-                                         ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
-                                       ); "ordinary property"
-                                )]
+                            PotentialPropertyDescriptor::new()
+                                .value(ECMAScriptValue::from(67))
+                                .writable(true)
+                                .configurable(true)
+                                .enumerable(true),
+                            "sixty-seven"
+                            => (
+                                true,
+                                [
+                                    (
+                                        PropertyKey::from("sixty-seven"),
+                                        IdealizedPropertyDescriptor {
+                                            configurable: true,
+                                            enumerable: true,
+                                            writable: Some(true),
+                                            value: Some(ECMAScriptValue::from(67)),
+                                            get: None,
+                                            set: None
+                                        }
+                                    )
+                                    ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+                                ); "ordinary property"
+                        )]
         fn define_own_property(
             new_value: PotentialPropertyDescriptor,
             key: &str,
@@ -890,7 +890,7 @@ macro_rules! default_set_test {
                                             set: None
                                         }
                                     )
-                                 ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+                                    ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
                             ); "ordinary set"
                         )]
         fn set(
