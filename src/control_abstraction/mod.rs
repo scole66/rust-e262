@@ -1,4 +1,7 @@
 use super::*;
+use std::cell::RefCell;
+use std::error::Error;
+use std::fmt;
 
 impl Agent {
     pub fn provision_iterator_prototype(&mut self, realm: &Rc<RefCell<Realm>>) {
@@ -279,6 +282,255 @@ impl Agent {
         create_data_property_or_throw(self, &obj, "value", value).unwrap();
         create_data_property_or_throw(self, &obj, "done", done).unwrap();
         obj
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum GeneratorState {
+    Undefined,
+    SuspendedStart,
+    SuspendedYield,
+    Executing,
+    Completed,
+}
+#[derive(Debug)]
+pub struct GeneratorData {
+    pub generator_state: GeneratorState,
+    pub generator_context: Option<ExecutionContext>,
+    pub generator_brand: String,
+}
+#[derive(Debug)]
+pub struct GeneratorObject {
+    common: RefCell<CommonObjectData>,
+    pub generator_data: RefCell<GeneratorData>,
+}
+
+impl<'a> From<&'a GeneratorObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a GeneratorObject) -> Self {
+        obj
+    }
+}
+
+impl ObjectInterface for GeneratorObject {
+    fn common_object_data(&self) -> &RefCell<CommonObjectData> {
+        &self.common
+    }
+    fn is_ordinary(&self) -> bool {
+        true
+    }
+    fn id(&self) -> usize {
+        self.common.borrow().objid
+    }
+    fn is_generator_object(&self) -> bool {
+        true
+    }
+    fn to_generator_object(&self) -> Option<&GeneratorObject> {
+        Some(self)
+    }
+    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+        Ok(ordinary_get_prototype_of(self))
+    }
+
+    // [[SetPrototypeOf]] ( V )
+    //
+    // The [[SetPrototypeOf]] internal method of an ordinary object O takes argument V (an Object or null). It performs
+    // the following steps when called:
+    //
+    //  1. Return ! OrdinarySetPrototypeOf(O, V).
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+        Ok(ordinary_set_prototype_of(self, obj))
+    }
+
+    // [[IsExtensible]] ( )
+    //
+    // The [[IsExtensible]] internal method of an ordinary object O takes no arguments. It performs the following steps
+    // when called:
+    //
+    //  1. Return ! OrdinaryIsExtensible(O).
+    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+        Ok(ordinary_is_extensible(self))
+    }
+
+    // [[PreventExtensions]] ( )
+    //
+    // The [[PreventExtensions]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    //  1. Return ! OrdinaryPreventExtensions(O).
+    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+        Ok(ordinary_prevent_extensions(self))
+    }
+
+    // [[GetOwnProperty]] ( P )
+    //
+    // The [[GetOwnProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ! OrdinaryGetOwnProperty(O, P).
+    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        Ok(ordinary_get_own_property(self, key))
+    }
+
+    // [[DefineOwnProperty]] ( P, Desc )
+    //
+    // The [[DefineOwnProperty]] internal method of an ordinary object O takes arguments P (a property key) and Desc (a
+    // Property Descriptor). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
+        ordinary_define_own_property(agent, self, key, desc)
+    }
+
+    // [[HasProperty]] ( P )
+    //
+    // The [[HasProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ? OrdinaryHasProperty(O, P).
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(agent, self, key)
+    }
+
+    // [[Get]] ( P, Receiver )
+    //
+    // The [[Get]] internal method of an ordinary object O takes arguments P (a property key) and Receiver (an
+    // ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinaryGet(O, P, Receiver).
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(agent, self, key, receiver)
+    }
+
+    // [[Set]] ( P, V, Receiver )
+    //
+    // The [[Set]] internal method of an ordinary object O takes arguments P (a property key), V (an ECMAScript language
+    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinarySet(O, P, V, Receiver).
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
+        ordinary_set(agent, self, key, v, receiver)
+    }
+
+    // [[Delete]] ( P )
+    //
+    // The [[Delete]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ? OrdinaryDelete(O, P).
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(agent, self, key)
+    }
+
+    // [[OwnPropertyKeys]] ( )
+    //
+    // The [[OwnPropertyKeys]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    // 1. Return ! OrdinaryOwnPropertyKeys(O).
+    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum GeneratorError {
+    BrandMismatch,
+    AlreadyActive,
+    NotAGenerator,
+}
+
+impl fmt::Display for GeneratorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GeneratorError::BrandMismatch => write!(f, "Generator brand mismatch"),
+            GeneratorError::AlreadyActive => write!(f, "Generator is already executing"),
+            GeneratorError::NotAGenerator => write!(f, "Generator required"),
+        }
+    }
+}
+
+impl Error for GeneratorError {}
+
+impl GeneratorObject {
+    pub fn object(agent: &mut Agent, prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, GENERATOR_OBJECT_SLOTS)),
+                generator_data: RefCell::new(GeneratorData {
+                    generator_state: state,
+                    generator_context: None,
+                    generator_brand: brand.to_owned(),
+                }),
+            }),
+        }
+    }
+
+    pub fn validate(&self, generator_brand: &str) -> Result<GeneratorState, GeneratorError> {
+        // GeneratorValidate ( generator, generatorBrand )
+        // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
+        // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a
+        // throw completion. It performs the following steps when called:
+        //
+        //  1. Perform ? RequireInternalSlot(generator, [[GeneratorState]]).
+        //  2. Perform ? RequireInternalSlot(generator, [[GeneratorBrand]]).
+        //  3. If generator.[[GeneratorBrand]] is not the same value as generatorBrand, throw a TypeError
+        //     exception.
+        //  4. Assert: generator also has a [[GeneratorContext]] internal slot.
+        //  5. Let state be generator.[[GeneratorState]].
+        //  6. If state is executing, throw a TypeError exception.
+        //  7. Return state.
+
+        // This is steps 3-7.
+        let data = self.generator_data.borrow();
+        if data.generator_brand != generator_brand {
+            Err(GeneratorError::BrandMismatch)
+        } else if data.generator_state == GeneratorState::Executing {
+            Err(GeneratorError::AlreadyActive)
+        } else {
+            Ok(data.generator_state)
+        }
+    }
+}
+
+impl Agent {
+    pub fn generator_validate(
+        &mut self,
+        generator: ECMAScriptValue,
+        generator_brand: &str,
+    ) -> Completion<GeneratorState> {
+        // GeneratorValidate ( generator, generatorBrand )
+        // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
+        // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a
+        // throw completion. It performs the following steps when called:
+        //
+        //  1. Perform ? RequireInternalSlot(generator, [[GeneratorState]]).
+        //  2. Perform ? RequireInternalSlot(generator, [[GeneratorBrand]]).
+        //  3. If generator.[[GeneratorBrand]] is not the same value as generatorBrand, throw a TypeError
+        //     exception.
+        //  4. Assert: generator also has a [[GeneratorContext]] internal slot.
+        //  5. Let state be generator.[[GeneratorState]].
+        //  6. If state is executing, throw a TypeError exception.
+        //  7. Return state.
+        match generator {
+            ECMAScriptValue::Object(o) => {
+                o.o.to_generator_object()
+                    .ok_or(GeneratorError::NotAGenerator)
+                    .and_then(|gen| gen.validate(generator_brand))
+            }
+            _ => Err(GeneratorError::NotAGenerator),
+        }
+        .map_err(|e| create_type_error(self, e.to_string()))
     }
 }
 
