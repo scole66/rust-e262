@@ -818,7 +818,8 @@ impl Agent {
 
     /// Bind the "this" value for the current function call.
     ///
-    /// The function's [this_mode] controls what happens here. [Lexical] "this" mode means this function does nothing. (There is no "this".). [Strict] "this" mode uses the provided [this_argument] with no change.
+    /// The function's `this_mode` controls what happens here. `Lexical` "this" mode means this function does
+    /// nothing. (There is no "this".) `Strict` "this" mode uses the provided `this_argument` with no change.
     fn ordinary_call_bind_this(&mut self, func: &Object, this_argument: ECMAScriptValue) {
         // OrdinaryCallBindThis ( F, calleeContext, thisArgument )
         //

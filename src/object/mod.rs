@@ -685,8 +685,8 @@ where
 /// where what you're actually doing is setting a value to what the value already is. Those assignments are
 /// actually allowed, and this routine is essentially how that's checked.
 ///
-/// See [IsCompatiblePropertyDescriptor][1] in ECMA-262.
-/// [1]: https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
+/// See [IsCompatiblePropertyDescriptor](https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor) in
+/// ECMA-262.
 pub fn is_compatible_property_descriptor(
     extensible: bool,
     desc: PotentialPropertyDescriptor,
