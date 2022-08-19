@@ -9,6 +9,7 @@ use std::convert::TryInto;
 use std::error;
 use std::fmt;
 use std::rc::Rc;
+//use genawaiter::{rc::gen, yield_};
 
 // Agents
 //
@@ -2237,6 +2238,65 @@ impl Agent {
         pmap.add_mapped_name(name.clone(), idx);
         // Stack: AObj ...
     }
+
+    pub fn generator_start_from_closure(
+        &mut self,
+        generator: &GeneratorObject,
+        generator_body: impl FnMut() -> Completion<ECMAScriptValue>,
+    ) {
+        // GeneratorStart ( generator, generatorBody )
+        // The abstract operation GeneratorStart takes arguments generator and generatorBody (a FunctionBody
+        // Parse Node or an Abstract Closure with no parameters) and returns unused. It performs the following
+        // steps when called:
+        //
+        //  1. Assert: The value of generator.[[GeneratorState]] is undefined.
+        //  2. Let genContext be the running execution context.
+        //  3. Set the Generator component of genContext to generator.
+        //  4. Set the code evaluation state of genContext such that when evaluation is resumed for that
+        //     execution context the following steps will be performed:
+        //      a. If generatorBody is a Parse Node, then
+        //           i. Let result be Completion(Evaluation of generatorBody).
+        //      b. Else,
+        //           i. Assert: generatorBody is an Abstract Closure with no parameters.
+        //          ii. Let result be generatorBody().
+        //      c. Assert: If we return here, the generator either threw an exception or performed either an
+        //         implicit or explicit return.
+        //      d. Remove genContext from the execution context stack and restore the execution context that
+        //         is at the top of the execution context stack as the running execution context.
+        //      e. Set generator.[[GeneratorState]] to completed.
+        //      f. Once a generator enters the completed state it never leaves it and its associated execution
+        //         context is never resumed. Any execution state associated with generator can be discarded at
+        //         this point.
+        //      g. If result.[[Type]] is normal, let resultValue be undefined.
+        //      h. Else if result.[[Type]] is return, let resultValue be result.[[Value]].
+        //      i. Else,
+        //           i. Assert: result.[[Type]] is throw.
+        //          ii. Return ? result.
+        //      j. Return CreateIterResultObject(resultValue, true).
+        //  5. Set generator.[[GeneratorContext]] to genContext.
+        //  6. Set generator.[[GeneratorState]] to suspendedStart.
+        //  7. Return unused.
+
+        // This winds up being a bit different for Rust...
+
+        // So in Rust, the Execution Context needs to live in only one place. In the case of starting a
+        // generator from a closure, the generator context is actually popped off the stack immediately
+        // following the call to GeneratorStart. We therefore accelerate that a bit and take it off the stack
+        // _now_, so that we can put it into the generator object instead.
+        //
+        // Something else will need to happen for user-constructed generators.
+        let mut gdata = generator.generator_data.borrow_mut();
+        assert_eq!(gdata.generator_state, GeneratorState::Undefined);
+        assert!(gdata.generator_context.is_none());
+        gdata.generator_context = self.execution_context_stack.pop();
+        gdata.generator_state = GeneratorState::SuspendedStart;
+        //let mut x = gen!({
+        //    yield_!(generator_body())
+        //});
+
+        todo!()
+    }
+
 }
 
 #[derive(PartialEq, Eq)]

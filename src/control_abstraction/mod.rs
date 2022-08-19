@@ -2,6 +2,8 @@ use super::*;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
+use std::future::Future;
+use genawaiter::rc::{Co, Gen};
 
 impl Agent {
     pub fn provision_iterator_prototype(&mut self, realm: &Rc<RefCell<Realm>>) {
@@ -208,9 +210,15 @@ impl Agent {
         gen_prototype_function!(generator_prototype_return, "return", 1.0);
         gen_prototype_function!(generator_prototype_throw, "throw", 1.0);
 
+        let generator_prototype_next = {
+            let val = get(self, &generator_prototype, &"next".into()).unwrap();
+            to_object(self, val).unwrap()
+        };
+
         realm.borrow_mut().intrinsics.generator_function = generator_function_constructor;
         realm.borrow_mut().intrinsics.generator_function_prototype = generator_function_prototype;
         realm.borrow_mut().intrinsics.generator_function_prototype_prototype = generator_prototype;
+        realm.borrow_mut().intrinsics.generator_function_prototype_prototype_next = generator_prototype_next;
     }
 }
 
@@ -264,6 +272,12 @@ fn generator_prototype_throw(
     todo!()
 }
 
+pub struct IteratorRecord {
+    iterator: Object,
+    next_method: Object,
+    done: bool,
+}
+
 impl Agent {
     fn create_iter_result_object(&mut self, value: ECMAScriptValue, done: bool) -> Object {
         // CreateIterResultObject ( value, done )
@@ -282,6 +296,26 @@ impl Agent {
         create_data_property_or_throw(self, &obj, "value", value).unwrap();
         create_data_property_or_throw(self, &obj, "done", done).unwrap();
         obj
+    }
+
+    async fn list_iterator(&mut self, co: Co<Object>, data: Vec<ECMAScriptValue>) {
+        for value in data {
+            co.yield_(self.create_iter_result_object(value, false)).await;
+        }
+    }
+
+    fn create_list_iterator_record(&mut self, data: Vec<ECMAScriptValue>) -> IteratorRecord {
+        let closure = Gen::new(|co| self.list_iterator(co, data));
+        let iterator = self.create_iterator_from_closure(closure);
+        IteratorRecord {
+            iterator,
+            next_method: self.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+            done: false
+        }
+    }
+
+    fn create_iterator_from_closure(&mut self, _closure: Gen<Object, (), impl Future<Output = ()>>) -> Object {
+        todo!()
     }
 }
 
@@ -533,6 +567,7 @@ impl Agent {
         }
         .map_err(|e| create_type_error(self, e.to_string()))
     }
+
 }
 
 #[cfg(test)]
