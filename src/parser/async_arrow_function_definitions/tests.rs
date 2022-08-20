@@ -250,7 +250,7 @@ fn async_arrow_function_test_early_errors() {
     AsyncArrowFunction::parse(&mut newparser("async x => x"), Scanner::new(), true, true, true)
         .unwrap()
         .0
-        .early_errors(&mut test_agent(), &mut vec![], true);
+        .early_errors(&test_agent(), &mut vec![], true);
 }
 
 mod async_arrow_function {
@@ -357,7 +357,7 @@ fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn async_concise_body_test_early_errors() {
     AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(
-        &mut test_agent(),
+        &test_agent(),
         &mut vec![],
         true,
     );
@@ -414,7 +414,7 @@ fn async_arrow_binding_identifier_test_contains_01() {
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_binding_identifier_test_early_errors() {
     AsyncArrowBindingIdentifier::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(
-        &mut test_agent(),
+        &test_agent(),
         &mut vec![],
         true,
     );
@@ -503,7 +503,7 @@ fn cceaaah_test_early_errors() {
     CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("x()"), Scanner::new(), true, true)
         .unwrap()
         .0
-        .early_errors(&mut test_agent(), &mut vec![], true);
+        .early_errors(&test_agent(), &mut vec![], true);
 }
 
 // ASYNC ARROW HEAD
@@ -557,7 +557,7 @@ fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_head_test_early_errors() {
     AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(
-        &mut test_agent(),
+        &test_agent(),
         &mut vec![],
         true,
     );

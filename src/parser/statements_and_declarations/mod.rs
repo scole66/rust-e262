@@ -356,7 +356,7 @@ impl Statement {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -639,7 +639,7 @@ impl Declaration {
     /// See [Early Errors][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#early-error
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
             Declaration::Class(node) => node.early_errors(agent, errs),
@@ -814,7 +814,7 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             HoistableDeclaration::Function(node) => node.early_errors(agent, errs, strict),
             HoistableDeclaration::Generator(node) => node.early_errors(agent, errs, strict),
@@ -978,7 +978,7 @@ impl BreakableStatement {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,

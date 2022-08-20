@@ -135,7 +135,7 @@ impl AsyncFunctionDeclaration {
     /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AsyncFunctionDeclaration :
         //     async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
@@ -361,7 +361,7 @@ impl AsyncFunctionExpression {
     /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncFunctionExpression :
         //      async function BindingIdentifier[opt] ( FormalParameters ) { AsyncFunctionBody }
@@ -597,7 +597,7 @@ impl AsyncMethod {
     /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
         //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncFunctionBody is true and
@@ -742,7 +742,7 @@ impl AsyncFunctionBody {
         self.0.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(agent, errs, strict);
     }
 
@@ -831,7 +831,7 @@ impl AwaitExpression {
         self.exp.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(agent, errs, strict);
     }
 

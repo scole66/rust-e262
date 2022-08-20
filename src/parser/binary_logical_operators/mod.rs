@@ -143,7 +143,7 @@ impl LogicalANDExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
             LogicalANDExpression::LogicalAND(l, r) => {
@@ -319,7 +319,7 @@ impl LogicalORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, errs, strict),
             LogicalORExpression::LogicalOR(l, r) => {
@@ -473,7 +473,7 @@ impl CoalesceExpression {
         self.head.contains_arguments() || self.tail.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.head.early_errors(agent, errs, strict);
         self.tail.early_errors(agent, errs, strict);
     }
@@ -574,7 +574,7 @@ impl CoalesceExpressionHead {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
@@ -707,7 +707,7 @@ impl ShortCircuitExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, errs, strict),
             ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent, errs, strict),

@@ -172,7 +172,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         match self {
             IterationStatement::DoWhile(node) => node.early_errors(agent, errs, strict, within_switch),
             IterationStatement::While(node) => node.early_errors(agent, errs, strict, within_switch),
@@ -307,7 +307,7 @@ impl DoWhileStatement {
         self.stmt.contains_arguments() || self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         self.stmt.early_errors(agent, errs, strict, true, within_switch);
         self.exp.early_errors(agent, errs, strict);
     }
@@ -427,7 +427,7 @@ impl WhileStatement {
         self.exp.contains_arguments() || self.stmt.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         self.exp.early_errors(agent, errs, strict);
         self.stmt.early_errors(agent, errs, strict, true, within_switch);
     }
@@ -799,7 +799,7 @@ impl ForStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         if let ForStatement::ForLex(lex, _, _, stmt, _) = self {
             // ForStatement : for ( LexicalDeclaration Expression[opt] ; Expression[opt] ) Statement
@@ -1422,7 +1422,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         match self {
             ForInOfStatement::LexIn(fd, _, stmt, ..)
@@ -1668,7 +1668,7 @@ impl ForDeclaration {
         self.binding.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.binding.early_errors(agent, errs, strict);
     }
 }
@@ -1791,7 +1791,7 @@ impl ForBinding {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ForBinding::Identifier(id) => id.early_errors(agent, errs, strict),
             ForBinding::Pattern(pat) => pat.early_errors(agent, errs, strict),

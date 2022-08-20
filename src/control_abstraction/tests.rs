@@ -9,7 +9,7 @@ mod agent {
 
     #[test]
     fn provision_iterator_prototype() {
-        let mut agent = test_agent();
+        let agent = test_agent();
 
         let iterator_prototype = agent.intrinsic(IntrinsicId::IteratorPrototype);
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
@@ -19,7 +19,7 @@ mod agent {
 
         let iterator_sym = agent.wks(WksId::Iterator);
         let iterator_desc = IdealizedPropertyDescriptor::from(
-            iterator_prototype.o.get_own_property(&mut agent, &iterator_sym.into()).unwrap().unwrap(),
+            iterator_prototype.o.get_own_property(&agent, &iterator_sym.into()).unwrap().unwrap(),
         );
         assert_eq!(iterator_desc.configurable, true);
         assert_eq!(iterator_desc.enumerable, false);
@@ -39,7 +39,7 @@ mod agent {
 
         #[test]
         fn generator_function() {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let function = agent.intrinsic(IntrinsicId::Function);
             let generator_function = agent.intrinsic(IntrinsicId::GeneratorFunction);
 
@@ -50,19 +50,19 @@ mod agent {
             );
 
             assert_eq!(
-                get(&mut agent, &generator_function, &"name".into()).unwrap(),
+                get(&agent, &generator_function, &"name".into()).unwrap(),
                 ECMAScriptValue::from("GeneratorFunction")
             );
-            assert_eq!(get(&mut agent, &generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
+            assert_eq!(get(&agent, &generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
             assert_eq!(
-                get(&mut agent, &generator_function, &"prototype".into()).unwrap(),
+                get(&agent, &generator_function, &"prototype".into()).unwrap(),
                 ECMAScriptValue::from(agent.intrinsic(IntrinsicId::GeneratorFunctionPrototype))
             );
         }
 
         #[test]
         fn generator_function_prototype() {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let generator_function_prototype = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototype);
             let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
 
@@ -74,22 +74,22 @@ mod agent {
 
             let to_string_tag = agent.wks(WksId::ToStringTag);
             assert_eq!(
-                get(&mut agent, &generator_function_prototype, &to_string_tag.into()).unwrap(),
+                get(&agent, &generator_function_prototype, &to_string_tag.into()).unwrap(),
                 ECMAScriptValue::from("GeneratorFunction")
             );
             assert_eq!(
-                get(&mut agent, &generator_function_prototype, &"constructor".into()).unwrap(),
+                get(&agent, &generator_function_prototype, &"constructor".into()).unwrap(),
                 ECMAScriptValue::from(agent.intrinsic(IntrinsicId::GeneratorFunction))
             );
             assert_eq!(
-                get(&mut agent, &generator_function_prototype, &"prototype".into()).unwrap(),
+                get(&agent, &generator_function_prototype, &"prototype".into()).unwrap(),
                 ECMAScriptValue::from(agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype))
             );
         }
 
         #[test]
         fn generator_prototype() {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let generator_prototype = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
 
             assert_eq!(
@@ -97,12 +97,12 @@ mod agent {
                 agent.intrinsic(IntrinsicId::IteratorPrototype)
             );
             assert_eq!(
-                get(&mut agent, &generator_prototype, &"constructor".into()).unwrap(),
+                get(&agent, &generator_prototype, &"constructor".into()).unwrap(),
                 ECMAScriptValue::from(agent.intrinsic(IntrinsicId::GeneratorFunctionPrototype))
             );
             let to_string_tag = agent.wks(WksId::ToStringTag);
             assert_eq!(
-                get(&mut agent, &generator_prototype, &to_string_tag.into()).unwrap(),
+                get(&agent, &generator_prototype, &to_string_tag.into()).unwrap(),
                 ECMAScriptValue::from("Generator")
             );
         }
@@ -111,15 +111,15 @@ mod agent {
         #[test_case("return" => "return;1"; "return function")]
         #[test_case("throw" => "throw;1"; "throw function")]
         fn generator_prototype_func(key: &str) -> String {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let key = PropertyKey::from(key);
             let proto = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-            let val = super::get(&mut agent, &proto, &key).unwrap();
+            let val = super::get(&agent, &proto, &key).unwrap();
             assert!(is_callable(&val));
-            let name = getv(&mut agent, &val, &"name".into()).unwrap();
-            let name = to_string(&mut agent, name).unwrap();
-            let length = getv(&mut agent, &val, &"length".into()).unwrap();
-            let length = to_string(&mut agent, length).unwrap();
+            let name = getv(&agent, &val, &"name".into()).unwrap();
+            let name = to_string(&agent, name).unwrap();
+            let length = getv(&agent, &val, &"length".into()).unwrap();
+            let length = to_string(&agent, length).unwrap();
             format!("{};{}", String::from(name), length)
         }
     }
@@ -127,10 +127,10 @@ mod agent {
     #[test_case("a value".into(), true; "is done")]
     #[test_case(ECMAScriptValue::Undefined, false; "not done")]
     fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let obj = agent.create_iter_result_object(value.clone(), done);
-        let value_res = get(&mut agent, &obj, &"value".into()).unwrap();
-        let done_res = get(&mut agent, &obj, &"done".into()).unwrap();
+        let value_res = get(&agent, &obj, &"value".into()).unwrap();
+        let done_res = get(&agent, &obj, &"done".into()).unwrap();
 
         assert_eq!(value_res, value);
         assert_eq!(done_res, ECMAScriptValue::from(done));
@@ -151,23 +151,21 @@ mod agent {
         GeneratorObject::object(a, Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
     }, "OtherBrand" => serr("TypeError: Generator brand mismatch"); "brand mismatch")]
     fn generator_validate(
-        make_value: impl FnOnce(&mut Agent) -> ECMAScriptValue,
+        make_value: impl FnOnce(&Agent) -> ECMAScriptValue,
         desired_brand: &str,
     ) -> Result<GeneratorState, String> {
-        let mut agent = test_agent();
-        let value = make_value(&mut agent);
-        agent.generator_validate(value, desired_brand).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        let value = make_value(&agent);
+        agent.generator_validate(value, desired_brand).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
 #[test_case(|_| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
 #[test_case(|_| ECMAScriptValue::from(67) => Ok(ECMAScriptValue::from(67)); "pass-thru/number")]
-fn iterator_prototype_iterator(
-    make_params: impl FnOnce(&mut Agent) -> ECMAScriptValue,
-) -> Result<ECMAScriptValue, String> {
-    let mut agent = test_agent();
-    let this_value = make_params(&mut agent);
-    super::iterator_prototype_iterator(&mut agent, this_value, None, &[]).map_err(|e| unwind_any_error(&mut agent, e))
+fn iterator_prototype_iterator(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+    let agent = test_agent();
+    let this_value = make_params(&agent);
+    super::iterator_prototype_iterator(&agent, this_value, None, &[]).map_err(|e| unwind_any_error(&agent, e))
 }
 
 tbd_function!(generator_function);
@@ -242,9 +240,9 @@ mod generator_object {
 
     #[test]
     fn object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let gp = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let o = GeneratorObject::object(&mut agent, Some(gp.clone()), GeneratorState::Undefined, "TestingBrand");
+        let o = GeneratorObject::object(&agent, Some(gp.clone()), GeneratorState::Undefined, "TestingBrand");
 
         let go_data = o.o.to_generator_object().unwrap().generator_data.borrow();
 
@@ -260,7 +258,7 @@ mod generator_object {
         assert!(cod.private_elements.is_empty());
     }
 
-    fn make(agent: &mut Agent) -> Object {
+    fn make(agent: &Agent) -> Object {
         let gp = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(agent, Some(gp), GeneratorState::Undefined, "TestingBrand")
     }
@@ -291,17 +289,17 @@ mod generator_object {
 
     #[test]
     fn debug() {
-        let mut agent = test_agent();
-        let obj = make(&mut agent);
+        let agent = test_agent();
+        let obj = make(&agent);
         let go = obj.o.to_generator_object().unwrap();
         assert_ne!(format!("{:?}", go), "");
     }
 
     #[test]
     fn common_object_data() {
-        let mut agent = test_agent();
-        let obj = make(&mut agent);
-        super::set(&mut agent, &obj, "test".into(), "sentinel".into(), true).unwrap();
+        let agent = test_agent();
+        let obj = make(&agent);
+        super::set(&agent, &obj, "test".into(), "sentinel".into(), true).unwrap();
 
         let cod = obj.o.common_object_data().borrow();
         assert_eq!(cod.properties.len(), 1);
@@ -324,15 +322,15 @@ mod generator_object {
 
     #[test]
     fn is_generator_object() {
-        let mut agent = test_agent();
-        let obj = make(&mut agent);
+        let agent = test_agent();
+        let obj = make(&agent);
         assert!(obj.o.is_generator_object());
     }
 
     #[test]
     fn to_generator_object() {
-        let mut agent = test_agent();
-        let obj = make(&mut agent);
+        let agent = test_agent();
+        let obj = make(&agent);
         let go = obj.o.to_generator_object();
         assert!(go.is_some());
     }
@@ -341,8 +339,8 @@ mod generator_object {
     #[test_case("OtherBrand", GeneratorState::SuspendedStart => Err(GeneratorError::BrandMismatch); "brand mismatch")]
     #[test_case("TestingBrand", GeneratorState::Executing => Err(GeneratorError::AlreadyActive); "already active")]
     fn validate(desired_brand: &str, generator_state: GeneratorState) -> Result<GeneratorState, GeneratorError> {
-        let mut agent = test_agent();
-        let obj = make(&mut agent); // brand is "TestingBrand"
+        let agent = test_agent();
+        let obj = make(&agent); // brand is "TestingBrand"
         let gen_obj = obj.o.to_generator_object().unwrap();
         gen_obj.generator_data.borrow_mut().generator_state = generator_state;
 

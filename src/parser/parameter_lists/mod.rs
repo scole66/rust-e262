@@ -84,7 +84,7 @@ impl UniqueFormalParameters {
         self.formals.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  UniqueFormalParameters : FormalParameters
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
@@ -356,7 +356,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
         // Static Semantics: Early Errors
         //  FormalParameters : FormalParameterList
         //    If BoundNames of FormalParameterList contains any duplicate elements, it is a Syntax Error:
@@ -566,7 +566,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             FormalParameterList::Item(fp) => fp.early_errors(agent, errs, strict),
             FormalParameterList::List(fpl, fp) => {
@@ -696,7 +696,7 @@ impl FunctionRestParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(agent, errs, strict);
     }
 
@@ -803,7 +803,7 @@ impl FormalParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(agent, errs, strict)
     }
 

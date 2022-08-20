@@ -49,7 +49,7 @@ impl ObjectInterface for SymbolObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -59,7 +59,7 @@ impl ObjectInterface for SymbolObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -69,7 +69,7 @@ impl ObjectInterface for SymbolObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -79,7 +79,7 @@ impl ObjectInterface for SymbolObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -89,7 +89,7 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -101,7 +101,7 @@ impl ObjectInterface for SymbolObject {
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
@@ -114,7 +114,7 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
@@ -124,7 +124,7 @@ impl ObjectInterface for SymbolObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
 
@@ -134,13 +134,7 @@ impl ObjectInterface for SymbolObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(
-        &self,
-        agent: &mut Agent,
-        key: PropertyKey,
-        v: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -150,7 +144,7 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
 
@@ -160,7 +154,7 @@ impl ObjectInterface for SymbolObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -172,7 +166,7 @@ impl SymbolObjectInterface for SymbolObject {
 }
 
 impl SymbolObject {
-    pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
+    pub fn object(agent: &Agent, prototype: Option<Object>) -> Object {
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(agent, prototype, true, SYMBOL_OBJECT_SLOTS)),
@@ -182,14 +176,14 @@ impl SymbolObject {
     }
 }
 
-pub fn create_symbol_object(agent: &mut Agent, sym: Symbol) -> Object {
+pub fn create_symbol_object(agent: &Agent, sym: Symbol) -> Object {
     let symbol_proto = agent.intrinsic(IntrinsicId::SymbolPrototype);
     let obj = SymbolObject::object(agent, Some(symbol_proto));
     *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
     obj
 }
 
-pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
+pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -404,7 +398,7 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
 /// can be found in the global Symbol registry, that Symbol is returned. Otherwise, a new Symbol is created, added to
 /// the global Symbol registry under the given key, and returned.
 fn symbol_constructor_function(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -437,7 +431,7 @@ fn symbol_constructor_function(
 ///
 /// See [Symbol.for](https://tc39.es/ecma262/#sec-symbol.for) in ECMA-262.
 fn symbol_for(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -487,7 +481,7 @@ fn symbol_for(
 ///
 /// See [Symbol.keyFor](https://tc39.es/ecma262/#sec-symbol.keyfor) in ECMA-262.
 fn symbol_key_for(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -515,7 +509,7 @@ fn symbol_key_for(
     }
 }
 
-fn this_symbol_value(agent: &mut Agent, this_value: ECMAScriptValue) -> Completion<Symbol> {
+fn this_symbol_value(agent: &Agent, this_value: ECMAScriptValue) -> Completion<Symbol> {
     match this_value {
         ECMAScriptValue::Symbol(s) => Ok(s),
         ECMAScriptValue::Object(o) if o.o.is_symbol_object() => {
@@ -527,7 +521,7 @@ fn this_symbol_value(agent: &mut Agent, this_value: ECMAScriptValue) -> Completi
 }
 
 fn symbol_to_string(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -537,7 +531,7 @@ fn symbol_to_string(
 }
 
 fn symbol_value_of(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -546,7 +540,7 @@ fn symbol_value_of(
 }
 
 fn symbol_description(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],

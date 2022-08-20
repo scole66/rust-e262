@@ -110,7 +110,7 @@ impl Agent {
     /// Determine the binding of the "this" keyword (and return it)
     ///
     /// See [ResolveThisBinding](https://tc39.es/ecma262/#sec-resolvethisbinding) in ECMA-262.
-    pub fn resolve_this_binding(&mut self) -> Completion<ECMAScriptValue> {
+    pub fn resolve_this_binding(&self) -> Completion<ECMAScriptValue> {
         // ResolveThisBinding ( )
         //
         // The abstract operation ResolveThisBinding takes no arguments and returns either a normal completion containing an
@@ -127,7 +127,7 @@ impl Agent {
     ///
     /// See [ResolveBinding](https://tc39.es/ecma262/#sec-resolvebinding) in ECMA-262.
     pub fn resolve_binding(
-        &mut self,
+        &self,
         name: &JSString,
         env: Option<Rc<dyn EnvironmentRecord>>,
         strict: bool,

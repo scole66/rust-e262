@@ -9,10 +9,10 @@ mod string_object {
 
     #[test]
     fn debug() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject {
-            common: RefCell::new(CommonObjectData::new(&mut agent, Some(prototype), true, STRING_OBJECT_SLOTS)),
+            common: RefCell::new(CommonObjectData::new(&agent, Some(prototype), true, STRING_OBJECT_SLOTS)),
             string_data: RefCell::new(JSString::from("baloney")),
         };
         assert_ne!(format!("{:?}", so), "");
@@ -20,11 +20,11 @@ mod string_object {
 
     #[test]
     fn object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
-        let length = super::get(&mut agent, &so, &"length".into()).unwrap();
+        let length = super::get(&agent, &so, &"length".into()).unwrap();
         assert_eq!(length, ECMAScriptValue::from(6));
 
         let sobj = so.o.to_string_obj().unwrap();
@@ -33,243 +33,243 @@ mod string_object {
 
     #[test]
     fn is_boolean_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_boolean_object());
     }
 
     #[test]
     fn is_date_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_date_object());
     }
 
     #[test]
     fn is_array_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_array_object());
     }
 
     #[test]
     fn is_proxy_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_proxy_object());
     }
 
     #[test]
     fn is_symbol_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_symbol_object());
     }
 
     #[test]
     fn is_number_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_number_object());
     }
 
     #[test]
     fn is_arguments_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_arguments_object());
     }
 
     #[test]
     fn is_plain_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_plain_object());
     }
 
     #[test]
     fn is_regexp_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_regexp_object());
     }
 
     #[test]
     fn is_error_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_error_object());
     }
 
     #[test]
     fn is_callable_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(!so.o.is_callable_obj());
     }
 
     #[test]
     fn is_string_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.is_string_object());
     }
 
     #[test]
     fn is_ordinary() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.is_ordinary());
     }
 
     #[test]
     fn to_arguments_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_arguments_object().is_none());
     }
 
     #[test]
     fn to_boolean_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_boolean_obj().is_none());
     }
 
     #[test]
     fn to_array_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_array_object().is_none());
     }
 
     #[test]
     fn to_callable_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_callable_obj().is_none());
     }
 
     #[test]
     fn to_function_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_function_obj().is_none());
     }
 
     #[test]
     fn to_error_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_error_obj().is_none());
     }
 
     #[test]
     fn to_builtin_function_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_builtin_function_obj().is_none());
     }
 
     #[test]
     fn to_symbol_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_symbol_obj().is_none());
     }
 
     #[test]
     fn to_number_obj() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_number_obj().is_none());
     }
 
     #[test]
     fn to_constructable() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object(&mut agent, "orange".into(), Some(prototype));
+        let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
         assert!(so.o.to_constructable().is_none());
     }
 
     #[test]
     fn get_prototype_of() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let proto = str_obj.o.get_prototype_of(&mut agent).unwrap().unwrap();
+        let proto = str_obj.o.get_prototype_of(&agent).unwrap().unwrap();
         assert_eq!(proto, agent.intrinsic(IntrinsicId::StringPrototype));
     }
 
     #[test]
     fn set_prototype_of() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let res = str_obj.o.set_prototype_of(&mut agent, None).unwrap();
+        let res = str_obj.o.set_prototype_of(&agent, None).unwrap();
         assert!(res);
-        assert!(str_obj.o.get_prototype_of(&mut agent).unwrap().is_none());
+        assert!(str_obj.o.get_prototype_of(&agent).unwrap().is_none());
     }
 
     #[test]
     fn is_extensible() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let res = str_obj.o.is_extensible(&mut agent).unwrap();
+        let res = str_obj.o.is_extensible(&agent).unwrap();
         assert!(res);
     }
 
     #[test]
     fn prevent_extensions() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let res = str_obj.o.prevent_extensions(&mut agent).unwrap();
+        let res = str_obj.o.prevent_extensions(&agent).unwrap();
         assert!(res);
-        assert!(!str_obj.o.is_extensible(&mut agent).unwrap());
+        assert!(!str_obj.o.is_extensible(&agent).unwrap());
     }
 
     #[test_case(
@@ -326,10 +326,10 @@ mod string_object {
         new_val: impl Into<ECMAScriptValue>,
         key: impl Into<PropertyKey>,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object(value.into());
         let receiver = ECMAScriptValue::Object(str_obj.clone());
-        let success = str_obj.o.set(&mut agent, key.into(), new_val.into(), &receiver).unwrap();
+        let success = str_obj.o.set(&agent, key.into(), new_val.into(), &receiver).unwrap();
         let properties = str_obj
             .o
             .common_object_data()
@@ -343,15 +343,15 @@ mod string_object {
 
     #[test]
     fn delete() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let res = str_obj.o.delete(&mut agent, &PropertyKey::from("rust")).unwrap();
+        let res = str_obj.o.delete(&agent, &PropertyKey::from("rust")).unwrap();
         assert_eq!(res, true);
     }
 
     #[test]
     fn id() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let str_obj2 = agent.create_string_object("orange".into());
         assert_ne!(str_obj.o.id(), str_obj2.o.id());
@@ -359,17 +359,17 @@ mod string_object {
 
     #[test]
     fn has_property() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
-        let res = str_obj.o.has_property(&mut agent, &PropertyKey::from("rust")).unwrap();
+        let res = str_obj.o.has_property(&agent, &PropertyKey::from("rust")).unwrap();
         assert_eq!(res, false);
-        let res2 = str_obj.o.has_property(&mut agent, &PropertyKey::from("length")).unwrap();
+        let res2 = str_obj.o.has_property(&agent, &PropertyKey::from("length")).unwrap();
         assert_eq!(res2, true);
     }
 
     #[test]
     fn common_object_data() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let cod = str_obj.o.common_object_data().borrow();
 
@@ -396,10 +396,10 @@ mod string_object {
     #[test_case("orange", |_| "5".into() => Some(IdealizedPropertyDescriptor{configurable: false, enumerable:  true, writable: Some(false), value: Some("e".into()), get: None, set: None }); "valid; index 5")]
     fn string_get_own_property(
         value: &str,
-        make_key: impl FnOnce(&mut Agent) -> PropertyKey,
+        make_key: impl FnOnce(&Agent) -> PropertyKey,
     ) -> Option<IdealizedPropertyDescriptor> {
-        let mut agent = test_agent();
-        let probe = make_key(&mut agent);
+        let agent = test_agent();
+        let probe = make_key(&agent);
         let str_obj = agent.create_string_object(value.into());
         str_obj.o.to_string_obj().unwrap().string_get_own_property(&probe).map(IdealizedPropertyDescriptor::from)
     }
@@ -408,9 +408,9 @@ mod string_object {
     #[test_case("orange", "3" => Some(IdealizedPropertyDescriptor{configurable: false, enumerable: true, writable: Some(false), value: Some(ECMAScriptValue::from("n")), get: None, set: None}); "stringish get")]
     #[test_case("orange", "color" => None; "key not present")]
     fn get_own_property(value: &str, key: &str) -> Option<IdealizedPropertyDescriptor> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object(value.into());
-        str_obj.o.get_own_property(&mut agent, &key.into()).unwrap().map(IdealizedPropertyDescriptor::from)
+        str_obj.o.get_own_property(&agent, &key.into()).unwrap().map(IdealizedPropertyDescriptor::from)
     }
 
     #[test_case(
@@ -504,10 +504,10 @@ mod string_object {
         new_value: PotentialPropertyDescriptor,
         key: &str,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object(value.into());
 
-        let success = str_obj.o.define_own_property(&mut agent, key.into(), new_value).unwrap();
+        let success = str_obj.o.define_own_property(&agent, key.into(), new_value).unwrap();
         let properties = str_obj
             .o
             .common_object_data()
@@ -522,16 +522,16 @@ mod string_object {
     #[test_case("orange", "length" => ECMAScriptValue::from(6); "exists")]
     #[test_case("orange", "friendliness" => ECMAScriptValue::Undefined; "doesn't exist")]
     fn get(value: &str, key: &str) -> ECMAScriptValue {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object(value.into());
 
         let receiver = ECMAScriptValue::from(str_obj.clone());
-        str_obj.o.get(&mut agent, &key.into(), &receiver).unwrap()
+        str_obj.o.get(&agent, &key.into(), &receiver).unwrap()
     }
 
     #[test]
     fn own_property_keys() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let str_obj = agent.create_string_object("orange".into());
 
         let to_prim = agent.wks(WksId::ToPrimitive);
@@ -540,7 +540,7 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 "60".into(),
                 PotentialPropertyDescriptor::new().value("q").writable(true).enumerable(true).configurable(true),
             )
@@ -548,7 +548,7 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 "6".into(),
                 PotentialPropertyDescriptor::new().value("s").writable(true).enumerable(true).configurable(true),
             )
@@ -556,7 +556,7 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 "zebra".into(),
                 PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true),
             )
@@ -564,7 +564,7 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 "alpha".into(),
                 PotentialPropertyDescriptor::new().value(1).writable(true).enumerable(true).configurable(true),
             )
@@ -572,7 +572,7 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 to_prim.clone().into(),
                 PotentialPropertyDescriptor::new().value(2).writable(true).enumerable(true).configurable(true),
             )
@@ -580,13 +580,13 @@ mod string_object {
         str_obj
             .o
             .define_own_property(
-                &mut agent,
+                &agent,
                 species.clone().into(),
                 PotentialPropertyDescriptor::new().value(3).writable(true).enumerable(true).configurable(true),
             )
             .unwrap();
 
-        let keys = str_obj.o.own_property_keys(&mut agent).unwrap();
+        let keys = str_obj.o.own_property_keys(&agent).unwrap();
 
         assert_eq!(
             keys,
@@ -615,7 +615,7 @@ mod agent {
 
     #[test]
     fn string_create() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let s = agent.string_create("value".into(), Some(object_prototype.clone()));
 
@@ -628,7 +628,7 @@ mod agent {
 
     #[test]
     fn create_string_object() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let string_prototype = agent.intrinsic(IntrinsicId::StringPrototype);
         let s = agent.create_string_object("value".into());
 
@@ -663,7 +663,7 @@ mod agent {
 
         #[test]
         fn string_prototype_intrinsic() {
-            let mut agent = test_agent();
+            let agent = test_agent();
 
             // The String prototype object: is %String.prototype%.
             let string_proto = agent.intrinsic(IntrinsicId::StringPrototype);
@@ -677,7 +677,7 @@ mod agent {
             // attributes are { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
             assert_eq!(
                 IdealizedPropertyDescriptor::from(
-                    string_proto.o.get_own_property(&mut agent, &"length".into()).unwrap().unwrap()
+                    string_proto.o.get_own_property(&agent, &"length".into()).unwrap().unwrap()
                 ),
                 IdealizedPropertyDescriptor {
                     configurable: false,
@@ -699,7 +699,7 @@ mod agent {
             let string_constructor = agent.intrinsic(IntrinsicId::String);
             assert_eq!(
                 IdealizedPropertyDescriptor::from(
-                    string_proto.o.get_own_property(&mut agent, &"constructor".into()).unwrap().unwrap()
+                    string_proto.o.get_own_property(&agent, &"constructor".into()).unwrap().unwrap()
                 ),
                 IdealizedPropertyDescriptor {
                     configurable: true,
@@ -746,31 +746,31 @@ mod agent {
         #[test_case("valueOf" => "valueOf;0"; "valueOf function")]
         #[test_case(WksId::Iterator => "[Symbol.iterator];0"; "@@iterator function")]
         fn prototype_func(key: impl Into<ToKey>) -> String {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let key = match key.into() {
                 ToKey::String(s) => PropertyKey::from(s),
                 ToKey::Symbol(id) => PropertyKey::from(agent.wks(id)),
             };
             let proto = agent.intrinsic(IntrinsicId::StringPrototype);
-            let val = super::get(&mut agent, &proto, &key).unwrap();
+            let val = super::get(&agent, &proto, &key).unwrap();
             assert!(is_callable(&val));
-            let name = getv(&mut agent, &val, &"name".into()).unwrap();
-            let name = to_string(&mut agent, name).unwrap();
-            let length = getv(&mut agent, &val, &"length".into()).unwrap();
-            let length = to_string(&mut agent, length).unwrap();
+            let name = getv(&agent, &val, &"name".into()).unwrap();
+            let name = to_string(&agent, name).unwrap();
+            let length = getv(&agent, &val, &"length".into()).unwrap();
+            let length = to_string(&agent, length).unwrap();
             format!("{};{}", String::from(name), length)
         }
 
         #[test]
         fn string_intrinsic() {
-            let mut agent = test_agent();
+            let agent = test_agent();
             // The String constructor: is %String%.
             let string_object = agent.intrinsic(IntrinsicId::String);
 
             // The String constructor: is the initial value of the "String" property of the global object.
             let global = agent.current_realm_record().unwrap().borrow().global_object.as_ref().unwrap().clone();
-            let sfg_val = get(&mut agent, &global, &"String".into()).unwrap();
-            let string_from_global = to_object(&mut agent, sfg_val).unwrap();
+            let sfg_val = get(&agent, &global, &"String".into()).unwrap();
+            let string_from_global = to_object(&agent, sfg_val).unwrap();
             assert_eq!(string_object, string_from_global);
 
             // The String constructor: has a [[Prototype]] internal slot whose value is %Function.prototype%.
@@ -783,7 +783,7 @@ mod agent {
             let string_prototype = agent.intrinsic(IntrinsicId::StringPrototype);
             assert_eq!(
                 IdealizedPropertyDescriptor::from(
-                    string_object.o.get_own_property(&mut agent, &"prototype".into()).unwrap().unwrap(),
+                    string_object.o.get_own_property(&agent, &"prototype".into()).unwrap().unwrap(),
                 ),
                 IdealizedPropertyDescriptor {
                     configurable: false,
@@ -800,18 +800,18 @@ mod agent {
         #[test_case("fromCodePoint" => "fromCodePoint;1"; "String.fromCodePoint")]
         #[test_case("raw" => "raw;1"; "String.raw")]
         fn constructor_func(key: impl Into<ToKey>) -> String {
-            let mut agent = test_agent();
+            let agent = test_agent();
             let key = match key.into() {
                 ToKey::String(s) => PropertyKey::from(s),
                 ToKey::Symbol(id) => PropertyKey::from(agent.wks(id)),
             };
             let cstr = agent.intrinsic(IntrinsicId::String);
-            let val = super::get(&mut agent, &cstr, &key).unwrap();
+            let val = super::get(&agent, &cstr, &key).unwrap();
             assert!(is_callable(&val));
-            let name = getv(&mut agent, &val, &"name".into()).unwrap();
-            let name = to_string(&mut agent, name).unwrap();
-            let length = getv(&mut agent, &val, &"length".into()).unwrap();
-            let length = to_string(&mut agent, length).unwrap();
+            let name = getv(&agent, &val, &"name".into()).unwrap();
+            let name = to_string(&agent, name).unwrap();
+            let length = getv(&agent, &val, &"length".into()).unwrap();
+            let length = to_string(&agent, length).unwrap();
             format!("{};{}", String::from(name), length)
         }
     }
@@ -820,10 +820,10 @@ mod agent {
     #[test_case(|a| ECMAScriptValue::from(a.create_string_object(JSString::from("red"))) => sok("red"); "string object value")]
     #[test_case(|_| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
     #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
-    fn this_string_value(make_val: impl FnOnce(&mut Agent) -> ECMAScriptValue) -> Result<String, String> {
-        let mut agent = test_agent();
-        let val = make_val(&mut agent);
-        agent.this_string_value(val, "unit testing").map(String::from).map_err(|e| unwind_any_error(&mut agent, e))
+    fn this_string_value(make_val: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
+        let agent = test_agent();
+        let val = make_val(&agent);
+        agent.this_string_value(val, "unit testing").map(String::from).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -834,11 +834,11 @@ mod agent {
 #[test_case(|a| (Some(DeadObject::object(a)), vec![ECMAScriptValue::Null]) => serr("TypeError: get called on DeadObject"); "get_proto_from_cstr failure")]
 #[test_case(|a| (Some(a.intrinsic(IntrinsicId::String)), vec![ECMAScriptValue::Undefined]) => Ok((true, "undefined".to_string())); "AsCstr / stringable")]
 fn string_constructor_function(
-    make_params: impl FnOnce(&mut Agent) -> (Option<Object>, Vec<ECMAScriptValue>),
+    make_params: impl FnOnce(&Agent) -> (Option<Object>, Vec<ECMAScriptValue>),
 ) -> Result<(bool, String), String> {
-    let mut agent = test_agent();
-    let (new_target, arguments) = make_params(&mut agent);
-    super::string_constructor_function(&mut agent, ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
+    let agent = test_agent();
+    let (new_target, arguments) = make_params(&agent);
+    super::string_constructor_function(&agent, ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
             ECMAScriptValue::Object(o) => {
@@ -846,21 +846,21 @@ fn string_constructor_function(
             }
             _ => panic!("Bad value from string_constructor_function: {:?}", val),
         })
-        .map_err(|err| unwind_any_error(&mut agent, err))
+        .map_err(|err| unwind_any_error(&agent, err))
 }
 
 #[test_case(|_| vec![ECMAScriptValue::from(112), ECMAScriptValue::from(97), ECMAScriptValue::from(115), ECMAScriptValue::from(115)] => sok("pass"); "normal")]
 #[test_case(|a| vec![ECMAScriptValue::from(a.wks(WksId::ToPrimitive))] => serr("TypeError: Symbol values cannot be converted to Number values"); "bad args")]
 #[test_case(|_| vec![] => sok(""); "emtpy args")]
-fn string_from_char_code(make_params: impl FnOnce(&mut Agent) -> Vec<ECMAScriptValue>) -> Result<String, String> {
-    let mut agent = test_agent();
-    let args = make_params(&mut agent);
-    super::string_from_char_code(&mut agent, ECMAScriptValue::Undefined, None, &args)
+fn string_from_char_code(make_params: impl FnOnce(&Agent) -> Vec<ECMAScriptValue>) -> Result<String, String> {
+    let agent = test_agent();
+    let args = make_params(&agent);
+    super::string_from_char_code(&agent, ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected String value from String.fromCharCode: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(&mut agent, e))
+        .map_err(|e| unwind_any_error(&agent, e))
 }
 
 #[test_case(|_| (ECMAScriptValue::Undefined, vec![]) => serr("TypeError: Undefined and null are not allowed in this context"); "'this' bad")]
@@ -870,42 +870,42 @@ fn string_from_char_code(make_params: impl FnOnce(&mut Agent) -> Vec<ECMAScriptV
 #[test_case(|a| (ECMAScriptValue::from(""), vec![ECMAScriptValue::from(DeadObject::object(a))]) => serr("TypeError: get called on DeadObject"); "unstringable search")]
 #[test_case(|a| (ECMAScriptValue::from(""), vec![ECMAScriptValue::from(""), ECMAScriptValue::from(DeadObject::object(a))]) => serr("TypeError: get called on DeadObject"); "unnumberable position")]
 fn string_prototype_index_of(
-    make_params: impl FnOnce(&mut Agent) -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+    make_params: impl FnOnce(&Agent) -> (ECMAScriptValue, Vec<ECMAScriptValue>),
 ) -> Result<f64, String> {
-    let mut agent = test_agent();
-    let (this_value, arguments) = make_params(&mut agent);
-    super::string_prototype_index_of(&mut agent, this_value, None, &arguments)
+    let agent = test_agent();
+    let (this_value, arguments) = make_params(&agent);
+    super::string_prototype_index_of(&agent, this_value, None, &arguments)
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
             _ => panic!("Expected number value from String.prototype.indexOf: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(&mut agent, e))
+        .map_err(|e| unwind_any_error(&agent, e))
 }
 
 #[test_case(|a| ECMAScriptValue::from(a.create_string_object("a string".into())) => sok("a string"); "from string object")]
 #[test_case(|a| ECMAScriptValue::from(DeadObject::object(a)) => serr("TypeError: String.prototype.toString requires that 'this' be a String"); "bad this value")]
-fn string_prototype_to_string(make_params: impl FnOnce(&mut Agent) -> ECMAScriptValue) -> Result<String, String> {
-    let mut agent = test_agent();
-    let this_value = make_params(&mut agent);
-    super::string_prototype_to_string(&mut agent, this_value, None, &[])
+fn string_prototype_to_string(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
+    let agent = test_agent();
+    let this_value = make_params(&agent);
+    super::string_prototype_to_string(&agent, this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.toString: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(&mut agent, e))
+        .map_err(|e| unwind_any_error(&agent, e))
 }
 
 #[test_case(|a| ECMAScriptValue::from(a.create_string_object("a string".into())) => sok("a string"); "from string object")]
 #[test_case(|a| ECMAScriptValue::from(DeadObject::object(a)) => serr("TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this value")]
-fn string_prototype_value_of(make_params: impl FnOnce(&mut Agent) -> ECMAScriptValue) -> Result<String, String> {
-    let mut agent = test_agent();
-    let this_value = make_params(&mut agent);
-    super::string_prototype_value_of(&mut agent, this_value, None, &[])
+fn string_prototype_value_of(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
+    let agent = test_agent();
+    let this_value = make_params(&agent);
+    super::string_prototype_value_of(&agent, this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.valueOf: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(&mut agent, e))
+        .map_err(|e| unwind_any_error(&agent, e))
 }
 
 tbd_function!(string_from_code_point);

@@ -111,7 +111,7 @@ impl SwitchStatement {
         self.expression.contains_arguments() || self.case_block.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         //  SwitchStatement : switch ( Expression ) CaseBlock
         //  * It is a Syntax Error if the LexicallyDeclaredNames of CaseBlock contains any duplicate entries.
@@ -411,7 +411,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
             CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
@@ -607,7 +607,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (list, item) = match self {
             CaseClauses::Item(node) => (None, node),
             CaseClauses::List(list, node) => (Some(list), node),
@@ -770,7 +770,7 @@ impl CaseClause {
         self.expression.contains_arguments() || self.statements.as_ref().map_or(false, |s| s.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         self.expression.early_errors(agent, errs, strict);
         if let Some(stmt) = &self.statements {
             stmt.early_errors(agent, errs, strict, within_iteration, true);
@@ -918,7 +918,7 @@ impl DefaultClause {
         self.0.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         if let Some(stmt) = &self.0 {
             stmt.early_errors(agent, errs, strict, within_iteration, true);
         }

@@ -125,7 +125,7 @@ impl Script {
     // * It is a Syntax Error if the LexicallyDeclaredNames of ScriptBody contains any duplicate entries.
     // * It is a Syntax Error if any element of the LexicallyDeclaredNames of ScriptBody also occurs in the
     //   VarDeclaredNames of ScriptBody.
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
         match &self.body {
             Some(body) => {
                 let lex_names = body.lexically_declared_names();
@@ -268,7 +268,7 @@ impl ScriptBody {
     //  * It is a Syntax Error if ContainsUndefinedContinueTarget of StatementList with arguments « » and « » is true.
     //  * It is a Syntax Error if AllPrivateIdentifiersValid of StatementList with argument « » is false unless the
     //    source code containing ScriptBody is eval code that is being processed by a direct eval.
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
                 errs.push(create_syntax_error_object(

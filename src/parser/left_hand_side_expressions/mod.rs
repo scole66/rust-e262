@@ -373,7 +373,7 @@ impl MemberExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             MemberExpression::PrimaryExpression(n) => n.early_errors(agent, errs, strict),
             MemberExpression::Expression(l, r, ..) => {
@@ -580,7 +580,7 @@ impl SuperProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             SuperProperty::Expression { exp, .. } => exp.early_errors(agent, errs, strict),
@@ -685,7 +685,7 @@ impl MetaProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
         match self {
             MetaProperty::NewTarget { .. } => {}
             MetaProperty::ImportMeta { goal, .. } => {
@@ -853,7 +853,7 @@ impl Arguments {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             Arguments::Empty { .. } => {}
@@ -1093,7 +1093,7 @@ impl ArgumentList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.early_errors(agent, errs, strict),
@@ -1234,7 +1234,7 @@ impl NewExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
             NewExpression::NewExpression(boxed, ..) => boxed.early_errors(agent, errs, strict),
@@ -1357,7 +1357,7 @@ impl CallMemberExpression {
         self.member_expression.contains_arguments() || self.arguments.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.member_expression.early_errors(agent, errs, strict);
         self.arguments.early_errors(agent, errs, strict);
     }
@@ -1438,7 +1438,7 @@ impl SuperCall {
         self.arguments.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.arguments.early_errors(agent, errs, strict);
     }
 }
@@ -1524,7 +1524,7 @@ impl ImportCall {
         self.assignment_expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.assignment_expression.early_errors(agent, errs, strict);
     }
 }
@@ -1820,7 +1820,7 @@ impl CallExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CallExpression::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
             CallExpression::SuperCall(node) => node.early_errors(agent, errs, strict),
@@ -2009,7 +2009,7 @@ impl LeftHandSideExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LeftHandSideExpression::New(boxed) => boxed.early_errors(agent, errs, strict),
             LeftHandSideExpression::Call(boxed) => boxed.early_errors(agent, errs, strict),
@@ -2209,7 +2209,7 @@ impl OptionalExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             OptionalExpression::Member(left, right) => {
                 left.early_errors(agent, errs, strict);
@@ -2568,7 +2568,7 @@ impl OptionalChain {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  OptionalChain :
         //      ?. TemplateLiteral

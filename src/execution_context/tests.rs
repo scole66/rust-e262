@@ -71,9 +71,9 @@ mod script_or_module {
         ScriptOrModule::Script(Rc::new(sr))
     } => "I am a walrus"; "Script")]
     #[test_case(|_| ScriptOrModule::Module(Rc::new(ModuleRecord{})) => panics "not yet implemented"; "module")]
-    fn source_text(maker: impl FnOnce(&mut Agent) -> ScriptOrModule) -> String {
-        let mut agent = test_agent();
-        let som = maker(&mut agent);
+    fn source_text(maker: impl FnOnce(&Agent) -> ScriptOrModule) -> String {
+        let agent = test_agent();
+        let som = maker(&agent);
         let text = som.source_text();
         text.clone()
     }
@@ -95,10 +95,10 @@ mod execution_context {
     #[test_case(|_| Some(ScriptOrModule::Module(Rc::new(ModuleRecord{}))) => panics "not yet implemented"; "SOM is module")]
     #[test_case(|a| Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(a.current_realm_record().unwrap())))); "SOM is script")]
     fn new(maker: fn(&Agent) -> Option<ScriptOrModule>) {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let som = maker(&agent);
         let original_was_none = som.is_none();
-        let func = Some(ordinary_object_create(&mut agent, None, &[]));
+        let func = Some(ordinary_object_create(&agent, None, &[]));
         let ec = ExecutionContext::new(func.clone(), agent.current_realm_record().unwrap(), som);
         assert_eq!(&func, &ec.function);
         assert!(Rc::ptr_eq(&ec.realm, &agent.current_realm_record().unwrap()));
@@ -115,12 +115,12 @@ mod execution_context {
 #[test_case(|| Agent::new(Rc::new(RefCell::new(SymbolRegistry::new()))) => None; "empty agent")]
 #[test_case(test_agent => Some("present".to_string()); "has global")]
 fn get_global_object(maker: fn() -> Agent) -> Option<String> {
-    let mut agent = maker();
+    let agent = maker();
     let maybe_obj = super::get_global_object(&agent);
 
     maybe_obj.map(|obj| {
-        let val = get(&mut agent, &obj, &"debug_token".into()).unwrap_or_else(|_| "missing".into());
-        to_string(&mut agent, val).unwrap().to_string()
+        let val = get(&agent, &obj, &"debug_token".into()).unwrap_or_else(|_| "missing".into());
+        to_string(&agent, val).unwrap().to_string()
     })
 }
 
@@ -135,7 +135,7 @@ mod agent {
         fn global() {
             // Where the "this object" is the global object.
 
-            let mut agent = test_agent();
+            let agent = test_agent();
             // Need to establish a lexical environment first.
             let realm = agent.current_realm_record().unwrap();
             let global_env = realm.borrow().global_env.clone();
@@ -145,8 +145,8 @@ mod agent {
             agent.push_execution_context(script_context);
 
             let env = agent.get_this_environment();
-            let val = env.get_binding_value(&mut agent, &"debug_token".into(), false).unwrap();
-            let repr = to_string(&mut agent, val).unwrap();
+            let val = env.get_binding_value(&agent, &"debug_token".into(), false).unwrap();
+            let repr = to_string(&agent, val).unwrap();
 
             assert_eq!(repr.to_string(), "present");
         }
@@ -154,7 +154,7 @@ mod agent {
         #[test]
         fn child() {
             // Where the we start from a child node without a this binding and work our way up.
-            let mut agent = test_agent();
+            let agent = test_agent();
             // Need to establish a lexical environment first.
             let realm = agent.current_realm_record().unwrap();
             let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
@@ -166,8 +166,8 @@ mod agent {
             agent.push_execution_context(script_context);
 
             let env = agent.get_this_environment();
-            let val = env.get_binding_value(&mut agent, &"debug_token".into(), false).unwrap();
-            let repr = to_string(&mut agent, val).unwrap();
+            let val = env.get_binding_value(&agent, &"debug_token".into(), false).unwrap();
+            let repr = to_string(&agent, val).unwrap();
 
             assert_eq!(repr.to_string(), "present");
         }
@@ -175,7 +175,7 @@ mod agent {
 
     #[test]
     fn resolve_this_binding() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
@@ -185,9 +185,9 @@ mod agent {
         agent.push_execution_context(script_context);
 
         let this_binding_value = agent.resolve_this_binding().unwrap();
-        let this_binding = to_object(&mut agent, this_binding_value).unwrap();
-        let probe = get(&mut agent, &this_binding, &"debug_token".into()).unwrap();
-        let repr = to_string(&mut agent, probe).unwrap();
+        let this_binding = to_object(&agent, this_binding_value).unwrap();
+        let probe = get(&agent, &this_binding, &"debug_token".into()).unwrap();
+        let repr = to_string(&agent, probe).unwrap();
         assert_eq!(repr.to_string(), "present");
     }
 
@@ -202,10 +202,10 @@ mod agent {
     }, false => Ok(("Environment(DeclarativeEnvironmentRecord(test-decl-env))".to_string(), ReferencedName::from("marker"), false, None)); "Other env")]
     fn resolve_binding(
         name: &str,
-        env_maker: fn(&mut Agent) -> Option<Rc<dyn EnvironmentRecord>>,
+        env_maker: fn(&Agent) -> Option<Rc<dyn EnvironmentRecord>>,
         strict: bool,
     ) -> Result<(String, ReferencedName, bool, Option<ECMAScriptValue>), String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
@@ -214,10 +214,10 @@ mod agent {
             Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "script")) as Rc<dyn EnvironmentRecord>);
         agent.push_execution_context(script_context);
 
-        let env = env_maker(&mut agent);
+        let env = env_maker(&agent);
         let result = agent.resolve_binding(&name.into(), env, strict);
 
-        result.map_err(|err| unwind_any_error(&mut agent, err)).and_then(|nc| match nc {
+        result.map_err(|err| unwind_any_error(&agent, err)).and_then(|nc| match nc {
             NormalCompletion::Empty | NormalCompletion::Value(_) | NormalCompletion::Environment(_) => {
                 Err("improper completion".to_string())
             }

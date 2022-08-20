@@ -106,7 +106,7 @@ impl Identifier {
         false
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
         // Static Semantics: Early Errors
         //      Identifier : IdentifierName but not ReservedWord
         //  * It is a Syntax Error if this phrase is contained in strict mode code and the StringValue of IdentifierName
@@ -317,7 +317,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             IdentifierReference::Identifier { identifier: id, data } => {
@@ -552,7 +552,7 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             BindingIdentifier::Identifier { identifier: id, data } => {
@@ -769,7 +769,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             LabelIdentifier::Identifier { identifier: id, data } => {
