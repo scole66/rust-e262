@@ -87,7 +87,7 @@ impl ContinueStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         // ContinueStatement :
         //      continue ;

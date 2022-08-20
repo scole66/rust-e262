@@ -56,23 +56,23 @@ impl ObjectInterface for StringObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
-    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
-    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         // [[GetOwnProperty]] ( P )
         //
         // The [[GetOwnProperty]] internal method of a String exotic object S takes argument P (a property
@@ -87,7 +87,7 @@ impl ObjectInterface for StringObject {
 
     fn define_own_property(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
@@ -111,17 +111,17 @@ impl ObjectInterface for StringObject {
         }
     }
 
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
 
     fn set(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         value: ECMAScriptValue,
         receiver: &ECMAScriptValue,
@@ -129,11 +129,11 @@ impl ObjectInterface for StringObject {
         ordinary_set(agent, self, key, value, receiver)
     }
 
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
 
-    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
         // [[OwnPropertyKeys]] ( )
         //
         // The [[OwnPropertyKeys]] internal method of a String exotic object O takes no arguments and returns
@@ -195,17 +195,17 @@ impl ObjectInterface for StringObject {
 }
 
 impl Agent {
-    pub fn string_create(&mut self, value: JSString, prototype: Option<Object>) -> Object {
+    pub fn string_create(&self, value: JSString, prototype: Option<Object>) -> Object {
         StringObject::object(self, value, prototype)
     }
-    pub fn create_string_object(&mut self, s: JSString) -> Object {
+    pub fn create_string_object(&self, s: JSString) -> Object {
         let prototype = self.intrinsic(IntrinsicId::StringPrototype);
         self.string_create(s, Some(prototype))
     }
 }
 
 impl StringObject {
-    pub fn object(agent: &mut Agent, value: JSString, prototype: Option<Object>) -> Object {
+    pub fn object(agent: &Agent, value: JSString, prototype: Option<Object>) -> Object {
         // StringCreate ( value, prototype )
         //
         // The abstract operation StringCreate takes arguments value (a String) and prototype and returns a
@@ -281,7 +281,7 @@ impl StringObject {
 }
 
 impl Agent {
-    pub fn provision_string_intrinsic(&mut self, realm: &Rc<RefCell<Realm>>) {
+    pub fn provision_string_intrinsic(&self, realm: &Rc<RefCell<Realm>>) {
         let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
         let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -458,7 +458,7 @@ impl Agent {
 }
 
 fn string_constructor_function(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -491,7 +491,7 @@ fn string_constructor_function(
 }
 
 impl Agent {
-    fn this_string_value(&mut self, value: ECMAScriptValue, from_where: &str) -> Completion<JSString> {
+    fn this_string_value(&self, value: ECMAScriptValue, from_where: &str) -> Completion<JSString> {
         // The abstract operation thisStringValue takes argument value. It performs the following steps when
         // called:
         //
@@ -513,7 +513,7 @@ impl Agent {
 }
 
 fn string_from_char_code(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -536,7 +536,7 @@ fn string_from_char_code(
     .into())
 }
 fn string_from_code_point(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -544,7 +544,7 @@ fn string_from_code_point(
     todo!()
 }
 fn string_raw(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -554,7 +554,7 @@ fn string_raw(
 
 // 22.1.3.1 String.prototype.at ( index )
 fn string_prototype_at(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -563,7 +563,7 @@ fn string_prototype_at(
 }
 // 22.1.3.2 String.prototype.charAt ( pos )
 fn string_prototype_char_at(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -572,7 +572,7 @@ fn string_prototype_char_at(
 }
 // 22.1.3.3 String.prototype.charCodeAt ( pos )
 fn string_prototype_char_code_at(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -581,7 +581,7 @@ fn string_prototype_char_code_at(
 }
 // 22.1.3.4 String.prototype.codePointAt ( pos )
 fn string_prototype_code_point_at(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -590,7 +590,7 @@ fn string_prototype_code_point_at(
 }
 // 22.1.3.5 String.prototype.concat ( ...args )
 fn string_prototype_concat(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -599,7 +599,7 @@ fn string_prototype_concat(
 }
 // 22.1.3.7 String.prototype.endsWith ( searchString [ , endPosition ] )
 fn string_prototype_ends_with(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -608,7 +608,7 @@ fn string_prototype_ends_with(
 }
 // 22.1.3.8 String.prototype.includes ( searchString [ , position ] )
 fn string_prototype_includes(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -617,7 +617,7 @@ fn string_prototype_includes(
 }
 // 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] )
 fn string_prototype_index_of(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -657,7 +657,7 @@ fn string_prototype_index_of(
 
 // 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
 fn string_prototype_last_index_of(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -666,7 +666,7 @@ fn string_prototype_last_index_of(
 }
 // 22.1.3.11 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] )
 fn string_prototype_locale_compare(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -675,7 +675,7 @@ fn string_prototype_locale_compare(
 }
 // 22.1.3.12 String.prototype.match ( regexp )
 fn string_prototype_match(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -684,7 +684,7 @@ fn string_prototype_match(
 }
 // 22.1.3.13 String.prototype.matchAll ( regexp )
 fn string_prototype_match_all(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -693,7 +693,7 @@ fn string_prototype_match_all(
 }
 // 22.1.3.14 String.prototype.normalize ( [ form ] )
 fn string_prototype_normalize(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -702,7 +702,7 @@ fn string_prototype_normalize(
 }
 // 22.1.3.15 String.prototype.padEnd ( maxLength [ , fillString ] )
 fn string_prototype_pad_end(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -711,7 +711,7 @@ fn string_prototype_pad_end(
 }
 // 22.1.3.16 String.prototype.padStart ( maxLength [ , fillString ] )
 fn string_prototype_pad_start(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -720,7 +720,7 @@ fn string_prototype_pad_start(
 }
 // 22.1.3.17 String.prototype.repeat ( count )
 fn string_prototype_repeat(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -729,7 +729,7 @@ fn string_prototype_repeat(
 }
 // 22.1.3.18 String.prototype.replace ( searchValue, replaceValue )
 fn string_prototype_replace(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -738,7 +738,7 @@ fn string_prototype_replace(
 }
 // 22.1.3.19 String.prototype.replaceAll ( searchValue, replaceValue )
 fn string_prototype_replace_all(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -747,7 +747,7 @@ fn string_prototype_replace_all(
 }
 // 22.1.3.20 String.prototype.search ( regexp )
 fn string_prototype_search(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -756,7 +756,7 @@ fn string_prototype_search(
 }
 // 22.1.3.21 String.prototype.slice ( start, end )
 fn string_prototype_slice(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -765,7 +765,7 @@ fn string_prototype_slice(
 }
 // 22.1.3.22 String.prototype.split ( separator, limit )
 fn string_prototype_split(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -774,7 +774,7 @@ fn string_prototype_split(
 }
 // 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
 fn string_prototype_starts_with(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -783,7 +783,7 @@ fn string_prototype_starts_with(
 }
 // 22.1.3.24 String.prototype.substring ( start, end )
 fn string_prototype_substring(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -792,7 +792,7 @@ fn string_prototype_substring(
 }
 // 22.1.3.25 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_lower_case(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -801,7 +801,7 @@ fn string_prototype_to_locale_lower_case(
 }
 // 22.1.3.26 String.prototype.toLocaleUpperCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_upper_case(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -810,7 +810,7 @@ fn string_prototype_to_locale_upper_case(
 }
 // 22.1.3.27 String.prototype.toLowerCase ( )
 fn string_prototype_to_lower_case(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -819,7 +819,7 @@ fn string_prototype_to_lower_case(
 }
 // 22.1.3.28 String.prototype.toString ( )
 fn string_prototype_to_string(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -833,7 +833,7 @@ fn string_prototype_to_string(
 }
 // 22.1.3.29 String.prototype.toUpperCase ( )
 fn string_prototype_to_upper_case(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -842,7 +842,7 @@ fn string_prototype_to_upper_case(
 }
 // 22.1.3.30 String.prototype.trim ( )
 fn string_prototype_trim(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -851,7 +851,7 @@ fn string_prototype_trim(
 }
 // 22.1.3.31 String.prototype.trimEnd ( )
 fn string_prototype_trim_end(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -860,7 +860,7 @@ fn string_prototype_trim_end(
 }
 // 22.1.3.32 String.prototype.trimStart ( )
 fn string_prototype_trim_start(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -869,7 +869,7 @@ fn string_prototype_trim_start(
 }
 // 22.1.3.33 String.prototype.valueOf ( )
 fn string_prototype_value_of(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
@@ -883,7 +883,7 @@ fn string_prototype_value_of(
 }
 
 fn string_prototype_iterator(
-    _: &mut Agent,
+    _: &Agent,
     _: ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],

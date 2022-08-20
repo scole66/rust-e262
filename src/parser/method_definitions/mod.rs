@@ -338,7 +338,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             MethodDefinition::NamedFunction(cen, ufp, fb, _) => {
@@ -507,7 +507,7 @@ impl PropertySetParameterList {
         self.node.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.node.early_errors(agent, errs, strict);
     }
 }

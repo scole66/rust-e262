@@ -172,7 +172,7 @@ impl ShiftExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.early_errors(agent, errs, strict),
             ShiftExpression::LeftShift(l, r)

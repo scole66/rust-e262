@@ -82,13 +82,13 @@ mod expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
     #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "Expression , AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
         Expression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+            .early_errors(&agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

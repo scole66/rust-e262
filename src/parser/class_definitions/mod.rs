@@ -149,7 +149,7 @@ impl ClassDeclaration {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
         if let ClassDeclaration::Named { ident, .. } = self {
             ident.early_errors(agent, errs, true);
         }
@@ -271,7 +271,7 @@ impl ClassExpression {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
         if let Some(name) = &self.ident {
             name.early_errors(agent, errs, true);
         }
@@ -426,7 +426,7 @@ impl ClassTail {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // ClassTail : ClassHeritageopt { ClassBody }
         //  * It is a Syntax Error if ClassHeritage is not present and the following algorithm returns true:
         //
@@ -542,7 +542,7 @@ impl ClassHeritage {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(agent, errs, strict);
     }
 }
@@ -633,7 +633,7 @@ impl ClassBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // ClassBody : ClassElementList
         //  * It is a Syntax Error if PrototypePropertyNameList of ClassElementList contains more than one occurrence
         //    of "constructor".
@@ -919,7 +919,7 @@ impl ClassElementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElementList::Item(ce) => ce.early_errors(agent, errs, strict),
             ClassElementList::List(cel, ce) => {
@@ -1214,7 +1214,7 @@ impl ClassElement {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElement::Standard { method } => {
                 // ClassElement : MethodDefinition
@@ -1474,7 +1474,7 @@ impl FieldDefinition {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // FieldDefinition :
         //  ClassElementName Initializer[opt]
         //  * It is a Syntax Error if Initializer is present and ContainsArguments of Initializer is true.
@@ -1638,7 +1638,7 @@ impl ClassElementName {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElementName::PrivateIdentifier { data: pid, location } => {
                 // ClassElementName : PrivateIdentifier
@@ -1761,7 +1761,7 @@ impl ClassStaticBlock {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.block.early_errors(agent, errs, strict);
     }
 }
@@ -1821,7 +1821,7 @@ impl ClassStaticBlockBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ClassStaticBlockBody : ClassStaticBlockStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of ClassStaticBlockStatementList contains any duplicate
@@ -1975,7 +1975,7 @@ impl ClassStaticBlockStatementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         if let ClassStaticBlockStatementList::Statements(sl) = self {
             sl.early_errors(agent, errs, strict, false, false);
         }

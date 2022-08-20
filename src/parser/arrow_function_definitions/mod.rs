@@ -94,7 +94,7 @@ impl ArrowFunction {
         self.parameters.contains_arguments() || self.body.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ArrowFunction : ArrowParameters => ConciseBody
         //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
@@ -276,7 +276,7 @@ impl ArrowParameters {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
             ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
@@ -405,7 +405,7 @@ impl ArrowFormalParameters {
         self.params.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.params.early_errors(agent, errs, strict);
     }
 
@@ -566,7 +566,7 @@ impl ConciseBody {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
             ConciseBody::Function { body, .. } => body.early_errors(agent, errs, strict),
@@ -686,7 +686,7 @@ impl ExpressionBody {
         self.expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.expression.early_errors(agent, errs, strict);
     }
 }

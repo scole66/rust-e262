@@ -127,15 +127,15 @@ mod continue_statement {
     #[test_case("continue package;", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "continue LabelIdentifier ; (within)")]
     #[test_case("continue package;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "continue LabelIdentifier ; (beyond)")]
     fn early_errors(src: &str, strict: bool, within_iteration: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
         ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
-            &mut agent,
+            &agent,
             &mut errs,
             strict,
             within_iteration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "no label")]

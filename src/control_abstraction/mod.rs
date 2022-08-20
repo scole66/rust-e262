@@ -4,7 +4,7 @@ use std::error::Error;
 use std::fmt;
 
 impl Agent {
-    pub fn provision_iterator_prototype(&mut self, realm: &Rc<RefCell<Realm>>) {
+    pub fn provision_iterator_prototype(&self, realm: &Rc<RefCell<Realm>>) {
         let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
         let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -59,7 +59,7 @@ impl Agent {
         realm.borrow_mut().intrinsics.iterator_prototype = iterator_prototype;
     }
 
-    pub fn provision_generator_function_intrinsics(&mut self, realm: &Rc<RefCell<Realm>>) {
+    pub fn provision_generator_function_intrinsics(&self, realm: &Rc<RefCell<Realm>>) {
         let function = realm.borrow().intrinsics.function.clone();
         let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
         let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
@@ -215,7 +215,7 @@ impl Agent {
 }
 
 fn iterator_prototype_iterator(
-    _agent: &mut Agent,
+    _agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -229,7 +229,7 @@ fn iterator_prototype_iterator(
 }
 
 fn generator_function(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -238,7 +238,7 @@ fn generator_function(
 }
 
 fn generator_prototype_next(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -247,7 +247,7 @@ fn generator_prototype_next(
 }
 
 fn generator_prototype_return(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -256,7 +256,7 @@ fn generator_prototype_return(
 }
 
 fn generator_prototype_throw(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -265,7 +265,7 @@ fn generator_prototype_throw(
 }
 
 impl Agent {
-    fn create_iter_result_object(&mut self, value: ECMAScriptValue, done: bool) -> Object {
+    fn create_iter_result_object(&self, value: ECMAScriptValue, done: bool) -> Object {
         // CreateIterResultObject ( value, done )
         //
         // The abstract operation CreateIterResultObject takes arguments value (an ECMAScript language value)
@@ -327,7 +327,7 @@ impl ObjectInterface for GeneratorObject {
     fn to_generator_object(&self) -> Option<&GeneratorObject> {
         Some(self)
     }
-    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -337,7 +337,7 @@ impl ObjectInterface for GeneratorObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -347,7 +347,7 @@ impl ObjectInterface for GeneratorObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -357,7 +357,7 @@ impl ObjectInterface for GeneratorObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -367,7 +367,7 @@ impl ObjectInterface for GeneratorObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -379,7 +379,7 @@ impl ObjectInterface for GeneratorObject {
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
@@ -392,7 +392,7 @@ impl ObjectInterface for GeneratorObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
@@ -402,7 +402,7 @@ impl ObjectInterface for GeneratorObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
 
@@ -412,13 +412,7 @@ impl ObjectInterface for GeneratorObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(
-        &self,
-        agent: &mut Agent,
-        key: PropertyKey,
-        v: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -428,7 +422,7 @@ impl ObjectInterface for GeneratorObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
 
@@ -438,7 +432,7 @@ impl ObjectInterface for GeneratorObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -463,7 +457,7 @@ impl fmt::Display for GeneratorError {
 impl Error for GeneratorError {}
 
 impl GeneratorObject {
-    pub fn object(agent: &mut Agent, prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
+    pub fn object(agent: &Agent, prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(agent, prototype, true, GENERATOR_OBJECT_SLOTS)),
@@ -505,11 +499,7 @@ impl GeneratorObject {
 }
 
 impl Agent {
-    pub fn generator_validate(
-        &mut self,
-        generator: ECMAScriptValue,
-        generator_brand: &str,
-    ) -> Completion<GeneratorState> {
+    pub fn generator_validate(&self, generator: ECMAScriptValue, generator_brand: &str) -> Completion<GeneratorState> {
         // GeneratorValidate ( generator, generatorBrand )
         // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
         // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a

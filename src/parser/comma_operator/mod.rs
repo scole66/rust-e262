@@ -163,7 +163,7 @@ impl Expression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             Expression::FallThru(node) => node.early_errors(agent, errs, strict),
             Expression::Comma(left, right) => {

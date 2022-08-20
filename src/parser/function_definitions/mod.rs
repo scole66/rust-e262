@@ -136,7 +136,7 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
@@ -146,7 +146,7 @@ impl FunctionDeclaration {
 }
 
 pub fn function_early_errors(
-    agent: &mut Agent,
+    agent: &Agent,
     errs: &mut Vec<Object>,
     strict: bool,
     ident: Option<&Rc<BindingIdentifier>>,
@@ -321,7 +321,7 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
@@ -432,7 +432,7 @@ impl FunctionBody {
         self.statements.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // FunctionBody : FunctionStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of FunctionStatementList contains any duplicate
         //    entries.
@@ -658,7 +658,7 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         if let FunctionStatementList::Statements(sl) = self {
             sl.early_errors(agent, errs, strict, false, false);
         }

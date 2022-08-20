@@ -135,8 +135,8 @@ mod ecmascript_value {
     }
     #[test]
     fn from_object_ref() {
-        let mut agent = test_agent();
-        let o = ordinary_object_create(&mut agent, None, &[]);
+        let agent = test_agent();
+        let o = ordinary_object_create(&agent, None, &[]);
 
         let val = ECMAScriptValue::from(&o);
         assert!(val.is_object());
@@ -145,8 +145,8 @@ mod ecmascript_value {
     }
     #[test]
     fn from_object() {
-        let mut agent = test_agent();
-        let o = ordinary_object_create(&mut agent, None, &[]);
+        let agent = test_agent();
+        let o = ordinary_object_create(&agent, None, &[]);
         let orig_id = o.o.id();
 
         let val = ECMAScriptValue::from(o);
@@ -166,9 +166,9 @@ mod ecmascript_value {
     }
     #[test_case(|_| PropertyKey::String("key".into()) => "key"; "string")]
     #[test_case(|a| PropertyKey::Symbol(a.wks(WksId::ToPrimitive)) => "Symbol(Symbol.toPrimitive)"; "symbol")]
-    fn from_property_key(maker: fn(&mut Agent) -> PropertyKey) -> String {
-        let mut agent = test_agent();
-        let key = maker(&mut agent);
+    fn from_property_key(maker: fn(&Agent) -> PropertyKey) -> String {
+        let agent = test_agent();
+        let key = maker(&agent);
         format!("{}", ECMAScriptValue::from(key))
     }
     #[test_case(String::from("blue") => ECMAScriptValue::String("blue".into()); "String")]
@@ -206,12 +206,9 @@ mod ecmascript_value {
     }
     #[test]
     fn is_symbol() {
-        let mut agent = test_agent();
+        let agent = test_agent();
         assert_eq!(ECMAScriptValue::Undefined.is_symbol(), false);
-        assert_eq!(
-            ECMAScriptValue::from(Symbol::new(&mut agent, Some(JSString::from("Test Symbol")))).is_symbol(),
-            true
-        );
+        assert_eq!(ECMAScriptValue::from(Symbol::new(&agent, Some(JSString::from("Test Symbol")))).is_symbol(), true);
         assert_eq!(ECMAScriptValue::Null.is_symbol(), false);
     }
     #[test]
@@ -222,8 +219,8 @@ mod ecmascript_value {
     }
     #[test]
     fn is_object() {
-        let mut agent = test_agent();
-        let o = ordinary_object_create(&mut agent, None, &[]);
+        let agent = test_agent();
+        let o = ordinary_object_create(&agent, None, &[]);
         assert_eq!(ECMAScriptValue::Undefined.is_object(), false);
         assert_eq!(ECMAScriptValue::from(o).is_object(), true);
         assert_eq!(ECMAScriptValue::Null.is_object(), false);
@@ -238,54 +235,54 @@ mod ecmascript_value {
     #[test]
     fn concise() {
         // Calling this on our own isn't really do-able; we need to get there via Display or Debug.
-        let mut agent = test_agent();
+        let agent = test_agent();
         let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
+        let obj = ordinary_object_create(&agent, Some(obj_proto), &[]);
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Undefined"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Null"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Number"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("String"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Boolean"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("BigInt"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() },
         )
         .unwrap();
-        let sym = Symbol::new(&mut agent, Some(JSString::from("San Francisco")));
+        let sym = Symbol::new(&agent, Some(JSString::from("San Francisco")));
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Symbol"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() },
@@ -293,7 +290,7 @@ mod ecmascript_value {
         .unwrap();
         let propobj = &agent.intrinsic(IntrinsicId::Boolean);
         define_property_or_throw(
-            &mut agent,
+            &agent,
             &obj,
             PropertyKey::from("Object"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() },
@@ -304,12 +301,12 @@ mod ecmascript_value {
     }
     #[test]
     fn is_array() {
-        let mut agent = test_agent();
-        let a = array_create(&mut agent, 0, None).unwrap();
+        let agent = test_agent();
+        let a = array_create(&agent, 0, None).unwrap();
         let v1: ECMAScriptValue = a.into();
         let v2 = ECMAScriptValue::Null;
-        assert!(v1.is_array(&mut agent).unwrap());
-        assert!(!v2.is_array(&mut agent).unwrap());
+        assert!(v1.is_array(&agent).unwrap());
+        assert!(!v2.is_array(&agent).unwrap());
     }
 
     mod display {
@@ -332,63 +329,63 @@ mod ecmascript_value {
             let obj = ordinary_object_create(a, None, &[]);
             ECMAScriptValue::Object(obj)
         } => with |s: String| assert!(Regex::new("^<Object [0-9]+>$").unwrap().is_match(&s)); "object")]
-        fn complex(maker: fn(&mut Agent) -> ECMAScriptValue) -> String {
-            let mut agent = test_agent();
-            let val = maker(&mut agent);
+        fn complex(maker: fn(&Agent) -> ECMAScriptValue) -> String {
+            let agent = test_agent();
+            let val = maker(&agent);
             format!("{val}")
         }
     }
 
-    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
-    fn undef(_: &mut Agent) -> ECMAScriptValue {
+    type ValueMaker = fn(&Agent) -> ECMAScriptValue;
+    fn undef(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::Undefined
     }
-    fn null(_: &mut Agent) -> ECMAScriptValue {
+    fn null(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::Null
     }
-    fn string_a(_: &mut Agent) -> ECMAScriptValue {
+    fn string_a(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from("A")
     }
-    fn string_b(_: &mut Agent) -> ECMAScriptValue {
+    fn string_b(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from("B")
     }
-    fn bool_a(_: &mut Agent) -> ECMAScriptValue {
+    fn bool_a(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from(true)
     }
-    fn bool_b(_: &mut Agent) -> ECMAScriptValue {
+    fn bool_b(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from(false)
     }
-    fn symbol_a(agent: &mut Agent) -> ECMAScriptValue {
+    fn symbol_a(agent: &Agent) -> ECMAScriptValue {
         agent.wks(WksId::ToPrimitive).into()
     }
-    fn symbol_b(agent: &mut Agent) -> ECMAScriptValue {
+    fn symbol_b(agent: &Agent) -> ECMAScriptValue {
         agent.wks(WksId::HasInstance).into()
     }
-    fn object_a(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_a(agent: &Agent) -> ECMAScriptValue {
         agent.intrinsic(IntrinsicId::FunctionPrototype).into()
     }
-    fn object_b(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_b(agent: &Agent) -> ECMAScriptValue {
         agent.intrinsic(IntrinsicId::ObjectPrototype).into()
     }
-    fn number_10(_: &mut Agent) -> ECMAScriptValue {
+    fn number_10(_: &Agent) -> ECMAScriptValue {
         10.into()
     }
-    fn number_100(_: &mut Agent) -> ECMAScriptValue {
+    fn number_100(_: &Agent) -> ECMAScriptValue {
         100.into()
     }
-    fn number_zero(_: &mut Agent) -> ECMAScriptValue {
+    fn number_zero(_: &Agent) -> ECMAScriptValue {
         0.into()
     }
-    fn number_neg_zero(_: &mut Agent) -> ECMAScriptValue {
+    fn number_neg_zero(_: &Agent) -> ECMAScriptValue {
         (-0.0).into()
     }
-    fn number_nan(_: &mut Agent) -> ECMAScriptValue {
+    fn number_nan(_: &Agent) -> ECMAScriptValue {
         f64::NAN.into()
     }
-    fn bigint_a(_: &mut Agent) -> ECMAScriptValue {
+    fn bigint_a(_: &Agent) -> ECMAScriptValue {
         BigInt::from(10).into()
     }
-    fn bigint_b(_: &mut Agent) -> ECMAScriptValue {
+    fn bigint_b(_: &Agent) -> ECMAScriptValue {
         BigInt::from(-1097631).into()
     }
 
@@ -404,9 +401,9 @@ mod ecmascript_value {
     #[test_case(object_a, object_a => true; "equal objects")]
     #[test_case(undef, symbol_b => panics "Invalid input args"; "Invalid Input")]
     fn same_value_non_numeric(make_x: ValueMaker, make_y: ValueMaker) -> bool {
-        let mut agent = test_agent();
-        let x = make_x(&mut agent);
-        let y = make_y(&mut agent);
+        let agent = test_agent();
+        let x = make_x(&agent);
+        let y = make_y(&agent);
 
         x.same_value_non_numeric(&y)
     }
@@ -420,9 +417,9 @@ mod ecmascript_value {
     #[test_case(bigint_a, bigint_b => false; "different bigints")]
     #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
     fn same_value_zero(make_x: ValueMaker, make_y: ValueMaker) -> bool {
-        let mut agent = test_agent();
-        let x = make_x(&mut agent);
-        let y = make_y(&mut agent);
+        let agent = test_agent();
+        let x = make_x(&agent);
+        let y = make_y(&agent);
 
         x.same_value_zero(&y)
     }
@@ -436,9 +433,9 @@ mod ecmascript_value {
     #[test_case(bigint_a, bigint_b => false; "different bigints")]
     #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
     fn same_value(make_x: ValueMaker, make_y: ValueMaker) -> bool {
-        let mut agent = test_agent();
-        let x = make_x(&mut agent);
-        let y = make_y(&mut agent);
+        let agent = test_agent();
+        let x = make_x(&agent);
+        let y = make_y(&agent);
 
         x.same_value(&y)
     }
@@ -452,9 +449,9 @@ mod ecmascript_value {
     #[test_case(bigint_a, bigint_b => false; "different bigints")]
     #[test_case(string_a, string_a => true; "fallthru for nonnumbers")]
     fn is_strictly_equal(make_x: ValueMaker, make_y: ValueMaker) -> bool {
-        let mut agent = test_agent();
-        let x = make_x(&mut agent);
-        let y = make_y(&mut agent);
+        let agent = test_agent();
+        let x = make_x(&agent);
+        let y = make_y(&agent);
 
         x.is_strictly_equal(&y)
     }
@@ -467,14 +464,14 @@ fn symbol_debug() {
 }
 #[test]
 fn symbol_display_normal() {
-    let mut agent = test_agent();
-    let symbol = Symbol::new(&mut agent, Some(JSString::from("Normal")));
+    let agent = test_agent();
+    let symbol = Symbol::new(&agent, Some(JSString::from("Normal")));
     assert_eq!(format!("{}", symbol), "Symbol(Normal)");
 }
 #[test]
 fn symbol_display_empty() {
-    let mut agent = test_agent();
-    let symbol = Symbol::new(&mut agent, None);
+    let agent = test_agent();
+    let symbol = Symbol::new(&agent, None);
     assert_eq!(format!("{}", symbol), "Symbol()");
 }
 #[test]
@@ -506,10 +503,10 @@ fn symbol_hash() {
 }
 #[test]
 fn symbol_new() {
-    let mut agent = test_agent();
-    let s1 = Symbol::new(&mut agent, Some(JSString::from("Symbol #1")));
-    let s2 = Symbol::new(&mut agent, Some(JSString::from("Symbol #2")));
-    let s3 = Symbol::new(&mut agent, Some(JSString::from("Symbol #1")));
+    let agent = test_agent();
+    let s1 = Symbol::new(&agent, Some(JSString::from("Symbol #1")));
+    let s2 = Symbol::new(&agent, Some(JSString::from("Symbol #2")));
+    let s3 = Symbol::new(&agent, Some(JSString::from("Symbol #1")));
     let s4 = s1.clone();
 
     assert_ne!(s1, s2);
@@ -521,8 +518,8 @@ fn symbol_new() {
 }
 #[test]
 fn symbol_description() {
-    let mut agent = test_agent();
-    let s1 = Symbol::new(&mut agent, Some(JSString::from("Test Symbol")));
+    let agent = test_agent();
+    let s1 = Symbol::new(&agent, Some(JSString::from("Test Symbol")));
     assert_eq!(s1.description(), Some(JSString::from("Test Symbol")));
 }
 #[test]
@@ -667,9 +664,9 @@ fn to_boolean_01() {
     assert_eq!(to_boolean(ECMAScriptValue::from(BigInt::from(22))), true);
     assert_eq!(to_boolean(ECMAScriptValue::from(BigInt::from(0))), false);
 
-    let mut agent = test_agent();
+    let agent = test_agent();
     assert_eq!(to_boolean(ECMAScriptValue::from(agent.wks(WksId::ToPrimitive))), true);
-    let o = ordinary_object_create(&mut agent, None, &[]);
+    let o = ordinary_object_create(&agent, None, &[]);
     assert_eq!(to_boolean(ECMAScriptValue::from(o)), true);
 }
 
@@ -737,10 +734,10 @@ mod property_key {
     }
     #[test_case(|_| PropertyKey::from("alice"), |_| ECMAScriptValue::from("alice"); "string")]
     #[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)), |a| ECMAScriptValue::from(a.wks(WksId::ToPrimitive)); "symbol")]
-    fn into_ecmascriptvalue(make_key: fn(&mut Agent) -> PropertyKey, make_expected: fn(&mut Agent) -> ECMAScriptValue) {
-        let mut agent = test_agent();
-        let key = make_key(&mut agent);
-        let expected = make_expected(&mut agent);
+    fn into_ecmascriptvalue(make_key: fn(&Agent) -> PropertyKey, make_expected: fn(&Agent) -> ECMAScriptValue) {
+        let agent = test_agent();
+        let key = make_key(&agent);
+        let expected = make_expected(&agent);
         assert_eq!(ECMAScriptValue::from(key), expected);
     }
 
@@ -773,16 +770,16 @@ mod jsstring {
 
         #[test_case(|_| PropertyKey::from("key") => sok("key"); "string")]
         #[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)) => serr("Expected String-valued property key"); "symbol")]
-        fn property_key(maker: fn(&mut Agent) -> PropertyKey) -> Result<String, String> {
-            let mut agent = test_agent();
-            let key = maker(&mut agent);
+        fn property_key(maker: fn(&Agent) -> PropertyKey) -> Result<String, String> {
+            let agent = test_agent();
+            let key = maker(&agent);
             JSString::try_from(key).map_err(|e| e.to_string()).map(String::from)
         }
         #[test_case(|_| PropertyKey::from("key") => sok("key"); "string")]
         #[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)) => serr("Expected String-valued property key"); "symbol")]
-        fn property_key_ref(maker: fn(&mut Agent) -> PropertyKey) -> Result<String, String> {
-            let mut agent = test_agent();
-            let key = maker(&mut agent);
+        fn property_key_ref(maker: fn(&Agent) -> PropertyKey) -> Result<String, String> {
+            let agent = test_agent();
+            let key = maker(&agent);
             JSString::try_from(&key).map_err(|e| e.to_string()).map(String::from)
         }
 
@@ -798,9 +795,9 @@ mod jsstring {
             let obj = ordinary_object_create(a, None, &[]);
             ECMAScriptValue::Object(obj)
         } => serr("Object to string conversions require an agent"); "object")]
-        fn ecmasript_value(maker: fn(&mut Agent) -> ECMAScriptValue) -> Result<String, String> {
-            let mut agent = test_agent();
-            let value = maker(&mut agent);
+        fn ecmasript_value(maker: fn(&Agent) -> ECMAScriptValue) -> Result<String, String> {
+            let agent = test_agent();
+            let value = maker(&agent);
             JSString::try_from(value).map_err(|e| e.to_string()).map(String::from)
         }
     }
@@ -833,87 +830,87 @@ mod numeric {
 
 #[test]
 fn to_numeric_01() {
-    let mut agent = test_agent();
-    let obj = ordinary_object_create(&mut agent, None, &[]);
-    let result = to_numeric(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+    let agent = test_agent();
+    let obj = ordinary_object_create(&agent, None, &[]);
+    let result = to_numeric(&agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Cannot convert object to primitive value");
 }
 #[test]
 fn to_numeric_02() {
-    let mut agent = test_agent();
-    let result = to_numeric(&mut agent, ECMAScriptValue::from(BigInt::from(4747474))).unwrap();
+    let agent = test_agent();
+    let result = to_numeric(&agent, ECMAScriptValue::from(BigInt::from(4747474))).unwrap();
     assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4747474))));
 }
 #[test]
 fn to_numeric_03() {
-    let mut agent = test_agent();
-    let result = to_numeric(&mut agent, ECMAScriptValue::from(10)).unwrap();
+    let agent = test_agent();
+    let result = to_numeric(&agent, ECMAScriptValue::from(10)).unwrap();
     assert_eq!(result, Numeric::Number(10.0));
 }
 #[test]
 fn to_numeric_04() {
-    let mut agent = test_agent();
-    let sym = Symbol::new(&mut agent, None);
-    let result = to_numeric(&mut agent, ECMAScriptValue::from(sym)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+    let agent = test_agent();
+    let sym = Symbol::new(&agent, None);
+    let result = to_numeric(&agent, ECMAScriptValue::from(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
 }
 
 #[test]
 fn to_number_01() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::Undefined;
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert!(result.is_nan());
 }
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_number_02() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::Null;
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert_eq!(result, 0.0);
 }
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_number_03() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::from(true);
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert_eq!(result, 1.0);
 }
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_number_04() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::from(false);
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert_eq!(result, 0.0);
 }
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_number_05() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::from(37.6);
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert_eq!(result, 37.6);
 }
 #[test]
 fn to_number_06() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::from("blue");
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert!(result.is_nan());
 }
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_number_07() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let testcases = [
         ("", 0.0),
         ("1", 1.0),
@@ -931,50 +928,50 @@ fn to_number_07() {
     ];
 
     for (s, e) in testcases {
-        let result = to_number(&mut agent, ECMAScriptValue::from(s)).unwrap();
+        let result = to_number(&agent, ECMAScriptValue::from(s)).unwrap();
         assert_eq!(result, e);
     }
 }
 #[test]
 fn to_number_08() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let input = ECMAScriptValue::from(BigInt::from(10));
 
-    let result = to_number(&mut agent, input).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "BigInt values cannot be converted to Number values");
+    let result = to_number(&agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "BigInt values cannot be converted to Number values");
 }
 #[test]
 fn to_number_09() {
-    let mut agent = test_agent();
-    let input = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+    let agent = test_agent();
+    let input = ECMAScriptValue::from(Symbol::new(&agent, None));
 
-    let result = to_number(&mut agent, input).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+    let result = to_number(&agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
 }
 #[test]
 fn to_number_10() {
-    let mut agent = test_agent();
-    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let agent = test_agent();
+    let obj = ordinary_object_create(&agent, None, &[]);
     let input = ECMAScriptValue::from(obj);
 
-    let result = to_number(&mut agent, input).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+    let result = to_number(&agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Cannot convert object to primitive value");
 }
 #[test]
 fn to_number_11() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
+    let obj = ordinary_object_create(&agent, Some(obj_proto), &[]);
     let input = ECMAScriptValue::from(obj);
 
-    let result = to_number(&mut agent, input).unwrap();
+    let result = to_number(&agent, input).unwrap();
     assert!(result.is_nan());
 }
 
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_integer_or_infinity_01() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let testcases = &[
         (f64::NAN, 0.0),
         (f64::INFINITY, f64::INFINITY),
@@ -986,79 +983,79 @@ fn to_integer_or_infinity_01() {
     ];
 
     for (val, expected) in testcases {
-        let result = to_integer_or_infinity(&mut agent, ECMAScriptValue::from(*val)).unwrap();
+        let result = to_integer_or_infinity(&agent, ECMAScriptValue::from(*val)).unwrap();
         assert_eq!(result, *expected);
     }
 }
 #[test]
 fn to_integer_or_infinity_02() {
-    let mut agent = test_agent();
-    let sym = Symbol::new(&mut agent, None);
+    let agent = test_agent();
+    let sym = Symbol::new(&agent, None);
 
-    let result = to_integer_or_infinity(&mut agent, ECMAScriptValue::from(sym)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+    let result = to_integer_or_infinity(&agent, ECMAScriptValue::from(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
 }
 
 #[test]
 fn to_string_01() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::Undefined).unwrap();
     assert_eq!(result, "undefined");
 }
 #[test]
 fn to_string_02() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::Null).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::Null).unwrap();
     assert_eq!(result, "null");
 }
 #[test]
 fn to_string_03() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::from(true)).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::from(true)).unwrap();
     assert_eq!(result, "true");
 }
 #[test]
 fn to_string_04() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::from(false)).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::from(false)).unwrap();
     assert_eq!(result, "false");
 }
 #[test]
 fn to_string_05() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::from(10)).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::from(10)).unwrap();
     assert_eq!(result, "10");
 }
 #[test]
 fn to_string_06() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::from("blue")).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::from("blue")).unwrap();
     assert_eq!(result, "blue");
 }
 #[test]
 fn to_string_07() {
-    let mut agent = test_agent();
-    let sym = Symbol::new(&mut agent, None);
-    let result = to_string(&mut agent, ECMAScriptValue::Symbol(sym)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+    let agent = test_agent();
+    let sym = Symbol::new(&agent, None);
+    let result = to_string(&agent, ECMAScriptValue::Symbol(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Symbols may not be converted to strings");
 }
 #[test]
 fn to_string_08() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
-    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap();
+    let obj = ordinary_object_create(&agent, Some(obj_proto), &[]);
+    let result = to_string(&agent, ECMAScriptValue::from(obj)).unwrap();
     assert_eq!(result, "[object Object]");
 }
 #[test]
 fn to_string_09() {
-    let mut agent = test_agent();
-    let obj = ordinary_object_create(&mut agent, None, &[]);
-    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+    let agent = test_agent();
+    let obj = ordinary_object_create(&agent, None, &[]);
+    let result = to_string(&agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Cannot convert object to primitive value");
 }
 fn tostring_symbol(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1068,10 +1065,10 @@ fn tostring_symbol(
 }
 #[test]
 fn to_string_10() {
-    let mut agent = test_agent();
-    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let agent = test_agent();
+    let obj = ordinary_object_create(&agent, None, &[]);
     let badtostring = create_builtin_function(
-        &mut agent,
+        &agent,
         tostring_symbol,
         false,
         0_f64,
@@ -1081,37 +1078,37 @@ fn to_string_10() {
         None,
         None,
     );
-    create_data_property(&mut agent, &obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
+    create_data_property(&agent, &obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
 
-    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+    let result = to_string(&agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Symbols may not be converted to strings");
 }
 #[test]
 fn to_string_11() {
-    let mut agent = test_agent();
-    let result = to_string(&mut agent, ECMAScriptValue::from(BigInt::from(789123))).unwrap();
+    let agent = test_agent();
+    let result = to_string(&agent, ECMAScriptValue::from(BigInt::from(789123))).unwrap();
     assert_eq!(result, "789123");
 }
 
 #[test]
 fn to_object_01() {
-    let mut agent = test_agent();
-    let err = to_object(&mut agent, ECMAScriptValue::Undefined).unwrap_err();
-    let msg = unwind_type_error(&mut agent, err);
+    let agent = test_agent();
+    let err = to_object(&agent, ECMAScriptValue::Undefined).unwrap_err();
+    let msg = unwind_type_error(&agent, err);
     assert_eq!(msg, "Undefined and null cannot be converted to objects");
 }
 #[test]
 fn to_object_02() {
-    let mut agent = test_agent();
-    let err = to_object(&mut agent, ECMAScriptValue::Null).unwrap_err();
-    let msg = unwind_type_error(&mut agent, err);
+    let agent = test_agent();
+    let err = to_object(&agent, ECMAScriptValue::Null).unwrap_err();
+    let msg = unwind_type_error(&agent, err);
     assert_eq!(msg, "Undefined and null cannot be converted to objects");
 }
 #[test]
 fn to_object_03() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let test_value = true;
-    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
 
     let boolean_obj = result.o.to_boolean_obj().unwrap();
     assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
@@ -1119,43 +1116,43 @@ fn to_object_03() {
 #[test]
 #[allow(clippy::float_cmp)]
 fn to_object_04() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let test_value = 1337.0;
-    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
 
     let number_obj = result.o.to_number_obj().unwrap();
     assert_eq!(*number_obj.number_data().borrow(), test_value);
 }
 #[test]
 fn to_object_05() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let test_value = "orange";
-    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
 
-    let val = to_string(&mut agent, result).unwrap();
+    let val = to_string(&agent, result).unwrap();
     assert_eq!(val, JSString::from(test_value));
 }
 #[test]
 fn to_object_06() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let test_value = agent.wks(WksId::ToPrimitive);
-    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
-    let desc = get(&mut agent, &result, &"description".into()).unwrap();
+    let result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
+    let desc = get(&agent, &result, &"description".into()).unwrap();
     assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]
 #[should_panic(expected = "not yet implemented")] // An XFAIL. BigInt objects not yet implemented.
 fn to_object_07() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let test_value = BigInt::from(10);
-    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let _result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
 }
 #[test]
 fn to_object_08() {
-    let mut agent = test_agent();
-    let test_value = ordinary_object_create(&mut agent, None, &[]);
+    let agent = test_agent();
+    let test_value = ordinary_object_create(&agent, None, &[]);
     let id = test_value.o.id();
-    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&agent, ECMAScriptValue::from(test_value)).unwrap();
     assert_eq!(result.o.id(), id);
 }
 
@@ -1167,7 +1164,7 @@ fn to_object_08() {
 
 // non-object number
 fn faux_makes_number(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1176,7 +1173,7 @@ fn faux_makes_number(
 }
 // non-object string
 fn faux_makes_string(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1185,7 +1182,7 @@ fn faux_makes_string(
 }
 // object value
 fn faux_makes_obj(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1196,7 +1193,7 @@ fn faux_makes_obj(
 }
 // error
 fn faux_errors(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1208,12 +1205,12 @@ enum FauxKind {
     Primitive,
     Error,
 }
-fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Object {
+fn make_test_obj(agent: &Agent, valueof: FauxKind, tostring: FauxKind) -> Object {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
-    let mut connect = |name, length, steps| {
+    let connect = |name, length, steps| {
         let key = PropertyKey::from(name);
         let fcn = create_builtin_function(
             agent,
@@ -1262,7 +1259,7 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
 
     target
 }
-pub fn make_tostring_getter_error(agent: &mut Agent) -> Object {
+pub fn make_tostring_getter_error(agent: &Agent) -> Object {
     // valueOf returns 123456; tostring is a getter that errors
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -1321,11 +1318,11 @@ pub fn make_tostring_getter_error(agent: &mut Agent) -> Object {
 
     target
 }
-pub fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
+pub fn make_test_obj_uncallable(agent: &Agent) -> Object {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
-    let mut connect = |name| {
+    let connect = |name| {
         let key = PropertyKey::from(name);
         define_property_or_throw(
             agent,
@@ -1349,117 +1346,117 @@ pub fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
 
 #[test]
 fn ordinary_to_primitive_nonoobj() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Primitive, FauxKind::Primitive);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap();
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Primitive, FauxKind::Primitive);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap();
     assert_eq!(result_1, ECMAScriptValue::from(123456));
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap();
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap();
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
 }
 #[test]
 fn ordinary_to_primitive_obj() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Object, FauxKind::Object);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_1), "Cannot convert object to primitive value");
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Object, FauxKind::Object);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_1), "Cannot convert object to primitive value");
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_2), "Cannot convert object to primitive value");
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_2), "Cannot convert object to primitive value");
 }
 #[test]
 fn ordinary_to_primitive_obj_nonobj() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Object, FauxKind::Primitive);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap();
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Object, FauxKind::Primitive);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap();
     assert_eq!(result_1, ECMAScriptValue::from("test result"));
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap();
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap();
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
 }
 #[test]
 fn ordinary_to_primitive_nonobj_obj() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Primitive, FauxKind::Object);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap();
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Primitive, FauxKind::Object);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap();
     assert_eq!(result_1, ECMAScriptValue::from(123456));
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap();
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap();
     assert_eq!(result_2, ECMAScriptValue::from(123456));
 }
 #[test]
 fn ordinary_to_primitive_call_errors() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Primitive, FauxKind::Error);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap();
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Primitive, FauxKind::Error);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap();
     assert_eq!(result_1, ECMAScriptValue::from(123456));
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_2), "Test Sentinel");
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_2), "Test Sentinel");
 }
 #[test]
 fn ordinary_to_primitive_get_errors() {
-    let mut agent = test_agent();
-    let test_obj = make_tostring_getter_error(&mut agent);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap();
+    let agent = test_agent();
+    let test_obj = make_tostring_getter_error(&agent);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap();
     assert_eq!(result_1, ECMAScriptValue::from(123456));
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_2), "Test Sentinel");
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_2), "Test Sentinel");
 }
 #[test]
 fn ordinary_to_primitive_uncallables() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj_uncallable(&mut agent);
-    let result_1 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::Number).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_1), "Cannot convert object to primitive value");
+    let agent = test_agent();
+    let test_obj = make_test_obj_uncallable(&agent);
+    let result_1 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::Number).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_1), "Cannot convert object to primitive value");
 
-    let result_2 = ordinary_to_primitive(&mut agent, &test_obj, ConversionHint::String).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result_2), "Cannot convert object to primitive value");
+    let result_2 = ordinary_to_primitive(&agent, &test_obj, ConversionHint::String).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result_2), "Cannot convert object to primitive value");
 }
 
 #[test]
 fn to_primitive_no_change() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     // Undefined
-    let result = to_primitive(&mut agent, ECMAScriptValue::Undefined, None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::Undefined, None).unwrap();
     assert!(result.is_undefined());
     // Null
-    let result = to_primitive(&mut agent, ECMAScriptValue::Null, None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::Null, None).unwrap();
     assert!(result.is_null());
     // Boolean
-    let result = to_primitive(&mut agent, ECMAScriptValue::from(true), None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::from(true), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(true));
     // Number
-    let result = to_primitive(&mut agent, ECMAScriptValue::from(20), None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::from(20), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(20));
     // String
-    let result = to_primitive(&mut agent, ECMAScriptValue::from("test"), None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::from("test"), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test"));
     // Symbol
-    let sym = Symbol::new(&mut agent, Some(JSString::from("Symbolic")));
-    let result = to_primitive(&mut agent, ECMAScriptValue::from(sym.clone()), None).unwrap();
+    let sym = Symbol::new(&agent, Some(JSString::from("Symbolic")));
+    let result = to_primitive(&agent, ECMAScriptValue::from(sym.clone()), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(sym));
     // BigInt
     let bi = "123456789012345678901234567890".parse::<BigInt>().unwrap();
-    let result = to_primitive(&mut agent, ECMAScriptValue::from(bi), None).unwrap();
+    let result = to_primitive(&agent, ECMAScriptValue::from(bi), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("123456789012345678901234567890".parse::<BigInt>().unwrap()));
 }
 #[test]
 fn to_primitive_prefer_number() {
-    let mut agent = test_agent();
-    let test_obj = make_test_obj(&mut agent, FauxKind::Primitive, FauxKind::Primitive);
+    let agent = test_agent();
+    let test_obj = make_test_obj(&agent, FauxKind::Primitive, FauxKind::Primitive);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, test_value.clone(), None).unwrap();
+    let result = to_primitive(&agent, test_value.clone(), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123456));
-    let result = to_primitive(&mut agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
+    let result = to_primitive(&agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123456));
-    let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
+    let result = to_primitive(&agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
 fn exotic_to_prim(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -1478,8 +1475,8 @@ fn exotic_to_prim(
     }
 }
 fn make_toprimitive_obj(
-    agent: &mut Agent,
-    steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    agent: &Agent,
+    steps: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
 ) -> Object {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -1514,19 +1511,19 @@ fn make_toprimitive_obj(
 }
 #[test]
 fn to_primitive_uses_exotics() {
-    let mut agent = test_agent();
-    let test_obj = make_toprimitive_obj(&mut agent, exotic_to_prim);
+    let agent = test_agent();
+    let test_obj = make_toprimitive_obj(&agent, exotic_to_prim);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, test_value.clone(), None).unwrap();
+    let result = to_primitive(&agent, test_value.clone(), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw default"));
-    let result = to_primitive(&mut agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
+    let result = to_primitive(&agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw number"));
-    let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
+    let result = to_primitive(&agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
 fn exotic_returns_object(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1538,15 +1535,15 @@ fn exotic_returns_object(
 }
 #[test]
 fn to_primitive_exotic_returns_object() {
-    let mut agent = test_agent();
-    let test_obj = make_toprimitive_obj(&mut agent, exotic_returns_object);
+    let agent = test_agent();
+    let test_obj = make_toprimitive_obj(&agent, exotic_returns_object);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+    let result = to_primitive(&agent, test_value, None).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1555,23 +1552,23 @@ fn exotic_throws(
 }
 #[test]
 fn to_primitive_exotic_throws() {
-    let mut agent = test_agent();
-    let test_obj = make_toprimitive_obj(&mut agent, exotic_throws);
+    let agent = test_agent();
+    let test_obj = make_toprimitive_obj(&agent, exotic_throws);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
+    let result = to_primitive(&agent, test_value, None).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Test Sentinel");
 }
 #[test]
 fn to_primitive_exotic_getter_throws() {
-    let mut agent = test_agent();
+    let agent = test_agent();
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
+    let target = ordinary_object_create(&agent, Some(object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     let toprim_getter = create_builtin_function(
-        &mut agent,
+        &agent,
         faux_errors,
         false,
         0_f64,
@@ -1582,7 +1579,7 @@ fn to_primitive_exotic_getter_throws() {
         Some(JSString::from("get")),
     );
     define_property_or_throw(
-        &mut agent,
+        &agent,
         &target,
         key,
         PotentialPropertyDescriptor {
@@ -1595,8 +1592,8 @@ fn to_primitive_exotic_getter_throws() {
     .unwrap();
     let test_value = ECMAScriptValue::from(target);
 
-    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
-    assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
+    let result = to_primitive(&agent, test_value, None).unwrap_err();
+    assert_eq!(unwind_type_error(&agent, result), "Test Sentinel");
 }
 
 mod to_property_key {
@@ -1606,21 +1603,21 @@ mod to_property_key {
     #[test_case(|_| ECMAScriptValue::Undefined => Ok(PropertyKey::from("undefined")); "undefined")]
     #[test_case(|_| ECMAScriptValue::from("blue") => Ok(PropertyKey::from("blue")); "string")]
     #[test_case(|a| ECMAScriptValue::from(make_tostring_getter_error(a)) => Err("Test Sentinel".to_string()); "to_primitive error")]
-    fn simple(make_value: fn(&mut Agent) -> ECMAScriptValue) -> Result<PropertyKey, String> {
-        let mut agent = test_agent();
-        let arg = make_value(&mut agent);
-        match to_property_key(&mut agent, arg) {
+    fn simple(make_value: fn(&Agent) -> ECMAScriptValue) -> Result<PropertyKey, String> {
+        let agent = test_agent();
+        let arg = make_value(&agent);
+        match to_property_key(&agent, arg) {
             Ok(key) => Ok(key),
-            Err(err) => Err(unwind_type_error(&mut agent, err)),
+            Err(err) => Err(unwind_type_error(&agent, err)),
         }
     }
 
     #[test]
     fn symbol() {
-        let mut agent = test_agent();
-        let sym = Symbol::new(&mut agent, Some("test symbol".into()));
+        let agent = test_agent();
+        let sym = Symbol::new(&agent, Some("test symbol".into()));
         let argument = ECMAScriptValue::from(sym.clone());
-        assert_eq!(to_property_key(&mut agent, argument).unwrap(), PropertyKey::from(sym));
+        assert_eq!(to_property_key(&agent, argument).unwrap(), PropertyKey::from(sym));
     }
 }
 
@@ -1630,11 +1627,11 @@ mod to_property_key {
 #[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
 #[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
 #[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
-fn to_length(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
-    let mut agent = test_agent();
-    let arg = make_arg(&mut agent);
+fn to_length(make_arg: fn(&Agent) -> ECMAScriptValue) -> Result<i64, String> {
+    let agent = test_agent();
+    let arg = make_arg(&agent);
 
-    super::to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
+    super::to_length(&agent, arg).map_err(|e| unwind_type_error(&agent, e))
 }
 
 mod canonical_numeric_index_string {
@@ -1669,8 +1666,8 @@ mod to_index {
     #[test_case(ECMAScriptValue::from(-0.0) => Ok(0); "Negative zero")]
     #[test_case(ECMAScriptValue::from(BigInt::from(10_i32)) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "non-number")]
     fn f(arg: ECMAScriptValue) -> Result<i64, String> {
-        let mut agent = test_agent();
-        to_index(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_index(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1688,8 +1685,8 @@ mod to_int32 {
     #[test_case(-2147483648.0 => Ok(-2147483648); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
-        let mut agent = test_agent();
-        to_int32(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_int32(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1707,8 +1704,8 @@ mod to_uint32 {
     #[test_case(-300.0 => Ok(4294966996); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
-        let mut agent = test_agent();
-        to_uint32(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_uint32(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1726,8 +1723,8 @@ mod to_int16 {
     #[test_case(-32768.0 => Ok(-32768); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i16, String> {
-        let mut agent = test_agent();
-        to_int16(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_int16(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1745,8 +1742,8 @@ mod to_uint16 {
     #[test_case(-300.0 => Ok(65236); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u16, String> {
-        let mut agent = test_agent();
-        to_uint16(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_uint16(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1764,8 +1761,8 @@ mod to_int8 {
     #[test_case(-128.0 => Ok(-128); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i8, String> {
-        let mut agent = test_agent();
-        to_int8(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_int8(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1783,8 +1780,8 @@ mod to_uint8 {
     #[test_case(-200.0 => Ok(56); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
-        let mut agent = test_agent();
-        to_uint8(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+        let agent = test_agent();
+        to_uint8(&agent, arg).map_err(|e| unwind_any_error(&agent, e))
     }
 }
 
@@ -1842,9 +1839,9 @@ mod array_index {
         #[test_case(|_| "010".into() => Err("Invalid array index".to_string()); "leading zeroes")]
         #[test_case(|_| "72x".into() => Err("Invalid array index".to_string()); "parse fail")]
         #[test_case(|_| "4294967295".into() => Err("The maximum array index is 4294967294".to_string()); "convert fail")]
-        fn property_key(make_key: fn(&mut Agent) -> PropertyKey) -> Result<ArrayIndex, String> {
-            let mut agent = test_agent();
-            let key = make_key(&mut agent);
+        fn property_key(make_key: fn(&Agent) -> PropertyKey) -> Result<ArrayIndex, String> {
+            let agent = test_agent();
+            let key = make_key(&agent);
             ArrayIndex::try_from(&key).map_err(|e| e.into())
         }
     }
@@ -1921,7 +1918,7 @@ mod option_object {
     use super::*;
     use test_case::test_case;
 
-    fn object_with_marker(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_with_marker(agent: &Agent) -> ECMAScriptValue {
         let obj = ordinary_object_create(agent, None, &[]);
         define_property_or_throw(agent, &obj, "marker", PotentialPropertyDescriptor::new().value("sentinel")).unwrap();
         ECMAScriptValue::Object(obj)
@@ -1936,9 +1933,9 @@ mod option_object {
     #[test_case(|_| ECMAScriptValue::Null => Ok(None); "null")]
     #[test_case(|_| ECMAScriptValue::Number(12.0) => serr("Bad type for Object/null"); "number")]
     #[test_case(object_with_marker => with validate_marker; "object")]
-    fn try_from(maker: fn(&mut Agent) -> ECMAScriptValue) -> Result<Option<Object>, String> {
-        let mut agent = test_agent();
-        let val = maker(&mut agent);
+    fn try_from(maker: fn(&Agent) -> ECMAScriptValue) -> Result<Option<Object>, String> {
+        let agent = test_agent();
+        let val = maker(&agent);
         let result: anyhow::Result<Option<Object>> = val.try_into();
         result.map_err(|e| e.to_string())
     }
@@ -1970,79 +1967,79 @@ mod agent {
     use super::*;
     use test_case::test_case;
 
-    type ValueMaker = fn(&mut Agent) -> ECMAScriptValue;
-    fn undef(_: &mut Agent) -> ECMAScriptValue {
+    type ValueMaker = fn(&Agent) -> ECMAScriptValue;
+    fn undef(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::Undefined
     }
-    fn null(_: &mut Agent) -> ECMAScriptValue {
+    fn null(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::Null
     }
-    fn string_a(_: &mut Agent) -> ECMAScriptValue {
+    fn string_a(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from("A")
     }
-    fn string_b(_: &mut Agent) -> ECMAScriptValue {
+    fn string_b(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from("B")
     }
-    fn string_10(_: &mut Agent) -> ECMAScriptValue {
+    fn string_10(_: &Agent) -> ECMAScriptValue {
         "10".into()
     }
-    fn bool_a(_: &mut Agent) -> ECMAScriptValue {
+    fn bool_a(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from(true)
     }
-    fn bool_b(_: &mut Agent) -> ECMAScriptValue {
+    fn bool_b(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from(false)
     }
-    fn symbol_a(agent: &mut Agent) -> ECMAScriptValue {
+    fn symbol_a(agent: &Agent) -> ECMAScriptValue {
         agent.wks(WksId::ToPrimitive).into()
     }
-    fn symbol_b(agent: &mut Agent) -> ECMAScriptValue {
+    fn symbol_b(agent: &Agent) -> ECMAScriptValue {
         agent.wks(WksId::HasInstance).into()
     }
-    fn object_a(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_a(agent: &Agent) -> ECMAScriptValue {
         agent.intrinsic(IntrinsicId::FunctionPrototype).into()
     }
-    fn object_b(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_b(agent: &Agent) -> ECMAScriptValue {
         agent.intrinsic(IntrinsicId::ObjectPrototype).into()
     }
-    fn number_10(_: &mut Agent) -> ECMAScriptValue {
+    fn number_10(_: &Agent) -> ECMAScriptValue {
         10.into()
     }
-    fn number_100(_: &mut Agent) -> ECMAScriptValue {
+    fn number_100(_: &Agent) -> ECMAScriptValue {
         100.into()
     }
-    fn number_zero(_: &mut Agent) -> ECMAScriptValue {
+    fn number_zero(_: &Agent) -> ECMAScriptValue {
         0.into()
     }
-    fn number_neg_zero(_: &mut Agent) -> ECMAScriptValue {
+    fn number_neg_zero(_: &Agent) -> ECMAScriptValue {
         (-0.0).into()
     }
-    fn number_nan(_: &mut Agent) -> ECMAScriptValue {
+    fn number_nan(_: &Agent) -> ECMAScriptValue {
         f64::NAN.into()
     }
-    fn number_inf(_: &mut Agent) -> ECMAScriptValue {
+    fn number_inf(_: &Agent) -> ECMAScriptValue {
         f64::INFINITY.into()
     }
-    fn number_neg_inf(_: &mut Agent) -> ECMAScriptValue {
+    fn number_neg_inf(_: &Agent) -> ECMAScriptValue {
         f64::NEG_INFINITY.into()
     }
-    fn bigint_a(_: &mut Agent) -> ECMAScriptValue {
+    fn bigint_a(_: &Agent) -> ECMAScriptValue {
         BigInt::from(10).into()
     }
-    fn bigint_b(_: &mut Agent) -> ECMAScriptValue {
+    fn bigint_b(_: &Agent) -> ECMAScriptValue {
         BigInt::from(-1097631).into()
     }
-    fn dead_object(agent: &mut Agent) -> ECMAScriptValue {
+    fn dead_object(agent: &Agent) -> ECMAScriptValue {
         DeadObject::object(agent).into()
     }
     fn returns_10(
-        _: &mut Agent,
+        _: &Agent,
         _: ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
-    fn object_10(agent: &mut Agent) -> ECMAScriptValue {
+    fn object_10(agent: &Agent) -> ECMAScriptValue {
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let object = ordinary_object_create(agent, Some(object_prototype), &[]);
         let to_primitive = agent.wks(WksId::ToPrimitive);
@@ -2093,10 +2090,10 @@ mod agent {
     #[test_case(bigint_a, number_nan => Ok(false); "number nan right")]
     #[test_case(null, symbol_a => Ok(false); "Null & symbol")]
     fn is_loosely_equal(make_x: ValueMaker, make_y: ValueMaker) -> Result<bool, String> {
-        let mut agent = test_agent();
-        let x = make_x(&mut agent);
-        let y = make_y(&mut agent);
+        let agent = test_agent();
+        let x = make_x(&agent);
+        let y = make_y(&agent);
 
-        agent.is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(&mut agent, e))
+        agent.is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(&agent, e))
     }
 }

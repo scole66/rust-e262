@@ -397,7 +397,7 @@ impl PrimaryExpression {
         matches!(self, PrimaryExpression::ArrayLiteral { .. } | PrimaryExpression::ObjectLiteral { .. })
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             PrimaryExpression::This { .. } => {}
             PrimaryExpression::IdentifierReference { node: id } => id.early_errors(agent, errs, strict),
@@ -649,7 +649,7 @@ impl SpreadElement {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(agent, errs, strict);
     }
 }
@@ -925,7 +925,7 @@ impl ElementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ElementList::AssignmentExpression { ae: b, .. } => {
                 b.early_errors(agent, errs, strict);
@@ -1140,7 +1140,7 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty { .. } => {}
             ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
@@ -1254,7 +1254,7 @@ impl Initializer {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(agent, errs, strict);
     }
 
@@ -1335,7 +1335,7 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         let CoverInitializedName::InitializedName(a, b) = self;
         a.early_errors(agent, errs, strict);
         b.early_errors(agent, errs, strict);
@@ -1426,7 +1426,7 @@ impl ComputedPropertyName {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(agent, errs, strict);
     }
 
@@ -1677,7 +1677,7 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             PropertyName::LiteralPropertyName(_) => (),
             PropertyName::ComputedPropertyName(x) => x.early_errors(agent, errs, strict),
@@ -1890,7 +1890,7 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             PropertyDefinition::IdentifierReference(idref) => idref.early_errors(agent, errs, strict),
@@ -2095,7 +2095,7 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.early_errors(agent, errs, strict),
@@ -2255,7 +2255,7 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             ObjectLiteral::Empty { .. } => {}
@@ -2587,7 +2587,7 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data: td, tagged, location } => {
@@ -2750,7 +2750,7 @@ impl SubstitutionTemplate {
         self.expression.contains_arguments() || self.template_spans.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
@@ -2927,7 +2927,7 @@ impl TemplateSpans {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateSpans :
         //      TemplateTail
@@ -3142,7 +3142,7 @@ impl TemplateMiddleList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateMiddleList :
         //      TemplateMiddle Expression
@@ -3288,7 +3288,7 @@ impl ParenthesizedExpression {
         self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(agent, errs, strict)
     }
 
@@ -3614,7 +3614,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
             | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {

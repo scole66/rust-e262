@@ -127,7 +127,7 @@ impl GeneratorMethod {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
         //  * It is a Syntax Error if HasDirectSuper of GeneratorMethod is true.
@@ -310,7 +310,7 @@ impl GeneratorDeclaration {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorDeclaration :
         //      function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
@@ -452,7 +452,7 @@ impl GeneratorExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorExpression :
         //      function * BindingIdentifier[opt] ( FormalParameters ) { GeneratorBody }
@@ -558,7 +558,7 @@ impl GeneratorBody {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(agent, errs, strict);
     }
 
@@ -740,7 +740,7 @@ impl YieldExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
                 exp.early_errors(agent, errs, strict)

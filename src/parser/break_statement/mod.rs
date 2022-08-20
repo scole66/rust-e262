@@ -84,7 +84,7 @@ impl BreakStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
         // Static Semantics: Early Errors
         //  BreakStatement : break ;
         //      * It is a Syntax Error if this BreakStatement is not nested, directly or indirectly (but not crossing

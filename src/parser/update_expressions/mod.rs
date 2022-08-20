@@ -228,7 +228,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             UpdateExpression::LeftHandSideExpression(n) => n.early_errors(agent, errs, strict),

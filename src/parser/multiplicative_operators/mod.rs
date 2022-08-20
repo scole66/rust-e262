@@ -204,7 +204,7 @@ impl MultiplicativeExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.early_errors(agent, errs, strict),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => {

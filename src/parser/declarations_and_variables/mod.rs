@@ -120,7 +120,7 @@ impl LexicalDeclaration {
         self.style.is_constant_declaration()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  LexicalDeclaration : LetOrConst BindingList ;
         //  * It is a Syntax Error if the BoundNames of BindingList contains "let".
@@ -325,7 +325,7 @@ impl BindingList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
         match self {
             BindingList::Item(node) => node.early_errors(agent, errs, strict, is_constant_declaration),
             BindingList::List(lst, tail) => {
@@ -482,7 +482,7 @@ impl LexicalBinding {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
         // Static Semantics: Early Errors
         //  LexicalBinding : BindingIdentifier Initializer[opt]
         //  * It is a Syntax Error if Initializer is not present and IsConstantDeclaration of the LexicalDeclaration containing this LexicalBinding is true.
@@ -591,7 +591,7 @@ impl VariableStatement {
         self.list.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.list.early_errors(agent, errs, strict);
     }
 
@@ -726,7 +726,7 @@ impl VariableDeclarationList {
         self.list.iter().any(|item| item.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         for item in self.list.iter() {
             item.early_errors(agent, errs, strict);
         }
@@ -878,7 +878,7 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             VariableDeclaration::Identifier(bi, Some(i)) => {
                 bi.early_errors(agent, errs, strict);
@@ -1011,7 +1011,7 @@ impl BindingPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingPattern::Object(node) => node.early_errors(agent, errs, strict),
             BindingPattern::Array(node) => node.early_errors(agent, errs, strict),
@@ -1264,7 +1264,7 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ObjectBindingPattern::Empty { .. } => (),
             ObjectBindingPattern::RestOnly { brp, .. } => brp.early_errors(agent, errs, strict),
@@ -1590,7 +1590,7 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.early_errors(agent, errs, strict),
             ArrayBindingPattern::RestOnly { bre: None, .. } => (),
@@ -1687,7 +1687,7 @@ impl BindingRestProperty {
         node.contains(kind)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         let BindingRestProperty::Id(node) = self;
         node.early_errors(agent, errs, strict);
     }
@@ -1810,7 +1810,7 @@ impl BindingPropertyList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingPropertyList::Item(node) => node.early_errors(agent, errs, strict),
             BindingPropertyList::List(lst, item) => {
@@ -1954,7 +1954,7 @@ impl BindingElementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingElementList::Item(node) => node.early_errors(agent, errs, strict),
             BindingElementList::List(lst, item) => {
@@ -2072,7 +2072,7 @@ impl BindingElisionElement {
         be.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         let BindingElisionElement::Element(_, elem) = self;
         elem.early_errors(agent, errs, strict);
     }
@@ -2200,7 +2200,7 @@ impl BindingProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingProperty::Single(node) => node.early_errors(agent, errs, strict),
             BindingProperty::Property(name, elem) => {
@@ -2379,7 +2379,7 @@ impl BindingElement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingElement::Single(node) => node.early_errors(agent, errs, strict),
             BindingElement::Pattern(node, None) => node.early_errors(agent, errs, strict),
@@ -2535,7 +2535,7 @@ impl SingleNameBinding {
         initializer.is_none()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             SingleNameBinding::Id(id, Some(init)) => {
                 id.early_errors(agent, errs, strict);
@@ -2687,7 +2687,7 @@ impl BindingRestElement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingRestElement::Identifier(node, ..) => node.early_errors(agent, errs, strict),
             BindingRestElement::Pattern(node, ..) => node.early_errors(agent, errs, strict),

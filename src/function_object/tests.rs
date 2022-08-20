@@ -56,15 +56,15 @@ mod function_declaration {
         fn typical(name: &str) -> String {
             let src = format!("function {name}(){{}}");
             let fd = Maker::new(&src).function_declaration();
-            let mut agent = test_agent();
+            let agent = test_agent();
             let realm_rc = agent.current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
             let fvalue =
-                fd.instantiate_function_object(&mut agent, global_env.clone(), None, false, &src, fd.clone()).unwrap();
+                fd.instantiate_function_object(&agent, global_env.clone(), None, false, &src, fd.clone()).unwrap();
             let fobj = Object::try_from(fvalue).unwrap();
 
-            let result = String::from(JSString::try_from(get(&mut agent, &fobj, &"name".into()).unwrap()).unwrap());
+            let result = String::from(JSString::try_from(get(&agent, &fobj, &"name".into()).unwrap()).unwrap());
 
             let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
             assert_eq!(function.environment.name(), global_env.name());
@@ -93,15 +93,14 @@ mod function_declaration {
         fn compile_error() {
             let src = "function a(){ if (true) { @@@; } return 3; }";
             let fd = Maker::new(src).function_declaration();
-            let mut agent = test_agent();
+            let agent = test_agent();
             let realm_rc = agent.current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-            let fvalue = fd
-                .instantiate_function_object(&mut agent, global_env.clone(), None, false, src, fd.clone())
-                .unwrap_err();
+            let fvalue =
+                fd.instantiate_function_object(&agent, global_env.clone(), None, false, src, fd.clone()).unwrap_err();
 
-            let msg = unwind_any_error(&mut agent, fvalue);
+            let msg = unwind_any_error(&agent, fvalue);
             assert_eq!(msg, "TypeError: out of range integral type conversion attempted");
         }
     }
@@ -114,14 +113,14 @@ mod generator_declaration {
     fn instantiate_function_object() {
         let src = "function *a(){}";
         let fd = Maker::new(src).generator_declaration();
-        let mut agent = test_agent();
+        let agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -132,14 +131,14 @@ mod async_function_declaration {
     fn instantiate_function_object() {
         let src = "async function a(){}";
         let fd = Maker::new(src).async_function_declaration();
-        let mut agent = test_agent();
+        let agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -150,14 +149,14 @@ mod async_generator_declaration {
     fn instantiate_function_object() {
         let src = "async function *a(){}";
         let fd = Maker::new(src).async_generator_declaration();
-        let mut agent = test_agent();
+        let agent = test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&mut agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -218,12 +217,11 @@ mod function_prototype_call {
     #[test_case(|_| ECMAScriptValue::Undefined, &[] => serr("TypeError: this isn't a function"); "bad this")]
     #[test_case(|agent| ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
     fn function_prototype_call(
-        get_this: impl FnOnce(&mut Agent) -> ECMAScriptValue,
+        get_this: impl FnOnce(&Agent) -> ECMAScriptValue,
         args: &[ECMAScriptValue],
     ) -> Result<ECMAScriptValue, String> {
-        let mut agent = test_agent();
-        let this_value = get_this(&mut agent);
-        super::function_prototype_call(&mut agent, this_value, None, args)
-            .map_err(|err| unwind_any_error(&mut agent, err))
+        let agent = test_agent();
+        let this_value = get_this(&agent);
+        super::function_prototype_call(&agent, this_value, None, args).map_err(|err| unwind_any_error(&agent, err))
     }
 }
