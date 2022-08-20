@@ -35,12 +35,12 @@ impl ParameterMap {
         self.properties[idx] = None;
     }
 
-    pub fn get(&self, agent: &mut Agent, idx: usize) -> Completion<ECMAScriptValue> {
+    pub fn get(&self, agent: &Agent, idx: usize) -> Completion<ECMAScriptValue> {
         let name = self.properties[idx].as_ref().expect("Get only used on existing values");
         self.env.get_binding_value(agent, name, false)
     }
 
-    pub fn set(&self, agent: &mut Agent, idx: usize, value: ECMAScriptValue) -> Completion<()> {
+    pub fn set(&self, agent: &Agent, idx: usize, value: ECMAScriptValue) -> Completion<()> {
         let name = self.properties[idx].as_ref().expect("Set only used on existing values").clone();
         self.env.set_mutable_binding(agent, name, value, false)
     }
@@ -75,7 +75,7 @@ impl ObjectInterface for ArgumentsObject {
         Some(self)
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -85,7 +85,7 @@ impl ObjectInterface for ArgumentsObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -95,7 +95,7 @@ impl ObjectInterface for ArgumentsObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -105,14 +105,14 @@ impl ObjectInterface for ArgumentsObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
     /// Returns the property descriptor corresponding to the given key, or None if the key does not exist.
     ///
     /// See [GetOwnProperty](https://tc39.es/ecma262/#sec-arguments-exotic-objects-getownproperty-p) from ECMA-262.
-    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         // [[GetOwnProperty]] ( P )
         //
         // The [[GetOwnProperty]] internal method of an arguments exotic object args takes argument P (a property key)
@@ -174,7 +174,7 @@ impl ObjectInterface for ArgumentsObject {
     //  8. Return true.
     fn define_own_property(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
@@ -216,14 +216,14 @@ impl ObjectInterface for ArgumentsObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
     /// Retrieves the value of a property from an object, following the prototype chain
     ///
     /// See [Get](https://tc39.es/ecma262/#sec-arguments-exotic-objects-get-p-receiver) in ECMA-262.
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         // [[Get]] ( P, Receiver )
         //
         // The [[Get]] internal method of an arguments exotic object args takes arguments P (a property key) and
@@ -255,13 +255,7 @@ impl ObjectInterface for ArgumentsObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(
-        &self,
-        agent: &mut Agent,
-        key: PropertyKey,
-        v: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         // [[Set]] ( P, V, Receiver )
         //
         // The [[Set]] internal method of an arguments exotic object args takes arguments P (a property key), V (an
@@ -304,7 +298,7 @@ impl ObjectInterface for ArgumentsObject {
     //  4. If result is true and isMapped is true, then
     //      a. Perform ! map.[[Delete]](P).
     //  5. Return result.
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         // Note: ordinary_delete only fails if its call to o.[[GetOwnProperty]]
         // fails. And the ArgumentsObject::GetOwnProperty routine, just above,
         // cannot fail. Thus: we don't need to pass back an error from
@@ -325,13 +319,13 @@ impl ObjectInterface for ArgumentsObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
 
 impl ArgumentsObject {
-    pub fn object(agent: &mut Agent, parameter_map: Option<ParameterMap>) -> Object {
+    pub fn object(agent: &Agent, parameter_map: Option<ParameterMap>) -> Object {
         let prototype = Some(agent.intrinsic(IntrinsicId::ObjectPrototype));
         Object {
             o: Rc::new(Self {

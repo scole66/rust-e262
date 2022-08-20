@@ -138,7 +138,7 @@ impl ExponentiationExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.early_errors(agent, errs, strict),
             ExponentiationExpression::Exponentiation(l, r) => {

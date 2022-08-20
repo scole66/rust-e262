@@ -105,7 +105,7 @@ impl ExpressionStatement {
         self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(agent, errs, strict);
     }
 }

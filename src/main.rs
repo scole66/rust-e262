@@ -74,7 +74,7 @@ struct VM {
 impl VM {
     fn new() -> Self {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
-        let mut agent = Agent::new(sym_registry.clone());
+        let agent = Agent::new(sym_registry.clone());
         agent.initialize_host_defined_realm(false);
         VM { agent, symbols: sym_registry }
     }
@@ -89,11 +89,11 @@ impl VM {
 }
 
 fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
-    let parsed = parse_text(&mut vm.agent, source, ParseGoal::Script);
+    let parsed = parse_text(&vm.agent, source, ParseGoal::Script);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
-                println!("{}", to_string(&mut vm.agent, err).unwrap());
+                println!("{}", to_string(&vm.agent, err).unwrap());
             }
             Err("See above".to_string())
         }
@@ -132,7 +132,7 @@ fn run_file(vm: &mut VM, fname: &str) {
         Err(e) => println!("{}", e),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
-            match process_ecmascript(&mut vm.agent, &script_source) {
+            match process_ecmascript(&vm.agent, &script_source) {
                 Ok(value) => println!("{:#?}", value),
                 Err(err) => println!("{}", err),
             }

@@ -3,7 +3,7 @@ use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::error;
@@ -29,19 +29,22 @@ use std::rc::Rc;
 // running execution context, the execution context stack, and the Agent Record's fields.
 
 #[derive(Debug)]
-pub struct Agent {
-    execution_context_stack: Vec<ExecutionContext>,
-    pub symbols: WellKnownSymbols,
-    obj_id: usize,
-    pub symbol_id: usize,
+struct AgentInternals {
+    execution_context_stack: RefCell<Vec<ExecutionContext>>,
+    symbols: WellKnownSymbols,
+    obj_id: Cell<usize>,
+    symbol_id: Cell<usize>,
     gsr: Rc<RefCell<SymbolRegistry>>,
 }
 
+#[derive(Debug)]
+pub struct Agent(Rc<AgentInternals>);
+
 impl Agent {
     pub fn new(gsr: Rc<RefCell<SymbolRegistry>>) -> Self {
-        Agent {
-            obj_id: 1,
-            execution_context_stack: vec![],
+        Agent(Rc::new(AgentInternals {
+            obj_id: Cell::new(1),
+            execution_context_stack: RefCell::new(vec![]),
             symbols: WellKnownSymbols {
                 async_iterator_: Symbol(Rc::new(SymbolInternals {
                     id: 1,
@@ -87,15 +90,16 @@ impl Agent {
                     description: Some(JSString::from("Symbol.unscopables")),
                 })),
             },
-            symbol_id: 14,
+            symbol_id: Cell::new(14),
             gsr,
-        }
+        }))
     }
 
     pub fn active_function_object(&self) -> Option<Object> {
-        match self.execution_context_stack.len() {
+        let stack = self.0.execution_context_stack.borrow();
+        match stack.len() {
             0 => None,
-            n => self.execution_context_stack[n - 1].function.clone(),
+            n => stack[n - 1].function.clone(),
         }
     }
 
@@ -112,7 +116,8 @@ impl Agent {
         //  1. If the execution context stack is empty, return null.
         //  2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
         //  3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
-        for ec in self.execution_context_stack.iter() {
+        let stack = self.0.execution_context_stack.borrow();
+        for ec in stack.iter() {
             if let Some(script_or_module) = &ec.script_or_module {
                 return Some(script_or_module.clone());
             }
@@ -120,52 +125,56 @@ impl Agent {
         None
     }
 
-    pub fn next_object_id(&mut self) -> usize {
-        let result = self.obj_id;
+    pub fn next_object_id(&self) -> usize {
+        // Note: single threaded, so no worries about read-then-write trouble.
+        let result = self.0.obj_id.get();
         assert!(result < usize::MAX);
-        self.obj_id = result + 1;
+        self.0.obj_id.set(result + 1);
         result
     }
 
-    pub fn next_symbol_id(&mut self) -> usize {
-        assert!(self.symbol_id < usize::MAX);
-        let result = self.symbol_id;
-        self.symbol_id += 1;
+    pub fn next_symbol_id(&self) -> usize {
+        let result = self.0.symbol_id.get();
+        assert!(result < usize::MAX);
+        self.0.symbol_id.set(result + 1);
         result
     }
 
-    pub fn push_execution_context(&mut self, context: ExecutionContext) {
-        self.execution_context_stack.push(context)
+    pub fn push_execution_context(&self, context: ExecutionContext) {
+        self.0.execution_context_stack.borrow_mut().push(context)
     }
 
-    pub fn pop_execution_context(&mut self) {
-        self.execution_context_stack.pop();
+    pub fn pop_execution_context(&self) {
+        self.0.execution_context_stack.borrow_mut().pop();
     }
 
-    pub fn ec_push(&mut self, val: FullCompletion) {
-        let len = self.execution_context_stack.len();
+    pub fn ec_push(&self, val: FullCompletion) {
+        let mut ec_stack = self.0.execution_context_stack.borrow_mut();
+        let len = ec_stack.len();
         assert!(len > 0, "EC Push called with no active EC");
-        let ec = &mut self.execution_context_stack[len - 1];
+        let ec = &mut ec_stack[len - 1];
         ec.stack.push(val);
     }
 
-    pub fn ec_pop(&mut self) -> Option<FullCompletion> {
-        let len = self.execution_context_stack.len();
+    pub fn ec_pop(&self) -> Option<FullCompletion> {
+        let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+        let len = execution_context_stack.len();
         match len {
             0 => None,
             _ => {
-                let ec = &mut self.execution_context_stack[len - 1];
+                let ec = &mut execution_context_stack[len - 1];
                 ec.stack.pop()
             }
         }
     }
 
     pub fn ec_stack_len(&self) -> usize {
-        let len = self.execution_context_stack.len();
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        let len = execution_context_stack.len();
         match len {
             0 => 0,
             _ => {
-                let ec = &self.execution_context_stack[len - 1];
+                let ec = &execution_context_stack[len - 1];
                 ec.stack.len()
             }
         }
@@ -173,65 +182,71 @@ impl Agent {
 
     pub fn wks(&self, sym_id: WksId) -> Symbol {
         match sym_id {
-            WksId::AsyncIterator => &self.symbols.async_iterator_,
-            WksId::HasInstance => &self.symbols.has_instance_,
-            WksId::IsConcatSpreadable => &self.symbols.is_concat_spreadable_,
-            WksId::Iterator => &self.symbols.iterator_,
-            WksId::Match => &self.symbols.match_,
-            WksId::MatchAll => &self.symbols.match_all_,
-            WksId::Replace => &self.symbols.replace_,
-            WksId::Search => &self.symbols.search_,
-            WksId::Species => &self.symbols.species_,
-            WksId::Split => &self.symbols.split_,
-            WksId::ToPrimitive => &self.symbols.to_primitive_,
-            WksId::ToStringTag => &self.symbols.to_string_tag_,
-            WksId::Unscopables => &self.symbols.unscopables_,
+            WksId::AsyncIterator => &self.0.symbols.async_iterator_,
+            WksId::HasInstance => &self.0.symbols.has_instance_,
+            WksId::IsConcatSpreadable => &self.0.symbols.is_concat_spreadable_,
+            WksId::Iterator => &self.0.symbols.iterator_,
+            WksId::Match => &self.0.symbols.match_,
+            WksId::MatchAll => &self.0.symbols.match_all_,
+            WksId::Replace => &self.0.symbols.replace_,
+            WksId::Search => &self.0.symbols.search_,
+            WksId::Species => &self.0.symbols.species_,
+            WksId::Split => &self.0.symbols.split_,
+            WksId::ToPrimitive => &self.0.symbols.to_primitive_,
+            WksId::ToStringTag => &self.0.symbols.to_string_tag_,
+            WksId::Unscopables => &self.0.symbols.unscopables_,
         }
         .clone()
     }
 
     pub fn current_realm_record(&self) -> Option<Rc<RefCell<Realm>>> {
-        match self.execution_context_stack.len() {
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        match execution_context_stack.len() {
             0 => None,
-            n => Some(self.execution_context_stack[n - 1].realm.clone()),
+            n => Some(execution_context_stack[n - 1].realm.clone()),
         }
     }
 
     pub fn current_lexical_environment(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        match self.execution_context_stack.len() {
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        match execution_context_stack.len() {
             0 => None,
-            n => self.execution_context_stack[n - 1].lexical_environment.clone(),
+            n => execution_context_stack[n - 1].lexical_environment.clone(),
         }
     }
 
     pub fn current_variable_environment(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        match self.execution_context_stack.len() {
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        match execution_context_stack.len() {
             0 => None,
-            n => self.execution_context_stack[n - 1].variable_environment.clone(),
+            n => execution_context_stack[n - 1].variable_environment.clone(),
         }
     }
 
     pub fn current_private_environment(&self) -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
-        match self.execution_context_stack.len() {
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        match execution_context_stack.len() {
             0 => None,
-            n => self.execution_context_stack[n - 1].private_environment.clone(),
+            n => execution_context_stack[n - 1].private_environment.clone(),
         }
     }
 
-    pub fn set_lexical_environment(&mut self, env: Option<Rc<dyn EnvironmentRecord>>) {
-        match self.execution_context_stack.len() {
+    pub fn set_lexical_environment(&self, env: Option<Rc<dyn EnvironmentRecord>>) {
+        let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+        match execution_context_stack.len() {
             0 => (),
             n => {
-                self.execution_context_stack[n - 1].lexical_environment = env;
+                execution_context_stack[n - 1].lexical_environment = env;
             }
         }
     }
 
-    pub fn set_variable_environment(&mut self, env: Option<Rc<dyn EnvironmentRecord>>) {
-        match self.execution_context_stack.len() {
+    pub fn set_variable_environment(&self, env: Option<Rc<dyn EnvironmentRecord>>) {
+        let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+        match execution_context_stack.len() {
             0 => (),
             n => {
-                self.execution_context_stack[n - 1].variable_environment = env;
+                execution_context_stack[n - 1].variable_environment = env;
             }
         }
     }
@@ -256,7 +271,7 @@ impl Agent {
     //  5. Let newGlobalEnv be NewGlobalEnvironment(globalObj, thisValue).
     //  6. Set realmRec.[[GlobalEnv]] to newGlobalEnv.
     //  7. Return realmRec.
-    pub fn set_realm_global_object(&mut self, global_obj: Option<Object>, this_value: Option<Object>) {
+    pub fn set_realm_global_object(&self, global_obj: Option<Object>, this_value: Option<Object>) {
         let go = global_obj.unwrap_or_else(|| {
             let object_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
             ordinary_object_create(self, Some(object_proto), &[])
@@ -283,7 +298,7 @@ impl Agent {
     //         attribute is the corresponding intrinsic object from realmRec.
     //      c. Perform ? DefinePropertyOrThrow(global, name, desc).
     //  3. Return global.
-    pub fn set_default_global_bindings(&mut self) {
+    pub fn set_default_global_bindings(&self) {
         let global = get_global_object(self).unwrap();
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -439,7 +454,7 @@ impl Agent {
     //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
     //  11. Create any host-defined global object properties on globalObj.
     //  12. Return NormalCompletion(empty).
-    pub fn initialize_host_defined_realm(&mut self, install_test_hooks: bool) {
+    pub fn initialize_host_defined_realm(&self, install_test_hooks: bool) {
         let realm = create_realm(self);
         let new_context = ExecutionContext::new(None, realm, None);
         self.push_execution_context(new_context);
@@ -467,44 +482,48 @@ impl Agent {
     }
 
     pub fn global_symbol_registry(&self) -> Rc<RefCell<SymbolRegistry>> {
-        self.gsr.clone()
+        self.0.gsr.clone()
     }
 
-    pub fn evaluate(&mut self, chunk: Rc<Chunk>, text: &str) -> Completion<ECMAScriptValue> {
-        if self.execution_context_stack.is_empty() {
+    pub fn evaluate(&self, chunk: Rc<Chunk>, text: &str) -> Completion<ECMAScriptValue> {
+        if self.0.execution_context_stack.borrow().is_empty() {
             return Err(create_type_error(self, "No active execution context"));
         }
 
         self.prepare_running_ec_for_execution(chunk);
         let result = self.execute(text);
 
-        let ec_idx = self.execution_context_stack.len() - 1;
-        assert!(self.execution_context_stack[ec_idx].stack.is_empty());
+        {
+            let execution_context_stack = self.0.execution_context_stack.borrow();
+            let ec_idx = execution_context_stack.len() - 1;
+            assert!(execution_context_stack[ec_idx].stack.is_empty());
+        }
 
         result
     }
 
-    pub fn prepare_running_ec_for_execution(&mut self, chunk: Rc<Chunk>) {
-        assert!(!self.execution_context_stack.is_empty());
-        let index = self.execution_context_stack.len() - 1;
+    pub fn prepare_running_ec_for_execution(&self, chunk: Rc<Chunk>) {
+        assert!(!self.0.execution_context_stack.borrow().is_empty());
+        let index = self.0.execution_context_stack.borrow().len() - 1;
         self.prepare_for_execution(index, chunk);
     }
 
-    pub fn prepare_for_execution(&mut self, index: usize, chunk: Rc<Chunk>) {
-        self.execution_context_stack[index].chunk = Some(chunk);
-        self.execution_context_stack[index].pc = 0;
+    pub fn prepare_for_execution(&self, index: usize, chunk: Rc<Chunk>) {
+        let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+        execution_context_stack[index].chunk = Some(chunk);
+        execution_context_stack[index].pc = 0;
     }
 
-    pub fn execute(&mut self, text: &str) -> Completion<ECMAScriptValue> {
+    pub fn execute(&self, text: &str) -> Completion<ECMAScriptValue> {
         // If our ec index drops below this, we exit.
-        let initial_context_index = self.execution_context_stack.len() - 1;
+        let initial_context_index = self.0.execution_context_stack.borrow().len() - 1;
         loop {
-            let index = self.execution_context_stack.len() - 1;
+            let index = self.0.execution_context_stack.borrow().len() - 1;
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
                 "{}",
-                self.execution_context_stack[index]
+                self.0.execution_context_stack.borrow()[index]
                     .stack
                     .iter()
                     .rev()
@@ -520,21 +539,21 @@ impl Agent {
                 break;
             }
 
-            let chunk = match self.execution_context_stack[index].chunk.clone() {
+            let chunk = match self.0.execution_context_stack.borrow()[index].chunk.clone() {
                 Some(r) => Ok(r),
                 None => Err(create_type_error(self, "No compiled units!")),
             }?;
 
-            if self.execution_context_stack[index].pc >= chunk.opcodes.len() {
+            if self.0.execution_context_stack.borrow()[index].pc >= chunk.opcodes.len() {
                 break;
             }
-            let (_, repr) = chunk.insn_repr_at(self.execution_context_stack[index].pc as usize);
-            println!("{:04}{}", self.execution_context_stack[index].pc, repr);
+            let (_, repr) = chunk.insn_repr_at(self.0.execution_context_stack.borrow()[index].pc as usize);
+            println!("{:04}{}", self.0.execution_context_stack.borrow()[index].pc, repr);
 
             /* Real work */
-            let icode = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // in range due to while condition
+            let icode = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // in range due to while condition
             let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
-            self.execution_context_stack[index].pc += 1;
+            self.0.execution_context_stack.borrow_mut()[index].pc += 1;
             match instruction {
                 Insn::Nop => {
                     // Do nothing
@@ -544,92 +563,97 @@ impl Agent {
                     todo!()
                 }
                 Insn::String => {
-                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let string_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
-                    self.execution_context_stack[index].stack.push(Ok(string.into()));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(string.into()));
                 }
-                Insn::Null => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Null.into())),
-                Insn::True => self.execution_context_stack[index].stack.push(Ok(true.into())),
-                Insn::False => self.execution_context_stack[index].stack.push(Ok(false.into())),
-                Insn::Empty => self.execution_context_stack[index].stack.push(Ok(NormalCompletion::Empty)),
+                Insn::Null => {
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Null.into()))
+                }
+                Insn::True => self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(true.into())),
+                Insn::False => self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(false.into())),
+                Insn::Empty => {
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty))
+                }
                 Insn::Undefined => {
-                    self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Undefined.into()))
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Undefined.into()))
                 }
                 Insn::This => {
                     let this_resolved = self.resolve_this_binding().map(NormalCompletion::from);
-                    self.execution_context_stack[index].stack.push(this_resolved);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(this_resolved);
                 }
                 Insn::Resolve => {
-                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                    let name = match self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
                         NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
                         _ => unreachable!(),
                     };
                     let resolved = self.resolve_binding(&name, None, false);
-                    self.execution_context_stack[index].stack.push(resolved);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(resolved);
                 }
                 Insn::StrictResolve => {
-                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                    let name = match self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
                         NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
                         _ => unreachable!(),
                     };
                     let resolved = self.resolve_binding(&name, None, true);
-                    self.execution_context_stack[index].stack.push(resolved);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(resolved);
                 }
                 Insn::Float => {
-                    let float_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
-                    self.execution_context_stack[index].pc += 1;
+                    let float_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize];
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let number = chunk.floats[float_index as usize];
-                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
                 }
                 Insn::Bigint => {
-                    let bigint_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
-                    self.execution_context_stack[index].pc += 1;
+                    let bigint_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize];
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let number = Rc::clone(&chunk.bigints[bigint_index as usize]);
-                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
                 }
                 Insn::GetValue => {
-                    let reference = self.execution_context_stack[index].stack.pop().unwrap();
+                    let reference = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let value = get_value(self, reference);
-                    self.execution_context_stack[index].stack.push(value.map(NormalCompletion::from));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(value.map(NormalCompletion::from));
                 }
                 Insn::PutValue => {
-                    let w = self.execution_context_stack[index].stack.pop().unwrap();
-                    let v = self.execution_context_stack[index].stack.pop().unwrap();
+                    let w = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
+                    let v = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = put_value(self, v, w.map(|v| v.try_into().unwrap()));
-                    self.execution_context_stack[index].stack.push(result.map(NormalCompletion::from));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result.map(NormalCompletion::from));
                 }
                 Insn::JumpIfAbrupt => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
-                    if self.execution_context_stack[index].stack[stack_idx].is_err() {
+                    let jump = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as i16;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let stack_idx = self.0.execution_context_stack.borrow()[index].stack.len() - 1;
+                    if self.0.execution_context_stack.borrow()[index].stack[stack_idx].is_err() {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            self.0.execution_context_stack.borrow_mut()[index].pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            self.0.execution_context_stack.borrow_mut()[index].pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpIfNormal => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
-                    if self.execution_context_stack[index].stack[stack_idx].is_ok() {
+                    let jump = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as i16;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let stack_idx = self.0.execution_context_stack.borrow()[index].stack.len() - 1;
+                    if self.0.execution_context_stack.borrow()[index].stack[stack_idx].is_ok() {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            self.0.execution_context_stack.borrow_mut()[index].pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            self.0.execution_context_stack.borrow_mut()[index].pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpIfFalse | Insn::JumpIfTrue => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let mut execution_context = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[execution_context.pc as usize] as i16;
+                    execution_context.pc += 1;
+                    let stack_idx = execution_context.stack.len() - 1;
                     let bool_val = bool::from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index].stack[stack_idx]
+                            execution_context.stack[stack_idx]
                                 .clone()
                                 .expect("Boolean Jumps may only be used with Normal completions"),
                         )
@@ -638,19 +662,19 @@ impl Agent {
                     if (instruction == Insn::JumpIfFalse && !bool_val) || (instruction == Insn::JumpIfTrue && bool_val)
                     {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            execution_context.pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            execution_context.pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpPopIfFalse | Insn::JumpPopIfTrue => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
+                    let mut ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    ec.pc += 1;
                     let bool_val = bool::from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index]
-                                .stack
+                            ec.stack
                                 .pop()
                                 .expect("JumpPop must have an argument")
                                 .expect("Boolean Jumps may only be used with Normal completions"),
@@ -661,139 +685,145 @@ impl Agent {
                         || (instruction == Insn::JumpPopIfTrue && bool_val)
                     {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            ec.pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            ec.pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpIfNotNullish => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let mut ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    ec.pc += 1;
+                    let stack_idx = ec.stack.len() - 1;
                     let val = ECMAScriptValue::try_from(
-                        self.execution_context_stack[index].stack[stack_idx]
-                            .clone()
-                            .expect("Nullish Jumps may only be used with Normal completions"),
+                        ec.stack[stack_idx].clone().expect("Nullish Jumps may only be used with Normal completions"),
                     )
                     .expect("Nullish Jumps may only be used with Values");
                     if val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            ec.pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            ec.pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpIfNotUndef => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    let mut ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    ec.pc += 1;
+                    let stack_idx = ec.stack.len() - 1;
                     let val = ECMAScriptValue::try_from(
-                        self.execution_context_stack[index].stack[stack_idx]
-                            .clone()
-                            .expect("Undef Jumps may only be used with Normal completions"),
+                        ec.stack[stack_idx].clone().expect("Undef Jumps may only be used with Normal completions"),
                     )
                     .expect("Undef Jumps may only be used with Values");
                     if val != ECMAScriptValue::Undefined {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            ec.pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            ec.pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::JumpNotThrow => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
-                    let completion = &self.execution_context_stack[index].stack[stack_idx];
+                    let mut ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    ec.pc += 1;
+                    let stack_idx = ec.stack.len() - 1;
+                    let completion = &ec.stack[stack_idx];
 
                     if !matches!(completion, Err(AbruptCompletion::Throw { .. })) {
                         if jump >= 0 {
-                            self.execution_context_stack[index].pc += jump as usize;
+                            ec.pc += jump as usize;
                         } else {
-                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                            ec.pc -= (-jump) as usize;
                         }
                     }
                 }
                 Insn::Jump => {
-                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
-                    self.execution_context_stack[index].pc += 1;
+                    let mut ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    ec.pc += 1;
                     if jump >= 0 {
-                        self.execution_context_stack[index].pc += jump as usize;
+                        ec.pc += jump as usize;
                     } else {
-                        self.execution_context_stack[index].pc -= (-jump) as usize;
+                        ec.pc -= (-jump) as usize;
                     }
                 }
                 Insn::UpdateEmpty => {
-                    let newer = self.execution_context_stack[index].stack.pop().unwrap();
-                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
-                    self.execution_context_stack[index].stack.push(update_empty(newer, older));
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let newer = ec.stack.pop().unwrap();
+                    let older = ec.stack.pop().unwrap().unwrap();
+                    ec.stack.push(update_empty(newer, older));
                 }
                 Insn::Pop2Push3 => {
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
                     // Stack: top lower ====> top lower top
-                    let top = self.execution_context_stack[index].stack.pop().unwrap();
-                    let lower = self.execution_context_stack[index].stack.pop().unwrap();
+                    let top = ec.stack.pop().unwrap();
+                    let lower = ec.stack.pop().unwrap();
                     let bottom = top.clone();
-                    self.execution_context_stack[index].stack.push(bottom);
-                    self.execution_context_stack[index].stack.push(lower);
-                    self.execution_context_stack[index].stack.push(top);
+                    ec.stack.push(bottom);
+                    ec.stack.push(lower);
+                    ec.stack.push(top);
                 }
                 Insn::Ref | Insn::StrictRef => {
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
                     let strict = instruction == Insn::StrictRef;
                     // Stack: name base ...
                     let name = {
-                        let result: Result<ECMAScriptValue, _> =
-                            self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let result: Result<ECMAScriptValue, _> = ec.stack.pop().unwrap().unwrap().try_into();
                         let value: Result<PropertyKey, _> = result.unwrap().try_into();
                         value.unwrap()
                     };
                     // Stack: base ...
                     let base = {
-                        let result: Result<ECMAScriptValue, _> =
-                            self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let result: Result<ECMAScriptValue, _> = ec.stack.pop().unwrap().unwrap().try_into();
                         result.unwrap()
                     };
                     // Stack: ...
                     let reference = Reference::new(Base::Value(base), name, strict, None);
                     let result = Ok(NormalCompletion::from(reference));
-                    self.execution_context_stack[index].stack.push(result);
+                    ec.stack.push(result);
                     // Stack: ref ...
                 }
                 Insn::Pop => {
-                    let stack_size = self.execution_context_stack[index].stack.len();
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let stack_size = ec.stack.len();
                     assert!(stack_size > 0);
-                    self.execution_context_stack[index].stack.truncate(stack_size - 1);
+                    ec.stack.truncate(stack_size - 1);
                 }
                 Insn::Swap => {
-                    let stack_size = self.execution_context_stack[index].stack.len();
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let stack_size = ec.stack.len();
                     assert!(stack_size >= 2);
-                    self.execution_context_stack[index].stack.swap(stack_size - 1, stack_size - 2);
+                    ec.stack.swap(stack_size - 1, stack_size - 2);
                 }
                 Insn::SwapList => {
-                    let stack_size = self.execution_context_stack[index].stack.len();
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let stack_size = ec.stack.len();
                     assert!(stack_size >= 2);
                     let list_len = f64::try_from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index].stack[stack_size - 1]
-                                .clone()
-                                .expect("Top of stack must contain a list"),
+                            ec.stack[stack_size - 1].clone().expect("Top of stack must contain a list"),
                         )
                         .expect("Top of stack must contain a list"),
                     )
                     .expect("Top of stack must contain a list") as usize;
-                    let item = self.execution_context_stack[index].stack.remove(stack_size - list_len - 2);
-                    self.execution_context_stack[index].stack.push(item);
+                    let item = ec.stack.remove(stack_size - list_len - 2);
+                    ec.stack.push(item);
                 }
                 Insn::InitializeReferencedBinding => {
-                    let stack_size = self.execution_context_stack[index].stack.len();
-                    assert!(stack_size >= 2);
-                    let value = self.execution_context_stack[index].stack.pop().unwrap();
-                    let lhs = self.execution_context_stack[index].stack.pop().unwrap();
+                    let (value, lhs) = {
+                        let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                        let stack_size = ec.stack.len();
+                        assert!(stack_size >= 2);
+                        let value = ec.stack.pop().unwrap();
+                        let lhs = ec.stack.pop().unwrap();
+                        (value, lhs)
+                    };
                     let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap()))
                         .map(NormalCompletion::from);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::PushNewLexEnv => {
                     let current_env = self.current_lexical_environment();
@@ -822,8 +852,8 @@ impl Agent {
 
                 Insn::CreateStrictImmutableLexBinding | Insn::CreateNonStrictImmutableLexBinding => {
                     let env = self.current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
 
                     env.create_immutable_binding(self, name, instruction == Insn::CreateStrictImmutableLexBinding)
@@ -835,8 +865,8 @@ impl Agent {
                     } else {
                         self.current_variable_environment().expect("var environment must exist")
                     };
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
 
                     env.create_mutable_binding(self, name, false).expect("binding should not already exist");
@@ -846,8 +876,8 @@ impl Agent {
                     //  2. If alreadyDeclared is false, then
                     //        a. Perform ! env.CreateMutableBinding(paramName, false).
                     let env = self.current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
                     let already_declared = env.has_binding(self, name).expect("basic environments can't fail this");
@@ -861,8 +891,8 @@ impl Agent {
                     //      a. Perform ! env.CreateMutableBinding(paramName, false).
                     //      b. Perform ! env.InitializeBinding(paramName, undefined).
                     let env = self.current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
                     let already_declared = env.has_binding(self, name).expect("basic environments can't fail this");
@@ -878,12 +908,12 @@ impl Agent {
                     } else {
                         self.current_variable_environment().expect("var environment must exist")
                     };
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
                     let value = ECMAScriptValue::try_from(
-                        self.execution_context_stack[index]
+                        self.0.execution_context_stack.borrow_mut()[index]
                             .stack
                             .pop()
                             .expect("InitializeLexBinding must have a stack arg")
@@ -894,19 +924,19 @@ impl Agent {
                 }
                 Insn::GetLexBinding => {
                     let env = self.current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
                     let value = env.get_binding_value(self, name, false).expect("Binding will be there");
-                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(value)));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(value)));
                 }
                 Insn::SetMutableVarBinding => {
                     let env = self.current_variable_environment().expect("var environment must exist");
-                    let string_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let string_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
                     let value = ECMAScriptValue::try_from(
-                        self.execution_context_stack[index]
+                        self.0.execution_context_stack.borrow_mut()[index]
                             .stack
                             .pop()
                             .expect("SetMutableVarBinding must have a stack arg")
@@ -916,53 +946,50 @@ impl Agent {
                     env.set_mutable_binding(self, name.clone(), value, false).expect("error free execution");
                 }
                 Insn::ExtractThrownValue => {
-                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
-                    let completion = &self.execution_context_stack[index].stack[stack_idx];
+                    let stack_idx = self.0.execution_context_stack.borrow()[index].stack.len() - 1;
+                    let completion = &self.0.execution_context_stack.borrow()[index].stack[stack_idx];
                     match completion.as_ref().unwrap_err() {
                         AbruptCompletion::Throw { value } => {
-                            self.execution_context_stack[index].stack[stack_idx] = Ok(value.clone().into())
+                            self.0.execution_context_stack.borrow_mut()[index].stack[stack_idx] =
+                                Ok(value.clone().into())
                         }
                         _ => panic!("Bad error type for ExtractThrownValue"),
                     }
                 }
                 Insn::ExtractArg => {
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
                     // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)
                     // Out: arg[0] N-1 arg[N-1] arg[N-2] ... arg[1]
                     //   --or, if N == 0 --
                     // Stack: 0
                     // Out: Undefined 0
-                    let stack_len = self.execution_context_stack[index].stack.len();
+                    let stack_len = ec.stack.len();
                     assert!(stack_len > 0, "ExtractArg must have an argument list on the stack");
                     let arg_count = f64::try_from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index].stack[stack_len - 1]
-                                .clone()
-                                .expect("ExtractArg must have a 'count' argument"),
+                            ec.stack[stack_len - 1].clone().expect("ExtractArg must have a 'count' argument"),
                         )
                         .expect("ExtractArg must have a 'count' argument"),
                     )
                     .expect("ExtractArg 'count' arg must be a number");
                     if arg_count < 0.5 {
-                        self.execution_context_stack[index]
-                            .stack
-                            .push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                        ec.stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
                     } else {
                         let arg_count = arg_count as usize;
                         assert!(stack_len > arg_count, "Stack must contain an argument list");
-                        let arg0 = self.execution_context_stack[index].stack.remove(stack_len - arg_count - 1);
-                        self.execution_context_stack[index].stack[stack_len - 2] =
-                            Ok(NormalCompletion::from((arg_count - 1) as u32));
-                        self.execution_context_stack[index].stack.push(arg0);
+                        let arg0 = ec.stack.remove(stack_len - arg_count - 1);
+                        ec.stack[stack_len - 2] = Ok(NormalCompletion::from((arg_count - 1) as u32));
+                        ec.stack.push(arg0);
                     }
                 }
                 Insn::FinishArgs => {
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
                     // Stack: N arg[N-1] ... arg[0]
                     // Out:
                     // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
                     let arg_count = f64::try_from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index]
-                                .stack
+                            ec.stack
                                 .pop()
                                 .expect("FinishArgs must have a 'count' argument")
                                 .expect("FinishArgs must have a 'count' argument"),
@@ -970,45 +997,45 @@ impl Agent {
                         .expect("FinishArgs must have a 'count' argument"),
                     )
                     .expect("FinishArgs 'count' arg must be a number");
-                    let to_retain = self.execution_context_stack[index].stack.len() - arg_count as usize;
-                    self.execution_context_stack[index].stack.truncate(to_retain);
+                    let to_retain = ec.stack.len() - arg_count as usize;
+                    ec.stack.truncate(to_retain);
                 }
                 Insn::Object => {
                     let obj_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
                     let o = ordinary_object_create(self, Some(obj_proto), &[]);
-                    self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
                 }
                 Insn::CreateDataProperty => {
-                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
-                    let nc_name = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_value = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
+                    let nc_name = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let name = PropertyKey::try_from(nc_name).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
                     create_data_property_or_throw(self, &obj, name, value).unwrap();
-                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
                 }
                 Insn::SetPrototype => {
-                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_value = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
                     let val_obj_res: anyhow::Result<Option<Object>> = value.try_into();
                     if let Ok(new_proto) = val_obj_res {
                         obj.o.set_prototype_of(self, new_proto).unwrap();
                     }
-                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
                 }
                 Insn::ToPropertyKey => {
-                    let nc_name = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_name = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let value_name = ECMAScriptValue::try_from(nc_name).unwrap();
                     let key = to_property_key(self, value_name);
                     let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
-                    self.execution_context_stack[index].stack.push(fc);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
                 Insn::CopyDataProps => {
-                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_value = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
                     let result = copy_data_properties(self, &obj, value, &[]);
@@ -1016,81 +1043,86 @@ impl Agent {
                         Ok(_) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
                     };
-                    self.execution_context_stack[index].stack.push(fc);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
                 Insn::Dup => {
-                    let idx = self.execution_context_stack[index].stack.len() - 1;
-                    let fc = self.execution_context_stack[index].stack[idx].clone();
-                    self.execution_context_stack[index].stack.push(fc);
+                    let idx = self.0.execution_context_stack.borrow()[index].stack.len() - 1;
+                    let fc = self.0.execution_context_stack.borrow()[index].stack[idx].clone();
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
                 Insn::ToNumeric => {
-                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_val = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let val: ECMAScriptValue = nc_val.try_into().unwrap();
                     let result = to_numeric(self, val).map(NormalCompletion::from);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Increment => {
-                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_val = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let num: Numeric = nc_val.try_into().unwrap();
                     let result_val: ECMAScriptValue = match num {
                         Numeric::Number(n) => (n + 1.0).into(),
                         Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi + 1)),
                     };
                     let fc = Ok(NormalCompletion::from(result_val));
-                    self.execution_context_stack[index].stack.push(fc);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
                 Insn::Decrement => {
-                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_val = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let num: Numeric = nc_val.try_into().unwrap();
                     let result_val: ECMAScriptValue = match num {
                         Numeric::Number(n) => (n - 1.0).into(),
                         Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi - 1)),
                     };
                     let fc = Ok(NormalCompletion::from(result_val));
-                    self.execution_context_stack[index].stack.push(fc);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
                 Insn::PreIncrement => {
-                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let fc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = self.prefix_increment(fc);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::PreDecrement => {
-                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let fc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = self.prefix_decrement(fc);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Delete => {
-                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let fc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = self.delete_ref(fc);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Void => {
-                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let fc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = self.void_operator(fc);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::TypeOf => {
-                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let fc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = self.typeof_operator(fc);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Unwind => {
-                    let vals_to_remove = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
-                    assert!(vals_to_remove < self.execution_context_stack[index].stack.len());
+                    let vals_to_remove =
+                        chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
+                    assert!(vals_to_remove < self.0.execution_context_stack.borrow()[index].stack.len());
                     if vals_to_remove > 0 {
-                        let old_index_of_err = self.execution_context_stack[index].stack.len() - 1;
+                        let old_index_of_err = self.0.execution_context_stack.borrow()[index].stack.len() - 1;
                         let new_index_of_err = old_index_of_err - vals_to_remove;
-                        self.execution_context_stack[index].stack.swap(new_index_of_err, old_index_of_err);
-                        self.execution_context_stack[index].stack.truncate(new_index_of_err + 1);
+                        self.0.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .swap(new_index_of_err, old_index_of_err);
+                        self.0.execution_context_stack.borrow_mut()[index].stack.truncate(new_index_of_err + 1);
                     }
                 }
                 Insn::UnwindList => {
-                    let err_to_keep =
-                        self.execution_context_stack[index].stack.pop().expect("UnwindList has two stack args");
+                    let err_to_keep = self.0.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .pop()
+                        .expect("UnwindList has two stack args");
                     let vals_to_remove = f64::try_from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index]
+                            self.0.execution_context_stack.borrow_mut()[index]
                                 .stack
                                 .pop()
                                 .expect("UnwindList has a stack argument")
@@ -1100,39 +1132,42 @@ impl Agent {
                     )
                     .expect("UnwindList expects a number") as usize;
                     if vals_to_remove > 0 {
-                        let old_stack_size = self.execution_context_stack[index].stack.len();
+                        let old_stack_size = self.0.execution_context_stack.borrow()[index].stack.len();
                         assert!(vals_to_remove <= old_stack_size);
                         let new_stack_size = old_stack_size - vals_to_remove;
-                        self.execution_context_stack[index].stack.truncate(new_stack_size);
+                        self.0.execution_context_stack.borrow_mut()[index].stack.truncate(new_stack_size);
                     }
-                    self.execution_context_stack[index].stack.push(err_to_keep);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(err_to_keep);
                 }
                 Insn::Call => {
-                    let arg_count_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let arg_count_nc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
                     let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
                     let mut arguments = Vec::with_capacity(arg_count);
                     for _ in 1..=arg_count {
                         let nc = ECMAScriptValue::try_from(
-                            self.execution_context_stack[index].stack.pop().unwrap().unwrap(),
+                            self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
                         )
                         .unwrap();
                         arguments.push(nc);
                     }
                     arguments.reverse();
-                    let func_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let func_nc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
-                    let ref_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let ref_nc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
 
                     self.begin_call_evaluation(func_val, ref_nc, &arguments);
                 }
                 Insn::EndFunction => {
-                    let stack_len = self.execution_context_stack[index].stack.len();
+                    let stack_len = self.0.execution_context_stack.borrow()[index].stack.len();
                     assert!(stack_len >= 2);
-                    let result = self.execution_context_stack[index].stack.pop().expect("Stack is at least 2 elements");
+                    let result = self.0.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .pop()
+                        .expect("Stack is at least 2 elements");
                     let f_obj = Object::try_from(
                         ECMAScriptValue::try_from(
-                            self.execution_context_stack[index]
+                            self.0.execution_context_stack.borrow_mut()[index]
                                 .stack
                                 .pop()
                                 .expect("Stack is at least 2 elements")
@@ -1146,22 +1181,23 @@ impl Agent {
                 }
                 Insn::Construct => {
                     // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
-                    let arg_count_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let arg_count_nc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
                     let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
                     let mut arguments = Vec::with_capacity(arg_count);
                     for _ in 1..=arg_count {
                         let nc = ECMAScriptValue::try_from(
-                            self.execution_context_stack[index].stack.pop().unwrap().unwrap(),
+                            self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
                         )
                         .unwrap();
                         arguments.push(nc);
                     }
                     arguments.reverse();
-                    let newtgt =
-                        ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap())
-                            .expect("new target must be value");
-                    let cstr_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let newtgt = ECMAScriptValue::try_from(
+                        self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
+                    )
+                    .expect("new target must be value");
+                    let cstr_nc = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let cstr_val = ECMAScriptValue::try_from(cstr_nc).unwrap();
 
                     self.begin_constructor_evaluation(cstr_val, newtgt, &arguments);
@@ -1185,16 +1221,16 @@ impl Agent {
                     self.ec_push(Err(AbruptCompletion::Return { value }));
                 }
                 Insn::UnaryPlus => {
-                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let exp = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let val = get_value(self, exp);
                     let result = match val {
                         Ok(ev) => to_number(self, ev).map(NormalCompletion::from),
                         Err(ac) => Err(ac),
                     };
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::UnaryMinus => {
-                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let exp = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let val = get_value(self, exp);
                     let old_val = match val {
                         Ok(val) => to_numeric(self, val),
@@ -1205,10 +1241,10 @@ impl Agent {
                         Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(-n)),
                         Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(-&*bi))),
                     };
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::UnaryComplement => {
-                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let exp = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let val = get_value(self, exp);
                     let old_val = match val {
                         Ok(val) => to_numeric(self, val),
@@ -1219,16 +1255,16 @@ impl Agent {
                         Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32(self, n).unwrap())),
                         Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(!&*bi))),
                     };
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::UnaryNot => {
-                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let exp = self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let val = get_value(self, exp);
                     let result = match val {
                         Ok(val) => Ok(NormalCompletion::from(!to_boolean(val))),
                         Err(ac) => Err(ac),
                     };
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Exponentiate => self.binary_operation(index, BinOp::Exponentiate),
                 Insn::Multiply => self.binary_operation(index, BinOp::Multiply),
@@ -1238,30 +1274,30 @@ impl Agent {
                 Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
 
                 Insn::InstantiateIdFreeFunctionExpression => {
-                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let id = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     self.instantiate_ordinary_function_expression_without_binding_id(index, text, info)
                 }
                 Insn::InstantiateOrdinaryFunctionExpression => {
-                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let id = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     self.instantiate_ordinary_function_expression_with_binding_id(index, text, info)
                 }
 
                 Insn::InstantiateArrowFunctionExpression => {
-                    let id = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let id = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     self.instantiate_arrow_function_expression(Some(index), text, info)
                 }
                 Insn::InstantiateOrdinaryFunctionObject => {
-                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let string_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
-                    let func_index = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let func_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[func_index as usize];
                     self.instantiate_ordinary_function_object(Some(index), text, string, info)
                 }
@@ -1270,43 +1306,45 @@ impl Agent {
                 Insn::UnsignedRightShift => self.binary_operation(index, BinOp::UnsignedRightShift),
                 Insn::Throw => {
                     // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
-                    let exp: ECMAScriptValue = self.execution_context_stack[index]
+                    let exp: ECMAScriptValue = self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .pop()
                         .expect("Throw requires an argument")
                         .expect("Throw requires a NormalCompletion")
                         .try_into()
                         .expect("Throw requires a value");
-                    self.execution_context_stack[index].stack.push(Err(AbruptCompletion::Throw { value: exp }));
+                    self.0.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .push(Err(AbruptCompletion::Throw { value: exp }));
                 }
                 Insn::Less => {
                     let (lval, rval) = self.two_values(index);
                     let result =
                         self.is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Greater => {
                     let (lval, rval) = self.two_values(index);
                     let result =
                         self.is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::LessEqual => {
                     let (lval, rval) = self.two_values(index);
                     let result =
                         self.is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::GreaterEqual => {
                     let (lval, rval) = self.two_values(index);
                     let result =
                         self.is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::InstanceOf => {
                     let (lval, rval) = self.two_values(index);
                     let result = self.instanceof_operator(lval, rval);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::In => {
                     let (lval, rval) = self.two_values(index);
@@ -1317,27 +1355,27 @@ impl Agent {
                         }
                         _ => Err(create_type_error(self, "Right-hand side of 'in' must be an object")),
                     };
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Equal => {
                     let (lval, rval) = self.two_values(index);
                     let result = self.is_loosely_equal(&lval, &rval).map(NormalCompletion::from);
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::NotEqual => {
                     let (lval, rval) = self.two_values(index);
                     let result = self.is_loosely_equal(&lval, &rval).map(|val| NormalCompletion::from(!val));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::StrictEqual => {
                     let (lval, rval) = self.two_values(index);
                     let result = Ok(NormalCompletion::from(lval.is_strictly_equal(&rval)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::StrictNotEqual => {
                     let (lval, rval) = self.two_values(index);
                     let result = Ok(NormalCompletion::from(!lval.is_strictly_equal(&rval)));
-                    self.execution_context_stack[index].stack.push(result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::BitwiseAnd => self.binary_operation(index, BinOp::BitwiseAnd),
                 Insn::BitwiseOr => self.binary_operation(index, BinOp::BitwiseOr),
@@ -1345,16 +1383,19 @@ impl Agent {
                 Insn::CreateUnmappedArguments => self.create_unmapped_arguments_object(index),
                 Insn::CreateMappedArguments => self.create_mapped_arguments_object(index),
                 Insn::AddMappedArgument => {
-                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
-                    self.execution_context_stack[index].pc += 1;
+                    let string_index = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
-                    let argument_index = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let argument_index =
+                        chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     self.attach_mapped_arg(index, string, argument_index);
                 }
                 Insn::HandleEmptyBreak => {
-                    let prior_result =
-                        self.execution_context_stack[index].stack.pop().expect("HandleEmptyBreak requires an argument");
+                    let prior_result = self.0.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .pop()
+                        .expect("HandleEmptyBreak requires an argument");
                     let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
                         match value {
                             NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
@@ -1363,13 +1404,13 @@ impl Agent {
                     } else {
                         prior_result
                     };
-                    self.execution_context_stack[index].stack.push(new_result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(new_result);
                 }
                 Insn::HandleTargetedBreak => {
-                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let str_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = &chunk.strings[str_idx];
-                    let prior_result = self.execution_context_stack[index]
+                    let prior_result = self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .pop()
                         .expect("HandleTargetedBreak requires an argument");
@@ -1377,22 +1418,24 @@ impl Agent {
                         Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
                         _ => prior_result,
                     };
-                    self.execution_context_stack[index].stack.push(new_result);
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(new_result);
                 }
                 Insn::CoalesceValue => {
                     // Stack: stmtResult V ...
                     // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
-                    let stmt_result =
-                        self.execution_context_stack[index].stack.pop().expect("CoalesceValue requires two arguments");
+                    let stmt_result = self.0.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .pop()
+                        .expect("CoalesceValue requires two arguments");
                     let v = ECMAScriptValue::try_from(
-                        self.execution_context_stack[index]
+                        self.0.execution_context_stack.borrow_mut()[index]
                             .stack
                             .pop()
                             .expect("CoalesceValue requires two arguments")
                             .expect("argument V must be  normal completion"),
                     )
                     .expect("argument V must be a value");
-                    self.execution_context_stack[index].stack.push(Ok(match stmt_result {
+                    self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(match stmt_result {
                         Ok(NormalCompletion::Value(value))
                         | Err(AbruptCompletion::Throw { value })
                         | Err(AbruptCompletion::Return { value })
@@ -1404,54 +1447,55 @@ impl Agent {
                     }));
                 }
                 Insn::LoopContinues => {
-                    let set_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let ec = &mut self.0.execution_context_stack.borrow_mut()[index];
+                    let set_idx = chunk.opcodes[ec.pc as usize] as usize;
+                    ec.pc += 1;
                     let label_set = &chunk.label_sets[set_idx];
                     // 1. If completion.[[Type]] is normal, return true.
                     // 2. If completion.[[Type]] is not continue, return false.
                     // 3. If completion.[[Target]] is empty, return true.
                     // 4. If completion.[[Target]] is an element of labelSet, return true.
                     // 5. Return false.
-                    let idx = self.execution_context_stack[index].stack.len() - 1;
-                    let completion = &self.execution_context_stack[index].stack[idx];
+                    let idx = ec.stack.len() - 1;
+                    let completion = &ec.stack[idx];
                     let result = match completion {
                         Ok(_) => true,
                         Err(AbruptCompletion::Continue { value: _, target: None }) => true,
                         Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
                         _ => false,
                     };
-                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(result)));
+                    ec.stack.push(Ok(NormalCompletion::from(result)));
                 }
                 Insn::Continue => {
-                    self.execution_context_stack[index]
+                    self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }));
                 }
                 Insn::TargetedContinue => {
-                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let str_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = chunk.strings[str_idx].clone();
-                    self.execution_context_stack[index]
+                    self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }));
                 }
                 Insn::Break => {
-                    self.execution_context_stack[index]
+                    self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }));
                 }
                 Insn::TargetedBreak => {
-                    let str_idx = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
-                    self.execution_context_stack[index].pc += 1;
+                    let str_idx = chunk.opcodes[self.0.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    self.0.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = chunk.strings[str_idx].clone();
-                    self.execution_context_stack[index]
+                    self.0.execution_context_stack.borrow_mut()[index]
                         .stack
                         .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }));
                 }
             }
         }
-        let index = self.execution_context_stack.len() - 1;
-        self.execution_context_stack[index]
+        let index = self.0.execution_context_stack.borrow().len() - 1;
+        self.0.execution_context_stack.borrow_mut()[index]
             .stack
             .pop()
             .map(|svr| {
@@ -1464,12 +1508,7 @@ impl Agent {
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
     }
 
-    fn begin_call_evaluation(
-        &mut self,
-        func: ECMAScriptValue,
-        reference: NormalCompletion,
-        arguments: &[ECMAScriptValue],
-    ) {
+    fn begin_call_evaluation(&self, func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) {
         let this_value = match &reference {
             NormalCompletion::Empty | NormalCompletion::Environment(..) => unreachable!(),
             NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
@@ -1494,19 +1533,14 @@ impl Agent {
         initiate_call(self, &func, &this_value, arguments);
     }
 
-    fn begin_constructor_evaluation(
-        &mut self,
-        cstr: ECMAScriptValue,
-        newtgt: ECMAScriptValue,
-        args: &[ECMAScriptValue],
-    ) {
+    fn begin_constructor_evaluation(&self, cstr: ECMAScriptValue, newtgt: ECMAScriptValue, args: &[ECMAScriptValue]) {
         assert!(is_constructor(&cstr));
         let cstr = Object::try_from(cstr).expect("Must be a constructor");
         let newtgt = Object::try_from(newtgt).expect("Must be an object");
         initiate_construct(self, &cstr, args, Some(&newtgt));
     }
 
-    fn prefix_increment(&mut self, expr: FullCompletion) -> FullCompletion {
+    fn prefix_increment(&self, expr: FullCompletion) -> FullCompletion {
         let value = get_value(self, expr.clone())?;
         let old_value = to_numeric(self, value)?;
         let new_value: ECMAScriptValue = match old_value {
@@ -1517,7 +1551,7 @@ impl Agent {
         Ok(NormalCompletion::from(new_value))
     }
 
-    fn prefix_decrement(&mut self, expr: FullCompletion) -> FullCompletion {
+    fn prefix_decrement(&self, expr: FullCompletion) -> FullCompletion {
         let value = get_value(self, expr.clone())?;
         let old_value = to_numeric(self, value)?;
         let new_value: ECMAScriptValue = match old_value {
@@ -1528,7 +1562,7 @@ impl Agent {
         Ok(NormalCompletion::from(new_value))
     }
 
-    fn delete_ref(&mut self, expr: FullCompletion) -> FullCompletion {
+    fn delete_ref(&self, expr: FullCompletion) -> FullCompletion {
         let reference = expr?;
         match reference {
             NormalCompletion::Environment(..) => unreachable!(),
@@ -1560,12 +1594,12 @@ impl Agent {
         }
     }
 
-    fn void_operator(&mut self, expr: FullCompletion) -> FullCompletion {
+    fn void_operator(&self, expr: FullCompletion) -> FullCompletion {
         get_value(self, expr)?;
         Ok(ECMAScriptValue::Undefined.into())
     }
 
-    fn typeof_operator(&mut self, expr: FullCompletion) -> FullCompletion {
+    fn typeof_operator(&self, expr: FullCompletion) -> FullCompletion {
         if let Ok(NormalCompletion::Reference(r)) = &expr {
             if r.is_unresolvable_reference() {
                 return Ok(NormalCompletion::from("undefined"));
@@ -1592,9 +1626,9 @@ impl Agent {
         Ok(NormalCompletion::from(type_string))
     }
 
-    fn two_values(&mut self, index: usize) -> (ECMAScriptValue, ECMAScriptValue) {
+    fn two_values(&self, index: usize) -> (ECMAScriptValue, ECMAScriptValue) {
         let (right, left) = {
-            let stack = &mut self.execution_context_stack[index].stack;
+            let stack = &mut self.0.execution_context_stack.borrow_mut()[index].stack;
             (stack.pop(), stack.pop())
         };
         let rval: ECMAScriptValue = right
@@ -1610,14 +1644,14 @@ impl Agent {
         (lval, rval)
     }
 
-    fn binary_operation(&mut self, index: usize, op: BinOp) {
+    fn binary_operation(&self, index: usize, op: BinOp) {
         let (lval, rval) = self.two_values(index);
         let result = self.apply_string_or_numeric_binary_operator(lval, rval, op);
-        self.execution_context_stack[index].stack.push(result);
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(result);
     }
 
     fn apply_string_or_numeric_binary_operator(
-        &mut self,
+        &self,
         lval: ECMAScriptValue,
         rval: ECMAScriptValue,
         op: BinOp,
@@ -1736,7 +1770,7 @@ impl Agent {
     }
 
     fn instantiate_ordinary_function_expression_without_binding_id(
-        &mut self,
+        &self,
         index: usize,
         text: &str,
         info: &StashedFunctionData,
@@ -1762,8 +1796,9 @@ impl Agent {
         let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
-            let l = self.execution_context_stack[index].stack.len();
-            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            let stack = &mut self.0.execution_context_stack.borrow_mut()[index].stack;
+            let l = stack.len();
+            stack[l - 1] = Err(typeerror); // pop then push
             return;
         }
         for line in compiled.disassemble() {
@@ -1780,7 +1815,7 @@ impl Agent {
 
         let name = PropertyKey::try_from(
             ECMAScriptValue::try_from(
-                self.execution_context_stack[index]
+                self.0.execution_context_stack.borrow_mut()[index]
                     .stack
                     .pop()
                     .expect("Insn only used with argument on stack")
@@ -1808,11 +1843,11 @@ impl Agent {
         set_function_name(self, &closure, name.into(), None);
         make_constructor(self, &closure, None);
 
-        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into()));
     }
 
     fn instantiate_ordinary_function_expression_with_binding_id(
-        &mut self,
+        &self,
         index: usize,
         text: &str,
         info: &StashedFunctionData,
@@ -1849,8 +1884,10 @@ impl Agent {
         let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
-            let l = self.execution_context_stack[index].stack.len();
-            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+            let stack = &mut execution_context_stack[index].stack;
+            let l = stack.len();
+            stack[l - 1] = Err(typeerror); // pop then push
             return;
         }
         for line in compiled.disassemble() {
@@ -1859,7 +1896,7 @@ impl Agent {
 
         let name = JSString::try_from(
             ECMAScriptValue::try_from(
-                self.execution_context_stack[index]
+                self.0.execution_context_stack.borrow_mut()[index]
                     .stack
                     .pop()
                     .expect("Insn only used with argument on stack")
@@ -1893,21 +1930,17 @@ impl Agent {
         make_constructor(self, &closure, None);
         func_env.initialize_binding(self, &name, closure.clone().into()).expect("binding has been created");
 
-        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into()));
     }
 
-    pub fn instantiate_arrow_function_expression(
-        &mut self,
-        index: Option<usize>,
-        text: &str,
-        info: &StashedFunctionData,
-    ) {
-        let index = index.unwrap_or(self.execution_context_stack.len() - 1);
+    pub fn instantiate_arrow_function_expression(&self, index: Option<usize>, text: &str, info: &StashedFunctionData) {
+        let index = index.unwrap_or(self.0.execution_context_stack.borrow().len() - 1);
         let env = self.current_lexical_environment().unwrap();
         let priv_env = self.current_private_environment();
 
         let name = JSString::try_from(
-            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap(),
+            ECMAScriptValue::try_from(self.0.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
+                .unwrap(),
         )
         .unwrap();
 
@@ -1918,8 +1951,9 @@ impl Agent {
         let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
-            let l = self.execution_context_stack[index].stack.len();
-            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+            let l = execution_context_stack[index].stack.len();
+            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
             return;
         }
         for line in compiled.disassemble() {
@@ -1942,17 +1976,17 @@ impl Agent {
         );
         set_function_name(self, &closure, name.into(), None);
 
-        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into()));
     }
 
     pub fn instantiate_ordinary_function_object(
-        &mut self,
+        &self,
         index: Option<usize>,
         text: &str,
         name: &JSString,
         info: &StashedFunctionData,
     ) {
-        let index = index.unwrap_or(self.execution_context_stack.len() - 1);
+        let index = index.unwrap_or(self.0.execution_context_stack.borrow().len() - 1);
         let to_compile: Rc<FunctionDeclaration> =
             info.to_compile.clone().try_into().expect("This routine only used with Function Declarations");
         let chunk_name = nameify(&info.source_text, 50);
@@ -1960,8 +1994,9 @@ impl Agent {
         let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(self, err.to_string());
-            let l = self.execution_context_stack[index].stack.len();
-            self.execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+            let mut execution_context_stack = self.0.execution_context_stack.borrow_mut();
+            let l = execution_context_stack[index].stack.len();
+            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
             return;
         }
         for line in compiled.disassemble() {
@@ -1987,10 +2022,10 @@ impl Agent {
         set_function_name(self, &closure, name.clone().into(), None);
         make_constructor(self, &closure, None);
 
-        self.execution_context_stack[index].stack.push(Ok(closure.into()));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into()));
     }
 
-    fn is_less_than(&mut self, x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
+    fn is_less_than(&self, x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
         let (px, py) = if left_first {
             let px = to_primitive(self, x, None)?;
             let py = to_primitive(self, y, None)?;
@@ -2059,7 +2094,7 @@ impl Agent {
         }
     }
 
-    fn instanceof_operator(&mut self, v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompletion {
+    fn instanceof_operator(&self, v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompletion {
         // InstanceofOperator ( V, target )
         //
         // The abstract operation InstanceofOperator takes arguments V (an ECMAScript language value) and target (an
@@ -2101,15 +2136,17 @@ impl Agent {
         }
     }
 
-    pub fn create_unmapped_arguments_object(&mut self, index: usize) {
+    pub fn create_unmapped_arguments_object(&self, index: usize) {
         // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
         // Those values are NOT consumed; this function assumes they'll be used again.
 
-        let stack_len = self.execution_context_stack[index].stack.len();
+        let stack_len = self.0.execution_context_stack.borrow()[index].stack.len();
         assert!(stack_len > 0, "Stack must not be empty");
         let length = f64::try_from(
             ECMAScriptValue::try_from(
-                self.execution_context_stack[index].stack[stack_len - 1].clone().expect("Non-error arguments needed"),
+                self.0.execution_context_stack.borrow()[index].stack[stack_len - 1]
+                    .clone()
+                    .expect("Non-error arguments needed"),
             )
             .expect("Value arguments needed"),
         )
@@ -2126,8 +2163,9 @@ impl Agent {
         .expect("Normal Object");
 
         let first_arg_index = stack_len - length as usize - 1;
-        let arguments =
-            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
+        let arguments = self.0.execution_context_stack.borrow()[index].stack
+            [first_arg_index..first_arg_index + length as usize]
+            .to_vec();
 
         for (arg_number, item) in arguments.into_iter().enumerate() {
             let value =
@@ -2157,18 +2195,20 @@ impl Agent {
         )
         .expect("Normal Object");
 
-        self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
         // Stack at exit: AObj N arg[N-1] ... arg[0] ...
     }
 
-    pub fn create_mapped_arguments_object(&mut self, index: usize) {
+    pub fn create_mapped_arguments_object(&self, index: usize) {
         // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
 
-        let stack_len = self.execution_context_stack[index].stack.len();
+        let stack_len = self.0.execution_context_stack.borrow()[index].stack.len();
         assert!(stack_len > 0, "Stack must not be empty");
         let length = f64::try_from(
             ECMAScriptValue::try_from(
-                self.execution_context_stack[index].stack[stack_len - 1].clone().expect("Non-error arguments needed"),
+                self.0.execution_context_stack.borrow()[index].stack[stack_len - 1]
+                    .clone()
+                    .expect("Non-error arguments needed"),
             )
             .expect("Value arguments needed"),
         )
@@ -2176,8 +2216,9 @@ impl Agent {
         assert!(stack_len > length as usize + 1, "Stack too short to fit all the arguments plus the function obj");
 
         let first_arg_index = stack_len - length as usize - 1;
-        let arguments =
-            self.execution_context_stack[index].stack[first_arg_index..first_arg_index + length as usize].to_vec();
+        let arguments = self.0.execution_context_stack.borrow()[index].stack
+            [first_arg_index..first_arg_index + length as usize]
+            .to_vec();
 
         let env = self.current_lexical_environment().expect("A lex env must exist");
         let map = ParameterMap::new(env);
@@ -2206,7 +2247,9 @@ impl Agent {
         )
         .expect("ArgumentObject won't throw");
         let func = ECMAScriptValue::try_from(
-            self.execution_context_stack[index].stack[first_arg_index - 1].clone().expect("Function object type error"),
+            self.0.execution_context_stack.borrow()[index].stack[first_arg_index - 1]
+                .clone()
+                .expect("Function object type error"),
         )
         .expect("Function object type error");
         define_property_or_throw(
@@ -2217,17 +2260,19 @@ impl Agent {
         )
         .expect("ArgumentObject won't throw");
 
-        self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(ao)));
+        self.0.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ao)));
         // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
     }
 
-    pub fn attach_mapped_arg(&mut self, index: usize, name: &JSString, idx: usize) {
+    pub fn attach_mapped_arg(&self, index: usize, name: &JSString, idx: usize) {
         // Stack: AObj ...
-        let top = self.execution_context_stack[index].stack.len();
+        let top = self.0.execution_context_stack.borrow()[index].stack.len();
         assert!(top > 0, "stack must not be empty");
         let obj = Object::try_from(
             ECMAScriptValue::try_from(
-                self.execution_context_stack[index].stack[top - 1].clone().expect("arguments must be values"),
+                self.0.execution_context_stack.borrow()[index].stack[top - 1]
+                    .clone()
+                    .expect("arguments must be values"),
             )
             .expect("arguments must be values"),
         )
@@ -2349,11 +2394,7 @@ pub struct WellKnownSymbols {
     pub unscopables_: Symbol,
 }
 
-pub fn parse_script(
-    agent: &mut Agent,
-    source_text: &str,
-    realm: Rc<RefCell<Realm>>,
-) -> Result<ScriptRecord, Vec<Object>> {
+pub fn parse_script(agent: &Agent, source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
     let script = parse_text(agent, source_text, ParseGoal::Script);
     match script {
         ParsedText::Errors(errs) => Err(errs),
@@ -2425,7 +2466,7 @@ impl FcnDef {
     }
     pub fn instantiate_function_object(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
@@ -2467,7 +2508,7 @@ impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
 }
 
 pub fn global_declaration_instantiation(
-    agent: &mut Agent,
+    agent: &Agent,
     script: Rc<Script>,
     env: Rc<GlobalEnvironmentRecord>,
     strict: bool,
@@ -2563,7 +2604,7 @@ pub fn global_declaration_instantiation(
     Ok(())
 }
 
-pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMAScriptValue> {
+pub fn script_evaluation(agent: &Agent, sr: ScriptRecord) -> Completion<ECMAScriptValue> {
     let global_env = sr.realm.borrow().global_env.clone();
     let mut script_context =
         ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
@@ -2616,7 +2657,7 @@ impl fmt::Display for ProcessError {
     }
 }
 
-pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
+pub fn process_ecmascript(agent: &Agent, source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
     let realm = agent.current_realm_record().unwrap();
     let x = parse_script(agent, source_text, realm).map_err(|errs| ProcessError::CompileErrors { values: errs })?;
 

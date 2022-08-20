@@ -242,13 +242,13 @@ mod if_statement {
     #[test_case("if (a) alpha; else b: function f(){}", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (in else clause)")]
     #[test_case("if (a) b: function f(){} else c;", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled fucntion (in then clause)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
         IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+            .early_errors(&agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("if(arguments);else;" => true; "trinary (left)")]

@@ -120,10 +120,10 @@ mod switch_statement {
     #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => sset(&[B_ALREADY]); "duplicate lexicals")]
     #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => sset(&[B_DUPLEX]); "lex/var dups")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).switch_statement().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).switch_statement().early_errors(&agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("switch(arguments){}" => true; "left")]
@@ -386,10 +386,10 @@ mod case_block {
     #[test_case("{ case package:; default: implements;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
     #[test_case("{ default:package; case implements:;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_block().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_block().early_errors(&agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("{ }" => Vec::<String>::new(); "empty")]
@@ -554,10 +554,10 @@ mod case_clauses {
     #[test_case("case implements: package; continue; case interface: break;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
     #[test_case("case implements: package; continue; case interface: break;", false, true => sset(&[]); "not strict; in iter; list")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clauses().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_clauses().early_errors(&agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("case 0: let a;" => vec!["a"]; "single")]
@@ -692,10 +692,10 @@ mod case_clause {
     #[test_case("case implements: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
     #[test_case("case implements: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clause().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_clause().early_errors(&agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
@@ -820,10 +820,10 @@ mod default_clause {
     #[test_case("default: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
     #[test_case("default: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).default_clause().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).default_clause().early_errors(&agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("default:" => Vec::<String>::new(); "no statements")]

@@ -36,7 +36,7 @@ impl ObjectInterface for NumberObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -46,7 +46,7 @@ impl ObjectInterface for NumberObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -56,7 +56,7 @@ impl ObjectInterface for NumberObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -66,7 +66,7 @@ impl ObjectInterface for NumberObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
+    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -76,7 +76,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -88,7 +88,7 @@ impl ObjectInterface for NumberObject {
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         key: PropertyKey,
         desc: PotentialPropertyDescriptor,
     ) -> Completion<bool> {
@@ -101,7 +101,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
@@ -111,7 +111,7 @@ impl ObjectInterface for NumberObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
 
@@ -121,13 +121,7 @@ impl ObjectInterface for NumberObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(
-        &self,
-        agent: &mut Agent,
-        key: PropertyKey,
-        v: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -137,7 +131,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
 
@@ -147,7 +141,7 @@ impl ObjectInterface for NumberObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -159,7 +153,7 @@ impl NumberObjectInterface for NumberObject {
 }
 
 impl NumberObject {
-    pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
+    pub fn object(agent: &Agent, prototype: Option<Object>) -> Object {
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(agent, prototype, true, NUMBER_OBJECT_SLOTS)),
@@ -169,7 +163,7 @@ impl NumberObject {
     }
 }
 
-pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
+pub fn provision_number_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -397,7 +391,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
 // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
 // 5. Set O.[[NumberData]] to n.
 // 6. Return O.
-pub fn create_number_object(agent: &mut Agent, n: f64) -> Object {
+pub fn create_number_object(agent: &Agent, n: f64) -> Object {
     let constructor = agent.intrinsic(IntrinsicId::Number);
     let o = ordinary_create_from_constructor(
         agent,
@@ -425,7 +419,7 @@ pub fn create_number_object(agent: &mut Agent, n: f64) -> Object {
 //      5. Set O.[[NumberData]] to n.
 //      6. Return O.
 fn number_constructor_function(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -465,7 +459,7 @@ fn number_constructor_function(
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
 fn number_is_finite(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -484,7 +478,7 @@ fn number_is_finite(
 //
 //      1. Return ! IsIntegralNumber(number).
 fn number_is_integer(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -505,7 +499,7 @@ fn number_is_integer(
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
 fn number_is_nan(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -526,7 +520,7 @@ fn number_is_nan(
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
 fn number_is_safe_integer(
-    _agent: &mut Agent,
+    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -550,7 +544,7 @@ fn number_is_safe_integer(
 //
 // The phrase “this Number value” within the specification of a method refers to the result returned by calling the
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
-fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> Completion<f64> {
+fn this_number_value(agent: &Agent, value: ECMAScriptValue) -> Completion<f64> {
     match value {
         ECMAScriptValue::Number(x) => Ok(x),
         ECMAScriptValue::Object(o) if o.o.is_number_object() => {
@@ -621,7 +615,7 @@ fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> Completion<f6
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
 fn number_prototype_to_exponential(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -731,7 +725,7 @@ fn number_prototype_to_exponential(
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
 fn number_prototype_to_fixed(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -807,7 +801,7 @@ fn number_prototype_to_fixed(
 // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
 // that do not include ECMA-402 support must not use those parameter positions for anything else.
 fn number_prototype_to_locale_string(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -864,7 +858,7 @@ fn number_prototype_to_locale_string(
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
 fn number_prototype_to_precision(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -1108,7 +1102,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
 //
 // The "length" property of the toString method is 1𝔽.
 fn number_prototype_to_string(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -1132,7 +1126,7 @@ fn number_prototype_to_string(
 // Number.prototype.valueOf ( )
 //  1. Return ? thisNumberValue(this value).
 fn number_prototype_value_of(
-    agent: &mut Agent,
+    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],

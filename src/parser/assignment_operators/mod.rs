@@ -413,7 +413,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentExpression :
         // LeftHandSideExpression AssignmentOperator AssignmentExpression
@@ -683,7 +683,7 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentPattern::Object(obj) => obj.early_errors(agent, errs, strict),
             AssignmentPattern::Array(ary) => ary.early_errors(agent, errs, strict),
@@ -878,7 +878,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ObjectAssignmentPattern::Empty { .. } => (),
             ObjectAssignmentPattern::RestOnly { arp, .. } => arp.early_errors(agent, errs, strict),
@@ -1128,7 +1128,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
             ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(agent, errs, strict),
@@ -1209,7 +1209,7 @@ impl AssignmentRestProperty {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
@@ -1331,7 +1331,7 @@ impl AssignmentPropertyList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentPropertyList::Item(item) => item.early_errors(agent, errs, strict),
             AssignmentPropertyList::List(list, item) => {
@@ -1449,7 +1449,7 @@ impl AssignmentElementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentElementList::Item(item) => item.early_errors(agent, errs, strict),
             AssignmentElementList::List(list, item) => {
@@ -1543,7 +1543,7 @@ impl AssignmentElisionElement {
         self.element.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(agent, errs, strict);
     }
 }
@@ -1675,7 +1675,7 @@ impl AssignmentProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentProperty : IdentifierReference Initializeropt
         //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
@@ -1799,7 +1799,7 @@ impl AssignmentElement {
         self.target.contains_arguments() || self.initializer.as_ref().map_or(false, |izer| izer.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.target.early_errors(agent, errs, strict);
         if let Some(izer) = &self.initializer {
             izer.early_errors(agent, errs, strict);
@@ -1874,7 +1874,7 @@ impl AssignmentRestElement {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(agent, errs, strict);
     }
 }
@@ -1974,7 +1974,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // DestructuringAssignmentTarget : LeftHandSideExpression
         //  * If LeftHandSideExpression is an ObjectLiteral or an ArrayLiteral, the following Early Error rules are applied:

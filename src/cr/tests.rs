@@ -52,8 +52,8 @@ mod normal_completion {
 
         #[test]
         fn object() {
-            let mut agent = test_agent();
-            let obj = ordinary_object_create(&mut agent, None, &[]);
+            let agent = test_agent();
+            let obj = ordinary_object_create(&agent, None, &[]);
             let nc = NormalCompletion::from(obj.clone());
 
             if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
@@ -113,8 +113,8 @@ mod normal_completion {
 
             #[test]
             fn actual() {
-                let mut agent = test_agent();
-                let obj = ordinary_object_create(&mut agent, None, &[]);
+                let agent = test_agent();
+                let obj = ordinary_object_create(&agent, None, &[]);
                 let val = ECMAScriptValue::from(obj.clone());
                 let nc = NormalCompletion::from(val);
                 let extracted: Object = nc.try_into().unwrap();

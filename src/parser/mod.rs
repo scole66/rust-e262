@@ -654,7 +654,7 @@ pub enum ParsedText {
     // ... more to come
 }
 
-pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
+pub fn parse_text(agent: &Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
     let mut parser = Parser::new(src, false, goal_symbol);
     match goal_symbol {
         ParseGoal::Script => {

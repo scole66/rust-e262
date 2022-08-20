@@ -259,7 +259,7 @@ impl TryStatement {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -429,7 +429,7 @@ impl Catch {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -574,7 +574,7 @@ impl Finally {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -702,7 +702,7 @@ impl CatchParameter {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CatchParameter::Ident(id) => id.early_errors(agent, errs, strict),
             CatchParameter::Pattern(pat) => pat.early_errors(agent, errs, strict),

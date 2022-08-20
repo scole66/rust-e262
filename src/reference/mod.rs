@@ -243,7 +243,7 @@ impl Reference {
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
 //          object.
-pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
+pub fn get_value(agent: &Agent, v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
     let v = v_completion?;
     match v {
         NormalCompletion::Value(val) => Ok(val),
@@ -295,7 +295,7 @@ pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
 pub fn put_value(
-    agent: &mut Agent,
+    agent: &Agent,
     v_completion: FullCompletion,
     w_completion: Completion<ECMAScriptValue>,
 ) -> Completion<()> {
@@ -350,7 +350,7 @@ pub fn put_value(
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
 pub fn initialize_referenced_binding(
-    agent: &mut Agent,
+    agent: &Agent,
     v_completion: FullCompletion,
     w_completion: Completion<ECMAScriptValue>,
 ) -> Completion<()> {

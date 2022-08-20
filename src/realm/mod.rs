@@ -132,7 +132,7 @@ pub struct Intrinsics {
 }
 
 impl Intrinsics {
-    fn new(agent: &mut Agent) -> Self {
+    fn new(agent: &Agent) -> Self {
         // Since an intrinsics struct needs to be populated in a particular order and then fixed up, RAII doesn't work
         // so grand. Therefore, a "dead object" is placed in each field instead. This quickly gives us an initialized
         // struct, and also generates run-time panics if any "un-initialized" members are actually used. (Option<Object>
@@ -303,7 +303,7 @@ pub struct Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm(agent: &mut Agent) -> Rc<RefCell<Realm>> {
+pub fn create_realm(agent: &Agent) -> Rc<RefCell<Realm>> {
     let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(agent), global_object: None, global_env: None }));
     create_intrinsics(agent, r.clone());
     r
@@ -327,7 +327,7 @@ pub fn create_realm(agent: &mut Agent) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
+pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
@@ -397,7 +397,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     agent.provision_iterator_prototype(&realm_rec);
     agent.provision_generator_function_intrinsics(&realm_rec);
 
-    add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
+    add_restricted_function_properties(agent, &function_prototype, realm_rec);
 }
 
 // From function objects...
@@ -412,7 +412,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
+pub fn add_restricted_function_properties(agent: &Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
         agent,
@@ -449,7 +449,7 @@ pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: 
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
 pub fn throw_type_error(
-    agent: &mut Agent,
+    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -457,7 +457,7 @@ pub fn throw_type_error(
     Err(create_type_error(agent, "Generic TypeError"))
 }
 
-fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> Object {
+fn create_throw_type_error_builtin(agent: &Agent, realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(
         agent,

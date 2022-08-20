@@ -75,8 +75,8 @@ fn intrinsic_id_clone() {
 
 #[test]
 fn intrinsics_debug() {
-    let mut agent = test_agent();
-    assert_ne!(format!("{:?}", Intrinsics::new(&mut agent)), "")
+    let agent = test_agent();
+    assert_ne!(format!("{:?}", Intrinsics::new(&agent)), "")
 }
 
 #[test]
@@ -134,8 +134,8 @@ fn realm_debug() {
 
 #[test]
 fn throw_type_error_test() {
-    let mut agent = test_agent();
-    let err = throw_type_error(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap_err();
-    let msg = unwind_type_error(&mut agent, err);
+    let agent = test_agent();
+    let err = throw_type_error(&agent, ECMAScriptValue::Undefined, None, &[]).unwrap_err();
+    let msg = unwind_type_error(&agent, err);
     assert_eq!(msg, "Generic TypeError");
 }

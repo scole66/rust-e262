@@ -118,7 +118,7 @@ impl WithStatement {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,

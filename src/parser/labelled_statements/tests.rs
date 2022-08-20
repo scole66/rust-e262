@@ -141,10 +141,10 @@ mod labelled_statement {
 
     #[test_case("package:implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelIdentifier : LabelledItem")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_statement().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).labelled_statement().early_errors(&agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -362,10 +362,10 @@ mod labelled_item {
     #[test_case("function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (strict)")]
     #[test_case("function a(){}", false => sset(&[LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (non-strict)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        let agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_item().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).labelled_item().early_errors(&agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
 
     #[test_case("function alice(){}" => true; "direct labelled function")]

@@ -272,7 +272,7 @@ impl RelationalExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             RelationalExpression::ShiftExpression(n) => n.early_errors(agent, errs, strict),
             RelationalExpression::Less(l, r)

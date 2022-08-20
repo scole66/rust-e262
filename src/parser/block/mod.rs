@@ -95,7 +95,7 @@ impl BlockStatement {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -292,7 +292,7 @@ impl Block {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -496,7 +496,7 @@ impl StatementList {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
@@ -719,7 +719,7 @@ impl StatementListItem {
 
     pub fn early_errors(
         &self,
-        agent: &mut Agent,
+        agent: &Agent,
         errs: &mut Vec<Object>,
         strict: bool,
         within_iteration: bool,
