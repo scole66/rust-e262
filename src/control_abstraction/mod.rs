@@ -1,9 +1,11 @@
 use super::*;
+use genawaiter::{
+    rc::{Co, Gen},
+    Coroutine,
+};
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
-use std::future::Future;
-use genawaiter::rc::{Co, Gen};
 
 impl Agent {
     pub fn provision_iterator_prototype(&self, realm: &Rc<RefCell<Realm>>) {
@@ -278,6 +280,10 @@ pub struct IteratorRecord {
     done: bool,
 }
 
+pub type ECMAClosure = Box<
+    dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>>,
+>;
+
 impl Agent {
     fn create_iter_result_object(&self, value: ECMAScriptValue, done: bool) -> Object {
         // CreateIterResultObject ( value, done )
@@ -298,24 +304,80 @@ impl Agent {
         obj
     }
 
-    async fn list_iterator(&mut self, co: Co<Object>, data: Vec<ECMAScriptValue>) {
+    async fn list_iterator(
+        co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+        data: Vec<ECMAScriptValue>,
+    ) -> Completion<ECMAScriptValue> {
+        //  1. For each element E of list, do
+        //      a. Perform ? GeneratorYield(CreateIterResultObject(E, false)).
+        //  2. Return undefined.
         for value in data {
-            co.yield_(self.create_iter_result_object(value, false)).await;
+            co.yield_(value).await?;
         }
+        Ok(ECMAScriptValue::Undefined)
     }
 
-    fn create_list_iterator_record(&mut self, data: Vec<ECMAScriptValue>) -> IteratorRecord {
-        let closure = Gen::new(|co| self.list_iterator(co, data));
-        let iterator = self.create_iterator_from_closure(closure);
+    fn create_list_iterator_record(&self, data: Vec<ECMAScriptValue>) -> IteratorRecord {
+        // CreateListIteratorRecord ( list )
+        // The abstract operation CreateListIteratorRecord takes argument list (a List) and returns an
+        // Iterator Record. It creates an Iterator (27.1.1.2) object record whose next method returns the
+        // successive elements of list. It performs the following steps when called:
+        //
+        //  1. Let closure be a new Abstract Closure with no parameters that captures list and performs the
+        //     following steps when called:
+        //      a. For each element E of list, do
+        //          i. Perform ? GeneratorYield(CreateIterResultObject(E, false)).
+        //      b. Return undefined.
+        //  2. Let iterator be CreateIteratorFromClosure(closure, empty, %IteratorPrototype%).
+        //  3. Return the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]:
+        //     %GeneratorFunction.prototype.prototype.next%, [[Done]]: false }.
+        //
+        // NOTE: The list iterator object is never directly accessible to ECMAScript code.
+        let closure: ECMAClosure = Box::new(Gen::new(|co| Self::list_iterator(co, data)));
+        let iterator =
+            self.create_iterator_from_closure(closure, "", Some(self.intrinsic(IntrinsicId::IteratorPrototype)));
         IteratorRecord {
             iterator,
             next_method: self.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
-            done: false
+            done: false,
         }
     }
 
-    fn create_iterator_from_closure(&mut self, _closure: Gen<Object, (), impl Future<Output = ()>>) -> Object {
-        todo!()
+    fn create_iterator_from_closure(
+        &self,
+        closure: ECMAClosure,
+        generator_brand: &str,
+        generator_prototype: Option<Object>,
+    ) -> Object {
+        // CreateIteratorFromClosure ( closure, generatorBrand, generatorPrototype )
+        // The abstract operation CreateIteratorFromClosure takes arguments closure (an Abstract Closure with
+        // no parameters), generatorBrand, and generatorPrototype (an Object) and returns a Generator. It
+        // performs the following steps when called:
+        //
+        //   1. NOTE: closure can contain uses of the Yield shorthand to yield an IteratorResult object.
+        //   2. Let internalSlotsList be « [[GeneratorState]], [[GeneratorContext]], [[GeneratorBrand]] ».
+        //   3. Let generator be OrdinaryObjectCreate(generatorPrototype, internalSlotsList).
+        //   4. Set generator.[[GeneratorBrand]] to generatorBrand.
+        //   5. Set generator.[[GeneratorState]] to undefined.
+        //   6. Let callerContext be the running execution context.
+        //   7. Let calleeContext be a new execution context.
+        //   8. Set the Function of calleeContext to null.
+        //   9. Set the Realm of calleeContext to the current Realm Record.
+        //  10. Set the ScriptOrModule of calleeContext to callerContext's ScriptOrModule.
+        //  11. If callerContext is not already suspended, suspend callerContext.
+        //  12. Push calleeContext onto the execution context stack; calleeContext is now the running
+        //      execution context.
+        //  13. Perform GeneratorStart(generator, closure).
+        //  14. Remove calleeContext from the execution context stack and restore callerContext as the running
+        //      execution context.
+        //  15. Return generator.
+        let generator = GeneratorObject::object(self, generator_prototype, GeneratorState::Undefined, generator_brand);
+        let callee_context =
+            ExecutionContext::new(None, self.current_realm_record().unwrap(), self.current_script_or_module());
+        self.push_execution_context(callee_context);
+        self.generator_start_from_closure(&generator, closure);
+        // callerContext should be back on the top already.
+        generator
     }
 }
 
@@ -557,7 +619,6 @@ impl Agent {
         }
         .map_err(|e| create_type_error(self, e.to_string()))
     }
-
 }
 
 #[cfg(test)]

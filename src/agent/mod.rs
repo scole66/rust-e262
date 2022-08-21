@@ -9,7 +9,6 @@ use std::convert::TryInto;
 use std::error;
 use std::fmt;
 use std::rc::Rc;
-//use genawaiter::{rc::gen, yield_};
 
 // Agents
 //
@@ -123,6 +122,12 @@ impl Agent {
             }
         }
         None
+    }
+
+    pub fn current_script_or_module(&self) -> Option<ScriptOrModule> {
+        let execution_context_stack = self.0.execution_context_stack.borrow();
+        let ec = &execution_context_stack[execution_context_stack.len() - 1];
+        ec.script_or_module.clone()
     }
 
     pub fn next_object_id(&self) -> usize {
@@ -2284,11 +2289,7 @@ impl Agent {
         // Stack: AObj ...
     }
 
-    pub fn generator_start_from_closure(
-        &mut self,
-        generator: &GeneratorObject,
-        generator_body: impl FnMut() -> Completion<ECMAScriptValue>,
-    ) {
+    pub fn generator_start_from_closure(&self, generator: &Object, generator_body: ECMAClosure) {
         // GeneratorStart ( generator, generatorBody )
         // The abstract operation GeneratorStart takes arguments generator and generatorBody (a FunctionBody
         // Parse Node or an Abstract Closure with no parameters) and returns unused. It performs the following
@@ -2330,18 +2331,17 @@ impl Agent {
         // _now_, so that we can put it into the generator object instead.
         //
         // Something else will need to happen for user-constructed generators.
-        let mut gdata = generator.generator_data.borrow_mut();
+        let inner_generator = generator.o.to_generator_object().unwrap();
+        let mut gdata = inner_generator.generator_data.borrow_mut();
         assert_eq!(gdata.generator_state, GeneratorState::Undefined);
         assert!(gdata.generator_context.is_none());
-        gdata.generator_context = self.execution_context_stack.pop();
+        gdata.generator_context = self.0.execution_context_stack.borrow_mut().pop();
         gdata.generator_state = GeneratorState::SuspendedStart;
-        //let mut x = gen!({
-        //    yield_!(generator_body())
-        //});
-
-        todo!()
+        if let Some(gc) = &mut gdata.generator_context {
+            gc.generator = Some(generator.clone());
+            gc.gen_closure = Some(generator_body);
+        }
     }
-
 }
 
 #[derive(PartialEq, Eq)]

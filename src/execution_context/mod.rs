@@ -28,7 +28,6 @@ impl ScriptOrModule {
     }
 }
 
-#[derive(Debug)]
 pub struct ExecutionContext {
     pub realm: Rc<RefCell<Realm>>,
     pub function: Option<Object>,
@@ -43,6 +42,26 @@ pub struct ExecutionContext {
     pub stack: Vec<FullCompletion>,
     pub chunk: Option<Rc<Chunk>>, // This might change. It might be easier to have an empty chunk than a None.
     pub pc: usize,
+
+    pub generator: Option<Object>,
+    pub gen_closure: Option<ECMAClosure>,
+}
+impl std::fmt::Debug for ExecutionContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("ExecutionContext")
+            .field("realm", &self.realm)
+            .field("function", &self.function)
+            .field("script_or_module", &self.script_or_module)
+            .field("lexical_environment", &self.lexical_environment)
+            .field("variable_environment", &self.variable_environment)
+            .field("private_environment", &self.private_environment)
+            .field("stack", &self.stack)
+            .field("chunk", &self.chunk)
+            .field("pc", &self.pc)
+            .field("generator", &self.generator)
+            .field("gen_closure", &self.gen_closure.as_ref().and(Some("something")))
+            .finish()
+    }
 }
 
 impl ExecutionContext {
@@ -63,6 +82,8 @@ impl ExecutionContext {
             lexical_environment: None,
             variable_environment: None,
             private_environment: None,
+            generator: None,
+            gen_closure: None,
         }
     }
 }
