@@ -299,9 +299,9 @@ pub struct Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm(agent: &Agent) -> Rc<RefCell<Realm>> {
+pub fn create_realm() -> Rc<RefCell<Realm>> {
     let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(agent), global_object: None, global_env: None }));
-    create_intrinsics(agent, r.clone());
+    create_intrinsics(r.clone());
     r
 }
 
@@ -323,7 +323,7 @@ pub fn create_realm(agent: &Agent) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
+pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%

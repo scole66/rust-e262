@@ -112,7 +112,7 @@ mod execution_context {
     }
 }
 
-#[test_case(|| Agent::new(Rc::new(RefCell::new(SymbolRegistry::new()))) => None; "empty agent")]
+#[test_case(|| Agent::new() => None; "empty agent")]
 #[test_case(test_agent => Some("present".to_string()); "has global")]
 fn get_global_object(maker: fn() -> Agent) -> Option<String> {
     let agent = maker();

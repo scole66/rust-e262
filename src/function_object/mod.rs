@@ -392,14 +392,13 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
 pub trait CallableObject: ObjectInterface {
     fn call(
         &self,
-        agent: &Agent,
         self_object: &Object,
         this_argument: &ECMAScriptValue,
         arguments_list: &[ECMAScriptValue],
     );
-    fn construct(&self, agent: &Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object);
-    fn end_evaluation(&self, agent: &Agent, result: FullCompletion);
-    fn complete_call(&self, agent: &Agent) -> Completion<ECMAScriptValue>;
+    fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object);
+    fn end_evaluation(&self, result: FullCompletion);
+    fn complete_call(&self) -> Completion<ECMAScriptValue>;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -917,7 +916,7 @@ pub fn nameify(src: &str, limit: usize) -> String {
 //              i. Optionally, set F.[[InitialName]] to name.
 //      6. Return ! DefinePropertyOrThrow(F, "name", PropertyDescriptor { [[Value]]: name, [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn set_function_name(agent: &Agent, func: &Object, name: FunctionName, prefix: Option<JSString>) {
+pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSString>) {
     let name_before_prefix = match name {
         FunctionName::String(s) => s,
         FunctionName::PrivateName(pn) => pn.description,
@@ -1453,7 +1452,6 @@ impl AsyncGeneratorDeclaration {
 /// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
 #[allow(clippy::too_many_arguments)]
 pub fn ordinary_function_create(
-    agent: &Agent,
     function_prototype: Object,
     source_text: &str,
     parameter_list: ParamSource,
@@ -1539,7 +1537,7 @@ pub fn ordinary_function_create(
 /// Transform a function object into a constructor
 ///
 /// See [MakeConstructor](https://tc39.es/ecma262/#sec-makeconstructor) from ECMA-262.
-pub fn make_constructor(agent: &Agent, func: &Object, args: Option<(bool, Object)>) {
+pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
     // MakeConstructor ( F [ , writablePrototype [ , prototype ] ] )
     //
     // The abstract operation MakeConstructor takes argument F (an ECMAScript function object or a built-in function

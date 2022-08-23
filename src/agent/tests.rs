@@ -18,10 +18,10 @@ mod agent {
 
     #[test]
     fn new() {
-        let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+        let agent = Agent::new();
 
         // New agent; no realm initialized.
-        assert!(agent.0.execution_context_stack.borrow().is_empty());
+        assert!(agent.execution_context_stack.borrow().is_empty());
 
         // All well-known symbols initialized, and different from one another.
         let symbols = vec![
@@ -67,14 +67,14 @@ mod agent {
         // now pop it.
         agent.pop_execution_context();
         // And verify the one on top has no script_or_module value
-        let r = &agent.0.execution_context_stack.borrow()[agent.0.execution_context_stack.borrow().len() - 1];
+        let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
         assert!(r.script_or_module.is_none());
     }
     #[test]
     fn push_execution_context() {
         let agent = test_agent();
         let realm_ref = agent.current_realm_record().unwrap();
-        let prior_length = agent.0.execution_context_stack.borrow().len();
+        let prior_length = agent.execution_context_stack.borrow().len();
         // build a new EC, and add it to the EC stack
         let sr = ScriptRecord {
             realm: realm_ref.clone(),
@@ -85,13 +85,13 @@ mod agent {
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
         agent.push_execution_context(test_ec);
 
-        assert_eq!(agent.0.execution_context_stack.borrow().len(), prior_length + 1);
-        let r = &agent.0.execution_context_stack.borrow()[agent.0.execution_context_stack.borrow().len() - 1];
+        assert_eq!(agent.execution_context_stack.borrow().len(), prior_length + 1);
+        let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
         assert!(r.script_or_module.is_some());
     }
     #[test]
     fn active_function_object() {
-        let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+        let agent = Agent::new();
         // no Running Execution Context, so this should be None.
         let afo = agent.active_function_object();
         assert!(afo.is_none());
@@ -112,7 +112,7 @@ mod agent {
     }
     #[test]
     fn next_object_id() {
-        let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+        let agent = Agent::new();
         // Starts at something, and then increases monotonically.
         let first = agent.next_object_id();
         for x in 1..10 {
@@ -121,7 +121,7 @@ mod agent {
     }
     #[test]
     fn next_symbol_id() {
-        let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+        let agent = Agent::new();
         // Starts at something, and then increases monotonically.
         let first = agent.next_symbol_id();
         for x in 1..10 {
@@ -130,13 +130,14 @@ mod agent {
     }
     #[test]
     fn debug() {
-        assert_ne!(format!("{:?}", Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())))), "");
+        assert_ne!(format!("{:?}", Agent::new()), "");
     }
 
     #[test]
     fn global_symbol_registry() {
         let registry = Rc::new(RefCell::new(SymbolRegistry::new()));
-        let agent = Agent::new(Rc::clone(&registry));
+        let agent = Agent::new();
+        agent.set_global_symbol_registry(registry.clone());
         let gsr = agent.global_symbol_registry();
         assert!(Rc::ptr_eq(&registry, &gsr));
     }
@@ -146,13 +147,13 @@ mod agent {
 
         #[test]
         fn empty_ec_stack() {
-            let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+            let agent = Agent::new();
             assert!(agent.current_realm_record().is_none());
         }
 
         #[test]
         fn stacked() {
-            let a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
+            let a = Agent::new();
             let first_realm = create_named_realm(&a, "first");
             let first_context = ExecutionContext::new(None, first_realm, None);
             a.push_execution_context(first_context);
@@ -472,19 +473,19 @@ mod agent {
 
         agent.prepare_for_execution(0, Rc::clone(&chunk));
 
-        assert_eq!(agent.0.execution_context_stack.borrow()[0].pc, 0);
-        assert!(agent.0.execution_context_stack.borrow()[0].stack.is_empty());
-        assert_eq!(agent.0.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
+        assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
+        assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
+        assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
     }
 
     #[test]
     fn two_values() {
         let agent = test_agent();
-        let index = agent.0.execution_context_stack.borrow().len() - 1;
-        agent.0.execution_context_stack.borrow_mut()[index]
+        let index = agent.execution_context_stack.borrow().len() - 1;
+        agent.execution_context_stack.borrow_mut()[index]
             .stack
             .push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
-        agent.0.execution_context_stack.borrow_mut()[index]
+        agent.execution_context_stack.borrow_mut()[index]
             .stack
             .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
         let (left, right) = agent.two_values(index);
@@ -631,9 +632,9 @@ mod agent {
         fn normal(values: &[ECMAScriptValue]) {
             let agent = test_agent();
             let num_values = values.len() as u32;
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             {
-                let top_ec = &mut agent.0.execution_context_stack.borrow_mut()[index];
+                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 let stack = &mut top_ec.stack;
                 for value in values {
                     stack.push(Ok(value.clone().into()));
@@ -643,7 +644,7 @@ mod agent {
 
             agent.create_unmapped_arguments_object(index);
 
-            let stack = &agent.0.execution_context_stack.borrow()[index].stack;
+            let stack = &agent.execution_context_stack.borrow()[index].stack;
             let stack_size = stack.len();
 
             // Assert arg vector is still in the right spot
@@ -685,7 +686,7 @@ mod agent {
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             let agent = test_agent();
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             agent.create_unmapped_arguments_object(index);
         }
 
@@ -693,9 +694,9 @@ mod agent {
         #[should_panic(expected = "Stack too short to fit all the arguments")]
         fn panics_short() {
             let agent = test_agent();
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             {
-                let top_ec = &mut agent.0.execution_context_stack.borrow_mut()[index];
+                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 let stack = &mut top_ec.stack;
                 stack.push(Ok(NormalCompletion::from(800)));
             }
@@ -718,9 +719,9 @@ mod agent {
             let func_obj = ordinary_object_create(&agent, None, &[]);
 
             let num_values = values.len() as u32;
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             {
-                let top_ec = &mut agent.0.execution_context_stack.borrow_mut()[index];
+                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 let stack = &mut top_ec.stack;
                 stack.push(Ok(func_obj.clone().into()));
                 for value in values {
@@ -730,7 +731,7 @@ mod agent {
             }
 
             agent.create_mapped_arguments_object(index);
-            let stack = &agent.0.execution_context_stack.borrow()[index].stack;
+            let stack = &agent.execution_context_stack.borrow()[index].stack;
             let stack_size = stack.len();
 
             // Assert arg vector is still in the right spot
@@ -764,7 +765,7 @@ mod agent {
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             let agent = test_agent();
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             agent.create_mapped_arguments_object(index);
         }
 
@@ -772,9 +773,9 @@ mod agent {
         #[should_panic(expected = "Stack too short to fit all the arguments plus the function obj")]
         fn panics_short() {
             let agent = test_agent();
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             {
-                let top_ec = &mut agent.0.execution_context_stack.borrow_mut()[index];
+                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 let stack = &mut top_ec.stack;
                 stack.push(Ok(NormalCompletion::from(800)));
             }
@@ -793,9 +794,9 @@ mod agent {
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
             let num_values = values.len() as u32;
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             {
-                let top_ec = &mut agent.0.execution_context_stack.borrow_mut()[index];
+                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 top_ec.lexical_environment = Some(lex.clone());
                 let stack = &mut top_ec.stack;
                 stack.push(Ok(ECMAScriptValue::Null.into())); // faux function
@@ -807,8 +808,8 @@ mod agent {
             agent.create_mapped_arguments_object(index);
             let ao = Object::try_from(
                 ECMAScriptValue::try_from(
-                    agent.0.execution_context_stack.borrow()[index].stack
-                        [agent.0.execution_context_stack.borrow()[index].stack.len() - 1]
+                    agent.execution_context_stack.borrow()[index].stack
+                        [agent.execution_context_stack.borrow()[index].stack.len() - 1]
                         .clone()
                         .unwrap(),
                 )
@@ -835,7 +836,7 @@ mod agent {
         #[should_panic(expected = "stack must not be empty")]
         fn empty_stack() {
             let agent = test_agent();
-            let index = agent.0.execution_context_stack.borrow().len() - 1;
+            let index = agent.execution_context_stack.borrow().len() - 1;
             agent.attach_mapped_arg(index, &"bbo".into(), 12);
         }
     }

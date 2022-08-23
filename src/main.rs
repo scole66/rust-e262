@@ -67,16 +67,17 @@ use std::rc::Rc;
 #[derive(Debug)]
 struct VM {
     // Holds the state for the virtual machine. Anything shared between agents winds up here.
-    agent: Agent,
     symbols: Rc<RefCell<SymbolRegistry>>,
 }
 
 impl VM {
     fn new() -> Self {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
-        let agent = Agent::new(sym_registry.clone());
-        agent.initialize_host_defined_realm(false);
-        VM { agent, symbols: sym_registry }
+        AGENT.with(|agent| {
+            agent.set_global_symbol_registry(sym_registry.clone());
+            agent.initialize_host_defined_realm(false);
+        });
+        VM { symbols: sym_registry }
     }
 
     //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
@@ -89,11 +90,11 @@ impl VM {
 }
 
 fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
-    let parsed = parse_text(&vm.agent, source, ParseGoal::Script);
+    let parsed = parse_text(source, ParseGoal::Script);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
-                println!("{}", to_string(&vm.agent, err).unwrap());
+                println!("{}", to_string(err).unwrap());
             }
             Err("See above".to_string())
         }

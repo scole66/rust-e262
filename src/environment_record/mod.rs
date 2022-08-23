@@ -105,24 +105,23 @@ use std::rc::Rc;
 // +------------------------------+------------------------------------------------------------------------------------+
 
 pub trait EnvironmentRecord: Debug {
-    fn has_binding(&self, agent: &Agent, name: &JSString) -> Completion<bool>;
-    fn create_mutable_binding(&self, agent: &Agent, name: JSString, deletable: bool) -> Completion<()>;
-    fn create_immutable_binding(&self, agent: &Agent, name: JSString, strict: bool) -> Completion<()>;
-    fn initialize_binding(&self, agent: &Agent, name: &JSString, value: ECMAScriptValue) -> Completion<()>;
+    fn has_binding(&self, name: &JSString) -> Completion<bool>;
+    fn create_mutable_binding(&self, name: JSString, deletable: bool) -> Completion<()>;
+    fn create_immutable_binding(&self, name: JSString, strict: bool) -> Completion<()>;
+    fn initialize_binding(&self, name: &JSString, value: ECMAScriptValue) -> Completion<()>;
     fn set_mutable_binding(
         &self,
-        agent: &Agent,
         name: JSString,
         value: ECMAScriptValue,
         strict: bool,
     ) -> Completion<()>;
-    fn get_binding_value(&self, agent: &Agent, name: &JSString, strict: bool) -> Completion<ECMAScriptValue>;
-    fn delete_binding(&self, agent: &Agent, name: &JSString) -> Completion<bool>;
+    fn get_binding_value(&self, name: &JSString, strict: bool) -> Completion<ECMAScriptValue>;
+    fn delete_binding(&self, name: &JSString) -> Completion<bool>;
     fn has_this_binding(&self) -> bool;
     fn has_super_binding(&self) -> bool;
     fn with_base_object(&self) -> Option<Object>;
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>>;
-    fn get_this_binding(&self, _agent: &Agent) -> Completion<ECMAScriptValue> {
+    fn get_this_binding(&self) -> Completion<ECMAScriptValue> {
         unreachable!()
     }
     fn bind_this_value(&self, _agent: &Agent, _val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
@@ -847,9 +846,9 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //  1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
     //  2. If envRec.[[ThisBindingStatus]] is uninitialized, throw a ReferenceError exception.
     //  3. Return envRec.[[ThisValue]].
-    fn get_this_binding(&self, agent: &Agent) -> Completion<ECMAScriptValue> {
+    fn get_this_binding(&self) -> Completion<ECMAScriptValue> {
         if self.this_binding_status.get() == BindingStatus::Uninitialized {
-            Err(create_reference_error(agent, "This binding uninitialized"))
+            Err(create_reference_error("This binding uninitialized"))
         } else {
             Ok(self.this_value.borrow().clone())
         }
@@ -1277,7 +1276,7 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
     // following steps when called:
     //
     //  1. Return envRec.[[GlobalThisValue]].
-    fn get_this_binding(&self, _: &Agent) -> Completion<ECMAScriptValue> {
+    fn get_this_binding(&self) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::from(self.global_this_value.clone()))
     }
 
