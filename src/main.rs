@@ -75,7 +75,7 @@ impl VM {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| {
             agent.set_global_symbol_registry(sym_registry.clone());
-            agent.initialize_host_defined_realm(false);
+            initialize_host_defined_realm(false);
         });
         VM { symbols: sym_registry }
     }
@@ -133,7 +133,7 @@ fn run_file(vm: &mut VM, fname: &str) {
         Err(e) => println!("{}", e),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
-            match process_ecmascript(&vm.agent, &script_source) {
+            match process_ecmascript(&script_source) {
                 Ok(value) => println!("{:#?}", value),
                 Err(err) => println!("{}", err),
             }

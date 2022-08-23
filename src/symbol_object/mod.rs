@@ -49,7 +49,7 @@ impl ObjectInterface for SymbolObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -59,7 +59,7 @@ impl ObjectInterface for SymbolObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -69,7 +69,7 @@ impl ObjectInterface for SymbolObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -79,7 +79,7 @@ impl ObjectInterface for SymbolObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -89,7 +89,7 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -99,13 +99,8 @@ impl ObjectInterface for SymbolObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
-        ordinary_define_own_property(agent, self, key, desc)
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+        ordinary_define_own_property(self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -114,8 +109,8 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -124,8 +119,8 @@ impl ObjectInterface for SymbolObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(agent, self, key, receiver)
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -134,8 +129,8 @@ impl ObjectInterface for SymbolObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(agent, self, key, v, receiver)
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -144,8 +139,8 @@ impl ObjectInterface for SymbolObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(agent, self, key)
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -154,7 +149,7 @@ impl ObjectInterface for SymbolObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -166,24 +161,24 @@ impl SymbolObjectInterface for SymbolObject {
 }
 
 impl SymbolObject {
-    pub fn object(agent: &Agent, prototype: Option<Object>) -> Object {
+    pub fn object(prototype: Option<Object>) -> Object {
         Object {
             o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, prototype, true, SYMBOL_OBJECT_SLOTS)),
+                common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)),
                 symbol_data: RefCell::new(None),
             }),
         }
     }
 }
 
-pub fn create_symbol_object(agent: &Agent, sym: Symbol) -> Object {
-    let symbol_proto = agent.intrinsic(IntrinsicId::SymbolPrototype);
-    let obj = SymbolObject::object(agent, Some(symbol_proto));
+pub fn create_symbol_object(sym: Symbol) -> Object {
+    let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
+    let obj = SymbolObject::object(Some(symbol_proto));
     *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
     obj
 }
 
-pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
+pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -205,7 +200,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let symbol_constructor = create_builtin_function(
-        agent,
         symbol_constructor_function,
         true,
         0.0,
@@ -221,7 +215,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                agent,
                 $steps,
                 false,
                 $length,
@@ -232,7 +225,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
                 None,
             );
             define_property_or_throw(
-                agent,
                 &symbol_constructor,
                 key,
                 PotentialPropertyDescriptor::new()
@@ -251,7 +243,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     macro_rules! constructor_data {
         ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
             define_property_or_throw(
-                agent,
                 &symbol_constructor,
                 $name,
                 PotentialPropertyDescriptor::new()
@@ -263,19 +254,19 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
             .unwrap();
         };
     }
-    constructor_data!("asyncIterator", agent.wks(WksId::AsyncIterator), false, false, false);
-    constructor_data!("hasInstance", agent.wks(WksId::HasInstance), false, false, false);
-    constructor_data!("isConcatSpreadable", agent.wks(WksId::IsConcatSpreadable), false, false, false);
-    constructor_data!("iterator", agent.wks(WksId::Iterator), false, false, false);
-    constructor_data!("match", agent.wks(WksId::Match), false, false, false);
-    constructor_data!("matchAll", agent.wks(WksId::MatchAll), false, false, false);
-    constructor_data!("replace", agent.wks(WksId::Replace), false, false, false);
-    constructor_data!("search", agent.wks(WksId::Search), false, false, false);
-    constructor_data!("species", agent.wks(WksId::Species), false, false, false);
-    constructor_data!("split", agent.wks(WksId::Split), false, false, false);
-    constructor_data!("toPrimitive", agent.wks(WksId::ToPrimitive), false, false, false);
-    constructor_data!("toStringTag", agent.wks(WksId::ToStringTag), false, false, false);
-    constructor_data!("unscopables", agent.wks(WksId::Unscopables), false, false, false);
+    constructor_data!("asyncIterator", wks(WksId::AsyncIterator), false, false, false);
+    constructor_data!("hasInstance", wks(WksId::HasInstance), false, false, false);
+    constructor_data!("isConcatSpreadable", wks(WksId::IsConcatSpreadable), false, false, false);
+    constructor_data!("iterator", wks(WksId::Iterator), false, false, false);
+    constructor_data!("match", wks(WksId::Match), false, false, false);
+    constructor_data!("matchAll", wks(WksId::MatchAll), false, false, false);
+    constructor_data!("replace", wks(WksId::Replace), false, false, false);
+    constructor_data!("search", wks(WksId::Search), false, false, false);
+    constructor_data!("species", wks(WksId::Species), false, false, false);
+    constructor_data!("split", wks(WksId::Split), false, false, false);
+    constructor_data!("toPrimitive", wks(WksId::ToPrimitive), false, false, false);
+    constructor_data!("toStringTag", wks(WksId::ToStringTag), false, false, false);
+    constructor_data!("unscopables", wks(WksId::Unscopables), false, false, false);
 
     // The Symbol prototype object:
     //
@@ -283,14 +274,13 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //  * is an ordinary object.
     //  * is not a Symbol instance and does not have a [[SymbolData]] internal slot.
     //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
-    let symbol_prototype = ordinary_object_create(agent, Some(object_prototype), &[]);
+    let symbol_prototype = ordinary_object_create(Some(object_prototype), &[]);
 
     // Prototype Function Properties
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                agent,
                 $steps,
                 false,
                 $length,
@@ -301,7 +291,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
                 None,
             );
             define_property_or_throw(
-                agent,
                 &symbol_prototype,
                 key,
                 PotentialPropertyDescriptor::new()
@@ -319,7 +308,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     macro_rules! prototype_data {
         ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
             define_property_or_throw(
-                agent,
                 &symbol_prototype,
                 $name,
                 PotentialPropertyDescriptor::new()
@@ -336,7 +324,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     prototype_data!("constructor", symbol_constructor.clone(), true, false, true);
 
     let descriptor_getter = create_builtin_function(
-        agent,
         symbol_description,
         false,
         0.0,
@@ -347,15 +334,13 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
         Some("get".into()),
     );
     define_property_or_throw(
-        agent,
         &symbol_prototype,
         "description",
         PotentialPropertyDescriptor::new().get(descriptor_getter).enumerable(false).configurable(true),
     )
     .unwrap();
-    let to_prop_sym = agent.wks(WksId::ToPrimitive);
+    let to_prop_sym = wks(WksId::ToPrimitive);
     let to_primitive_func = create_builtin_function(
-        agent,
         symbol_value_of,
         false,
         1.0,
@@ -366,15 +351,13 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
         None,
     );
     define_property_or_throw(
-        agent,
         &symbol_prototype,
         to_prop_sym,
         PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true),
     )
     .unwrap();
-    let to_tag_sym = agent.wks(WksId::ToStringTag);
+    let to_tag_sym = wks(WksId::ToStringTag);
     define_property_or_throw(
-        agent,
         &symbol_prototype,
         to_tag_sym,
         PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false),
@@ -398,7 +381,6 @@ pub fn provision_symbol_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
 /// can be found in the global Symbol registry, that Symbol is returned. Otherwise, a new Symbol is created, added to
 /// the global Symbol registry under the given key, and returned.
 fn symbol_constructor_function(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -411,15 +393,15 @@ fn symbol_constructor_function(
     // 3. Else, let descString be ? ToString(description).
     // 4. Return a new unique Symbol value whose [[Description]] value is descString.
     if new_target.is_some() {
-        Err(create_type_error(agent, "Symbol is not a constructor"))
+        Err(create_type_error("Symbol is not a constructor"))
     } else {
         let mut args = FuncArgs::from(arguments);
         let description = args.next_arg();
         let desc_string = match description {
             ECMAScriptValue::Undefined => None,
-            _ => Some(to_string(agent, description)?),
+            _ => Some(to_string(description)?),
         };
-        let new_symbol = Symbol::new(agent, desc_string);
+        let new_symbol = Symbol::new(desc_string);
         Ok(new_symbol.into())
     }
 }
@@ -431,7 +413,6 @@ fn symbol_constructor_function(
 ///
 /// See [Symbol.for](https://tc39.es/ecma262/#sec-symbol.for) in ECMA-262.
 fn symbol_for(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -461,14 +442,14 @@ fn symbol_for(
     // +------------+----------+--------------------------------------------------+
     let mut args = FuncArgs::from(arguments);
     let key = args.next_arg();
-    let string_key = to_string(agent, key)?;
-    let gsm = agent.global_symbol_registry();
+    let string_key = to_string(key)?;
+    let gsm = global_symbol_registry();
     let mut registry = gsm.borrow_mut();
     let maybe_sym = registry.symbol_by_key(&string_key);
     match maybe_sym {
         Some(sym) => Ok(sym.into()),
         None => {
-            let new_symbol = Symbol::new(agent, Some(string_key.clone()));
+            let new_symbol = Symbol::new(Some(string_key.clone()));
             registry.add(string_key, new_symbol.clone());
             Ok(new_symbol.into())
         }
@@ -481,7 +462,6 @@ fn symbol_for(
 ///
 /// See [Symbol.keyFor](https://tc39.es/ecma262/#sec-symbol.keyfor) in ECMA-262.
 fn symbol_key_for(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -497,7 +477,7 @@ fn symbol_key_for(
     let mut args = FuncArgs::from(arguments);
     let sym = args.next_arg();
     if let ECMAScriptValue::Symbol(sym) = sym {
-        let gsm = agent.global_symbol_registry();
+        let gsm = global_symbol_registry();
         let registry = gsm.borrow();
         let maybe_key = registry.key_by_symbol(&sym);
         match maybe_key {
@@ -505,47 +485,44 @@ fn symbol_key_for(
             None => Ok(ECMAScriptValue::Undefined),
         }
     } else {
-        Err(create_type_error(agent, "value is not a symbol"))
+        Err(create_type_error("value is not a symbol"))
     }
 }
 
-fn this_symbol_value(agent: &Agent, this_value: ECMAScriptValue) -> Completion<Symbol> {
+fn this_symbol_value(this_value: ECMAScriptValue) -> Completion<Symbol> {
     match this_value {
         ECMAScriptValue::Symbol(s) => Ok(s),
         ECMAScriptValue::Object(o) if o.o.is_symbol_object() => {
             let so = o.o.to_symbol_obj().unwrap();
             Ok(so.symbol_data().borrow().clone().unwrap())
         }
-        _ => Err(create_type_error(agent, "Not a symbol")),
+        _ => Err(create_type_error("Not a symbol")),
     }
 }
 
 fn symbol_to_string(
-    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(agent, this_value)?;
+    let sym = this_symbol_value(this_value)?;
     Ok(sym.descriptive_string().into())
 }
 
 fn symbol_value_of(
-    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Ok(this_symbol_value(agent, this_value)?.into())
+    Ok(this_symbol_value(this_value)?.into())
 }
 
 fn symbol_description(
-    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(agent, this_value)?;
+    let sym = this_symbol_value(this_value)?;
     Ok(sym.description().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined))
 }
 

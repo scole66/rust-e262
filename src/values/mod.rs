@@ -79,9 +79,9 @@ impl ECMAScriptValue {
     //      b. Let target be argument.[[ProxyTarget]].
     //      c. Return ? IsArray(target).
     //  4. Return false.
-    pub fn is_array(&self, agent: &Agent) -> Completion<bool> {
+    pub fn is_array(&self) -> Completion<bool> {
         match self {
-            ECMAScriptValue::Object(obj) => obj.is_array(agent),
+            ECMAScriptValue::Object(obj) => obj.is_array(),
             _ => Ok(false),
         }
     }
@@ -437,8 +437,8 @@ impl Hash for Symbol {
 }
 
 impl Symbol {
-    pub fn new(agent: &Agent, description: Option<JSString>) -> Self {
-        Self(Rc::new(SymbolInternals { id: agent.next_symbol_id(), description }))
+    pub fn new(description: Option<JSString>) -> Self {
+        Self(Rc::new(SymbolInternals { id: next_symbol_id(), description }))
     }
     pub fn description(&self) -> Option<JSString> {
         self.0.description.as_ref().cloned()
@@ -627,7 +627,7 @@ pub enum ConversionHint {
     String,
     Number,
 }
-pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
+pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
     let method_names = match hint {
         ConversionHint::String => {
             vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")]
@@ -637,15 +637,15 @@ pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) 
         }
     };
     for name in method_names.iter() {
-        let method = get(agent, obj, name)?;
+        let method = get(obj, name)?;
         if is_callable(&method) {
-            let result = call(agent, &method, &ECMAScriptValue::from(obj), &[])?;
+            let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
                 return Ok(result);
             }
         }
     }
-    Err(create_type_error(agent, "Cannot convert object to primitive value"))
+    Err(create_type_error("Cannot convert object to primitive value"))
 }
 
 // ToPrimitive ( input [ , preferredType ] )
@@ -676,7 +676,7 @@ pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) 
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = get_method(&input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
+        let exotic_to_prim = get_method(&input, &PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
@@ -874,8 +874,8 @@ fn string_to_number(string: JSString) -> f64 {
 //  5. Let integer be floor(abs(ℝ(number))).
 //  6. If number < +0𝔽, set integer to -integer.
 //  7. Return integer.
-pub fn to_integer_or_infinity(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    let number = to_number(agent, argument)?;
+pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
+    let number = to_number(argument)?;
     if number.is_nan() || number == 0.0 {
         Ok(0.0)
     } else if number.is_infinite() {
@@ -1116,13 +1116,13 @@ impl TryFrom<ECMAScriptValue> for JSString {
 pub fn to_object(val: impl Into<ECMAScriptValue>) -> Completion<Object> {
     match val.into() {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => {
-            Err(create_type_error(agent, "Undefined and null cannot be converted to objects"))
+            Err(create_type_error("Undefined and null cannot be converted to objects"))
         }
-        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
-        ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
-        ECMAScriptValue::String(s) => Ok(agent.create_string_object(s)),
-        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(agent, s)),
-        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(agent, b)),
+        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(b)),
+        ECMAScriptValue::Number(n) => Ok(create_number_object(n)),
+        ECMAScriptValue::String(s) => Ok(create_string_object(s)),
+        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(s)),
+        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(b)),
         ECMAScriptValue::Object(o) => Ok(o),
     }
 }
@@ -1137,10 +1137,10 @@ pub fn to_object(val: impl Into<ECMAScriptValue>) -> Completion<Object> {
 //      a. Return key.
 //  3. Return ! ToString(key).
 pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
-    let key = to_primitive(agent, argument, Some(ConversionHint::String))?;
+    let key = to_primitive(argument, Some(ConversionHint::String))?;
     match key {
         ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
-        _ => Ok(PropertyKey::from(to_string(agent, key).unwrap())),
+        _ => Ok(PropertyKey::from(to_string(key).unwrap())),
     }
 }
 
@@ -1152,8 +1152,8 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-pub fn to_length(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
-    let len = to_integer_or_infinity(agent, argument)?;
+pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
+    let len = to_integer_or_infinity(argument)?;
     Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
 }
 
@@ -1197,15 +1197,15 @@ pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
 //      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
 //      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
 //      e. Return integer.
-pub fn to_index(agent: &Agent, value: impl Into<ECMAScriptValue>) -> Completion<i64> {
+pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let value = value.into();
     if value == ECMAScriptValue::Undefined {
         Ok(0)
     } else {
-        let integer = to_integer_or_infinity(agent, value)?;
-        let clamped = to_length(agent, integer).unwrap();
+        let integer = to_integer_or_infinity(value)?;
+        let clamped = to_length(integer).unwrap();
         if clamped as f64 != integer {
-            Err(create_range_error(agent, format!("{} out of range for index", integer).as_str()))
+            Err(create_range_error(format!("{} out of range for index", integer).as_str()))
         } else {
             Ok(clamped)
         }

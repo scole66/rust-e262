@@ -248,7 +248,7 @@ where
 pub fn from_property_descriptor(desc: Option<PropertyDescriptor>) -> Option<Object> {
     match desc {
         Some(d) => {
-            let obj = ordinary_object_create(Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             match &d.property {
                 PropertyKind::Data(DataProperty { value, writable }) => {
                     create_data_property_or_throw(&obj, "value", value.clone()).unwrap();
@@ -473,11 +473,7 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(
-    o: T,
-    p: PropertyKey,
-    desc: PotentialPropertyDescriptor,
-) -> Completion<bool>
+pub fn ordinary_define_own_property<'a, T>(o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -716,7 +712,7 @@ where
     match has_own {
         Some(_) => Ok(true),
         None => {
-            let pot_parent = obj.get_prototype_of(agent)?;
+            let pot_parent = obj.get_prototype_of()?;
             match pot_parent {
                 Some(parent) => parent.o.has_property(p),
                 None => Ok(false),
@@ -741,11 +737,7 @@ where
 //  6. Let getter be desc.[[Get]].
 //  7. If getter is undefined, return undefined.
 //  8. Return ? Call(getter, Receiver).
-pub fn ordinary_get<'a, T>(
-    o: T,
-    p: &PropertyKey,
-    receiver: &ECMAScriptValue,
-) -> Completion<ECMAScriptValue>
+pub fn ordinary_get<'a, T>(o: T, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -753,7 +745,7 @@ where
     let pot_desc = obj.get_own_property(p)?;
     match pot_desc {
         None => {
-            let pot_parent = obj.get_prototype_of(agent)?;
+            let pot_parent = obj.get_prototype_of()?;
             match pot_parent {
                 None => Ok(ECMAScriptValue::Undefined),
                 Some(parent) => parent.o.get(p, receiver),
@@ -797,12 +789,7 @@ pub fn get_agentless(o: &Object, p: &PropertyKey) -> Option<ECMAScriptValue> {
 //  1. Assert: IsPropertyKey(P) is true.
 //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
 //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(
-    o: T,
-    p: PropertyKey,
-    v: ECMAScriptValue,
-    receiver: &ECMAScriptValue,
-) -> Completion<bool>
+pub fn ordinary_set<'a, T>(o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -854,7 +841,7 @@ where
     let obj = o.into();
     let own_desc = match pot_own_desc {
         None => {
-            let pot_parent = obj.get_prototype_of(agent)?;
+            let pot_parent = obj.get_prototype_of()?;
             match pot_parent {
                 Some(parent) => {
                     return parent.o.set(p, v, receiver);
@@ -1077,19 +1064,10 @@ pub trait ObjectInterface: Debug {
     fn is_extensible(&self) -> Completion<bool>;
     fn prevent_extensions(&self) -> Completion<bool>;
     fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>>;
-    fn define_own_property(
-        &self,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool>;
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>;
     fn has_property(&self, key: &PropertyKey) -> Completion<bool>;
     fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>;
-    fn set(
-        &self,
-        key: PropertyKey,
-        value: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool>;
+    fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>;
     fn delete(&self, key: &PropertyKey) -> Completion<bool>;
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>>;
 }
@@ -1129,7 +1107,7 @@ impl CommonObjectData {
             prototype,
             extensible,
             next_spot: 0,
-            objid: agent.next_object_id(),
+            objid: next_object_id(),
             slots: Vec::from(slots),
             private_elements: vec![],
         }
@@ -1248,7 +1226,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -1258,7 +1236,7 @@ impl ObjectInterface for OrdinaryObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -1268,7 +1246,7 @@ impl ObjectInterface for OrdinaryObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -1278,7 +1256,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -1288,7 +1266,7 @@ impl ObjectInterface for OrdinaryObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -1298,11 +1276,7 @@ impl ObjectInterface for OrdinaryObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(
-        &self,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         ordinary_define_own_property(self, key, desc)
     }
 
@@ -1352,7 +1326,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -1425,7 +1399,7 @@ impl Object {
     //      b. Let target be argument.[[ProxyTarget]].
     //      c. Return ? IsArray(target).
     //  4. Return false.
-    pub fn is_array(&self, _agent: &Agent) -> Completion<bool> {
+    pub fn is_array(&self) -> Completion<bool> {
         if self.o.is_array_object() {
             Ok(true)
         } else if self.o.is_proxy_object() {
@@ -1783,7 +1757,7 @@ pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args:
     match maybe_callable {
         None => {
             let err = Err(create_type_error("Value not callable"));
-            agent.ec_push(err);
+            ec_push(err);
         }
         Some(callable) => {
             let self_obj = to_object(func.clone()).unwrap();
@@ -1794,7 +1768,7 @@ pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args:
 
 pub fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
     let callable = to_callable(func).unwrap();
-    callable.complete_call(agent)
+    callable.complete_call()
 }
 
 // Construct ( F [ , argumentsList [ , newTarget ] ] )
@@ -1812,14 +1786,9 @@ pub fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
 //    5. Return ? F.[[Construct]](argumentsList, newTarget).
 //
 // NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
-pub fn construct(
-    func: &Object,
-    args: &[ECMAScriptValue],
-    new_target: Option<&Object>,
-) -> Completion<ECMAScriptValue> {
+pub fn construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
     initiate_construct(func, args, new_target);
-    agent
-        .ec_pop()
+    ec_pop()
         .expect("Construct must return a completion")
         .map(|nc| ECMAScriptValue::try_from(nc).expect("Construct must return a language value"))
 }
@@ -1867,11 +1836,11 @@ pub enum IntegrityLevel {
     Frozen,
 }
 pub fn set_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
-    let status = o.o.prevent_extensions(agent)?;
+    let status = o.o.prevent_extensions()?;
     if !status {
         return Ok(false);
     }
-    let keys = o.o.own_property_keys(agent)?;
+    let keys = o.o.own_property_keys()?;
     if level == IntegrityLevel::Sealed {
         for k in keys {
             define_property_or_throw(o, k, PotentialPropertyDescriptor::new().configurable(false))?;
@@ -1923,63 +1892,57 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
 //  2. If argumentsList is not present, set argumentsList to a new empty List.
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
-pub fn invoke(
-    v: ECMAScriptValue,
-    p: &PropertyKey,
-    arguments_list: &[ECMAScriptValue],
-) -> Completion<ECMAScriptValue> {
+pub fn invoke(v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let func = getv(&v, p)?;
     call(&func, &v, arguments_list)
 }
 
-impl Agent {
-    pub fn ordinary_has_instance(&self, c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
-        // OrdinaryHasInstance ( C, O )
-        //
-        // The abstract operation OrdinaryHasInstance takes arguments C (an ECMAScript language value) and O and returns
-        // either a normal completion containing a Boolean or a throw completion. It implements the default algorithm
-        // for determining if O inherits from the instance object inheritance path provided by C. It performs the
-        // following steps when called:
-        //
-        //  1. If IsCallable(C) is false, return false.
-        //  2. If C has a [[BoundTargetFunction]] internal slot, then
-        //      a. Let BC be C.[[BoundTargetFunction]].
-        //      b. Return ? InstanceofOperator(O, BC).
-        //  3. If Type(O) is not Object, return false.
-        //  4. Let P be ? Get(C, "prototype").
-        //  5. If Type(P) is not Object, throw a TypeError exception.
-        //  6. Repeat,
-        //      a. Set O to ? O.[[GetPrototypeOf]]().
-        //      b. If O is null, return false.
-        //      c. If SameValue(P, O) is true, return true.
-        if !is_callable(c) {
-            return Ok(false);
-        }
-        // todo: bound target function nonsense
+pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
+    // OrdinaryHasInstance ( C, O )
+    //
+    // The abstract operation OrdinaryHasInstance takes arguments C (an ECMAScript language value) and O and returns
+    // either a normal completion containing a Boolean or a throw completion. It implements the default algorithm
+    // for determining if O inherits from the instance object inheritance path provided by C. It performs the
+    // following steps when called:
+    //
+    //  1. If IsCallable(C) is false, return false.
+    //  2. If C has a [[BoundTargetFunction]] internal slot, then
+    //      a. Let BC be C.[[BoundTargetFunction]].
+    //      b. Return ? InstanceofOperator(O, BC).
+    //  3. If Type(O) is not Object, return false.
+    //  4. Let P be ? Get(C, "prototype").
+    //  5. If Type(P) is not Object, throw a TypeError exception.
+    //  6. Repeat,
+    //      a. Set O to ? O.[[GetPrototypeOf]]().
+    //      b. If O is null, return false.
+    //      c. If SameValue(P, O) is true, return true.
+    if !is_callable(c) {
+        return Ok(false);
+    }
+    // todo: bound target function nonsense
 
-        let c = to_object(self, c.clone()).expect("Callables must be objects");
-        match o {
-            ECMAScriptValue::Object(obj) => {
-                let p = get(self, &c, &"prototype".into())?;
-                if !p.is_object() {
-                    return Err(create_type_error(self, "Bad prototype chain in 'instanceof'"));
-                }
-                let p = to_object(self, p).expect("Objects must be objects");
-                let mut o = obj.clone();
-                loop {
-                    match o.o.get_prototype_of(self)? {
-                        None => return Ok(false),
-                        Some(new_obj) => {
-                            if p == new_obj {
-                                return Ok(true);
-                            }
-                            o = new_obj;
+    let c = to_object(c.clone()).expect("Callables must be objects");
+    match o {
+        ECMAScriptValue::Object(obj) => {
+            let p = get(&c, &"prototype".into())?;
+            if !p.is_object() {
+                return Err(create_type_error("Bad prototype chain in 'instanceof'"));
+            }
+            let p = to_object(p).expect("Objects must be objects");
+            let mut o = obj.clone();
+            loop {
+                match o.o.get_prototype_of()? {
+                    None => return Ok(false),
+                    Some(new_obj) => {
+                        if p == new_obj {
+                            return Ok(true);
                         }
+                        o = new_obj;
                     }
                 }
             }
-            _ => Ok(false),
         }
+        _ => Ok(false),
     }
 }
 
@@ -2011,11 +1974,8 @@ pub enum EnumerationStyle {
     Value,
     KeyPlusValue,
 }
-pub fn enumerable_own_property_names(
-    obj: &Object,
-    kind: EnumerationStyle,
-) -> Completion<Vec<ECMAScriptValue>> {
-    let own_keys = obj.o.own_property_keys(agent)?;
+pub fn enumerable_own_property_names(obj: &Object, kind: EnumerationStyle) -> Completion<Vec<ECMAScriptValue>> {
+    let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
     for key in own_keys.into_iter() {
         if matches!(key, PropertyKey::String(_)) {
@@ -2057,10 +2017,7 @@ pub fn enumerable_own_property_names(
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(
-    proto: Option<Object>,
-    additional_internal_slots_list: &[InternalSlotName],
-) -> Object {
+pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
     let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
     slots.extend_from_slice(additional_internal_slots_list);
     let o = make_basic_object(slots.as_slice(), proto);
@@ -2152,11 +2109,7 @@ impl ObjectInterface for DeadObject {
     fn get_own_property(&self, _key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Err(create_type_error("get_own_property called on DeadObject"))
     }
-    fn define_own_property(
-        &self,
-        _key: PropertyKey,
-        _desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
+    fn define_own_property(&self, _key: PropertyKey, _desc: PotentialPropertyDescriptor) -> Completion<bool> {
         Err(create_type_error("define_own_property called on DeadObject"))
     }
     fn has_property(&self, _key: &PropertyKey) -> Completion<bool> {
@@ -2165,12 +2118,7 @@ impl ObjectInterface for DeadObject {
     fn get(&self, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         Err(create_type_error("get called on DeadObject"))
     }
-    fn set(
-        &self,
-        _key: PropertyKey,
-        _value: ECMAScriptValue,
-        _receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, _key: PropertyKey, _value: ECMAScriptValue, _receiver: &ECMAScriptValue) -> Completion<bool> {
         Err(create_type_error("set called on DeadObject"))
     }
     fn delete(&self, _key: &PropertyKey) -> Completion<bool> {
@@ -2182,8 +2130,8 @@ impl ObjectInterface for DeadObject {
 }
 
 impl DeadObject {
-    pub fn object(agent: &Agent) -> Object {
-        Object { o: Rc::new(Self { objid: agent.next_object_id() }) }
+    pub fn object() -> Object {
+        Object { o: Rc::new(Self { objid: next_object_id() }) }
     }
 }
 
@@ -2201,7 +2149,7 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
-    let current = obj.get_prototype_of(agent)?;
+    let current = obj.get_prototype_of()?;
     Ok(current == val)
 }
 
@@ -2233,7 +2181,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -2253,7 +2201,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -2263,7 +2211,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -2273,7 +2221,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -2283,11 +2231,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(
-        &self,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         ordinary_define_own_property(self, key, desc)
     }
 
@@ -2337,7 +2281,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -2382,7 +2326,7 @@ pub fn get_function_realm(obj: &Object) -> Completion<Rc<RefCell<Realm>>> {
         // Add the proxy check
         eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
 
-        Ok(agent.current_realm_record().unwrap())
+        Ok(current_realm_record().unwrap())
     }
 }
 
@@ -2469,9 +2413,7 @@ pub fn private_get(obj: &Object, pn: &PrivateName) -> Completion<ECMAScriptValue
         Some(pe) => match &pe.kind {
             PrivateElementKind::Field { value } => Ok(value.borrow().clone()),
             PrivateElementKind::Method { value } => Ok(value.clone()),
-            PrivateElementKind::Accessor { get: None, set: _ } => {
-                Err(create_type_error("PrivateName has no getter"))
-            }
+            PrivateElementKind::Accessor { get: None, set: _ } => Err(create_type_error("PrivateName has no getter")),
             PrivateElementKind::Accessor { get: Some(getter), set: _ } => {
                 call(&ECMAScriptValue::from(getter), &ECMAScriptValue::from(obj), &[])
             }
@@ -2503,12 +2445,8 @@ pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Comple
                 *value.borrow_mut() = v;
                 Ok(())
             }
-            PrivateElementKind::Method { value: _ } => {
-                Err(create_type_error("PrivateName method may not be assigned"))
-            }
-            PrivateElementKind::Accessor { get: _, set: None } => {
-                Err(create_type_error("PrivateName has no setter"))
-            }
+            PrivateElementKind::Method { value: _ } => Err(create_type_error("PrivateName method may not be assigned")),
+            PrivateElementKind::Accessor { get: _, set: None } => Err(create_type_error("PrivateName has no setter")),
             PrivateElementKind::Accessor { get: _, set: Some(setter) } => {
                 call(&ECMAScriptValue::from(setter), &ECMAScriptValue::from(obj), &[v])?;
                 Ok(())
@@ -2520,14 +2458,10 @@ pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Comple
 /// Copy enumerable data properties from a source to a target, potentially excluding some
 ///
 /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-pub fn copy_data_properties(
-    target: &Object,
-    source: ECMAScriptValue,
-    excluded: &[PropertyKey],
-) -> Completion<()> {
+pub fn copy_data_properties(target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
     if !(source.is_undefined() || source.is_null()) {
         let from = to_object(source).unwrap();
-        let keys = from.o.own_property_keys(agent)?;
+        let keys = from.o.own_property_keys()?;
         for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
             let desc = from.o.get_own_property(next_key)?;
             if let Some(desc) = desc {

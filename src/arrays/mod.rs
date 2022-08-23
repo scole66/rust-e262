@@ -43,19 +43,19 @@ impl ObjectInterface for ArrayObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
-    fn get_prototype_of(&self, _: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
-    fn set_prototype_of(&self, _: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
-    fn is_extensible(&self, _: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
-    fn prevent_extensions(&self, _: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
-    fn get_own_property(&self, _: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
     // [[DefineOwnProperty]] ( P, Desc )
@@ -81,30 +81,24 @@ impl ObjectInterface for ArrayObject {
     //          iii. Assert: succeeded is true.
     //      k. Return true.
     //  3. Return OrdinaryDefineOwnProperty(A, P, Desc).
-    fn define_own_property(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         let length_key = PropertyKey::from("length");
         if key == length_key {
-            self.set_length(agent, desc)
+            self.set_length(desc)
         } else if key.is_array_index() {
             let p = JSString::try_from(key).unwrap();
             let old_len_desc = DataDescriptor::try_from(ordinary_get_own_property(self, &length_key).unwrap()).unwrap();
-            let old_len = to_uint32(agent, old_len_desc.value).unwrap();
-            let index = to_uint32(agent, p.clone()).unwrap();
+            let old_len = to_uint32(old_len_desc.value).unwrap();
+            let index = to_uint32(p.clone()).unwrap();
             if index >= old_len && !old_len_desc.writable {
                 Ok(false)
             } else {
-                let succeeded = ordinary_define_own_property(agent, self, PropertyKey::from(p), desc).unwrap();
+                let succeeded = ordinary_define_own_property(self, PropertyKey::from(p), desc).unwrap();
                 if !succeeded {
                     Ok(false)
                 } else {
                     if index >= old_len {
                         ordinary_define_own_property(
-                            agent,
                             self,
                             length_key,
                             PotentialPropertyDescriptor::new()
@@ -119,28 +113,22 @@ impl ObjectInterface for ArrayObject {
                 }
             }
         } else {
-            ordinary_define_own_property(agent, self, key, desc)
+            ordinary_define_own_property(self, key, desc)
         }
     }
-    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
-    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(agent, self, key, receiver)
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
     }
-    fn set(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        value: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
-        ordinary_set(agent, self, key, value, receiver)
+    fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, value, receiver)
     }
-    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(agent, self, key)
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
     }
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
     fn is_array_object(&self) -> bool {
@@ -151,8 +139,8 @@ impl ObjectInterface for ArrayObject {
     }
 }
 
-pub fn array_create(agent: &Agent, length: u64, proto: Option<Object>) -> Completion<Object> {
-    ArrayObject::create(agent, length, proto)
+pub fn array_create(length: u64, proto: Option<Object>) -> Completion<Object> {
+    ArrayObject::create(length, proto)
 }
 
 impl ArrayObject {
@@ -168,19 +156,17 @@ impl ArrayObject {
     //  5. Set A.[[DefineOwnProperty]] as specified in 10.4.2.1.
     //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     //  7. Return A.
-    pub fn create(agent: &Agent, length: u64, proto: Option<Object>) -> Completion<Object> {
+    pub fn create(length: u64, proto: Option<Object>) -> Completion<Object> {
         if length > 4294967295 {
-            return Err(create_range_error(agent, "Array lengths greater than 4294967295 are not allowed"));
+            return Err(create_range_error("Array lengths greater than 4294967295 are not allowed"));
         }
         let length: u32 = length.try_into().unwrap();
-        let proto = proto.unwrap_or_else(|| agent.intrinsic(IntrinsicId::ArrayPrototype));
+        let proto = proto.unwrap_or_else(|| intrinsic(IntrinsicId::ArrayPrototype));
         let a = make_basic_object(
-            agent,
             &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker],
             Some(proto),
         );
         ordinary_define_own_property(
-            agent,
             &a,
             "length".into(),
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
@@ -189,12 +175,8 @@ impl ArrayObject {
         Ok(a)
     }
 
-    pub fn object(agent: &Agent, prototype: Option<Object>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, prototype, true, ARRAY_OBJECT_SLOTS)),
-            }),
-        }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }) }
     }
 
     // ArraySetLength ( A, Desc )
@@ -237,22 +219,22 @@ impl ArrayObject {
     //
     // NOTE |   In steps 3 and 4, if Desc.[[Value]] is an object then its valueOf method is called twice. This is
     //      |   legacy behaviour that was specified with this effect starting with the 2nd Edition of this specification.
-    fn set_length(&self, agent: &Agent, descriptor: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn set_length(&self, descriptor: PotentialPropertyDescriptor) -> Completion<bool> {
         if descriptor.value.is_none() {
-            return ordinary_define_own_property(agent, self, PropertyKey::from("length"), descriptor);
+            return ordinary_define_own_property(self, PropertyKey::from("length"), descriptor);
         }
         let mut new_len_desc = descriptor.clone();
-        let new_len = to_uint32(agent, descriptor.value.clone().unwrap())?;
-        let number_len = to_number(agent, descriptor.value.unwrap())?;
+        let new_len = to_uint32(descriptor.value.clone().unwrap())?;
+        let number_len = to_number(descriptor.value.unwrap())?;
         if !number_same_value_zero(new_len as f64, number_len) {
-            return Err(create_range_error(agent, "Invalid array length"));
+            return Err(create_range_error("Invalid array length"));
         }
         new_len_desc.value = Some(ECMAScriptValue::from(new_len));
         let old_len_desc = ordinary_get_own_property(self, &"length".into()).unwrap();
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
-        let old_len = to_uint32(agent, old_len_desc.value).unwrap();
+        let old_len = to_uint32(old_len_desc.value).unwrap();
         if new_len >= old_len {
-            return ordinary_define_own_property(agent, self, "length".into(), new_len_desc);
+            return ordinary_define_own_property(self, "length".into(), new_len_desc);
         }
         if !old_len_desc.writable {
             return Ok(false);
@@ -263,7 +245,7 @@ impl ArrayObject {
             new_len_desc.writable = Some(true);
             false
         };
-        let succeeded = ordinary_define_own_property(agent, self, "length".into(), new_len_desc.clone()).unwrap();
+        let succeeded = ordinary_define_own_property(self, "length".into(), new_len_desc.clone()).unwrap();
         if !succeeded {
             return Ok(false);
         }
@@ -279,24 +261,19 @@ impl ArrayObject {
         }
         keys.sort_by_cached_key(|key| ArrayIndex::try_from(key).unwrap());
         for p in keys.into_iter().rev() {
-            let delete_succeeded = self.delete(agent, &p).unwrap();
+            let delete_succeeded = self.delete(&p).unwrap();
             if !delete_succeeded {
-                new_len_desc.value = Some(ECMAScriptValue::from(to_uint32(agent, p).unwrap() + 1));
+                new_len_desc.value = Some(ECMAScriptValue::from(to_uint32(p).unwrap() + 1));
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
-                ordinary_define_own_property(agent, self, "length".into(), new_len_desc).unwrap();
+                ordinary_define_own_property(self, "length".into(), new_len_desc).unwrap();
                 return Ok(false);
             }
         }
         if !new_writable {
-            ordinary_define_own_property(
-                agent,
-                self,
-                "length".into(),
-                PotentialPropertyDescriptor::new().writable(false),
-            )
-            .unwrap();
+            ordinary_define_own_property(self, "length".into(), PotentialPropertyDescriptor::new().writable(false))
+                .unwrap();
         }
         Ok(true)
     }
@@ -328,23 +305,23 @@ impl ArrayObject {
 //      |   realm of the running execution context, then a new Array is created using the realm of the running
 //      |   execution context. This maintains compatibility with Web browsers that have historically had that behaviour
 //      |   for the Array.prototype methods that now are defined using ArraySpeciesCreate.
-pub fn array_species_create(agent: &Agent, original_array: &Object, length: u64) -> Completion<ECMAScriptValue> {
-    let is_array = original_array.is_array(agent)?;
+pub fn array_species_create(original_array: &Object, length: u64) -> Completion<ECMAScriptValue> {
+    let is_array = original_array.is_array()?;
     if !is_array {
-        return Ok(ArrayObject::create(agent, length, None)?.into());
+        return Ok(ArrayObject::create(length, None)?.into());
     }
-    let mut c = get(agent, original_array, &"constructor".into())?;
+    let mut c = get(original_array, &"constructor".into())?;
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
-        let this_realm = agent.current_realm_record().unwrap();
-        let realm_c = get_function_realm(agent, &c_obj)?;
+        let this_realm = current_realm_record().unwrap();
+        let realm_c = get_function_realm(&c_obj)?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
     }
     if c.is_object() {
         let c_obj = Object::try_from(&c).unwrap();
-        let species = get(agent, &c_obj, &agent.wks(WksId::Species).into())?;
+        let species = get(&c_obj, &wks(WksId::Species).into())?;
         if species.is_null() {
             c = ECMAScriptValue::Undefined;
         } else {
@@ -352,13 +329,13 @@ pub fn array_species_create(agent: &Agent, original_array: &Object, length: u64)
         }
     }
     if c.is_undefined() {
-        return Ok(ArrayObject::create(agent, length, None)?.into());
+        return Ok(ArrayObject::create(length, None)?.into());
     }
     if !is_constructor(&c) {
-        return Err(create_type_error(agent, "Array species constructor invalid"));
+        return Err(create_type_error("Array species constructor invalid"));
     }
     let c_obj = Object::try_from(&c).unwrap();
-    construct(agent, &c_obj, &[length.into()], None)
+    construct(&c_obj, &[length.into()], None)
 }
 
 // IsArray ( argument )
@@ -372,11 +349,11 @@ pub fn array_species_create(agent: &Agent, original_array: &Object, length: u64)
 //      b. Let target be argument.[[ProxyTarget]].
 //      c. Return ? IsArray(target).
 //  4. Return false.
-pub fn is_array(agent: &Agent, argument: &ECMAScriptValue) -> Completion<bool> {
-    argument.is_array(agent)
+pub fn is_array(argument: &ECMAScriptValue) -> Completion<bool> {
+    argument.is_array()
 }
 
-pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
+pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -402,7 +379,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let array_constructor = create_builtin_function(
-        agent,
         array_constructor_function,
         true,
         1.0,
@@ -418,7 +394,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                agent,
                 $steps,
                 false,
                 $length,
@@ -429,7 +404,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
                 None,
             );
             define_property_or_throw(
-                agent,
                 &array_constructor,
                 key,
                 PotentialPropertyDescriptor::new()
@@ -458,7 +432,7 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //
     // NOTE |   The Array prototype object is specified to be an Array exotic object to ensure compatibility with
     //          ECMAScript code that was created prior to the ECMAScript 2015 specification.
-    let array_prototype = ArrayObject::create(agent, 0, Some(object_prototype)).unwrap();
+    let array_prototype = ArrayObject::create(0, Some(object_prototype)).unwrap();
 
     // Array.prototype
     //
@@ -466,7 +440,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
     define_property_or_throw(
-        agent,
         &array_constructor,
         "prototype",
         PotentialPropertyDescriptor::new()
@@ -482,7 +455,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                agent,
                 $steps,
                 false,
                 $length,
@@ -493,7 +465,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
                 None,
             );
             define_property_or_throw(
-                agent,
                 &array_prototype,
                 key,
                 PotentialPropertyDescriptor::new()
@@ -545,7 +516,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
     //
     // The initial value of Array.prototype.constructor is %Array%.
     define_property_or_throw(
-        agent,
         &array_prototype,
         "constructor",
         PotentialPropertyDescriptor::new()
@@ -561,7 +531,6 @@ pub fn provision_array_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
 }
 
 fn array_constructor_function(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -569,7 +538,6 @@ fn array_constructor_function(
     todo!()
 }
 fn array_from(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -577,7 +545,6 @@ fn array_from(
     todo!()
 }
 fn array_is_array(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -585,7 +552,6 @@ fn array_is_array(
     todo!()
 }
 fn array_of(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -593,7 +559,6 @@ fn array_of(
     todo!()
 }
 fn array_prototype_at(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -601,7 +566,6 @@ fn array_prototype_at(
     todo!()
 }
 fn array_prototype_concat(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -609,7 +573,6 @@ fn array_prototype_concat(
     todo!()
 }
 fn array_prototype_copy_within(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -617,7 +580,6 @@ fn array_prototype_copy_within(
     todo!()
 }
 fn array_prototype_entries(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -625,7 +587,6 @@ fn array_prototype_entries(
     todo!()
 }
 fn array_prototype_every(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -633,7 +594,6 @@ fn array_prototype_every(
     todo!()
 }
 fn array_prototype_fill(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -641,7 +601,6 @@ fn array_prototype_fill(
     todo!()
 }
 fn array_prototype_filter(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -649,7 +608,6 @@ fn array_prototype_filter(
     todo!()
 }
 fn array_prototype_find(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -657,7 +615,6 @@ fn array_prototype_find(
     todo!()
 }
 fn array_prototype_find_index(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -665,7 +622,6 @@ fn array_prototype_find_index(
     todo!()
 }
 fn array_prototype_flat(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -673,7 +629,6 @@ fn array_prototype_flat(
     todo!()
 }
 fn array_prototype_flat_map(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -681,7 +636,6 @@ fn array_prototype_flat_map(
     todo!()
 }
 fn array_prototype_for_each(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -689,7 +643,6 @@ fn array_prototype_for_each(
     todo!()
 }
 fn array_prototype_includes(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -697,7 +650,6 @@ fn array_prototype_includes(
     todo!()
 }
 fn array_prototype_index_of(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -705,7 +657,6 @@ fn array_prototype_index_of(
     todo!()
 }
 fn array_prototype_join(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -713,7 +664,6 @@ fn array_prototype_join(
     todo!()
 }
 fn array_prototype_keys(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -721,7 +671,6 @@ fn array_prototype_keys(
     todo!()
 }
 fn array_prototype_last_index_of(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -729,7 +678,6 @@ fn array_prototype_last_index_of(
     todo!()
 }
 fn array_prototype_map(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -737,7 +685,6 @@ fn array_prototype_map(
     todo!()
 }
 fn array_prototype_pop(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -745,7 +692,6 @@ fn array_prototype_pop(
     todo!()
 }
 fn array_prototype_push(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -753,7 +699,6 @@ fn array_prototype_push(
     todo!()
 }
 fn array_prototype_reduce(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -761,7 +706,6 @@ fn array_prototype_reduce(
     todo!()
 }
 fn array_prototype_reduce_right(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -769,7 +713,6 @@ fn array_prototype_reduce_right(
     todo!()
 }
 fn array_prototype_reverse(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -777,7 +720,6 @@ fn array_prototype_reverse(
     todo!()
 }
 fn array_prototype_shift(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -785,7 +727,6 @@ fn array_prototype_shift(
     todo!()
 }
 fn array_prototype_slice(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -793,7 +734,6 @@ fn array_prototype_slice(
     todo!()
 }
 fn array_prototype_some(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -801,7 +741,6 @@ fn array_prototype_some(
     todo!()
 }
 fn array_prototype_sort(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -809,7 +748,6 @@ fn array_prototype_sort(
     todo!()
 }
 fn array_prototype_splice(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -817,7 +755,6 @@ fn array_prototype_splice(
     todo!()
 }
 fn array_prototype_to_locale_string(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -825,7 +762,6 @@ fn array_prototype_to_locale_string(
     todo!()
 }
 fn array_prototype_to_string(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -833,7 +769,6 @@ fn array_prototype_to_string(
     todo!()
 }
 fn array_prototype_unshift(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -841,7 +776,6 @@ fn array_prototype_unshift(
     todo!()
 }
 fn array_prototype_values(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],

@@ -390,12 +390,7 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
 }
 
 pub trait CallableObject: ObjectInterface {
-    fn call(
-        &self,
-        self_object: &Object,
-        this_argument: &ECMAScriptValue,
-        arguments_list: &[ECMAScriptValue],
-    );
+    fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]);
     fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object);
     fn end_evaluation(&self, result: FullCompletion);
     fn complete_call(&self) -> Completion<ECMAScriptValue>;
@@ -430,42 +425,37 @@ impl ObjectInterface for FunctionObject {
         }
     }
 
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
-    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
-    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
-        ordinary_define_own_property(agent, self, key, desc)
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+        ordinary_define_own_property(self, key, desc)
     }
-    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
-    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(agent, self, key, receiver)
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
     }
-    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(agent, self, key, v, receiver)
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, v, receiver)
     }
-    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(agent, self, key)
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
     }
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -483,13 +473,7 @@ impl CallableObject for FunctionObject {
     ///
     /// Compare with [Function Object's \[\[Call\]\]
     /// Method](https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist) in ECMA-262.
-    fn call(
-        &self,
-        agent: &Agent,
-        self_object: &Object,
-        this_argument: &ECMAScriptValue,
-        arguments_list: &[ECMAScriptValue],
-    ) {
+    fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) {
         // [[Call]] ( thisArgument, argumentsList )
         //
         // The [[Call]] internal method of an ECMAScript function object F takes arguments thisArgument (an ECMAScript
@@ -509,18 +493,18 @@ impl CallableObject for FunctionObject {
         //   5. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         //   6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         //   ...
-        agent.prepare_for_ordinary_call(self_object, None);
+        prepare_for_ordinary_call(self_object, None);
         if self.function_data.borrow().is_class_constructor {
-            let error = create_type_error(agent, "constructors must use 'new'.");
-            agent.pop_execution_context();
-            agent.ec_push(Err(error));
+            let error = create_type_error("constructors must use 'new'.");
+            pop_execution_context();
+            ec_push(Err(error));
             return;
         }
-        agent.ordinary_call_bind_this(self_object, this_argument.clone());
-        agent.ordinary_call_evaluate_body(self_object, arguments_list);
+        ordinary_call_bind_this(self_object, this_argument.clone());
+        ordinary_call_evaluate_body(self_object, arguments_list);
     }
 
-    fn end_evaluation(&self, agent: &Agent, result: FullCompletion) {
+    fn end_evaluation(&self, result: FullCompletion) {
         // (From [[Call]])
         //  6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         //  7. Remove calleeContext from the execution context stack and restore callerContext as the running
@@ -541,10 +525,10 @@ impl CallableObject for FunctionObject {
         // 12. Let thisBinding be ? constructorEnv.GetThisBinding().
         // 13. Assert: Type(thisBinding) is Object.
         // 14. Return thisBinding.
-        if agent.ec_stack_len() == 0 {
+        if ec_stack_len() == 0 {
             // From [[Call]]
-            agent.pop_execution_context();
-            agent.ec_push(if let Err(AbruptCompletion::Return { value }) = result {
+            pop_execution_context();
+            ec_push(if let Err(AbruptCompletion::Return { value }) = result {
                 Ok(value.into())
             } else if result.is_err() {
                 result
@@ -554,41 +538,40 @@ impl CallableObject for FunctionObject {
         } else {
             // From [[Construct]]
             let this_argument = ECMAScriptValue::try_from(
-                agent.ec_pop().expect("Must be at least two things on the stack").expect("which must not be errors"),
+                ec_pop().expect("Must be at least two things on the stack").expect("which must not be errors"),
             )
             .expect("the first of which must be a value");
-            let constructor_env: Rc<dyn EnvironmentRecord> = agent
-                .ec_pop()
+            let constructor_env: Rc<dyn EnvironmentRecord> = ec_pop()
                 .expect("Must be at least one more item on the stack")
                 .expect("which must not be an error")
                 .try_into()
                 .expect("And which must be an environment record");
-            assert_eq!(agent.ec_stack_len(), 0);
-            agent.pop_execution_context();
+            assert_eq!(ec_stack_len(), 0);
+            pop_execution_context();
             if let Err(AbruptCompletion::Return { value }) = result {
                 if value.is_object() {
-                    agent.ec_push(Ok(value.into()));
+                    ec_push(Ok(value.into()));
                     return;
                 }
                 if !this_argument.is_null() {
-                    agent.ec_push(Ok(this_argument.into()));
+                    ec_push(Ok(this_argument.into()));
                     return;
                 }
                 if !value.is_undefined() {
-                    let err = create_type_error(agent, "Constructors must return objects");
-                    agent.ec_push(Err(err));
+                    let err = create_type_error("Constructors must return objects");
+                    ec_push(Err(err));
                     return;
                 }
             } else if let Err(e) = result {
-                agent.ec_push(Err(e));
+                ec_push(Err(e));
                 return;
             }
-            let this_binding = constructor_env.get_this_binding(agent);
-            agent.ec_push(this_binding.map(NormalCompletion::from))
+            let this_binding = constructor_env.get_this_binding();
+            ec_push(this_binding.map(NormalCompletion::from))
         }
     }
 
-    fn construct(&self, agent: &Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
+    fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
         // [[Construct]] ( argumentsList, newTarget )
         //
         // The [[Construct]] internal method of an ECMAScript function object F takes arguments argumentsList
@@ -612,10 +595,10 @@ impl CallableObject for FunctionObject {
         //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         let kind = self.function_data().borrow().constructor_kind;
         let this_argument = if kind == ConstructorKind::Base {
-            let ta = ordinary_create_from_constructor(agent, new_target, IntrinsicId::ObjectPrototype, &[]);
+            let ta = ordinary_create_from_constructor(new_target, IntrinsicId::ObjectPrototype, &[]);
             match ta {
                 Err(err) => {
-                    agent.ec_push(Err(err));
+                    ec_push(Err(err));
                     return;
                 }
                 Ok(obj) => {
@@ -628,54 +611,52 @@ impl CallableObject for FunctionObject {
             None
         };
 
-        agent.prepare_for_ordinary_call(self_object, Some(new_target.clone()));
+        prepare_for_ordinary_call(self_object, Some(new_target.clone()));
         if kind == ConstructorKind::Base {
-            agent.ordinary_call_bind_this(self_object, this_argument.clone().expect("previously created").into());
-            let initialize_result = agent.initialize_instance_elements(this_argument.as_ref().unwrap(), self_object);
+            ordinary_call_bind_this(self_object, this_argument.clone().expect("previously created").into());
+            let initialize_result = initialize_instance_elements(this_argument.as_ref().unwrap(), self_object);
             if let Err(err) = initialize_result {
-                agent.pop_execution_context();
-                agent.ec_push(Err(err));
+                pop_execution_context();
+                ec_push(Err(err));
                 return;
             }
         }
-        let constructor_env = agent.current_lexical_environment().expect("A lexical environment must exist");
-        agent.ec_push(Ok(NormalCompletion::Environment(constructor_env)));
-        agent.ec_push(Ok(match this_argument {
+        let constructor_env = current_lexical_environment().expect("A lexical environment must exist");
+        ec_push(Ok(NormalCompletion::Environment(constructor_env)));
+        ec_push(Ok(match this_argument {
             None => ECMAScriptValue::Null.into(),
             Some(obj) => ECMAScriptValue::Object(obj).into(),
         }));
-        agent.ordinary_call_evaluate_body(self_object, arguments_list);
+        ordinary_call_evaluate_body(self_object, arguments_list);
     }
 
-    fn complete_call(&self, agent: &Agent) -> Completion<ECMAScriptValue> {
+    fn complete_call(&self) -> Completion<ECMAScriptValue> {
         let empty = String::new();
         let fod = self.function_data.borrow();
         let text = fod.script_or_module.as_ref().map_or(&empty, ScriptOrModule::source_text);
-        agent.execute(text)
+        execute(text)
     }
 }
 
-impl Agent {
-    pub fn initialize_instance_elements(&self, this_argument: &Object, constructor: &Object) -> Completion<()> {
-        // InitializeInstanceElements ( O, constructor )
-        // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript function object) and returns either a normal completion containing unused or a throw completion. It performs the following steps when called:
-        //
-        //  1. Let methods be the value of constructor.[[PrivateMethods]].
-        //  2. For each PrivateElement method of methods, do
-        //      a. Perform ? PrivateMethodOrAccessorAdd(O, method).
-        //  3. Let fields be the value of constructor.[[Fields]].
-        //  4. For each element fieldRecord of fields, do
-        //      a. Perform ? DefineField(O, fieldRecord).
-        //  5. Return unused.
-        let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-        for method in data.private_methods.iter() {
-            private_method_or_accessor_add(self, this_argument, method.clone())?;
-        }
-        for field_record in data.fields.iter() {
-            define_field(self, this_argument, field_record)?;
-        }
-        Ok(())
+pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object) -> Completion<()> {
+    // InitializeInstanceElements ( O, constructor )
+    // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript function object) and returns either a normal completion containing unused or a throw completion. It performs the following steps when called:
+    //
+    //  1. Let methods be the value of constructor.[[PrivateMethods]].
+    //  2. For each PrivateElement method of methods, do
+    //      a. Perform ? PrivateMethodOrAccessorAdd(O, method).
+    //  3. Let fields be the value of constructor.[[Fields]].
+    //  4. For each element fieldRecord of fields, do
+    //      a. Perform ? DefineField(O, fieldRecord).
+    //  5. Return unused.
+    let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
+    for method in data.private_methods.iter() {
+        private_method_or_accessor_add(this_argument, method.clone())?;
     }
+    for field_record in data.fields.iter() {
+        define_field(this_argument, field_record)?;
+    }
+    Ok(())
 }
 
 impl FunctionInterface for FunctionObject {
@@ -687,7 +668,6 @@ impl FunctionInterface for FunctionObject {
 impl FunctionObject {
     #[allow(clippy::too_many_arguments)]
     pub fn object(
-        agent: &Agent,
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
         private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -708,7 +688,7 @@ impl FunctionObject {
     ) -> Object {
         Object {
             o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, prototype, true, FUNCTION_OBJECT_SLOTS)),
+                common: RefCell::new(CommonObjectData::new(prototype, true, FUNCTION_OBJECT_SLOTS)),
                 function_data: RefCell::new(FunctionObjectData {
                     environment,
                     private_environment,
@@ -733,151 +713,149 @@ impl FunctionObject {
     }
 }
 
-impl Agent {
-    /// Establish an execution context for user function calls, and put it on the execution context stack
-    ///
-    /// The function being called is `func`, and any target for New expressions is in `new_target`.
-    ///
-    /// See [PrepareForOrdinaryCall](https://tc39.es/ecma262/#sec-prepareforordinarycall) from ECMA-262.
-    fn prepare_for_ordinary_call(&self, func: &Object, new_target: Option<Object>) {
-        // PrepareForOrdinaryCall ( F, newTarget )
-        //
-        // The abstract operation PrepareForOrdinaryCall takes arguments F (a function object) and newTarget (an Object
-        // or undefined) and returns an execution context. It performs the following steps when called:
-        //
-        //   1. Let callerContext be the running execution context.
-        //   2. Let calleeContext be a new ECMAScript code execution context.
-        //   3. Set the Function of calleeContext to F.
-        //   4. Let calleeRealm be F.[[Realm]].
-        //   5. Set the Realm of calleeContext to calleeRealm.
-        //   6. Set the ScriptOrModule of calleeContext to F.[[ScriptOrModule]].
-        //   7. Let localEnv be NewFunctionEnvironment(F, newTarget).
-        //   8. Set the LexicalEnvironment of calleeContext to localEnv.
-        //   9. Set the VariableEnvironment of calleeContext to localEnv.
-        //  10. Set the PrivateEnvironment of calleeContext to F.[[PrivateEnvironment]].
-        //  11. If callerContext is not already suspended, suspend callerContext.
-        //  12. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
-        //  13. NOTE: Any exception objects produced after this point are associated with calleeRealm.
-        //  14. Return calleeContext.
+/// Establish an execution context for user function calls, and put it on the execution context stack
+///
+/// The function being called is `func`, and any target for New expressions is in `new_target`.
+///
+/// See [PrepareForOrdinaryCall](https://tc39.es/ecma262/#sec-prepareforordinarycall) from ECMA-262.
+fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
+    // PrepareForOrdinaryCall ( F, newTarget )
+    //
+    // The abstract operation PrepareForOrdinaryCall takes arguments F (a function object) and newTarget (an Object
+    // or undefined) and returns an execution context. It performs the following steps when called:
+    //
+    //   1. Let callerContext be the running execution context.
+    //   2. Let calleeContext be a new ECMAScript code execution context.
+    //   3. Set the Function of calleeContext to F.
+    //   4. Let calleeRealm be F.[[Realm]].
+    //   5. Set the Realm of calleeContext to calleeRealm.
+    //   6. Set the ScriptOrModule of calleeContext to F.[[ScriptOrModule]].
+    //   7. Let localEnv be NewFunctionEnvironment(F, newTarget).
+    //   8. Set the LexicalEnvironment of calleeContext to localEnv.
+    //   9. Set the VariableEnvironment of calleeContext to localEnv.
+    //  10. Set the PrivateEnvironment of calleeContext to F.[[PrivateEnvironment]].
+    //  11. If callerContext is not already suspended, suspend callerContext.
+    //  12. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
+    //  13. NOTE: Any exception objects produced after this point are associated with calleeRealm.
+    //  14. Return calleeContext.
 
-        // Pull out all the pieces from function data that we need
-        let (callee_realm, s_or_m, private_environment, name) = {
-            let function_data = func
-                .o
-                .to_function_obj()
-                .expect("PrepareForOrdinaryCall works only with function objects")
-                .function_data()
-                .borrow();
-            let callee_realm = Rc::clone(&function_data.realm);
-            let s_or_m = function_data.script_or_module.clone();
-            let privates = function_data.private_environment.clone();
-            let name = nameify(&function_data.source_text, 50);
-            (callee_realm, s_or_m, privates, name)
-        };
-
-        // New context for function call, with the basics captured from the function object
-        let mut callee_context = ExecutionContext::new(Some(func.clone()), callee_realm, s_or_m);
-
-        // New environment record. Function bindings will be stored in here.
-        let env_name = name;
-        let local_env = FunctionEnvironmentRecord::new(func.clone(), new_target, env_name);
-        let env_ptr: Rc<dyn EnvironmentRecord> = Rc::new(local_env);
-
-        // Connect the environment record into the execution context. Note that for functions, the lexical and variable
-        // binding space is (initially) identical.
-        callee_context.lexical_environment = Some(Rc::clone(&env_ptr));
-        callee_context.variable_environment = Some(env_ptr);
-
-        // And also the private environment. These are effectively a kind of "class" variable, as they persist through
-        // multiple function calls, and potentially different functions.
-        callee_context.private_environment = private_environment;
-
-        // Push onto the EC stack; this is now the real deal, though no compiled chunks have been attached yet. (Should
-        // that happen here?)
-        self.push_execution_context(callee_context);
-    }
-
-    /// Bind the "this" value for the current function call.
-    ///
-    /// The function's `this_mode` controls what happens here. `Lexical` "this" mode means this function does
-    /// nothing. (There is no "this".) `Strict` "this" mode uses the provided `this_argument` with no change.
-    fn ordinary_call_bind_this(&self, func: &Object, this_argument: ECMAScriptValue) {
-        // OrdinaryCallBindThis ( F, calleeContext, thisArgument )
-        //
-        // The abstract operation OrdinaryCallBindThis takes arguments F (a function object), calleeContext (an
-        // execution context), and thisArgument (an ECMAScript language value) and returns unused. It performs the
-        // following steps when called:
-        //
-        //   1. Let thisMode be F.[[ThisMode]].
-        //   2. If thisMode is lexical, return unused.
-        //   3. Let calleeRealm be F.[[Realm]].
-        //   4. Let localEnv be the LexicalEnvironment of calleeContext.
-        //   5. If thisMode is strict, let thisValue be thisArgument.
-        //   6. Else,
-        //      a. If thisArgument is undefined or null, then
-        //            i. Let globalEnv be calleeRealm.[[GlobalEnv]].
-        //           ii. Assert: globalEnv is a global Environment Record.
-        //          iii. Let thisValue be globalEnv.[[GlobalThisValue]].
-        //      b. Else,
-        //            i. Let thisValue be ! ToObject(thisArgument).
-        //           ii. NOTE: ToObject produces wrapper objects using calleeRealm.
-        //   7. Assert: localEnv is a function Environment Record.
-        //   8. Assert: The next step never returns an abrupt completion because localEnv.[[ThisBindingStatus]] is not
-        //      initialized.
-        //   9. Perform ! localEnv.BindThisValue(thisValue).
-        //  10. Return unused.
-        let (this_mode, callee_realm) = {
-            let function_data = func
-                .o
-                .to_function_obj()
-                .expect("OrdinaryCallBindThis works only with function objects")
-                .function_data()
-                .borrow();
-            let this_mode = function_data.this_mode;
-            if this_mode == ThisMode::Lexical {
-                return;
-            }
-            (this_mode, function_data.realm.clone())
-        };
-        let local_env = self.current_lexical_environment().expect("Context must have a lexical environment");
-        let this_value = if this_mode == ThisMode::Strict {
-            this_argument
-        } else if this_argument == ECMAScriptValue::Undefined || this_argument == ECMAScriptValue::Null {
-            let global_env =
-                callee_realm.borrow().global_env.clone().expect("A global environment must exist for this realm");
-            global_env.get_this_binding(self).expect("This binding must exist")
-        } else {
-            ECMAScriptValue::from(to_object(self, this_argument).expect("Must be objectifiable"))
-        };
-        local_env.bind_this_value(self, this_value).expect("This binding should be uninitialized");
-    }
-
-    fn ordinary_call_evaluate_body(&self, func: &Object, args: &[ECMAScriptValue]) {
-        // OrdinaryCallEvaluateBody ( F, argumentsList )
-        //
-        // The abstract operation OrdinaryCallEvaluateBody takes arguments F (a function object) and argumentsList (a
-        // List) and returns either a normal completion containing an ECMAScript language value or an abrupt
-        // completion. It performs the following steps when called:
-        //
-        // 1. Return ? EvaluateBody of F.[[ECMAScriptCode]] with arguments F and argumentsList.
-
-        // So "EvaluateBody" is what's compiled into this function's chunk; all we really need to do here is put the
-        // arguments on the stack and set up the execution context for running code.
-        let func_val = NormalCompletion::from(func.clone());
-        let data = func
+    // Pull out all the pieces from function data that we need
+    let (callee_realm, s_or_m, private_environment, name) = {
+        let function_data = func
             .o
             .to_function_obj()
-            .expect("OrdinaryCallEvaluateBody only works for function objects")
+            .expect("PrepareForOrdinaryCall works only with function objects")
             .function_data()
             .borrow();
-        let chunk = Rc::clone(&data.compiled);
-        self.prepare_running_ec_for_execution(chunk);
-        self.ec_push(Ok(func_val));
-        for item in args.iter() {
-            self.ec_push(Ok(item.clone().into()));
+        let callee_realm = Rc::clone(&function_data.realm);
+        let s_or_m = function_data.script_or_module.clone();
+        let privates = function_data.private_environment.clone();
+        let name = nameify(&function_data.source_text, 50);
+        (callee_realm, s_or_m, privates, name)
+    };
+
+    // New context for function call, with the basics captured from the function object
+    let mut callee_context = ExecutionContext::new(Some(func.clone()), callee_realm, s_or_m);
+
+    // New environment record. Function bindings will be stored in here.
+    let env_name = name;
+    let local_env = FunctionEnvironmentRecord::new(func.clone(), new_target, env_name);
+    let env_ptr: Rc<dyn EnvironmentRecord> = Rc::new(local_env);
+
+    // Connect the environment record into the execution context. Note that for functions, the lexical and variable
+    // binding space is (initially) identical.
+    callee_context.lexical_environment = Some(Rc::clone(&env_ptr));
+    callee_context.variable_environment = Some(env_ptr);
+
+    // And also the private environment. These are effectively a kind of "class" variable, as they persist through
+    // multiple function calls, and potentially different functions.
+    callee_context.private_environment = private_environment;
+
+    // Push onto the EC stack; this is now the real deal, though no compiled chunks have been attached yet. (Should
+    // that happen here?)
+    push_execution_context(callee_context);
+}
+
+/// Bind the "this" value for the current function call.
+///
+/// The function's `this_mode` controls what happens here. `Lexical` "this" mode means this function does
+/// nothing. (There is no "this".) `Strict` "this" mode uses the provided `this_argument` with no change.
+fn ordinary_call_bind_this(func: &Object, this_argument: ECMAScriptValue) {
+    // OrdinaryCallBindThis ( F, calleeContext, thisArgument )
+    //
+    // The abstract operation OrdinaryCallBindThis takes arguments F (a function object), calleeContext (an
+    // execution context), and thisArgument (an ECMAScript language value) and returns unused. It performs the
+    // following steps when called:
+    //
+    //   1. Let thisMode be F.[[ThisMode]].
+    //   2. If thisMode is lexical, return unused.
+    //   3. Let calleeRealm be F.[[Realm]].
+    //   4. Let localEnv be the LexicalEnvironment of calleeContext.
+    //   5. If thisMode is strict, let thisValue be thisArgument.
+    //   6. Else,
+    //      a. If thisArgument is undefined or null, then
+    //            i. Let globalEnv be calleeRealm.[[GlobalEnv]].
+    //           ii. Assert: globalEnv is a global Environment Record.
+    //          iii. Let thisValue be globalEnv.[[GlobalThisValue]].
+    //      b. Else,
+    //            i. Let thisValue be ! ToObject(thisArgument).
+    //           ii. NOTE: ToObject produces wrapper objects using calleeRealm.
+    //   7. Assert: localEnv is a function Environment Record.
+    //   8. Assert: The next step never returns an abrupt completion because localEnv.[[ThisBindingStatus]] is not
+    //      initialized.
+    //   9. Perform ! localEnv.BindThisValue(thisValue).
+    //  10. Return unused.
+    let (this_mode, callee_realm) = {
+        let function_data = func
+            .o
+            .to_function_obj()
+            .expect("OrdinaryCallBindThis works only with function objects")
+            .function_data()
+            .borrow();
+        let this_mode = function_data.this_mode;
+        if this_mode == ThisMode::Lexical {
+            return;
         }
-        self.ec_push(Ok((args.len() as u32).into()));
+        (this_mode, function_data.realm.clone())
+    };
+    let local_env = current_lexical_environment().expect("Context must have a lexical environment");
+    let this_value = if this_mode == ThisMode::Strict {
+        this_argument
+    } else if this_argument == ECMAScriptValue::Undefined || this_argument == ECMAScriptValue::Null {
+        let global_env =
+            callee_realm.borrow().global_env.clone().expect("A global environment must exist for this realm");
+        global_env.get_this_binding().expect("This binding must exist")
+    } else {
+        ECMAScriptValue::from(to_object(this_argument).expect("Must be objectifiable"))
+    };
+    local_env.bind_this_value(this_value).expect("This binding should be uninitialized");
+}
+
+fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
+    // OrdinaryCallEvaluateBody ( F, argumentsList )
+    //
+    // The abstract operation OrdinaryCallEvaluateBody takes arguments F (a function object) and argumentsList (a
+    // List) and returns either a normal completion containing an ECMAScript language value or an abrupt
+    // completion. It performs the following steps when called:
+    //
+    // 1. Return ? EvaluateBody of F.[[ECMAScriptCode]] with arguments F and argumentsList.
+
+    // So "EvaluateBody" is what's compiled into this function's chunk; all we really need to do here is put the
+    // arguments on the stack and set up the execution context for running code.
+    let func_val = NormalCompletion::from(func.clone());
+    let data = func
+        .o
+        .to_function_obj()
+        .expect("OrdinaryCallEvaluateBody only works for function objects")
+        .function_data()
+        .borrow();
+    let chunk = Rc::clone(&data.compiled);
+    prepare_running_ec_for_execution(chunk);
+    ec_push(Ok(func_val));
+    for item in args.iter() {
+        ec_push(Ok(item.clone().into()));
     }
+    ec_push(Ok((args.len() as u32).into()));
 }
 
 pub fn nameify(src: &str, limit: usize) -> String {
@@ -944,7 +922,6 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
         builtin.builtin_function_data().borrow_mut().initial_name = Some(FunctionName::from(name_after_prefix.clone()));
     }
     define_property_or_throw(
-        agent,
         func,
         "name",
         PotentialPropertyDescriptor::new()
@@ -964,9 +941,8 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
 //      1. Assert: F is an extensible object that does not have a "length" own property.
 //      2. Return ! DefinePropertyOrThrow(F, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn set_function_length(agent: &Agent, func: &Object, length: f64) {
+pub fn set_function_length(func: &Object, length: f64) {
     define_property_or_throw(
-        agent,
         func,
         "length",
         PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(true),
@@ -1039,7 +1015,7 @@ impl From<JSString> for FunctionName {
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    pub steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     pub is_constructor: bool,
 }
 
@@ -1056,7 +1032,7 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self { realm, initial_name, steps, is_constructor }
@@ -1083,30 +1059,28 @@ impl BuiltinFunctionInterface for BuiltInFunctionObject {
 
 impl BuiltInFunctionObject {
     pub fn new(
-        agent: &Agent,
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Rc<Self> {
         Rc::new(Self {
-            common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
+            common: RefCell::new(CommonObjectData::new(prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
             builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
         })
     }
 
     pub fn object(
-        agent: &Agent,
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
-        Object { o: Self::new(agent, prototype, extensible, realm, initial_name, steps, is_constructor) }
+        Object { o: Self::new(prototype, extensible, realm, initial_name, steps, is_constructor) }
     }
 }
 
@@ -1145,42 +1119,37 @@ impl ObjectInterface for BuiltInFunctionObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
-    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
-    fn get_own_property(&self, _agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
-        ordinary_define_own_property(agent, self, key, desc)
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+        ordinary_define_own_property(self, key, desc)
     }
-    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
-    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(agent, self, key, receiver)
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
     }
-    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(agent, self, key, v, receiver)
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, v, receiver)
     }
-    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(agent, self, key)
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
     }
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -1209,21 +1178,15 @@ impl CallableObject for BuiltInFunctionObject {
     //
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
-    fn call(
-        &self,
-        agent: &Agent,
-        self_object: &Object,
-        this_argument: &ECMAScriptValue,
-        arguments_list: &[ECMAScriptValue],
-    ) {
+    fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) {
         assert_eq!(self.id(), self_object.o.id());
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
-        agent.push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(agent, this_argument.clone(), None, arguments_list);
-        agent.pop_execution_context();
+        push_execution_context(callee_context);
+        let result = (self.builtin_data.borrow().steps)(this_argument.clone(), None, arguments_list);
+        pop_execution_context();
 
-        agent.ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from))
     }
 
     // [[Construct]] ( argumentsList, newTarget )
@@ -1235,25 +1198,23 @@ impl CallableObject for BuiltInFunctionObject {
     // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
-    fn construct(&self, agent: &Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
+    fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
         assert_eq!(self.id(), self_object.o.id());
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
-        agent.push_execution_context(callee_context);
-        let result =
-            (self.builtin_data.borrow().steps)(agent, ECMAScriptValue::Undefined, Some(new_target), arguments_list);
-        agent.pop_execution_context();
+        push_execution_context(callee_context);
+        let result = (self.builtin_data.borrow().steps)(ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        pop_execution_context();
 
-        agent.ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from))
     }
 
-    fn end_evaluation(&self, _: &Agent, _: FullCompletion) {
+    fn end_evaluation(&self, _: FullCompletion) {
         unreachable!("end_evaluation called for builtin callable")
     }
 
-    fn complete_call(&self, agent: &Agent) -> Completion<ECMAScriptValue> {
-        agent
-            .ec_pop()
+    fn complete_call(&self) -> Completion<ECMAScriptValue> {
+        ec_pop()
             .expect("Call must return a Completion")
             .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
     }
@@ -1291,8 +1252,7 @@ impl CallableObject for BuiltInFunctionObject {
 // operation.
 #[allow(clippy::too_many_arguments)]
 pub fn create_builtin_function(
-    agent: &Agent,
-    behavior: fn(&Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     is_constructor: bool,
     length: f64,
     name: PropertyKey,
@@ -1301,19 +1261,12 @@ pub fn create_builtin_function(
     prototype: Option<Object>,
     prefix: Option<JSString>,
 ) -> Object {
-    let realm_to_use = realm.unwrap_or_else(|| agent.current_realm_record().unwrap());
+    let realm_to_use = realm.unwrap_or_else(|| current_realm_record().unwrap());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
-    let func = BuiltInFunctionObject::object(
-        agent,
-        Some(prototype_to_use),
-        true,
-        realm_to_use,
-        None,
-        behavior,
-        is_constructor,
-    );
-    set_function_length(agent, &func, length);
-    set_function_name(agent, &func, FunctionName::from(name), prefix);
+    let func =
+        BuiltInFunctionObject::object(Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
+    set_function_length(&func, length);
+    set_function_name(&func, FunctionName::from(name), prefix);
     func
 }
 
@@ -1321,7 +1274,6 @@ impl FunctionDeclaration {
     #[allow(unused_variables)]
     pub fn instantiate_function_object(
         &self,
-        agent: &Agent,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
@@ -1374,17 +1326,16 @@ impl FunctionDeclaration {
         };
         let compilation_status = self.body.compile_body(&mut compiled, text, &function_data);
         if let Err(err) = compilation_status {
-            let typeerror = create_type_error(agent, err.to_string());
+            let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
         }
         for line in compiled.disassemble() {
             println!("{line}");
         }
 
-        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
 
         let closure = ordinary_function_create(
-            agent,
             function_prototype,
             function_data.source_text.as_str(),
             function_data.params.clone(),
@@ -1395,8 +1346,8 @@ impl FunctionDeclaration {
             function_data.strict,
             Rc::new(compiled),
         );
-        set_function_name(agent, &closure, name.into(), None);
-        make_constructor(agent, &closure, None);
+        set_function_name(&closure, name.into(), None);
+        make_constructor(&closure, None);
 
         Ok(closure.into())
     }
@@ -1406,7 +1357,6 @@ impl GeneratorDeclaration {
     #[allow(unused_variables)]
     pub fn instantiate_function_object(
         &self,
-        agent: &Agent,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
@@ -1421,7 +1371,7 @@ impl AsyncFunctionDeclaration {
     #[allow(unused_variables)]
     pub fn instantiate_function_object(
         &self,
-        agent: &Agent,
+
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
@@ -1436,7 +1386,7 @@ impl AsyncGeneratorDeclaration {
     #[allow(unused_variables)]
     pub fn instantiate_function_object(
         &self,
-        agent: &Agent,
+
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
@@ -1502,14 +1452,13 @@ pub fn ordinary_function_create(
             false => ThisMode::Global,
         },
     };
-    let script_or_module = agent.get_active_script_or_module();
-    let realm = agent.current_realm_record().unwrap();
+    let script_or_module = get_active_script_or_module();
+    let realm = current_realm_record().unwrap();
     let prototype = Some(function_prototype);
 
     let arg_count = parameter_list.expected_argument_count();
 
     let func = FunctionObject::object(
-        agent,
         prototype,
         env,
         private_env,
@@ -1529,7 +1478,7 @@ pub fn ordinary_function_create(
         compiled,
     );
 
-    set_function_length(agent, &func, arg_count);
+    set_function_length(&func, arg_count);
 
     func
 }
@@ -1584,10 +1533,9 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
     let prototype = match prototype_arg {
         Some(p) => p,
         None => {
-            let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let p = ordinary_object_create(agent, Some(obj_proto), &[]);
+            let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let p = ordinary_object_create(Some(obj_proto), &[]);
             define_property_or_throw(
-                agent,
                 &p,
                 "constructor",
                 PotentialPropertyDescriptor::new()
@@ -1601,7 +1549,6 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
         }
     };
     define_property_or_throw(
-        agent,
         &f,
         "prototype",
         PotentialPropertyDescriptor::new()
@@ -1614,7 +1561,6 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
 }
 
 fn function_prototype_call(
-    agent: &Agent,
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -1638,47 +1584,43 @@ fn function_prototype_call(
         if arguments.is_empty() { (ECMAScriptValue::Undefined, &[]) } else { (arguments[0].clone(), &arguments[1..]) };
     let func = this_value;
     if is_callable(&func) {
-        call(agent, &func, &first_arg, remaining)
+        call(&func, &first_arg, remaining)
     } else {
-        Err(create_type_error(agent, "this isn't a function"))
+        Err(create_type_error("this isn't a function"))
     }
 }
 
-impl Agent {
-    pub fn provision_function_intrinsic(&self, realm: &Rc<RefCell<Realm>>) {
-        //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-        let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
+    //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-        // Prototype Function Properties
-        macro_rules! prototype_function {
-            ( $steps:expr, $name:expr, $length:expr ) => {
-                let key = PropertyKey::from($name);
-                let function_object = create_builtin_function(
-                    self,
-                    $steps,
-                    false,
-                    $length,
-                    key.clone(),
-                    BUILTIN_FUNCTION_SLOTS,
-                    Some(realm.clone()),
-                    Some(function_prototype.clone()),
-                    None,
-                );
-                define_property_or_throw(
-                    self,
-                    &function_prototype,
-                    key,
-                    PotentialPropertyDescriptor::new()
-                        .value(function_object)
-                        .writable(true)
-                        .enumerable(false)
-                        .configurable(true),
-                )
-                .unwrap();
-            };
-        }
-        prototype_function!(function_prototype_call, "call", 1.0);
+    // Prototype Function Properties
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &function_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
     }
+    prototype_function!(function_prototype_call, "call", 1.0);
 }
 
 #[cfg(test)]

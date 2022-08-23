@@ -482,9 +482,7 @@ mod agent {
     fn two_values() {
         let agent = test_agent();
         let index = agent.execution_context_stack.borrow().len() - 1;
-        agent.execution_context_stack.borrow_mut()[index]
-            .stack
-            .push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
+        agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
         agent.execution_context_stack.borrow_mut()[index]
             .stack
             .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));

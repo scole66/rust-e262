@@ -508,10 +508,10 @@ pub fn initialize_host_defined_realm(install_test_hooks: bool) {
     }
 }
 
+pub fn global_symbol_registry() -> Rc<RefCell<SymbolRegistry>> {
+    AGENT.with(|agent| agent.gsr.borrow().as_ref().unwrap().clone())
+}
 impl Agent {
-    pub fn global_symbol_registry(&self) -> Rc<RefCell<SymbolRegistry>> {
-        self.gsr.borrow().as_ref().unwrap().clone()
-    }
     pub fn set_global_symbol_registry(&self, gsr: Rc<RefCell<SymbolRegistry>>) {
         assert!(self.gsr.borrow().is_none(), "GSR: Attempted change after having already been set");
         *self.gsr.borrow_mut() = Some(gsr);
@@ -2009,7 +2009,7 @@ pub fn instantiate_ordinary_function_object(
     name: &JSString,
     info: &StashedFunctionData,
 ) {
-    let index = index.unwrap_or(agent.execution_context_stack.borrow().len() - 1);
+    let index = index.unwrap_or(AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1);
     let to_compile: Rc<FunctionDeclaration> =
         info.to_compile.clone().try_into().expect("This routine only used with Function Declarations");
     let chunk_name = nameify(&info.source_text, 50);
@@ -2017,9 +2017,11 @@ pub fn instantiate_ordinary_function_object(
     let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
     if let Err(err) = compilation_status {
         let typeerror = create_type_error(err.to_string());
-        let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-        let l = execution_context_stack[index].stack.len();
-        execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+        AGENT.with(|agent| {
+            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
+            let l = execution_context_stack[index].stack.len();
+            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+        });
         return;
     }
     for line in compiled.disassemble() {
@@ -2027,11 +2029,10 @@ pub fn instantiate_ordinary_function_object(
     }
 
     let env = current_lexical_environment().unwrap();
-    let priv_env = self.current_private_environment();
+    let priv_env = current_private_environment();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
 
     let closure = ordinary_function_create(
-        self,
         function_prototype,
         info.source_text.as_str(),
         info.params.clone(),
@@ -2042,10 +2043,10 @@ pub fn instantiate_ordinary_function_object(
         info.strict,
         Rc::new(compiled),
     );
-    set_function_name(self, &closure, name.clone().into(), None);
-    make_constructor(self, &closure, None);
+    set_function_name(&closure, name.clone().into(), None);
+    make_constructor(&closure, None);
 
-    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into()));
+    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
 }
 
 fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
@@ -2137,18 +2138,18 @@ fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompl
     //         | inherit @@hasInstance it uses the default instanceof semantics.
     match &target {
         ECMAScriptValue::Object(_) => {
-            let hi = self.wks(WksId::HasInstance);
-            let instof_handler = get_method(self, &target, &hi.into())?;
+            let hi = wks(WksId::HasInstance);
+            let instof_handler = get_method(&target, &hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
                     if !is_callable(&target) {
                         Err(create_type_error("Right-hand side of 'instanceof' is not callable"))
                     } else {
-                        self.ordinary_has_instance(&target, &v).map(NormalCompletion::from)
+                        ordinary_has_instance(&target, &v).map(NormalCompletion::from)
                     }
                 }
                 _ => {
-                    let res = call(self, &instof_handler, &target, &[v])?;
+                    let res = call(&instof_handler, &target, &[v])?;
                     Ok(NormalCompletion::from(to_boolean(res)))
                 }
             }
@@ -2161,22 +2162,21 @@ pub fn create_unmapped_arguments_object(index: usize) {
     // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
     // Those values are NOT consumed; this function assumes they'll be used again.
 
-    let stack_len = agent.execution_context_stack.borrow()[index].stack.len();
+    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
     assert!(stack_len > 0, "Stack must not be empty");
     let length = f64::try_from(
-        ECMAScriptValue::try_from(
+        ECMAScriptValue::try_from(AGENT.with(|agent| {
             agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
                 .clone()
-                .expect("Non-error arguments needed"),
-        )
+                .expect("Non-error arguments needed")
+        }))
         .expect("Value arguments needed"),
     )
     .expect("Numeric arguments needed") as u32;
     assert!(stack_len > length as usize, "Stack too short to fit all the arguments");
 
-    let obj = ArgumentsObject::object(self, None);
+    let obj = ArgumentsObject::object(None);
     define_property_or_throw(
-        self,
         &obj,
         "length",
         PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
@@ -2184,28 +2184,26 @@ pub fn create_unmapped_arguments_object(index: usize) {
     .expect("Normal Object");
 
     let first_arg_index = stack_len - length as usize - 1;
-    let arguments = agent.execution_context_stack.borrow()[index].stack
-        [first_arg_index..first_arg_index + length as usize]
-        .to_vec();
+    let arguments = AGENT.with(|agent| {
+        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length as usize].to_vec()
+    });
 
     for (arg_number, item) in arguments.into_iter().enumerate() {
         let value =
             ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
-        create_data_property_or_throw(self, &obj, arg_number, value).expect("Normal Object");
+        create_data_property_or_throw(&obj, arg_number, value).expect("Normal Object");
     }
 
-    let iterator = self.wks(WksId::Iterator);
+    let iterator = wks(WksId::Iterator);
     let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
     let throw_type_error = intrinsic(IntrinsicId::ThrowTypeError);
     define_property_or_throw(
-        self,
         &obj,
         iterator,
         PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
     )
     .expect("Normal Object");
     define_property_or_throw(
-        self,
         &obj,
         "callee",
         PotentialPropertyDescriptor::new()
@@ -2216,19 +2214,19 @@ pub fn create_unmapped_arguments_object(index: usize) {
     )
     .expect("Normal Object");
 
-    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
+    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj))));
     // Stack at exit: AObj N arg[N-1] ... arg[0] ...
 }
 
 pub fn create_mapped_arguments_object(index: usize) {
     // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
 
-    let stack_len = agent.execution_context_stack.borrow()[index].stack.len();
+    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
     assert!(stack_len > 0, "Stack must not be empty");
     let length = f64::try_from(
         ECMAScriptValue::try_from(
-            agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
-                .clone()
+            AGENT
+                .with(|agent| agent.execution_context_stack.borrow()[index].stack[stack_len - 1].clone())
                 .expect("Non-error arguments needed"),
         )
         .expect("Value arguments needed"),
@@ -2237,60 +2235,59 @@ pub fn create_mapped_arguments_object(index: usize) {
     assert!(stack_len > length as usize + 1, "Stack too short to fit all the arguments plus the function obj");
 
     let first_arg_index = stack_len - length as usize - 1;
-    let arguments = agent.execution_context_stack.borrow()[index].stack
-        [first_arg_index..first_arg_index + length as usize]
-        .to_vec();
+    let arguments = AGENT.with(|agent| {
+        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length as usize].to_vec()
+    });
 
     let env = current_lexical_environment().expect("A lex env must exist");
     let map = ParameterMap::new(env);
-    let ao = ArgumentsObject::object(self, Some(map));
+    let ao = ArgumentsObject::object(Some(map));
 
     for (idx, item) in arguments.into_iter().enumerate() {
         let val = ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
-        create_data_property_or_throw(self, &ao, idx, val).expect("ArgumentObject won't throw");
+        create_data_property_or_throw(&ao, idx, val).expect("ArgumentObject won't throw");
     }
 
     define_property_or_throw(
-        self,
         &ao,
         "length",
         PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
     )
     .expect("ArgumentObject won't throw");
-    let iterator = self.wks(WksId::Iterator);
+    let iterator = wks(WksId::Iterator);
     let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
     define_property_or_throw(
-        self,
         &ao,
         iterator,
         PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
     )
     .expect("ArgumentObject won't throw");
     let func = ECMAScriptValue::try_from(
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index - 1]
-            .clone()
+        AGENT
+            .with(|agent| agent.execution_context_stack.borrow()[index].stack[first_arg_index - 1].clone())
             .expect("Function object type error"),
     )
     .expect("Function object type error");
     define_property_or_throw(
-        self,
         &ao,
         "callee",
         PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
     )
     .expect("ArgumentObject won't throw");
 
-    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ao)));
+    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ao))));
     // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
 }
 
 pub fn attach_mapped_arg(index: usize, name: &JSString, idx: usize) {
     // Stack: AObj ...
-    let top = agent.execution_context_stack.borrow()[index].stack.len();
+    let top = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
     assert!(top > 0, "stack must not be empty");
     let obj = Object::try_from(
         ECMAScriptValue::try_from(
-            agent.execution_context_stack.borrow()[index].stack[top - 1].clone().expect("arguments must be values"),
+            AGENT
+                .with(|agent| agent.execution_context_stack.borrow()[index].stack[top - 1].clone())
+                .expect("arguments must be values"),
         )
         .expect("arguments must be values"),
     )
@@ -2352,8 +2349,8 @@ pub struct WellKnownSymbols {
     pub unscopables_: Symbol,
 }
 
-pub fn parse_script(agent: &Agent, source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
-    let script = parse_text(agent, source_text, ParseGoal::Script);
+pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
+    let script = parse_text(source_text, ParseGoal::Script);
     match script {
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
@@ -2424,17 +2421,16 @@ impl FcnDef {
     }
     pub fn instantiate_function_object(
         &self,
-        agent: &Agent,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
         text: &str,
     ) -> Completion<ECMAScriptValue> {
         match self {
-            FcnDef::Function(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
-            FcnDef::Generator(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
-            FcnDef::AsyncFun(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
-            FcnDef::AsyncGen(x) => x.instantiate_function_object(agent, env, private_env, strict, text, x.clone()),
+            FcnDef::Function(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
+            FcnDef::Generator(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
+            FcnDef::AsyncFun(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
+            FcnDef::AsyncGen(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
         }
     }
 }
@@ -2466,7 +2462,6 @@ impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
 }
 
 pub fn global_declaration_instantiation(
-    agent: &Agent,
     script: Rc<Script>,
     env: Rc<GlobalEnvironmentRecord>,
     strict: bool,
@@ -2477,19 +2472,19 @@ pub fn global_declaration_instantiation(
     let var_names = script.var_declared_names();
     for name in lex_names {
         if env.has_var_declaration(&name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
+            return Err(create_syntax_error(format!("{name}: already defined"), None));
         }
-        if env.has_lexical_declaration(agent, &name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
+        if env.has_lexical_declaration(&name) {
+            return Err(create_syntax_error(format!("{name}: already defined"), None));
         }
-        let has_restricted_global = env.has_restricted_global_property(agent, &name)?;
+        let has_restricted_global = env.has_restricted_global_property(&name)?;
         if has_restricted_global {
-            return Err(create_syntax_error(agent, format!("{name} is restricted and may not be used"), None));
+            return Err(create_syntax_error(format!("{name} is restricted and may not be used"), None));
         }
     }
     for name in var_names {
-        if env.has_lexical_declaration(agent, &name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
+        if env.has_lexical_declaration(&name) {
+            return Err(create_syntax_error(format!("{name}: already defined"), None));
         }
     }
     let var_declarations = script.var_scoped_declarations();
@@ -2498,9 +2493,9 @@ pub fn global_declaration_instantiation(
     for d in var_declarations.iter().rev().cloned().filter_map(|decl| FcnDef::try_from(decl).ok()) {
         let func_name = d.bound_name();
         if !declared_function_names.contains(&func_name) {
-            let fn_definable = env.can_declare_global_function(agent, &func_name)?;
+            let fn_definable = env.can_declare_global_function(&func_name)?;
             if !fn_definable {
-                return Err(create_type_error(agent, format!("Cannot create global function {func_name}")));
+                return Err(create_type_error(format!("Cannot create global function {func_name}")));
             }
             declared_function_names.push(func_name);
             functions_to_initialize.insert(0, d);
@@ -2513,9 +2508,9 @@ pub fn global_declaration_instantiation(
             TopLevelVarDecl::ForBinding(fb) => fb.bound_names(),
         } {
             if !declared_function_names.contains(&vn) {
-                let vn_definable = env.can_declare_global_var(agent, &vn)?;
+                let vn_definable = env.can_declare_global_var(&vn)?;
                 if !vn_definable {
-                    return Err(create_type_error(agent, format!("Cannot create global variable {vn}")));
+                    return Err(create_type_error(format!("Cannot create global variable {vn}")));
                 }
                 if !declared_var_names.contains(&vn) {
                     declared_var_names.push(vn);
@@ -2534,51 +2529,46 @@ pub fn global_declaration_instantiation(
         for dn in names {
             if is_constant {
                 println!("   immutable: {dn}");
-                env.create_immutable_binding(agent, dn, true)?;
+                env.create_immutable_binding(dn, true)?;
             } else {
                 println!("   mutable:   {dn}");
-                env.create_mutable_binding(agent, dn, false)?;
+                env.create_mutable_binding(dn, false)?;
             }
         }
     }
     for f in functions_to_initialize {
         let name = f.bound_name();
-        let func_obj = f.instantiate_function_object(
-            agent,
-            env.clone() as Rc<dyn EnvironmentRecord>,
-            private_env.clone(),
-            strict,
-            text,
-        )?;
+        let func_obj =
+            f.instantiate_function_object(env.clone() as Rc<dyn EnvironmentRecord>, private_env.clone(), strict, text)?;
         println!("   function:  {name}");
-        env.create_global_function_binding(agent, name, func_obj, false)?;
+        env.create_global_function_binding(name, func_obj, false)?;
     }
     for vn in declared_var_names {
         println!("   var:       {vn}");
-        env.create_global_var_binding(agent, vn, false)?;
+        env.create_global_var_binding(vn, false)?;
     }
     println!("..done");
 
     Ok(())
 }
 
-pub fn script_evaluation(agent: &Agent, sr: ScriptRecord) -> Completion<ECMAScriptValue> {
+pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
     let global_env = sr.realm.borrow().global_env.clone();
     let mut script_context =
         ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
     script_context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
     script_context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
 
-    agent.push_execution_context(script_context);
+    push_execution_context(script_context);
 
     let script = sr.ecmascript_code.clone();
 
     let strict = script.body.as_ref().map(|b| b.contains_use_strict()).unwrap_or(false);
 
-    let result = global_declaration_instantiation(agent, script, global_env.unwrap(), strict, &sr.text)
-        .and_then(|_| agent.evaluate(sr.compiled, &sr.text));
+    let result = global_declaration_instantiation(script, global_env.unwrap(), strict, &sr.text)
+        .and_then(|_| evaluate(sr.compiled, &sr.text));
 
-    agent.pop_execution_context();
+    pop_execution_context();
 
     result
 }
@@ -2615,11 +2605,11 @@ impl fmt::Display for ProcessError {
     }
 }
 
-pub fn process_ecmascript(agent: &Agent, source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
-    let realm = agent.current_realm_record().unwrap();
-    let x = parse_script(agent, source_text, realm).map_err(|errs| ProcessError::CompileErrors { values: errs })?;
+pub fn process_ecmascript(source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
+    let realm = current_realm_record().unwrap();
+    let x = parse_script(source_text, realm).map_err(|errs| ProcessError::CompileErrors { values: errs })?;
 
-    let result = script_evaluation(agent, x);
+    let result = script_evaluation(x);
     match result {
         Ok(val) => Ok(val),
         Err(e) => Err(ProcessError::RuntimeError {
