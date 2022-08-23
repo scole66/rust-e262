@@ -89,7 +89,7 @@ impl VM {
     }
 }
 
-fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
+fn interpret(source: &str) -> Result<i32, String> {
     let parsed = parse_text(source, ParseGoal::Script);
     match parsed {
         ParsedText::Errors(errs) => {
@@ -105,7 +105,7 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     }
 }
 
-fn repl(vm: &mut VM) {
+fn repl() {
     loop {
         print!("> ");
         io::stdout().flush().unwrap();
@@ -119,14 +119,14 @@ fn repl(vm: &mut VM) {
         }
 
         println!("You entered the string {:?}", line);
-        match interpret(vm, &line) {
+        match interpret(&line) {
             Ok(value) => println!("{}", value),
             Err(err) => println!("{}", err),
         }
     }
 }
 
-fn run_file(vm: &mut VM, fname: &str) {
+fn run_file(fname: &str) {
     println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
     match potential_file_content {
@@ -150,11 +150,11 @@ fn run_app() -> Result<(), i32> {
     println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
     println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
 
-    let mut vm: VM = VM::new();
+    VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        1 => repl(&mut vm),
-        2 => run_file(&mut vm, &args[1]),
+        1 => repl(),
+        2 => run_file(&args[1]),
         _ => {
             eprintln!("Usage: {} [path]", &args[0]);
             return Err(2);

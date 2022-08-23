@@ -172,12 +172,12 @@ impl IterationStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         match self {
-            IterationStatement::DoWhile(node) => node.early_errors(agent, errs, strict, within_switch),
-            IterationStatement::While(node) => node.early_errors(agent, errs, strict, within_switch),
-            IterationStatement::For(node) => node.early_errors(agent, errs, strict, within_switch),
-            IterationStatement::ForInOf(node) => node.early_errors(agent, errs, strict, within_switch),
+            IterationStatement::DoWhile(node) => node.early_errors(errs, strict, within_switch),
+            IterationStatement::While(node) => node.early_errors(errs, strict, within_switch),
+            IterationStatement::For(node) => node.early_errors(errs, strict, within_switch),
+            IterationStatement::ForInOf(node) => node.early_errors(errs, strict, within_switch),
         }
     }
 
@@ -307,9 +307,9 @@ impl DoWhileStatement {
         self.stmt.contains_arguments() || self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
-        self.stmt.early_errors(agent, errs, strict, true, within_switch);
-        self.exp.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        self.stmt.early_errors(errs, strict, true, within_switch);
+        self.exp.early_errors(errs, strict);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -427,9 +427,9 @@ impl WhileStatement {
         self.exp.contains_arguments() || self.stmt.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
-        self.exp.early_errors(agent, errs, strict);
-        self.stmt.early_errors(agent, errs, strict, true, within_switch);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        self.exp.early_errors(errs, strict);
+        self.stmt.early_errors(errs, strict, true, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -799,7 +799,7 @@ impl ForStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         if let ForStatement::ForLex(lex, _, _, stmt, _) = self {
             // ForStatement : for ( LexicalDeclaration Expression[opt] ; Expression[opt] ) Statement
@@ -808,7 +808,6 @@ impl ForStatement {
             let bn = lex.bound_names();
             for name in bn.iter().filter(|&n| vdn.contains(n)) {
                 errs.push(create_syntax_error_object(
-                    agent,
                     format!("‘{}’ may not be declared both lexically and var-style", name),
                     Some(stmt.location()),
                 ));
@@ -827,21 +826,21 @@ impl ForStatement {
             }
         };
         if let Some(vdl) = vdl {
-            vdl.early_errors(agent, errs, strict);
+            vdl.early_errors(errs, strict);
         }
         if let Some(lex) = lex {
-            lex.early_errors(agent, errs, strict);
+            lex.early_errors(errs, strict);
         }
         if let Some(exp1) = exp1 {
-            exp1.early_errors(agent, errs, strict);
+            exp1.early_errors(errs, strict);
         }
         if let Some(exp2) = exp2 {
-            exp2.early_errors(agent, errs, strict);
+            exp2.early_errors(errs, strict);
         }
         if let Some(exp3) = exp3 {
-            exp3.early_errors(agent, errs, strict);
+            exp3.early_errors(errs, strict);
         }
-        stmt.early_errors(agent, errs, strict, true, within_switch);
+        stmt.early_errors(errs, strict, true, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -1422,7 +1421,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         match self {
             ForInOfStatement::LexIn(fd, _, stmt, ..)
@@ -1438,23 +1437,17 @@ impl ForInOfStatement {
                 let bn = fd.bound_names();
                 let vdn = stmt.var_declared_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        format!("‘{}’ already defined", name),
-                        Some(stmt.location()),
-                    ));
+                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(stmt.location())));
                 }
                 for name in bn.iter() {
                     if name == &JSString::from("let") {
                         errs.push(create_syntax_error_object(
-                            agent,
                             "‘let’ is not a valid binding identifier",
                             Some(fd.location()),
                         ));
                     }
                     if vdn.contains(name) {
                         errs.push(create_syntax_error_object(
-                            agent,
                             format!("‘{}’ may not be declared both lexically and var-style", name),
                             Some(stmt.location()),
                         ));
@@ -1468,7 +1461,7 @@ impl ForInOfStatement {
                 //  for await ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
                 if lhs.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid assignment target", Some(lhs.location())));
+                    errs.push(create_syntax_error_object("Invalid assignment target", Some(lhs.location())));
                 }
             }
             _ => (),
@@ -1492,24 +1485,24 @@ impl ForInOfStatement {
             }
         };
         if let Some(lhs) = lhs {
-            lhs.early_errors(agent, errs, strict);
+            lhs.early_errors(errs, strict);
         }
         if let Some(pat) = pat {
-            pat.early_errors(agent, errs, strict);
+            pat.early_errors(errs, strict);
         }
         if let Some(binding) = binding {
-            binding.early_errors(agent, errs, strict);
+            binding.early_errors(errs, strict);
         }
         if let Some(decl) = decl {
-            decl.early_errors(agent, errs, strict);
+            decl.early_errors(errs, strict);
         }
         if let Some(exp) = exp {
-            exp.early_errors(agent, errs, strict);
+            exp.early_errors(errs, strict);
         }
         if let Some(ae) = ae {
-            ae.early_errors(agent, errs, strict);
+            ae.early_errors(errs, strict);
         }
-        stmt.early_errors(agent, errs, strict, true, within_switch);
+        stmt.early_errors(errs, strict, true, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -1668,8 +1661,8 @@ impl ForDeclaration {
         self.binding.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.binding.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.binding.early_errors(errs, strict);
     }
 }
 
@@ -1791,10 +1784,10 @@ impl ForBinding {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ForBinding::Identifier(id) => id.early_errors(agent, errs, strict),
-            ForBinding::Pattern(pat) => pat.early_errors(agent, errs, strict),
+            ForBinding::Identifier(id) => id.early_errors(errs, strict),
+            ForBinding::Pattern(pat) => pat.early_errors(errs, strict),
         }
     }
 }

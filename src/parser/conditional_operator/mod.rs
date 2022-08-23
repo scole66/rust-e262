@@ -152,13 +152,13 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ConditionalExpression::FallThru(node) => node.early_errors(agent, errs, strict),
+            ConditionalExpression::FallThru(node) => node.early_errors(errs, strict),
             ConditionalExpression::Conditional(a, b, c) => {
-                a.early_errors(agent, errs, strict);
-                b.early_errors(agent, errs, strict);
-                c.early_errors(agent, errs, strict);
+                a.early_errors(errs, strict);
+                b.early_errors(errs, strict);
+                c.early_errors(errs, strict);
             }
         }
     }

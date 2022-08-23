@@ -106,7 +106,7 @@ impl Identifier {
         false
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
         // Static Semantics: Early Errors
         //      Identifier : IdentifierName but not ReservedWord
         //  * It is a Syntax Error if this phrase is contained in strict mode code and the StringValue of IdentifierName
@@ -129,14 +129,12 @@ impl Identifier {
                 || id.string_value == "yield")
         {
             errs.push(create_syntax_error_object(
-                agent,
                 format!("‘{}’ not allowed as an identifier in strict mode", id.string_value).as_str(),
                 Some(self.location),
             ));
         }
         if in_module && id.string_value == "await" {
             errs.push(create_syntax_error_object(
-                agent,
                 "‘await’ not allowed as an identifier in modules",
                 Some(self.location),
             ));
@@ -179,7 +177,6 @@ impl Identifier {
             || id.string_value == "with"
         {
             errs.push(create_syntax_error_object(
-                agent,
                 format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str(),
                 Some(self.location),
             ));
@@ -317,7 +314,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             IdentifierReference::Identifier { identifier: id, data } => {
@@ -327,26 +324,23 @@ impl IdentifierReference {
                 let sv = id.string_value();
                 if data.yield_flag && sv == "yield" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'yield' not allowed when yield expressions are valid",
                         Some(data.location),
                     ));
                 }
                 if data.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'await' not allowed when await expressions are valid",
                         Some(data.location),
                     ));
                 }
-                id.early_errors(agent, errs, strict, data.in_module);
+                id.early_errors(errs, strict, data.in_module);
             }
             IdentifierReference::Yield { data } => {
                 // IdentifierReference : yield
                 //  * It is a Syntax Error if the code matched by this production is contained in strict mode code.
                 if strict {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in strict mode: yield",
                         Some(data.location),
                     ));
@@ -357,7 +351,6 @@ impl IdentifierReference {
                 //  * It is a Syntax Error if the goal symbol of the syntactic grammar is Module.
                 if data.in_module {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in modules: await",
                         Some(data.location),
                     ));
@@ -552,7 +545,7 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             BindingIdentifier::Identifier { identifier: id, data } => {
@@ -564,26 +557,23 @@ impl BindingIdentifier {
                 let sv = id.string_value();
                 if strict && [JSString::from("arguments"), JSString::from("eval")].contains(&sv) {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("identifier not allowed in strict mode: {}", sv).as_str(),
                         Some(data.location),
                     ));
                 }
                 if data.yield_flag && sv == "yield" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'yield' not allowed when yield expressions are valid",
                         Some(data.location),
                     ));
                 }
                 if data.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'await' not allowed when await expressions are valid",
                         Some(data.location),
                     ));
                 }
-                id.early_errors(agent, errs, strict, data.in_module);
+                id.early_errors(errs, strict, data.in_module);
             }
             BindingIdentifier::Yield { data } => {
                 // BindingIdentifier : yield
@@ -591,14 +581,12 @@ impl BindingIdentifier {
                 //  * It is a Syntax Error if this production has a [Yield] parameter.
                 if strict {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in strict mode: yield",
                         Some(data.location),
                     ));
                 }
                 if data.yield_flag {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'yield' not allowed when yield expressions are valid",
                         Some(data.location),
                     ));
@@ -610,14 +598,12 @@ impl BindingIdentifier {
                 //  * It is a Syntax Error if this production has an [Await] parameter.
                 if data.in_module {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in modules: await",
                         Some(data.location),
                     ));
                 }
                 if data.await_flag {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'await' not allowed when await expressions are valid",
                         Some(data.location),
                     ));
@@ -769,7 +755,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             LabelIdentifier::Identifier { identifier: id, data } => {
@@ -779,26 +765,23 @@ impl LabelIdentifier {
                 let sv = id.string_value();
                 if data.yield_flag && sv == "yield" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'yield' not allowed when yield expressions are valid",
                         Some(data.location),
                     ));
                 }
                 if data.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier 'await' not allowed when await expressions are valid",
                         Some(data.location),
                     ));
                 }
-                id.early_errors(agent, errs, strict, data.in_module);
+                id.early_errors(errs, strict, data.in_module);
             }
             LabelIdentifier::Yield { data } => {
                 // LabelIdentifier : yield
                 //  * It is a Syntax Error if the code matched by this production is contained in strict mode code.
                 if strict {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in strict mode: yield",
                         Some(data.location),
                     ));
@@ -809,7 +792,6 @@ impl LabelIdentifier {
                 //  * It is a Syntax Error if the goal symbol of the syntactic grammar is Module.
                 if data.in_module {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "identifier not allowed in modules: await",
                         Some(data.location),
                     ));

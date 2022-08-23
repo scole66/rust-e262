@@ -261,9 +261,9 @@ impl UnaryExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            UnaryExpression::UpdateExpression(n) => n.early_errors(agent, errs, strict),
+            UnaryExpression::UpdateExpression(n) => n.early_errors(errs, strict),
             UnaryExpression::Delete { ue: n, .. } => {
                 // Static Semantics: Early Errors
                 //      UnaryExpression : delete UnaryExpression
@@ -287,17 +287,17 @@ impl UnaryExpression {
                     // node.js errors for these cases:
                     //  * "Private fields can not be deleted"
                     //  * "Delete of an unqualified identifier in strict mode."
-                    errs.push(create_syntax_error_object(agent, "Item is not deletable", Some(n.location())));
+                    errs.push(create_syntax_error_object("Item is not deletable", Some(n.location())));
                 }
-                n.early_errors(agent, errs, strict);
+                n.early_errors(errs, strict);
             }
             UnaryExpression::Void { ue, .. }
             | UnaryExpression::Typeof { ue, .. }
             | UnaryExpression::NoOp { ue, .. }
             | UnaryExpression::Negate { ue, .. }
             | UnaryExpression::Complement { ue, .. }
-            | UnaryExpression::Not { ue, .. } => ue.early_errors(agent, errs, strict),
-            UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
+            | UnaryExpression::Not { ue, .. } => ue.early_errors(errs, strict),
+            UnaryExpression::Await(n) => n.early_errors(errs, strict),
         }
     }
 

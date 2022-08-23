@@ -81,8 +81,8 @@ impl ThrowStatement {
         self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.exp.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.exp.early_errors(errs, strict);
     }
 }
 

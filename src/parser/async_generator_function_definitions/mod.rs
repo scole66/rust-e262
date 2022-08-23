@@ -121,7 +121,7 @@ impl AsyncGeneratorMethod {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 
@@ -263,7 +263,7 @@ impl AsyncGeneratorDeclaration {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 
@@ -379,7 +379,7 @@ impl AsyncGeneratorExpression {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 
@@ -449,7 +449,7 @@ impl AsyncGeneratorBody {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 

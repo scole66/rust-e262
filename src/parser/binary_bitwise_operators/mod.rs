@@ -139,12 +139,12 @@ impl BitwiseANDExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(errs, strict),
             BitwiseANDExpression::BitwiseAND(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }
@@ -314,12 +314,12 @@ impl BitwiseXORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(errs, strict),
             BitwiseXORExpression::BitwiseXOR(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }
@@ -506,12 +506,12 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(errs, strict),
             BitwiseORExpression::BitwiseOR(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }

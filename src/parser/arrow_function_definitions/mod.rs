@@ -94,7 +94,7 @@ impl ArrowFunction {
         self.parameters.contains_arguments() || self.body.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ArrowFunction : ArrowParameters => ConciseBody
         //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
@@ -105,21 +105,18 @@ impl ArrowFunction {
         //    LexicallyDeclaredNames of ConciseBody.
         if self.parameters.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Illegal yield expression in arrow function parameters",
                 Some(self.parameters.location()),
             ));
         }
         if self.parameters.contains(ParseNodeKind::AwaitExpression) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Illegal await expression in arrow function parameters",
                 Some(self.parameters.location()),
             ));
         }
         if self.body.concise_body_contains_use_strict() && !self.parameters.is_simple_parameter_list() {
             errs.push(create_syntax_error_object(
-                agent,
                 "Illegal 'use strict' directive in function with non-simple parameter list",
                 Some(self.parameters.location()),
             ));
@@ -127,16 +124,12 @@ impl ArrowFunction {
         let bn = self.parameters.bound_names();
         let ldn = self.body.lexically_declared_names();
         for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", name),
-                Some(self.body.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.body.location())));
         }
 
         let strict_function = strict || self.body.concise_body_contains_use_strict();
-        self.parameters.early_errors(agent, errs, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+        self.parameters.early_errors(errs, strict_function);
+        self.body.early_errors(errs, strict_function);
     }
 }
 
@@ -276,10 +269,10 @@ impl ArrowParameters {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
-            ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
+            ArrowParameters::Identifier(id) => id.early_errors(errs, strict),
+            ArrowParameters::Formals(afp) => afp.early_errors(errs, strict),
         }
     }
 
@@ -405,8 +398,8 @@ impl ArrowFormalParameters {
         self.params.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.params.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.params.early_errors(errs, strict);
     }
 
     pub fn expected_argument_count(&self) -> f64 {
@@ -566,10 +559,10 @@ impl ConciseBody {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
-            ConciseBody::Function { body, .. } => body.early_errors(agent, errs, strict),
+            ConciseBody::Expression(exp) => exp.early_errors(errs, strict),
+            ConciseBody::Function { body, .. } => body.early_errors(errs, strict),
         }
     }
 
@@ -686,8 +679,8 @@ impl ExpressionBody {
         self.expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.expression.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.expression.early_errors(errs, strict);
     }
 }
 

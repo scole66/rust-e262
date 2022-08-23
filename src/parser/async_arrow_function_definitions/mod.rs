@@ -171,7 +171,7 @@ impl AsyncArrowFunction {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

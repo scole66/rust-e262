@@ -84,19 +84,15 @@ impl UniqueFormalParameters {
         self.formals.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  UniqueFormalParameters : FormalParameters
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
         let bn = self.formals.bound_names();
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", name),
-                Some(self.formals.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.formals.location())));
         }
-        self.formals.early_errors(agent, errs, strict, true);
+        self.formals.early_errors(errs, strict, true);
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -356,7 +352,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
         // Static Semantics: Early Errors
         //  FormalParameters : FormalParameterList
         //    If BoundNames of FormalParameterList contains any duplicate elements, it is a Syntax Error:
@@ -368,20 +364,16 @@ impl FormalParameters {
         if !dups_already_checked && (strict || !self.is_simple_parameter_list()) {
             let bn = self.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(
-                    agent,
-                    format!("‘{}’ already defined", name),
-                    Some(self.location()),
-                ));
+                errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.location())));
             }
         }
         match self {
             FormalParameters::Empty(_) => (),
-            FormalParameters::Rest(frp) => frp.early_errors(agent, errs, strict),
-            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => fpl.early_errors(agent, errs, strict),
+            FormalParameters::Rest(frp) => frp.early_errors(errs, strict),
+            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => fpl.early_errors(errs, strict),
             FormalParameters::ListRest(fpl, frp) => {
-                fpl.early_errors(agent, errs, strict);
-                frp.early_errors(agent, errs, strict);
+                fpl.early_errors(errs, strict);
+                frp.early_errors(errs, strict);
             }
         }
     }
@@ -566,12 +558,12 @@ impl FormalParameterList {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            FormalParameterList::Item(fp) => fp.early_errors(agent, errs, strict),
+            FormalParameterList::Item(fp) => fp.early_errors(errs, strict),
             FormalParameterList::List(fpl, fp) => {
-                fpl.early_errors(agent, errs, strict);
-                fp.early_errors(agent, errs, strict);
+                fpl.early_errors(errs, strict);
+                fp.early_errors(errs, strict);
             }
         }
     }
@@ -696,8 +688,8 @@ impl FunctionRestParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(errs, strict);
     }
 
     /// Report whether this portion of a parameter list contains an expression
@@ -803,8 +795,8 @@ impl FormalParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(agent, errs, strict)
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(errs, strict)
     }
 
     /// Report whether this parameter contains an intializer

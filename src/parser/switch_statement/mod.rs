@@ -111,7 +111,7 @@ impl SwitchStatement {
         self.expression.contains_arguments() || self.case_block.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         //  SwitchStatement : switch ( Expression ) CaseBlock
         //  * It is a Syntax Error if the LexicallyDeclaredNames of CaseBlock contains any duplicate entries.
@@ -121,21 +121,19 @@ impl SwitchStatement {
         let vdn = self.case_block.var_declared_names();
         for name in duplicates(&ldn) {
             errs.push(create_syntax_error_object(
-                agent,
                 format!("‘{}’ already defined", name),
                 Some(self.case_block.location()),
             ));
         }
         for name in ldn.iter().filter(|&s| vdn.contains(s)) {
             errs.push(create_syntax_error_object(
-                agent,
                 format!("‘{}’ may not be declared both lexically and var-style", name),
                 Some(self.case_block.location()),
             ));
         }
 
-        self.expression.early_errors(agent, errs, strict);
-        self.case_block.early_errors(agent, errs, strict, within_iteration);
+        self.expression.early_errors(errs, strict);
+        self.case_block.early_errors(errs, strict, within_iteration);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -411,19 +409,19 @@ impl CaseBlock {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
             CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
         };
         if let Some(cc) = before {
-            cc.early_errors(agent, errs, strict, within_iteration);
+            cc.early_errors(errs, strict, within_iteration);
         }
         if let Some(def) = default {
-            def.early_errors(agent, errs, strict, within_iteration);
+            def.early_errors(errs, strict, within_iteration);
         }
         if let Some(cc) = after {
-            cc.early_errors(agent, errs, strict, within_iteration);
+            cc.early_errors(errs, strict, within_iteration);
         }
     }
 
@@ -607,15 +605,15 @@ impl CaseClauses {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (list, item) = match self {
             CaseClauses::Item(node) => (None, node),
             CaseClauses::List(list, node) => (Some(list), node),
         };
         if let Some(list) = list {
-            list.early_errors(agent, errs, strict, within_iteration);
+            list.early_errors(errs, strict, within_iteration);
         }
-        item.early_errors(agent, errs, strict, within_iteration);
+        item.early_errors(errs, strict, within_iteration);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -770,10 +768,10 @@ impl CaseClause {
         self.expression.contains_arguments() || self.statements.as_ref().map_or(false, |s| s.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
-        self.expression.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        self.expression.early_errors(errs, strict);
         if let Some(stmt) = &self.statements {
-            stmt.early_errors(agent, errs, strict, within_iteration, true);
+            stmt.early_errors(errs, strict, within_iteration, true);
         }
     }
 
@@ -918,9 +916,9 @@ impl DefaultClause {
         self.0.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         if let Some(stmt) = &self.0 {
-            stmt.early_errors(agent, errs, strict, within_iteration, true);
+            stmt.early_errors(errs, strict, within_iteration, true);
         }
     }
 

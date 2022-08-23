@@ -373,25 +373,25 @@ impl MemberExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            MemberExpression::PrimaryExpression(n) => n.early_errors(agent, errs, strict),
+            MemberExpression::PrimaryExpression(n) => n.early_errors(errs, strict),
             MemberExpression::Expression(l, r, ..) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
-            MemberExpression::IdentifierName(n, ..) => n.early_errors(agent, errs, strict),
+            MemberExpression::IdentifierName(n, ..) => n.early_errors(errs, strict),
             MemberExpression::TemplateLiteral(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict, 0xffff_ffff);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict, 0xffff_ffff);
             }
-            MemberExpression::SuperProperty(n) => n.early_errors(agent, errs, strict),
-            MemberExpression::MetaProperty(meta) => meta.early_errors(agent, errs),
+            MemberExpression::SuperProperty(n) => n.early_errors(errs, strict),
+            MemberExpression::MetaProperty(meta) => meta.early_errors(errs),
             MemberExpression::NewArguments(l, r, ..) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
-            MemberExpression::PrivateId(n, ..) => n.early_errors(agent, errs, strict),
+            MemberExpression::PrivateId(n, ..) => n.early_errors(errs, strict),
         }
     }
 
@@ -580,10 +580,10 @@ impl SuperProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            SuperProperty::Expression { exp, .. } => exp.early_errors(agent, errs, strict),
+            SuperProperty::Expression { exp, .. } => exp.early_errors(errs, strict),
             SuperProperty::IdentifierName { .. } => {}
         }
     }
@@ -685,7 +685,7 @@ impl MetaProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>) {
         match self {
             MetaProperty::NewTarget { .. } => {}
             MetaProperty::ImportMeta { goal, .. } => {
@@ -694,7 +694,6 @@ impl MetaProperty {
                 //  * It is a Syntax Error if the syntactic goal symbol is not Module.
                 if *goal != ParseGoal::Module {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "import.meta allowed only in Module code",
                         Some(self.location()),
                     ));
@@ -853,11 +852,11 @@ impl Arguments {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             Arguments::Empty { .. } => {}
-            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.early_errors(agent, errs, strict),
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.early_errors(errs, strict),
         }
     }
 }
@@ -1093,13 +1092,13 @@ impl ArgumentList {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.early_errors(agent, errs, strict),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.early_errors(errs, strict),
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
-                list.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+                list.early_errors(errs, strict);
+                exp.early_errors(errs, strict);
             }
         }
     }
@@ -1234,10 +1233,10 @@ impl NewExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            NewExpression::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
-            NewExpression::NewExpression(boxed, ..) => boxed.early_errors(agent, errs, strict),
+            NewExpression::MemberExpression(boxed) => boxed.early_errors(errs, strict),
+            NewExpression::NewExpression(boxed, ..) => boxed.early_errors(errs, strict),
         }
     }
 
@@ -1357,9 +1356,9 @@ impl CallMemberExpression {
         self.member_expression.contains_arguments() || self.arguments.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.member_expression.early_errors(agent, errs, strict);
-        self.arguments.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.member_expression.early_errors(errs, strict);
+        self.arguments.early_errors(errs, strict);
     }
 }
 
@@ -1438,8 +1437,8 @@ impl SuperCall {
         self.arguments.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.arguments.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.arguments.early_errors(errs, strict);
     }
 }
 
@@ -1524,8 +1523,8 @@ impl ImportCall {
         self.assignment_expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.assignment_expression.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.assignment_expression.early_errors(errs, strict);
     }
 }
 
@@ -1820,25 +1819,25 @@ impl CallExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            CallExpression::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
-            CallExpression::SuperCall(node) => node.early_errors(agent, errs, strict),
-            CallExpression::ImportCall(node) => node.early_errors(agent, errs, strict),
+            CallExpression::CallMemberExpression(node) => node.early_errors(errs, strict),
+            CallExpression::SuperCall(node) => node.early_errors(errs, strict),
+            CallExpression::ImportCall(node) => node.early_errors(errs, strict),
             CallExpression::CallExpressionArguments(node, args) => {
-                node.early_errors(agent, errs, strict);
-                args.early_errors(agent, errs, strict);
+                node.early_errors(errs, strict);
+                args.early_errors(errs, strict);
             }
             CallExpression::CallExpressionExpression(node, exp, _) => {
-                node.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+                node.early_errors(errs, strict);
+                exp.early_errors(errs, strict);
             }
-            CallExpression::CallExpressionIdentifierName(node, _, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionIdentifierName(node, _, _) => node.early_errors(errs, strict),
             CallExpression::CallExpressionTemplateLiteral(node, tl) => {
-                node.early_errors(agent, errs, strict);
-                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+                node.early_errors(errs, strict);
+                tl.early_errors(errs, strict, 0xffff_ffff);
             }
-            CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
         }
     }
 
@@ -2009,11 +2008,11 @@ impl LeftHandSideExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            LeftHandSideExpression::New(boxed) => boxed.early_errors(agent, errs, strict),
-            LeftHandSideExpression::Call(boxed) => boxed.early_errors(agent, errs, strict),
-            LeftHandSideExpression::Optional(boxed) => boxed.early_errors(agent, errs, strict),
+            LeftHandSideExpression::New(boxed) => boxed.early_errors(errs, strict),
+            LeftHandSideExpression::Call(boxed) => boxed.early_errors(errs, strict),
+            LeftHandSideExpression::Optional(boxed) => boxed.early_errors(errs, strict),
         }
     }
 
@@ -2209,19 +2208,19 @@ impl OptionalExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             OptionalExpression::Member(left, right) => {
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
             OptionalExpression::Call(left, right) => {
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
             OptionalExpression::Opt(left, right) => {
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
         }
     }
@@ -2568,7 +2567,7 @@ impl OptionalChain {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  OptionalChain :
         //      ?. TemplateLiteral
@@ -2586,27 +2585,27 @@ impl OptionalChain {
         //      | which is a valid statement and where automatic semicolon insertion does not apply.
         match self {
             OptionalChain::Template(tl, _) => {
-                errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
-                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+                errs.push(create_syntax_error_object("Template literal not allowed here", Some(tl.location())));
+                tl.early_errors(errs, strict, 0xffff_ffff);
             }
             OptionalChain::PlusTemplate(node, tl) => {
-                node.early_errors(agent, errs, strict);
-                errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
-                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+                node.early_errors(errs, strict);
+                errs.push(create_syntax_error_object("Template literal not allowed here", Some(tl.location())));
+                tl.early_errors(errs, strict, 0xffff_ffff);
             }
-            OptionalChain::Args(node, _) => node.early_errors(agent, errs, strict),
-            OptionalChain::Exp(node, _) => node.early_errors(agent, errs, strict),
+            OptionalChain::Args(node, _) => node.early_errors(errs, strict),
+            OptionalChain::Exp(node, _) => node.early_errors(errs, strict),
             OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => {}
             OptionalChain::PlusArgs(node, args) => {
-                node.early_errors(agent, errs, strict);
-                args.early_errors(agent, errs, strict);
+                node.early_errors(errs, strict);
+                args.early_errors(errs, strict);
             }
             OptionalChain::PlusExp(node, exp, _) => {
-                node.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+                node.early_errors(errs, strict);
+                exp.early_errors(errs, strict);
             }
             OptionalChain::PlusIdent(node, _, _) | OptionalChain::PlusPrivateId(node, _, _) => {
-                node.early_errors(agent, errs, strict)
+                node.early_errors(errs, strict)
             }
         }
     }

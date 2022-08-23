@@ -272,19 +272,19 @@ impl RelationalExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            RelationalExpression::ShiftExpression(n) => n.early_errors(agent, errs, strict),
+            RelationalExpression::ShiftExpression(n) => n.early_errors(errs, strict),
             RelationalExpression::Less(l, r)
             | RelationalExpression::Greater(l, r)
             | RelationalExpression::LessEqual(l, r)
             | RelationalExpression::GreaterEqual(l, r)
             | RelationalExpression::InstanceOf(l, r)
             | RelationalExpression::In(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
-            RelationalExpression::PrivateIn(_, r, _) => r.early_errors(agent, errs, strict),
+            RelationalExpression::PrivateIn(_, r, _) => r.early_errors(errs, strict),
         }
     }
 

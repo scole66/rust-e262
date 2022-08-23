@@ -257,25 +257,18 @@ impl TryStatement {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let (block, catch, finally) = match self {
             TryStatement::Catch { block, catch, .. } => (block, Some(catch), None),
             TryStatement::Finally { block, finally, .. } => (block, None, Some(finally)),
             TryStatement::Full { block, catch, finally, .. } => (block, Some(catch), Some(finally)),
         };
-        block.early_errors(agent, errs, strict, within_iteration, within_switch);
+        block.early_errors(errs, strict, within_iteration, within_switch);
         if let Some(catch) = catch {
-            catch.early_errors(agent, errs, strict, within_iteration, within_switch);
+            catch.early_errors(errs, strict, within_iteration, within_switch);
         }
         if let Some(finally) = finally {
-            finally.early_errors(agent, errs, strict, within_iteration, within_switch);
+            finally.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
 
@@ -427,14 +420,7 @@ impl Catch {
         self.parameter.as_ref().map_or(false, |cp| cp.contains_arguments()) || self.block.contains_arguments()
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  Catch : catch ( CatchParameter ) Block
         //  * It is a Syntax Error if BoundNames of CatchParameter contains any duplicate elements.
@@ -447,7 +433,6 @@ impl Catch {
             let vdn = self.block.var_declared_names();
             for name in duplicates(&bn) {
                 errs.push(create_syntax_error_object(
-                    agent,
                     format!("‘{}’ already defined", name),
                     Some(self.block.location()),
                 ));
@@ -455,15 +440,14 @@ impl Catch {
             for name in bn.iter() {
                 if ldn.contains(name) || vdn.contains(name) {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ already defined", name),
                         Some(self.block.location()),
                     ));
                 }
             }
-            cp.early_errors(agent, errs, strict);
+            cp.early_errors(errs, strict);
         }
-        self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
+        self.block.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -572,15 +556,8 @@ impl Finally {
         self.block.contains_arguments()
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
-        self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        self.block.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
@@ -702,10 +679,10 @@ impl CatchParameter {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            CatchParameter::Ident(id) => id.early_errors(agent, errs, strict),
-            CatchParameter::Pattern(pat) => pat.early_errors(agent, errs, strict),
+            CatchParameter::Ident(id) => id.early_errors(errs, strict),
+            CatchParameter::Pattern(pat) => pat.early_errors(errs, strict),
         }
     }
 }

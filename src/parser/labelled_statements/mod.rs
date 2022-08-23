@@ -126,16 +126,9 @@ impl LabelledStatement {
         self.item.contains_arguments()
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
-        self.identifier.early_errors(agent, errs, strict);
-        self.item.early_errors(agent, errs, strict, within_iteration, within_switch);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        self.identifier.early_errors(errs, strict);
+        self.item.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     pub fn is_labelled_function(&self) -> bool {
@@ -332,27 +325,19 @@ impl LabelledItem {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text is matched by this production.
         if matches!(self, LabelledItem::Function(_)) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Labelled functions not allowed in modern ECMAScript code",
                 Some(self.location()),
             ));
         }
         match self {
-            LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration, within_switch),
-            LabelledItem::Function(fcn) => fcn.early_errors(agent, errs, strict),
+            LabelledItem::Statement(stmt) => stmt.early_errors(errs, strict, within_iteration, within_switch),
+            LabelledItem::Function(fcn) => fcn.early_errors(errs, strict),
         }
     }
 

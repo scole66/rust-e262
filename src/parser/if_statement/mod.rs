@@ -200,22 +200,15 @@ impl IfStatement {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let (e, s1, s2) = match self {
             IfStatement::WithElse(e, s1, s2, ..) => (e, s1, Some(s2)),
             IfStatement::WithoutElse(e, s1, ..) => (e, s1, None),
         };
-        e.early_errors(agent, errs, strict);
-        s1.early_errors(agent, errs, strict, within_iteration, within_switch);
+        e.early_errors(errs, strict);
+        s1.early_errors(errs, strict, within_iteration, within_switch);
         if let Some(s) = s2 {
-            s.early_errors(agent, errs, strict, within_iteration, within_switch);
+            s.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
 

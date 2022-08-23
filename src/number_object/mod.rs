@@ -158,7 +158,7 @@ impl NumberObject {
     }
 }
 
-pub fn provision_number_intrinsic(agent: &Agent, realm: &Rc<RefCell<Realm>>) {
+pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
