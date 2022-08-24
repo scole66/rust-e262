@@ -545,10 +545,8 @@ mod arguments_object {
         let result = obj.o.define_own_property(name.into(), desc).map_err(|e| unwind_any_error(e))?;
 
         let object_keys = obj.o.own_property_keys().unwrap();
-        let items = object_keys
-            .iter()
-            .map(|key| (key.to_string(), super::get(&obj, key).unwrap()))
-            .collect::<AHashMap<_, _>>();
+        let items =
+            object_keys.iter().map(|key| (key.to_string(), super::get(&obj, key).unwrap())).collect::<AHashMap<_, _>>();
 
         let env_items = env
             .binding_names()

@@ -25,36 +25,33 @@ mod agent {
 
         // All well-known symbols initialized, and different from one another.
         let symbols = vec![
-            agent.wks(WksId::AsyncIterator),
-            agent.wks(WksId::HasInstance),
-            agent.wks(WksId::IsConcatSpreadable),
-            agent.wks(WksId::Iterator),
-            agent.wks(WksId::Match),
-            agent.wks(WksId::MatchAll),
-            agent.wks(WksId::Replace),
-            agent.wks(WksId::Search),
-            agent.wks(WksId::Species),
-            agent.wks(WksId::Split),
-            agent.wks(WksId::ToPrimitive),
-            agent.wks(WksId::ToStringTag),
-            agent.wks(WksId::Unscopables),
+            agent.symbols.async_iterator_,
+            agent.symbols.has_instance_,
+            agent.symbols.is_concat_spreadable_,
+            agent.symbols.iterator_,
+            agent.symbols.match_,
+            agent.symbols.match_all_,
+            agent.symbols.replace_,
+            agent.symbols.search_,
+            agent.symbols.species_,
+            agent.symbols.split_,
+            agent.symbols.to_primitive_,
+            agent.symbols.to_string_tag_,
+            agent.symbols.unscopables_,
         ];
         let num_symbols = symbols.len();
-        let mut symbol_set = AHashSet::new();
-        for sym in symbols.iter() {
-            symbol_set.insert(sym);
-        }
+        let symbol_set = symbols.iter().collect::<AHashSet<_>>();
         assert_eq!(num_symbols, symbol_set.len());
 
         // ID trackers at reasonable spots
-        assert_eq!(agent.0.obj_id.get(), 1);
-        assert_eq!(agent.0.symbol_id.get(), num_symbols + 1);
+        assert_eq!(agent.obj_id.get(), 1);
+        assert_eq!(agent.symbol_id.get(), num_symbols + 1);
     }
 
     #[test]
     fn pop_execution_context() {
         setup_test_agent();
-        let realm_ref = agent.current_realm_record().unwrap();
+        let realm_ref = current_realm_record().unwrap();
         // build a new EC, and add it to the EC stack
         let sr = ScriptRecord {
             realm: realm_ref.clone(),
@@ -73,7 +70,7 @@ mod agent {
     #[test]
     fn push_execution_context() {
         setup_test_agent();
-        let realm_ref = agent.current_realm_record().unwrap();
+        let realm_ref = current_realm_record().unwrap();
         let prior_length = agent.execution_context_stack.borrow().len();
         // build a new EC, and add it to the EC stack
         let sr = ScriptRecord {
@@ -102,8 +99,8 @@ mod agent {
         assert!(afo.is_none());
 
         // Create a new EC that _does_ have a function object; push it, and then check the active function.
-        let fo = agent.intrinsic(IntrinsicId::ThrowTypeError);
-        let realm = agent.current_realm_record().unwrap();
+        let fo = intrinsic(IntrinsicId::ThrowTypeError);
+        let realm = current_realm_record().unwrap();
         let function_ec = ExecutionContext::new(Some(fo.clone()), realm, None);
         agent.push_execution_context(function_ec);
 
@@ -148,70 +145,71 @@ mod agent {
         #[test]
         fn empty_ec_stack() {
             let agent = Agent::new();
-            assert!(agent.current_realm_record().is_none());
+            assert!(current_realm_record().is_none());
         }
 
         #[test]
         fn stacked() {
-            let a = Agent::new();
-            let first_realm = create_named_realm(&a, "first");
+            setup_test_agent();
+
+            let first_realm = create_named_realm("first");
             let first_context = ExecutionContext::new(None, first_realm, None);
             a.push_execution_context(first_context);
 
-            let second_realm = create_named_realm(&a, "second");
+            let second_realm = create_named_realm("second");
             let second_context = ExecutionContext::new(None, second_realm, None);
             a.push_execution_context(second_context);
 
-            let current = a.current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&a, &current.borrow()), "second");
+            let current = current_realm_record().unwrap();
+            assert_eq!(get_realm_name(&current.borrow()), "second");
 
-            a.pop_execution_context();
+            pop_execution_context();
 
-            let current = a.current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&a, &current.borrow()), "first");
+            let current = current_realm_record().unwrap();
+            assert_eq!(get_realm_name(&current.borrow()), "first");
         }
     }
 
-    #[test_case(|_| Ok(NormalCompletion::from(10)) => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)); "value")]
-    #[test_case(|agent| Err(create_type_error(agent, "Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
-    #[test_case(|agent| {
-            let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+    #[test_case(|| Ok(NormalCompletion::from(10)) => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)); "value")]
+    #[test_case(|| Err(create_type_error("Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
+    #[test_case(|| {
+            let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
             Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "debug_token", true, None)))
         } => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)); "valid ref")]
-    fn void_operator(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
+    fn void_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let expr = make_expr(&agent);
-        agent.void_operator(expr).map_err(|ac| unwind_any_error(&agent, ac))
+        let expr = make_expr();
+        agent.void_operator(expr).map_err(|ac| unwind_any_error(ac))
     }
 
-    #[test_case(|_| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from("undefined")); "unresolvable ref")]
-    #[test_case(|agent| Err(create_type_error(agent, "Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
-    #[test_case(|_| Ok(NormalCompletion::from(ECMAScriptValue::Undefined)) => Ok(NormalCompletion::from("undefined")); "undefined value")]
-    #[test_case(|_| Ok(NormalCompletion::from(ECMAScriptValue::Null)) => Ok(NormalCompletion::from("object")); "null value")]
-    #[test_case(|_| Ok(NormalCompletion::from(true)) => Ok(NormalCompletion::from("boolean")); "bool value")]
-    #[test_case(|_| Ok(NormalCompletion::from("just a string")) => Ok(NormalCompletion::from("string")); "string value")]
-    #[test_case(|_| Ok(NormalCompletion::from(227)) => Ok(NormalCompletion::from("number")); "number value")]
-    #[test_case(|_| Ok(NormalCompletion::from(BigInt::from(102))) => Ok(NormalCompletion::from("bigint")); "bigint value")]
-    #[test_case(|agent| {
-        let symbol_constructor = agent.intrinsic(IntrinsicId::Symbol);
+    #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from("undefined")); "unresolvable ref")]
+    #[test_case(|| Err(create_type_error("Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
+    #[test_case(|| Ok(NormalCompletion::from(ECMAScriptValue::Undefined)) => Ok(NormalCompletion::from("undefined")); "undefined value")]
+    #[test_case(|| Ok(NormalCompletion::from(ECMAScriptValue::Null)) => Ok(NormalCompletion::from("object")); "null value")]
+    #[test_case(|| Ok(NormalCompletion::from(true)) => Ok(NormalCompletion::from("boolean")); "bool value")]
+    #[test_case(|| Ok(NormalCompletion::from("just a string")) => Ok(NormalCompletion::from("string")); "string value")]
+    #[test_case(|| Ok(NormalCompletion::from(227)) => Ok(NormalCompletion::from("number")); "number value")]
+    #[test_case(|| Ok(NormalCompletion::from(BigInt::from(102))) => Ok(NormalCompletion::from("bigint")); "bigint value")]
+    #[test_case(|| {
+        let symbol_constructor = intrinsic(IntrinsicId::Symbol);
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(symbol_constructor)), "species", true, None);
         Ok(NormalCompletion::from(reference))
     } => Ok(NormalCompletion::from("symbol")); "typeof Symbol.species")]
-    #[test_case(|agent| {
-        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+    #[test_case(|| {
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "Boolean", true, None)))
     } => Ok(NormalCompletion::from("function")); "typeof Boolean")]
-    #[test_case(|agent| {
-        let bool_proto = agent.intrinsic(IntrinsicId::BooleanPrototype);
+    #[test_case(|| {
+        let bool_proto = intrinsic(IntrinsicId::BooleanPrototype);
         Ok(NormalCompletion::from(bool_proto))
     } => Ok(NormalCompletion::from("object")); "typeof Boolean.prototype")]
-    fn typeof_operator(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
+    fn typeof_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let expr = make_expr(&agent);
-        agent.typeof_operator(expr).map_err(|ac| unwind_any_error(&agent, ac))
+        let expr = make_expr();
+        typeof_operator(expr).map_err(|ac| unwind_any_error(ac))
     }
 
-    fn superproperty(agent: &Agent) -> FullCompletion {
+    fn superproperty() -> FullCompletion {
         // For example: ({method() { delete super.test_property; }}).method()
         // 1. Let F be OrdinaryFunctionCreate(intrinsics.[[%FunctionPrototype%]], source_text, ParameterList, Body, thisMode, env, privateenv).
         // 2. Let homeObject be OrdinaryObjectCreate(intrinsics.[[%ObjectPrototype%]]).
@@ -219,233 +217,233 @@ mod agent {
         // 3. Let fenv be NewFunctionEnvironment(F, undefined).
         // 4. Let actualThis be fenv.GetThisBinding().
         // 5. Return MakeSuperPropertyReference(actualThis, "test_property", true)
-        let obj = ordinary_object_create(agent, None, &[]);
+        let obj = ordinary_object_create(None, &[]);
         let copy = obj.clone();
         let myref = Reference::new(Base::Value(obj.into()), "item", true, Some(copy.into()));
         Ok(NormalCompletion::from(myref))
     }
 
-    fn bool_proto_ref(agent: &Agent, strict: bool) -> FullCompletion {
-        let bool_obj = agent.intrinsic(IntrinsicId::Boolean);
+    fn bool_proto_ref(strict: bool) -> FullCompletion {
+        let bool_obj = intrinsic(IntrinsicId::Boolean);
         let myref = Reference::new(Base::Value(bool_obj.into()), "prototype", strict, None);
         Ok(NormalCompletion::from(myref))
     }
-    fn strict_proto_ref(agent: &Agent) -> FullCompletion {
-        bool_proto_ref(agent, true)
+    fn strict_proto_ref() -> FullCompletion {
+        bool_proto_ref(true)
     }
-    fn nonstrict_proto_ref(agent: &Agent) -> FullCompletion {
-        bool_proto_ref(agent, false)
+    fn nonstrict_proto_ref() -> FullCompletion {
+        bool_proto_ref(false)
     }
-    fn dead_ref(agent: &Agent) -> FullCompletion {
-        let dead = DeadObject::object(agent);
+    fn dead_ref() -> FullCompletion {
+        let dead = DeadObject::object();
         Ok(NormalCompletion::from(Reference::new(Base::Value(dead.into()), "anything", true, None)))
     }
-    fn ref_to_undefined(agent: &Agent) -> FullCompletion {
-        let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+    fn ref_to_undefined() -> FullCompletion {
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "undefined", true, None)))
     }
-    fn dead_env(agent: &Agent) -> FullCompletion {
-        let outer = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-        let dead = DeadObject::object(agent);
+    fn dead_env() -> FullCompletion {
+        let outer = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let dead = DeadObject::object();
         let obj_env = Rc::new(ObjectEnvironmentRecord::new(dead, false, Some(outer), "dead"));
         Ok(NormalCompletion::from(Reference::new(Base::Environment(obj_env), "anything", true, None)))
     }
 
-    #[test_case(|_| Ok(NormalCompletion::Empty) => Ok(NormalCompletion::from(true)); "empty -> true")]
-    #[test_case(|_| Ok(NormalCompletion::from("test sentinel")) => Ok(NormalCompletion::from(true)); "value -> true")]
-    #[test_case(|agent| Err(create_type_error(agent, "Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
-    #[test_case(|_| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from(true)); "unresolvable ref")]
+    #[test_case(|| Ok(NormalCompletion::Empty) => Ok(NormalCompletion::from(true)); "empty -> true")]
+    #[test_case(|| Ok(NormalCompletion::from("test sentinel")) => Ok(NormalCompletion::from(true)); "value -> true")]
+    #[test_case(|| Err(create_type_error("Test Sentinel")) => serr("TypeError: Test Sentinel"); "pending type error")]
+    #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from(true)); "unresolvable ref")]
     #[test_case(superproperty => serr("ReferenceError: super properties not deletable"); "super prop")]
-    #[test_case(|_| Ok(NormalCompletion::from(Reference::new(Base::Value(ECMAScriptValue::Undefined), "x", true, None))) => serr("TypeError: Undefined and null cannot be converted to objects"); "Non-object ref base")]
-    #[test_case(|_| Ok(NormalCompletion::from(Reference::new(Base::Value(true.into()), "x", true, None))) => Ok(NormalCompletion::from(true)); "delete nonexistent")]
+    #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Value(ECMAScriptValue::Undefined), "x", true, None))) => serr("TypeError: Undefined and null cannot be converted to objects"); "Non-object ref base")]
+    #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Value(true.into()), "x", true, None))) => Ok(NormalCompletion::from(true)); "delete nonexistent")]
     #[test_case(strict_proto_ref => serr("TypeError: property not deletable"); "permanent property; strict")]
     #[test_case(nonstrict_proto_ref => Ok(NormalCompletion::from(false)); "permanent property; nonstrict")]
     #[test_case(dead_ref => serr("TypeError: delete called on DeadObject"); "property ref delete errs")]
     #[test_case(ref_to_undefined => Ok(NormalCompletion::from(false)); "undefined ref")]
     #[test_case(dead_env => serr("TypeError: delete called on DeadObject"); "env ref delete errors")]
-    fn delete_ref(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
+    fn delete_ref(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let expr = make_expr(&agent);
-        agent.delete_ref(expr).map_err(|ac| unwind_any_error(&agent, ac))
+        let expr = make_expr();
+        delete_ref(expr).map_err(|ac| unwind_any_error(ac))
     }
 
-    #[test_case(|_| ECMAScriptValue::from("left "),
-                |_| ECMAScriptValue::from("right"),
+    #[test_case(|| ECMAScriptValue::from("left "),
+                || ECMAScriptValue::from("right"),
                 BinOp::Add
                 => Ok(NormalCompletion::from("left right")); "string catentation")]
     #[test_case(|agent| ECMAScriptValue::from(make_toprimitive_throw_obj(agent)),
-                |_| ECMAScriptValue::from("a"),
+                || ECMAScriptValue::from("a"),
                 BinOp::Add
                 => serr("TypeError: Test Sentinel"); "left toPrimitive error")]
-    #[test_case(|_| ECMAScriptValue::from("a"),
+    #[test_case(|| ECMAScriptValue::from("a"),
                 |agent| ECMAScriptValue::from(make_toprimitive_throw_obj(agent)),
                 BinOp::Add
                 => serr("TypeError: Test Sentinel"); "right toPrimitive error")]
-    #[test_case(|_| ECMAScriptValue::from(10),
-                |_| ECMAScriptValue::from("a"),
+    #[test_case(|| ECMAScriptValue::from(10),
+                || ECMAScriptValue::from("a"),
                 BinOp::Add
                 => Ok(NormalCompletion::from("10a")); "stringify from right")]
-    #[test_case(|_| ECMAScriptValue::from("a"),
-                |_| ECMAScriptValue::from(10),
+    #[test_case(|| ECMAScriptValue::from("a"),
+                || ECMAScriptValue::from(10),
                 BinOp::Add
                 => Ok(NormalCompletion::from("a10")); "stringify from left")]
-    #[test_case(|agent| ECMAScriptValue::from(agent.wks(WksId::ToPrimitive)),
-                |_| ECMAScriptValue::from("a"),
+    #[test_case(|| ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+                || ECMAScriptValue::from("a"),
                 BinOp::Add
                 => serr("TypeError: Symbols may not be converted to strings"); "left tostring errs")]
-    #[test_case(|_| ECMAScriptValue::from("a"),
-                |agent| ECMAScriptValue::from(agent.wks(WksId::ToPrimitive)),
+    #[test_case(|| ECMAScriptValue::from("a"),
+                || ECMAScriptValue::from(wks(WksId::ToPrimitive)),
                 BinOp::Add
                 => serr("TypeError: Symbols may not be converted to strings"); "right tostring errs")]
-    #[test_case(|agent| ECMAScriptValue::from(agent.wks(WksId::ToPrimitive)),
-                |_| ECMAScriptValue::from(10),
+    #[test_case(|| ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+                || ECMAScriptValue::from(10),
                 BinOp::Add
                 => serr("TypeError: Symbol values cannot be converted to Number values"); "left tonumeric errs")]
-    #[test_case(|_| ECMAScriptValue::from(10),
-                |agent| ECMAScriptValue::from(agent.wks(WksId::ToPrimitive)),
+    #[test_case(|| ECMAScriptValue::from(10),
+                || ECMAScriptValue::from(wks(WksId::ToPrimitive)),
                 BinOp::Add
                 => serr("TypeError: Symbol values cannot be converted to Number values"); "right tonumeric errs")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::Exponentiate
                 => Ok(NormalCompletion::from(8)); "exponentiation")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::Multiply
                 => Ok(NormalCompletion::from(6)); "multiplication")]
-    #[test_case(|_| ECMAScriptValue::from(12.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(12.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::Divide
                 => Ok(NormalCompletion::from(4)); "division")]
-    #[test_case(|_| ECMAScriptValue::from(26.0),
-                |_| ECMAScriptValue::from(7.0),
+    #[test_case(|| ECMAScriptValue::from(26.0),
+                || ECMAScriptValue::from(7.0),
                 BinOp::Remainder
                 => Ok(NormalCompletion::from(5)); "remainder")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::Add
                 => Ok(NormalCompletion::from(5)); "addition")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::Subtract
                 => Ok(NormalCompletion::from(-1)); "subtraction")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::LeftShift
                 => Ok(NormalCompletion::from(16.0)); "left shift")]
-    #[test_case(|_| ECMAScriptValue::from(16.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(16.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::SignedRightShift
                 => Ok(NormalCompletion::from(2)); "signed right shift")]
-    #[test_case(|_| ECMAScriptValue::from(-16.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(-16.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::SignedRightShift
                 => Ok(NormalCompletion::from(-2)); "signed right shift (negative)")]
-    #[test_case(|_| ECMAScriptValue::from(16.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(16.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::UnsignedRightShift
                 => Ok(NormalCompletion::from(2)); "unsigned right shift")]
-    #[test_case(|_| ECMAScriptValue::from(-16.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(-16.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::UnsignedRightShift
                 => Ok(NormalCompletion::from(536870910)); "unsigned right shift (negative)")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::BitwiseAnd
                 => Ok(NormalCompletion::from(2)); "bitwise and")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::BitwiseOr
                 => Ok(NormalCompletion::from(3)); "bitwise or")]
-    #[test_case(|_| ECMAScriptValue::from(2.0),
-                |_| ECMAScriptValue::from(3.0),
+    #[test_case(|| ECMAScriptValue::from(2.0),
+                || ECMAScriptValue::from(3.0),
                 BinOp::BitwiseXor
                 => Ok(NormalCompletion::from(1)); "bitwise xor")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Exponentiate
                 => Ok(NormalCompletion::from(BigInt::from(8))); "exponentiation (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(-3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(-3)),
                 BinOp::Exponentiate
                 => serr("RangeError: Exponent must be positive"); "bad exponentiation (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Multiply
                 => Ok(NormalCompletion::from(BigInt::from(6))); "multiplication (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(12)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(12)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Divide
                 => Ok(NormalCompletion::from(BigInt::from(4))); "division (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(12)),
-                |_| ECMAScriptValue::from(BigInt::from(0)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(12)),
+                || ECMAScriptValue::from(BigInt::from(0)),
                 BinOp::Divide
                 =>serr("RangeError: Division by zero"); "zero division (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(26)),
-                |_| ECMAScriptValue::from(BigInt::from(7)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(26)),
+                || ECMAScriptValue::from(BigInt::from(7)),
                 BinOp::Remainder
                 => Ok(NormalCompletion::from(BigInt::from(5))); "remainder (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(12)),
-                |_| ECMAScriptValue::from(BigInt::from(0)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(12)),
+                || ECMAScriptValue::from(BigInt::from(0)),
                 BinOp::Remainder
                 =>serr("RangeError: Division by zero"); "zero remainder (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Add
                 => Ok(NormalCompletion::from(BigInt::from(5))); "addition (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::Subtract
                 => Ok(NormalCompletion::from(BigInt::from(-1))); "subtraction (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::LeftShift
                 => Ok(NormalCompletion::from(BigInt::from(16))); "left shift (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from_str("689674891678594267895287496789").unwrap()),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from_str("689674891678594267895287496789").unwrap()),
                 BinOp::LeftShift
                 => serr("RangeError: out of range conversion regarding big integer attempted"); "left shift (bigint) (too big)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(16)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(16)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::SignedRightShift
                 => Ok(NormalCompletion::from(BigInt::from(2))); "signed right shift (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(16)),
-                |_| ECMAScriptValue::from(BigInt::from_str("-3267891568973452345").unwrap()),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(16)),
+                || ECMAScriptValue::from(BigInt::from_str("-3267891568973452345").unwrap()),
                 BinOp::SignedRightShift
                 => serr("RangeError: out of range conversion regarding big integer attempted"); "signed right shift (bigint) (too big)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(8)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(8)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::UnsignedRightShift
                 => serr("TypeError: BigInts have no unsigned right shift, use >> instead"); "unsigned right shift (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseAnd
                 => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(2)))); "bitwise and (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseOr
                 => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(3)))); "bitwise or (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(2)),
-                |_| ECMAScriptValue::from(BigInt::from(3)),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(2)),
+                || ECMAScriptValue::from(BigInt::from(3)),
                 BinOp::BitwiseXor
                 => Ok(NormalCompletion::from(ECMAScriptValue::from(BigInt::from(1)))); "bitwise xor (bigint)")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(12)),
-                |_| ECMAScriptValue::from(3),
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(12)),
+                || ECMAScriptValue::from(3),
                 BinOp::Remainder
                 =>serr("TypeError: Cannot mix BigInt and other types, use explicit conversions"); "bigint type mix (left)")]
-    #[test_case(|_| ECMAScriptValue::from(12),
-                |_| ECMAScriptValue::from(BigInt::from(1)),
+    #[test_case(|| ECMAScriptValue::from(12),
+                || ECMAScriptValue::from(BigInt::from(1)),
                 BinOp::Remainder
                 =>serr("TypeError: Cannot mix BigInt and other types, use explicit conversions"); "bigint type mix (right)")]
     fn apply_string_or_numeric_binary_operator(
-        make_lval: fn(&Agent) -> ECMAScriptValue,
-        make_rval: fn(&Agent) -> ECMAScriptValue,
+        make_lval: fn() -> ECMAScriptValue,
+        make_rval: fn() -> ECMAScriptValue,
         op: BinOp,
     ) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let lval = make_lval(&agent);
-        let rval = make_rval(&agent);
-        agent.apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(&agent, ac))
+        let lval = make_lval();
+        let rval = make_rval();
+        apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(ac))
     }
 
     #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
@@ -463,7 +461,7 @@ mod agent {
     #[test_case(WksId::Unscopables => "Symbol.unscopables"; "Symbol.unscopables")]
     fn wks(id: WksId) -> String {
         setup_test_agent();
-        String::from(agent.wks(id).description().unwrap())
+        String::from(wks(id).description().unwrap())
     }
 
     #[test]
@@ -471,11 +469,13 @@ mod agent {
         setup_test_agent();
         let chunk = Rc::new(Chunk::new("test sentinel"));
 
-        agent.prepare_for_execution(0, Rc::clone(&chunk));
+        super::prepare_for_execution(0, Rc::clone(&chunk));
 
-        assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
-        assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
-        assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
+        AGENT.with(|agent| {
+            assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
+            assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
+            assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
+        })
     }
 
     #[test]
@@ -491,60 +491,60 @@ mod agent {
         assert_eq!(right, ECMAScriptValue::from("test"));
     }
 
-    fn no_primitive_val(agent: &Agent) -> ECMAScriptValue {
+    fn no_primitive_val() -> ECMAScriptValue {
         make_test_obj_uncallable(agent).into()
     }
-    fn make_symbol(agent: &Agent) -> ECMAScriptValue {
+    fn make_symbol() -> ECMAScriptValue {
         Symbol::new(agent, None).into()
     }
-    #[test_case(no_primitive_val, |_| ECMAScriptValue::from(10), true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; first errs")]
-    #[test_case(|_| ECMAScriptValue::from(10), no_primitive_val, true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; second errs")]
-    #[test_case(no_primitive_val, |_| ECMAScriptValue::from(10), false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; second errs")]
-    #[test_case(|_| ECMAScriptValue::from(10), no_primitive_val, false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; first errs")]
-    #[test_case(|_| ECMAScriptValue::from("first"), |_| ECMAScriptValue::from("second"), true => Ok(Some(true)); "two strings; left first; true")]
-    #[test_case(|_| ECMAScriptValue::from("zfirst"), |_| ECMAScriptValue::from("second"), true => Ok(Some(false)); "two strings; left first; false")]
-    #[test_case(|_| ECMAScriptValue::from("10"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(true)); "left string; right bigint; true")]
-    #[test_case(|_| ECMAScriptValue::from("1000"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(false)); "left string; right bigint; false")]
-    #[test_case(|_| ECMAScriptValue::from("anchor"), |_| ECMAScriptValue::from(BigInt::from(100)), true => Ok(None); "left string; right bigint; none")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("10"), true => Ok(Some(false)); "left bigint; right string; false")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("1000"), true => Ok(Some(true)); "left bigint; right string; true")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from("anchor"), true => Ok(None); "left bigint; right string; none")]
-    #[test_case(make_symbol, |_| ECMAScriptValue::Undefined, true => serr("TypeError: Symbol values cannot be converted to Number values"); "left symbol")]
-    #[test_case(|_| ECMAScriptValue::Undefined, make_symbol, true => serr("TypeError: Symbol values cannot be converted to Number values"); "right symbol")]
-    #[test_case(|_| ECMAScriptValue::from(0), |_| ECMAScriptValue::Undefined, true => Ok(None); "right NaN")]
-    #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::from(0), true => Ok(None); "left NaN")]
-    #[test_case(|_| ECMAScriptValue::from(100), |_| ECMAScriptValue::from(0), false => Ok(Some(false)); "numbers: left bigger")]
-    #[test_case(|_| ECMAScriptValue::from(100), |_| ECMAScriptValue::from(7880), true => Ok(Some(true)); "numbers: left smaller")]
-    #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(None); "left NaN vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(f64::NEG_INFINITY), |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(true)); "left neg inf vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(f64::INFINITY), |_| ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(false)); "left pos inf vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(2.3e87), |_| ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(false)); "left big vs BigInt")]
-    #[test_case(|_| ECMAScriptValue::from(-2.3e87), |_| ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(true)); "left small vs BigInt")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::Undefined, true => Ok(None); "right NaN vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::from(f64::NEG_INFINITY), true => Ok(Some(false)); "right neg inf vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(10)), |_| ECMAScriptValue::from(f64::INFINITY), true => Ok(Some(true)); "right pos inf vs Bigint")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(388)), |_| ECMAScriptValue::from(2.3e87), true => Ok(Some(true)); "right big vs BigInt")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(388)), |_| ECMAScriptValue::from(-2.3e87), true => Ok(Some(false)); "right small vs BigInt")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100)), |_| ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(true)); "bigints: left smaller")]
-    #[test_case(|_| ECMAScriptValue::from(BigInt::from(100999)), |_| ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
+    #[test_case(no_primitive_val, || ECMAScriptValue::from(10), true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; first errs")]
+    #[test_case(|| ECMAScriptValue::from(10), no_primitive_val, true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; second errs")]
+    #[test_case(no_primitive_val, || ECMAScriptValue::from(10), false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; second errs")]
+    #[test_case(|| ECMAScriptValue::from(10), no_primitive_val, false => serr("TypeError: Cannot convert object to primitive value"); "lf:false; first errs")]
+    #[test_case(|| ECMAScriptValue::from("first"), || ECMAScriptValue::from("second"), true => Ok(Some(true)); "two strings; left first; true")]
+    #[test_case(|| ECMAScriptValue::from("zfirst"), || ECMAScriptValue::from("second"), true => Ok(Some(false)); "two strings; left first; false")]
+    #[test_case(|| ECMAScriptValue::from("10"), || ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(true)); "left string; right bigint; true")]
+    #[test_case(|| ECMAScriptValue::from("1000"), || ECMAScriptValue::from(BigInt::from(100)), true => Ok(Some(false)); "left string; right bigint; false")]
+    #[test_case(|| ECMAScriptValue::from("anchor"), || ECMAScriptValue::from(BigInt::from(100)), true => Ok(None); "left string; right bigint; none")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from("10"), true => Ok(Some(false)); "left bigint; right string; false")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from("1000"), true => Ok(Some(true)); "left bigint; right string; true")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from("anchor"), true => Ok(None); "left bigint; right string; none")]
+    #[test_case(make_symbol, || ECMAScriptValue::Undefined, true => serr("TypeError: Symbol values cannot be converted to Number values"); "left symbol")]
+    #[test_case(|| ECMAScriptValue::Undefined, make_symbol, true => serr("TypeError: Symbol values cannot be converted to Number values"); "right symbol")]
+    #[test_case(|| ECMAScriptValue::from(0), || ECMAScriptValue::Undefined, true => Ok(None); "right NaN")]
+    #[test_case(|| ECMAScriptValue::Undefined, || ECMAScriptValue::from(0), true => Ok(None); "left NaN")]
+    #[test_case(|| ECMAScriptValue::from(100), || ECMAScriptValue::from(0), false => Ok(Some(false)); "numbers: left bigger")]
+    #[test_case(|| ECMAScriptValue::from(100), || ECMAScriptValue::from(7880), true => Ok(Some(true)); "numbers: left smaller")]
+    #[test_case(|| ECMAScriptValue::Undefined, || ECMAScriptValue::from(BigInt::from(10)), true => Ok(None); "left NaN vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(f64::NEG_INFINITY), || ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(true)); "left neg inf vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(f64::INFINITY), || ECMAScriptValue::from(BigInt::from(10)), true => Ok(Some(false)); "left pos inf vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(2.3e87), || ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(false)); "left big vs BigInt")]
+    #[test_case(|| ECMAScriptValue::from(-2.3e87), || ECMAScriptValue::from(BigInt::from(388)), true => Ok(Some(true)); "left small vs BigInt")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(10)), || ECMAScriptValue::Undefined, true => Ok(None); "right NaN vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(10)), || ECMAScriptValue::from(f64::NEG_INFINITY), true => Ok(Some(false)); "right neg inf vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(10)), || ECMAScriptValue::from(f64::INFINITY), true => Ok(Some(true)); "right pos inf vs Bigint")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(2.3e87), true => Ok(Some(true)); "right big vs BigInt")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(-2.3e87), true => Ok(Some(false)); "right small vs BigInt")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(true)); "bigints: left smaller")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100999)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
     fn is_less_than(
-        make_x: fn(&Agent) -> ECMAScriptValue,
-        make_y: fn(&Agent) -> ECMAScriptValue,
+        make_x: fn() -> ECMAScriptValue,
+        make_y: fn() -> ECMAScriptValue,
         left_first: bool,
     ) -> Result<Option<bool>, String> {
         setup_test_agent();
         let x = make_x(&agent);
         let y = make_y(&agent);
-        agent.is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(&agent, completion))
+        agent.is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(completion))
     }
 
-    type ValueMaker = fn(&Agent) -> ECMAScriptValue;
-    fn empty_object(agent: &Agent) -> ECMAScriptValue {
-        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    type ValueMaker = fn() -> ECMAScriptValue;
+    fn empty_object() -> ECMAScriptValue {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         ECMAScriptValue::from(ordinary_object_create(agent, Some(obj_proto), &[]))
     }
-    fn bool_class(agent: &Agent) -> ECMAScriptValue {
-        let boolean = agent.intrinsic(IntrinsicId::Boolean);
+    fn bool_class() -> ECMAScriptValue {
+        let boolean = intrinsic(IntrinsicId::Boolean);
         ECMAScriptValue::from(boolean)
     }
     fn undef(_: &Agent) -> ECMAScriptValue {
@@ -556,8 +556,8 @@ mod agent {
     fn string(_: &Agent) -> ECMAScriptValue {
         ECMAScriptValue::from("Test Sentinel")
     }
-    fn dead_object(agent: &Agent) -> ECMAScriptValue {
-        ECMAScriptValue::from(DeadObject::object(agent))
+    fn dead_object() -> ECMAScriptValue {
+        ECMAScriptValue::from(DeadObject::object())
     }
     fn test_has_instance(
         agent: &Agent,
@@ -571,15 +571,15 @@ mod agent {
         // But that strings are a type error
         match thing_to_check {
             ECMAScriptValue::Number(_) => Ok(true.into()),
-            ECMAScriptValue::String(s) => Err(create_type_error(agent, s)),
+            ECMAScriptValue::String(s) => Err(create_type_error(s)),
             _ => Ok(false.into()),
         }
     }
-    fn faux_class(agent: &Agent) -> ECMAScriptValue {
-        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    fn faux_class() -> ECMAScriptValue {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(agent, Some(obj_proto), &[]);
-        let realm = agent.current_realm_record();
-        let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let realm = current_realm_record();
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let has_instance = create_builtin_function(
             agent,
             test_has_instance,
@@ -591,7 +591,7 @@ mod agent {
             Some(function_prototype),
             None,
         );
-        let hi = agent.wks(WksId::HasInstance);
+        let hi = wks(WksId::HasInstance);
         define_property_or_throw(
             agent,
             &obj,
@@ -616,7 +616,7 @@ mod agent {
 
         agent
             .instanceof_operator(v, target)
-            .map_err(|completion| unwind_any_error(&agent, completion))
+            .map_err(|completion| unwind_any_error(completion))
             .map(|nc| nc.try_into().unwrap())
     }
 
@@ -662,9 +662,9 @@ mod agent {
             for (idx, val) in values.iter().enumerate() {
                 assert_eq!(&get(&agent, &ao, &idx.into()).unwrap(), val);
             }
-            let args_iterator = agent.intrinsic(IntrinsicId::ArrayPrototypeValues);
-            let type_error_generator = agent.intrinsic(IntrinsicId::ThrowTypeError);
-            let iterator_sym = agent.wks(WksId::Iterator);
+            let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
+            let type_error_generator = intrinsic(IntrinsicId::ThrowTypeError);
+            let iterator_sym = wks(WksId::Iterator);
             assert_eq!(get(&agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             let callee = ao.o.get_own_property(&agent, &"callee".into()).unwrap().unwrap();
             assert_eq!(
@@ -710,7 +710,7 @@ mod agent {
         #[test_case(&[10.into(), 20.into()]; "multiple")]
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
-            let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+            let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
             let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
             agent.set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
@@ -753,8 +753,8 @@ mod agent {
             for (idx, val) in values.iter().enumerate() {
                 assert_eq!(&get(&agent, &ao, &idx.into()).unwrap(), val);
             }
-            let args_iterator = agent.intrinsic(IntrinsicId::ArrayPrototypeValues);
-            let iterator_sym = agent.wks(WksId::Iterator);
+            let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
+            let iterator_sym = wks(WksId::Iterator);
             assert_eq!(get(&agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             assert_eq!(get(&agent, &ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
         }
@@ -788,7 +788,7 @@ mod agent {
         #[test_case(&[10.into(), "blue".into(), true.into()], &["number".into(), "string".into(), "boolean".into()]; "typical")]
         fn normal(values: &[ECMAScriptValue], names: &[JSString]) {
             setup_test_agent();
-            let realm = agent.current_realm_record().unwrap();
+            let realm = current_realm_record().unwrap();
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
             let num_values = values.len() as u32;
@@ -882,7 +882,7 @@ mod parse_script {
     fn happy() {
         setup_test_agent();
         let src = "/* hello! */ 'hello world';";
-        let starting_realm = agent.current_realm_record().unwrap();
+        let starting_realm = current_realm_record().unwrap();
         let ScriptRecord { realm, ecmascript_code, compiled, text } =
             super::parse_script(&agent, src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
@@ -899,7 +899,7 @@ mod parse_script {
     #[test_case("break lbl;" => sset(&["undefined break target detected"]); "early error syntax")]
     fn parse_error(src: &str) -> AHashSet<String> {
         setup_test_agent();
-        let starting_realm = agent.current_realm_record().unwrap();
+        let starting_realm = current_realm_record().unwrap();
         let errs = super::parse_script(&agent, src, starting_realm).unwrap_err();
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
     }
@@ -1078,7 +1078,7 @@ mod fcn_def {
     fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
         let (part, src) = part;
         setup_test_agent();
-        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let env = global_env as Rc<dyn EnvironmentRecord>;
 
         part.instantiate_function_object(&agent, env, None, true, &src)
@@ -1154,7 +1154,7 @@ mod global_declaration_instantiation {
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
         setup_test_agent();
         let script = Maker::new(src).script();
-        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         global_env.create_global_var_binding(&agent, "already_var_declared".into(), false).unwrap();
         global_env.create_mutable_binding(&agent, "existing_mutable".into(), false).unwrap();
 
@@ -1163,7 +1163,7 @@ mod global_declaration_instantiation {
 
         let result = super::global_declaration_instantiation(&agent, script, global_env.clone(), false, src);
 
-        result.map_err(|err| unwind_any_error(&agent, err)).map(|_| {
+        result.map_err(|err| unwind_any_error(err)).map(|| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
@@ -1183,10 +1183,10 @@ mod script_evaluation {
     #[test_case("" => Ok(ECMAScriptValue::Undefined); "empty")]
     fn script_evaluation(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        let realm = agent.current_realm_record().unwrap();
+        let realm = current_realm_record().unwrap();
         let script_record = parse_script(&agent, src, realm).unwrap();
 
-        super::script_evaluation(&agent, script_record).map_err(|err| unwind_any_error(&agent, err))
+        super::script_evaluation(&agent, script_record).map_err(|err| unwind_any_error(err))
     }
 }
 
@@ -1204,7 +1204,7 @@ mod process_error {
         ProcessError::InternalError { reason: "blue".into() }
     }
 
-    fn runtime_err_obj(agent: &Agent) -> ProcessError {
+    fn runtime_err_obj() -> ProcessError {
         let err = create_type_error_object(agent, "test sentinel");
         ProcessError::RuntimeError { error: err.into() }
     }
@@ -1212,7 +1212,7 @@ mod process_error {
         let error = "test sentinel".into();
         ProcessError::RuntimeError { error }
     }
-    fn runtime_err_non_err_obj(agent: &Agent) -> ProcessError {
+    fn runtime_err_non_err_obj() -> ProcessError {
         let error = ordinary_object_create(agent, None, &[]).into();
         ProcessError::RuntimeError { error }
     }
@@ -1222,7 +1222,7 @@ mod process_error {
         }
         assert!(MATCH.is_match(&s));
     }
-    fn compiler_objs(agent: &Agent) -> ProcessError {
+    fn compiler_objs() -> ProcessError {
         ProcessError::CompileErrors {
             values: vec![
                 create_syntax_error_object(agent, "Trouble in Paradise", None),
@@ -1235,7 +1235,7 @@ mod process_error {
     #[test_case(runtime_err_value => "Thrown: test sentinel"; "error value runtime")]
     #[test_case(runtime_err_non_err_obj => using matches_object; "error obj but not error")]
     #[test_case(compiler_objs => "During compilation:\nSyntaxError: Trouble in Paradise\nReferenceError: yeah, compiler errs are only syntax...\n"; "compiler err list")]
-    fn display(make_error: fn(&Agent) -> ProcessError) -> String {
+    fn display(make_error: fn() -> ProcessError) -> String {
         setup_test_agent();
         let err = make_error(&agent);
         format!("{err}")
