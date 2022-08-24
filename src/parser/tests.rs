@@ -1,6 +1,6 @@
 #![allow(clippy::clone_on_copy)]
 use super::*;
-use crate::tests::test_agent;
+use crate::tests::setup_test_agent;
 use ahash::AHasher;
 use std::hash::{Hash, Hasher};
 use test_case::test_case;
@@ -798,26 +798,26 @@ mod parse_node_kind {
 #[test]
 fn parse_text_01() {
     setup_test_agent();
-    let res = parse_text(&agent, "0;", ParseGoal::Script);
+    let res = parse_text("0;", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Script(_)));
 }
 #[test]
 fn parse_text_02() {
     setup_test_agent();
-    let res = parse_text(&agent, "for", ParseGoal::Script);
+    let res = parse_text("for", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
 fn parse_text_03() {
     setup_test_agent();
-    let res = parse_text(&agent, "let x; let x;", ParseGoal::Script);
+    let res = parse_text("let x; let x;", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn parse_text_04() {
     setup_test_agent();
-    parse_text(&agent, "let x; let x;", ParseGoal::Module);
+    parse_text("let x; let x;", ParseGoal::Module);
 }
 
 #[test_case(&["a"] => Vec::<String>::new(); "no dups")]
