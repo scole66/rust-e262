@@ -797,26 +797,26 @@ mod parse_node_kind {
 }
 #[test]
 fn parse_text_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let res = parse_text(&agent, "0;", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Script(_)));
 }
 #[test]
 fn parse_text_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let res = parse_text(&agent, "for", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
 fn parse_text_03() {
-    let agent = test_agent();
+    setup_test_agent();
     let res = parse_text(&agent, "let x; let x;", ParseGoal::Script);
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn parse_text_04() {
-    let agent = test_agent();
+    setup_test_agent();
     parse_text(&agent, "let x; let x;", ParseGoal::Module);
 }
 

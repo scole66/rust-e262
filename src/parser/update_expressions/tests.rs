@@ -247,7 +247,7 @@ mod update_expression {
     #[test_case("--package", true => sset(&[PACKAGE_NOT_ALLOWED]); "pre-dec, simple")]
     #[test_case("--a(b)", true => sset(&["Invalid target for update"]); "pre-dec, complex")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()

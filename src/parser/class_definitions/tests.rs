@@ -136,7 +136,7 @@ mod class_declaration {
     #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
     #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_declaration().early_errors(&agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -252,7 +252,7 @@ mod class_expression {
     #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
     #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_expression().early_errors(&agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -444,7 +444,7 @@ mod class_tail {
     #[test_case("{}" => sset(&[]); "no body")]
 
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_tail().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -523,7 +523,7 @@ mod class_heritage {
     #[test_case("extends package" => sset(&[PACKAGE_NOT_ALLOWED]); "err")]
     #[test_case("extends Boolean" => sset(&[]); "ok")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_heritage().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -612,7 +612,7 @@ mod class_body {
     #[test_case("static set #a(val){this.val=val;} #a(){}" => sset(&[PREV_STATIC_SETTER]); "static setter / method")]
     #[test_case("static #a(){} get #a(){return this.val;}" => sset(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_body().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -793,7 +793,7 @@ mod class_element_list {
     #[test_case("a=package; b=implements;" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
     #[test_case("a=10; b=20;" => sset(&[]); "list (ok)")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element_list().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1108,7 +1108,7 @@ mod class_element {
     #[test_case("static prototype;" => sset(&[STATIC_PROTO]); "static proto field")]
     #[test_case("static constructor;" => sset(&[CONSTRUCTOR_FIELD]); "static constructor field")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1328,7 +1328,7 @@ mod field_definition {
     #[test_case("a=arguments" => sset(&[UNEXPECTED_ARGS]); "args in izer")]
     #[test_case("a=super()" => sset(&[UNEXPECTED_SUPER]); "super in izer")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).field_definition().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1454,7 +1454,7 @@ mod class_element_name {
     #[test_case("#constructor" => sset(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
     #[test_case("#private" => sset(&[]); "simple private")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element_name().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1534,7 +1534,7 @@ mod class_static_block {
     #[test_case("static {}" => sset(&[]); "empty")]
     #[test_case("static {package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "something")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1592,7 +1592,7 @@ mod class_static_block_body {
     #[test_case("super();" => sset(&[UNEXPECTED_SUPER]); "super call")]
     #[test_case("await a();" => sset(&[UNEXPECTED_AWAIT]); "await expr")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block_body().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1649,7 +1649,7 @@ mod class_static_block_statement_list {
     #[test_case("0;" => sset(&[]); "normal")]
     #[test_case("" => sset(&[]); "empty")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block_statement_list().early_errors(&agent, &mut errs, true);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

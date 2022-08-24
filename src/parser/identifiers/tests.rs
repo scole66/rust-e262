@@ -214,7 +214,7 @@ mod identifier {
         #[test_case("static", false => Ok(()); "static non-strict")]
         #[test_case("yield", false => Ok(()); "yield non-strict")]
         fn strict(id: &str, strict: bool) -> Result<(), String> {
-            let agent = test_agent();
+            setup_test_agent();
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
@@ -264,7 +264,7 @@ mod identifier {
         #[test_case("while" => String::from("‘while’ is a reserved word and may not be used as an identifier"); "keyword while")]
         #[test_case("with" => String::from("‘with’ is a reserved word and may not be used as an identifier"); "keyword with")]
         fn keyword(id: &str) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
@@ -276,7 +276,7 @@ mod identifier {
         #[test_case("aw\\u0061it", true => Err(String::from("‘await’ not allowed as an identifier in modules")); "await in module")]
         #[test_case("aw\\u0061it", false => Ok(()); "await in script")]
         fn module(src: &str, in_module: bool) -> Result<(), String> {
-            let agent = test_agent();
+            setup_test_agent();
             let (ident, _) = Identifier::parse(&mut newparser(src), Scanner::new()).unwrap();
             let mut errs = vec![];
             ident.early_errors(&agent, &mut errs, false, in_module);
@@ -533,7 +533,7 @@ mod identifier_reference {
         yield_expr_allowed: bool,
         await_expr_allowed: bool,
     ) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
         let (item, _) = IdentifierReference::parse(
             &mut Parser::new(src, false, goal),
@@ -832,7 +832,7 @@ mod binding_identifier {
             yield_expr_allowed: bool,
             await_expr_allowed: bool,
         ) -> AHashSet<String> {
-            let agent = test_agent();
+            setup_test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = BindingIdentifier::parse(
                 &mut Parser::new(src, false, goal),
@@ -1100,7 +1100,7 @@ mod label_identifier {
             yield_expr_allowed: bool,
             await_expr_allowed: bool,
         ) -> AHashSet<String> {
-            let agent = test_agent();
+            setup_test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = LabelIdentifier::parse(
                 &mut Parser::new(src, false, goal),

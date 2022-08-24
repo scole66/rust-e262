@@ -9,7 +9,7 @@ mod prototype {
 
         #[test]
         fn happy() {
-            let agent = test_agent();
+            setup_test_agent();
             let value = ECMAScriptValue::from(10);
 
             let result = object_prototype_value_of(&agent, value, None, &[]).unwrap();
@@ -25,7 +25,7 @@ mod prototype {
         }
         #[test]
         fn err() {
-            let agent = test_agent();
+            setup_test_agent();
             let result = object_prototype_value_of(&agent, ECMAScriptValue::Undefined, None, &[]).unwrap_err();
             assert_eq!(unwind_type_error(&agent, result), "Undefined and null cannot be converted to objects");
         }
@@ -53,7 +53,7 @@ mod prototype {
         #[test_case(greasy => "[object Grease]"; "to-string-tag")]
         #[test_case(|agent| ECMAScriptValue::from(DeadObject::object(agent)) => "get called on DeadObject"; "throw getting tag")]
         fn f(make: fn(agent: &Agent) -> ECMAScriptValue) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let value = make(&agent);
             match object_prototype_to_string(&agent, value, None, &[]) {
                 Ok(ok) => match ok {
@@ -93,7 +93,7 @@ mod constructor {
         Some(nt)
     }, &[] => "[[Get]] called on TestObject"; "ordinary_create_from_constructor throws")]
     fn function(new_target: fn(&Agent) -> Option<Object>, args: &[ECMAScriptValue]) -> String {
-        let agent = test_agent();
+        setup_test_agent();
         let nt = new_target(&agent);
 
         match object_constructor_function(&agent, ECMAScriptValue::Undefined, nt.as_ref(), args) {
@@ -115,7 +115,7 @@ mod constructor {
 
         #[test]
         fn happy() {
-            let agent = test_agent();
+            setup_test_agent();
             let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let target = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
             let fruits = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
@@ -252,7 +252,7 @@ mod constructor {
         #[test_case(set_throws, obj_with_item => "[[Set]] called on TestObject"; "Set method throws")]
         #[test_case(ordinary_obj, get_throws => "[[Get]] throws from AdaptableObject"; "Get method throws")]
         fn error(create_to: fn(&Agent) -> ECMAScriptValue, create_from: fn(&Agent) -> ECMAScriptValue) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let to = create_to(&agent);
             let from = create_from(&agent);
 
@@ -340,7 +340,7 @@ mod constructor {
             create_target: fn(&Agent) -> Object,
             create_params: fn(&Agent) -> ECMAScriptValue,
         ) -> Result<Vec<PropertyInfo>, String> {
-            let agent = test_agent();
+            setup_test_agent();
             let target = create_target(&agent);
             let params = create_params(&agent);
 
@@ -379,7 +379,7 @@ mod constructor {
             make_proto: fn(&Agent) -> ECMAScriptValue,
             make_props: fn(&Agent) -> ECMAScriptValue,
         ) -> Result<Vec<PropertyInfo>, String> {
-            let agent = test_agent();
+            setup_test_agent();
             let proto = make_proto(&agent);
             let props = make_props(&agent);
             match object_create(&agent, ECMAScriptValue::Undefined, None, &[proto.clone(), props]) {
@@ -428,7 +428,7 @@ mod constructor {
             make_obj: fn(&Agent) -> ECMAScriptValue,
             make_props: fn(&Agent) -> ECMAScriptValue,
         ) -> Result<Vec<PropertyInfo>, String> {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = make_obj(&agent);
             let props = make_props(&agent);
             match object_define_properties(&agent, ECMAScriptValue::Undefined, None, &[obj.clone(), props]) {
@@ -514,7 +514,7 @@ mod constructor {
             make_key: fn(&Agent) -> ECMAScriptValue,
             make_attrs: fn(&Agent) -> ECMAScriptValue,
         ) -> Result<Vec<PropertyInfo>, String> {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = make_obj(&agent);
             let key = make_key(&agent);
             let attrs = make_attrs(&agent);
@@ -547,7 +547,7 @@ mod constructor {
         #[test_case(undef => Err("TypeError: Undefined and null cannot be converted to objects".to_string()); "undefined")]
         #[test_case(dead => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property throws")]
         fn errs(make_arg: fn(&Agent) -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
-            let agent = test_agent();
+            setup_test_agent();
             let arg = make_arg(&agent);
             object_entries(&agent, ECMAScriptValue::Undefined, None, &[arg])
                 .map_err(|err| unwind_any_error(&agent, err))
@@ -555,7 +555,7 @@ mod constructor {
 
         #[test]
         fn normal() {
-            let agent = test_agent();
+            setup_test_agent();
             let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(&agent, Some(proto), &[]);
             create_data_property_or_throw(&agent, &obj, "one", 1.0).unwrap();
@@ -583,7 +583,7 @@ mod constructor {
 
         #[test]
         fn no_args() {
-            let agent = test_agent();
+            setup_test_agent();
             assert_eq!(
                 object_freeze(&agent, ECMAScriptValue::Undefined, None, &[]).unwrap(),
                 ECMAScriptValue::Undefined
@@ -591,7 +591,7 @@ mod constructor {
         }
         #[test]
         fn number() {
-            let agent = test_agent();
+            setup_test_agent();
             assert_eq!(
                 object_freeze(&agent, ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(),
                 ECMAScriptValue::from(2003.25)
@@ -599,14 +599,14 @@ mod constructor {
         }
         #[test]
         fn dead() {
-            let agent = test_agent();
+            setup_test_agent();
             let arg: ECMAScriptValue = DeadObject::object(&agent).into();
             let result = object_freeze(&agent, ECMAScriptValue::Undefined, None, &[arg]).unwrap_err();
             assert_eq!(unwind_any_error(&agent, result), "TypeError: prevent_extensions called on DeadObject");
         }
         #[test]
         fn ok() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             create_data_property_or_throw(&agent, &obj, "property", "holiday").unwrap();
             let result: Object =
@@ -623,7 +623,7 @@ mod constructor {
         }
         #[test]
         fn prevention_prevented() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = AdaptableObject::object(
                 &agent,
                 AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() },

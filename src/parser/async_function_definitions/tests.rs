@@ -264,7 +264,7 @@ mod async_function_declaration {
     #[test_case("async function package(interface){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
     #[test_case("async function(package){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -471,7 +471,7 @@ mod async_function_expression {
     #[test_case("async function package(interface){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
     #[test_case("async function(package){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_function_expression().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -648,7 +648,7 @@ mod async_method {
     #[test_case("async w(a){let a; const bb=0;}", false => sset(&[A_ALREADY_DEFN]); "duplicate lex")]
     #[test_case("async f(a){'use strict'; package;}", false => sset(&[PACKAGE_NOT_ALLOWED]); "directive works")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -732,7 +732,7 @@ mod async_function_body {
 
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionBody")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -820,7 +820,7 @@ mod await_expression {
 
     #[test_case("await package", true => sset(&[PACKAGE_NOT_ALLOWED]); "await UnaryExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AwaitExpression::parse(&mut newparser(src), Scanner::new(), true)
             .unwrap()

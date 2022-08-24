@@ -399,7 +399,7 @@ mod unary_expression {
     #[test_case("! package", true => sset(&[PACKAGE_NOT_ALLOWED]); "not")]
     #[test_case("await package", true => sset(&[PACKAGE_NOT_ALLOWED]); "await_")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()

@@ -525,7 +525,7 @@ fn is_generic_descriptor_01() {
 
 #[test]
 fn ordinary_get_prototype_of_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
 
@@ -535,7 +535,7 @@ fn ordinary_get_prototype_of_01() {
 
 #[test]
 fn ordinary_set_prototype_of_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let new_proto = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
@@ -546,7 +546,7 @@ fn ordinary_set_prototype_of_01() {
 }
 #[test]
 fn ordinary_set_prototype_of_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     let result = ordinary_set_prototype_of(&obj, None);
@@ -555,7 +555,7 @@ fn ordinary_set_prototype_of_02() {
 }
 #[test]
 fn ordinary_set_prototype_of_03() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
 
@@ -565,7 +565,7 @@ fn ordinary_set_prototype_of_03() {
 }
 #[test]
 fn ordinary_set_prototype_of_04() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, None, &[]);
 
@@ -575,7 +575,7 @@ fn ordinary_set_prototype_of_04() {
 }
 #[test]
 fn ordinary_set_prototype_of_05() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
     obj.o.prevent_extensions(&agent).unwrap();
@@ -586,7 +586,7 @@ fn ordinary_set_prototype_of_05() {
 }
 #[test]
 fn ordinary_set_prototype_of_06() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto.clone()), &[]);
 
@@ -597,7 +597,7 @@ fn ordinary_set_prototype_of_06() {
 
 #[test]
 fn ordinary_is_extensible_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
 
@@ -611,7 +611,7 @@ fn ordinary_is_extensible_01() {
 
 #[test]
 fn ordinary_prevent_extensions_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
 
@@ -622,7 +622,7 @@ fn ordinary_prevent_extensions_01() {
 
 #[test]
 fn ordinary_get_own_property_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
@@ -632,7 +632,7 @@ fn ordinary_get_own_property_01() {
 }
 #[test]
 fn ordinary_get_own_property_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
@@ -658,7 +658,7 @@ fn ordinary_get_own_property_02() {
 #[test]
 fn ordinary_define_own_property_01() {
     // Add a new property, object is extensible (the default)
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
@@ -685,7 +685,7 @@ fn ordinary_define_own_property_01() {
 #[test]
 fn ordinary_define_own_property_02() {
     // Add a new property, object is not extensible
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
@@ -705,7 +705,7 @@ fn ordinary_define_own_property_02() {
 #[test]
 fn ordinary_define_own_property_03() {
     // Change an existing property
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
@@ -734,7 +734,7 @@ fn ordinary_define_own_property_03() {
 #[test]
 fn ordinary_define_own_property_04() {
     // [[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor {
@@ -753,7 +753,7 @@ fn ordinary_define_own_property_04() {
 #[test]
 fn ordinary_define_own_property_05() {
     // [[IsExtensible]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::IsExtensible]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor {
@@ -787,7 +787,7 @@ fn validate_and_apply_property_descriptor_02() {
 #[test]
 fn validate_and_apply_property_descriptor_03() {
     // current Undefined; empty descriptor
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor { ..Default::default() };
@@ -804,7 +804,7 @@ fn validate_and_apply_property_descriptor_03() {
 #[test]
 fn validate_and_apply_property_descriptor_04() {
     // current Undefined; overfull descriptor
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor {
@@ -828,7 +828,7 @@ fn validate_and_apply_property_descriptor_04() {
 #[test]
 fn validate_and_apply_property_descriptor_05() {
     // current Undefined; accessor descriptor
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor {
@@ -857,7 +857,7 @@ fn validate_and_apply_property_descriptor_05() {
 #[test]
 fn validate_and_apply_property_descriptor_06() {
     // object Undefined; current reasonable; any valid input
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let existing = PotentialPropertyDescriptor {
@@ -1203,7 +1203,7 @@ fn figure_expectation(
 }
 #[test]
 fn validate_and_apply_property_descriptor_many() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     for (name, ppd) in VAPDIter::new(&agent) {
@@ -1251,7 +1251,7 @@ fn validate_and_apply_property_descriptor_many() {
 
 #[test]
 fn ordinary_has_property_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
     let initial = PotentialPropertyDescriptor {
@@ -1281,7 +1281,7 @@ fn ordinary_has_property_01() {
 #[test]
 fn ordinary_has_property_02() {
     // [[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
@@ -1291,7 +1291,7 @@ fn ordinary_has_property_02() {
 #[test]
 fn ordinary_has_property_03() {
     // [GetPrototypeOf]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetPrototypeOf]);
     let key = PropertyKey::from("a");
 
@@ -1302,7 +1302,7 @@ fn ordinary_has_property_03() {
 #[test]
 fn ordinary_get_01() {
     // [[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
@@ -1312,7 +1312,7 @@ fn ordinary_get_01() {
 #[test]
 fn ordinary_get_02() {
     // [[GetPrototypeOf]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetPrototypeOf]);
     let key = PropertyKey::from("a");
 
@@ -1322,7 +1322,7 @@ fn ordinary_get_02() {
 #[test]
 fn ordinary_get_03() {
     // Top of the prototype chain
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
 
@@ -1332,7 +1332,7 @@ fn ordinary_get_03() {
 #[test]
 fn ordinary_get_04() {
     // Normal data property
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let initial = PotentialPropertyDescriptor {
@@ -1362,7 +1362,7 @@ fn test_getter(
 #[test]
 fn ordinary_get_05() {
     // Normal accessor property
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let getter = create_builtin_function(
@@ -1403,7 +1403,7 @@ fn ordinary_get_05() {
 #[test]
 fn ordinary_get_06() {
     // Accessor property on parent (this ensures we're passing "receiver" properly)
-    let agent = test_agent();
+    setup_test_agent();
     let parent = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let getter = create_builtin_function(
@@ -1449,7 +1449,7 @@ fn ordinary_get_06() {
 #[test]
 fn ordinary_get_07() {
     // Accessor properties undefined
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let initial = PotentialPropertyDescriptor {
@@ -1467,7 +1467,7 @@ fn ordinary_get_07() {
 #[test]
 fn ordinary_set_01() {
     // [[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1479,7 +1479,7 @@ fn ordinary_set_01() {
 #[test]
 fn ordinary_set_02() {
     // success
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
@@ -1494,7 +1494,7 @@ fn ordinary_set_02() {
 #[test]
 fn ordinary_set_with_own_descriptor_01() {
     // [[GetPrototypeOf]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetPrototypeOf]);
     let key = PropertyKey::from("a");
 
@@ -1506,7 +1506,7 @@ fn ordinary_set_with_own_descriptor_01() {
 #[test]
 fn ordinary_set_with_own_descriptor_02() {
     // If ownDesc is None, call [[Set]] on the parent. (We check by having the parent throw when we call its [[Set]].)
-    let agent = test_agent();
+    setup_test_agent();
     let parent = TestObject::object(&agent, &[FunctionId::Set(None)]);
     let obj = ordinary_object_create(&agent, Some(parent), &[]);
     let key = PropertyKey::from("a");
@@ -1519,7 +1519,7 @@ fn ordinary_set_with_own_descriptor_02() {
 #[test]
 fn ordinary_set_with_own_descriptor_03() {
     // ownDesc has writable:false; function should return false.
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let own_desc = PropertyDescriptor {
         property: PropertyKind::Data(DataProperty { writable: false, value: ECMAScriptValue::Undefined }),
@@ -1537,7 +1537,7 @@ fn ordinary_set_with_own_descriptor_03() {
 #[test]
 fn ordinary_set_with_own_descriptor_04() {
     // Type(receiver) is not object -> return false
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1549,7 +1549,7 @@ fn ordinary_set_with_own_descriptor_04() {
 #[test]
 fn ordinary_set_with_own_descriptor_05() {
     // receiver.[[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1561,7 +1561,7 @@ fn ordinary_set_with_own_descriptor_05() {
 #[test]
 fn ordinary_set_with_own_descriptor_06() {
     // existing is an accessor
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1598,7 +1598,7 @@ fn ordinary_set_with_own_descriptor_06() {
 #[test]
 fn ordinary_set_with_own_descriptor_07() {
     // existing is read-only
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1624,7 +1624,7 @@ fn ordinary_set_with_own_descriptor_07() {
 #[test]
 fn ordinary_set_with_own_descriptor_08() {
     // existing exists
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
@@ -1654,7 +1654,7 @@ fn ordinary_set_with_own_descriptor_08() {
 #[test]
 fn ordinary_set_with_own_descriptor_09() {
     // existing does not exist
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
@@ -1691,7 +1691,7 @@ fn test_setter(
 #[test]
 fn ordinary_set_with_own_descriptor_10() {
     // own_desc is an accessor descriptor, with the above setter function
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
@@ -1728,7 +1728,7 @@ fn ordinary_set_with_own_descriptor_10() {
 #[test]
 fn ordinary_set_with_own_descriptor_11() {
     // own_desc is an accessor descriptor, with a setter function that throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
@@ -1751,7 +1751,7 @@ fn ordinary_set_with_own_descriptor_11() {
 #[test]
 fn ordinary_set_with_own_descriptor_12() {
     // own_desc is an accessor descriptor, with an undefined setter function
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
@@ -1773,7 +1773,7 @@ fn ordinary_set_with_own_descriptor_12() {
 #[test]
 fn ordinary_delete_01() {
     // [[GetOwnProperty]] throws
-    let agent = test_agent();
+    setup_test_agent();
     let obj = TestObject::object(&agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
@@ -1783,7 +1783,7 @@ fn ordinary_delete_01() {
 #[test]
 fn ordinary_delete_02() {
     // property isn't actually there
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
 
@@ -1793,7 +1793,7 @@ fn ordinary_delete_02() {
 #[test]
 fn ordinary_delete_03() {
     // property isn't configurable
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from(0);
@@ -1819,7 +1819,7 @@ fn ordinary_delete_03() {
 #[test]
 fn ordinary_delete_04() {
     // property is normal
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from(0);
@@ -1833,7 +1833,7 @@ fn ordinary_delete_04() {
 
 #[test]
 fn ordinary_own_property_keys_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     let result = ordinary_own_property_keys(&obj);
@@ -1842,7 +1842,7 @@ fn ordinary_own_property_keys_01() {
 use crate::values::Symbol;
 #[test]
 fn ordinary_own_property_keys_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let sym1 = Symbol::new(&agent, Some(JSString::from("TestSymbol 1")));
     let sym2 = Symbol::new(&agent, Some(JSString::from("TestSymbol 2")));
@@ -1885,90 +1885,90 @@ fn array_index_key_02() {
 #[test]
 #[should_panic(expected = "unreachable code")]
 fn array_index_key_03() {
-    let agent = test_agent();
+    setup_test_agent();
     array_index_key(&PropertyKey::from(Symbol::new(&agent, None)));
 }
 
 #[test]
 fn object_interface_to_boolean_obj() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(obj.o.to_boolean_obj().is_none());
 }
 #[test]
 fn object_interface_to_function_obj() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(obj.o.to_function_obj().is_none());
 }
 #[test]
 fn object_interface_to_callable_obj() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(obj.o.to_callable_obj().is_none());
 }
 #[test]
 fn object_interface_to_builtin_function_obj() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(obj.o.to_builtin_function_obj().is_none());
 }
 #[test]
 fn object_interface_is_arguments_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_arguments_object());
 }
 #[test]
 fn object_interface_is_callable_obj() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_callable_obj());
 }
 #[test]
 fn object_interface_is_error_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_error_object());
 }
 #[test]
 fn object_interface_is_boolean_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_boolean_object());
 }
 #[test]
 fn object_interface_is_number_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_number_object());
 }
 #[test]
 fn object_interface_is_string_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_string_object());
 }
 #[test]
 fn object_interface_is_date_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_date_object());
 }
 #[test]
 fn object_interface_is_regexp_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
 
     assert!(!obj.o.is_regexp_object());
@@ -1977,7 +1977,7 @@ fn object_interface_is_regexp_object() {
 #[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
-    let agent = test_agent();
+    setup_test_agent();
 
     // Then requesting a new object with no prototype or extra slots
     let obj = ordinary_object_create(&agent, None, &[]);
@@ -1992,7 +1992,7 @@ fn ordinary_object_create_01() {
 #[test]
 fn ordinary_object_create_02() {
     // When an agent and a prototype are provided
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
 
     // Then requesting a new object with that prototype but no extra slots
@@ -2009,7 +2009,7 @@ fn ordinary_object_create_02() {
 #[test]
 fn ordinary_object_create_03a() {
     // When an agent and a prototype are provided
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -2025,7 +2025,7 @@ fn ordinary_object_create_03a() {
 #[test]
 fn ordinary_object_create_03b() {
     // When an agent and a prototype are provided
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -2041,7 +2041,7 @@ fn ordinary_object_create_03b() {
 #[test]
 fn ordinary_object_create_03c() {
     // When an agent and a prototype are provided
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -2071,13 +2071,13 @@ fn ordinary_object_create_03c() {
 #[test_case(FUNCTION_OBJECT_SLOTS => panics "More items are needed for initialization. Use FunctionObject::object directly instead"; "function obj")]
 #[test_case(GENERATOR_OBJECT_SLOTS => panics "Additional info needed for generator object; use direct constructor"; "generator obj")]
 fn make_basic_object(slots: &[InternalSlotName]) -> Object {
-    let agent = test_agent();
+    setup_test_agent();
     super::make_basic_object(&agent, slots, None)
 }
 
 #[test]
 fn get_prototype_of_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&test_agent(), None, &[]);
     let result = obj.o.get_prototype_of(&agent);
     assert!(result.is_ok());
@@ -2085,7 +2085,7 @@ fn get_prototype_of_01() {
 }
 #[test]
 fn get_prototype_of_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
     let obj = ordinary_object_create(&agent, Some(proto.clone()), &[]);
     let result = obj.o.get_prototype_of(&agent);
@@ -2096,7 +2096,7 @@ fn get_prototype_of_02() {
 #[test]
 fn set_prototype_of_01() {
     // Not changing an empty prototype
-    let agent = test_agent();
+    setup_test_agent();
     let obj_a = ordinary_object_create(&agent, None, &[]);
     let result = obj_a.o.set_prototype_of(&agent, None);
     assert!(result.is_ok());
@@ -2106,7 +2106,7 @@ fn set_prototype_of_01() {
 #[test]
 fn set_prototype_of_02() {
     // Not changing a Some() prototype
-    let agent = test_agent();
+    setup_test_agent();
     let obj_a = ordinary_object_create(&agent, None, &[]);
     let obj_b = ordinary_object_create(&agent, Some(obj_a.clone()), &[]);
     let result = obj_b.o.set_prototype_of(&agent, Some(obj_a.clone()));
@@ -2117,7 +2117,7 @@ fn set_prototype_of_02() {
 #[test]
 fn set_prototype_of_03() {
     // Changing a Some() prototype to a different Some() prototype
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
     let obj_b = ordinary_object_create(&agent, Some(proto), &[]);
     let new_proto = ordinary_object_create(&agent, None, &[]);
@@ -2129,7 +2129,7 @@ fn set_prototype_of_03() {
 #[test]
 fn set_prototype_of_04() {
     // Trying to make a prototype loop
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
     let obj_b = ordinary_object_create(&agent, Some(proto.clone()), &[]);
     let result = proto.o.set_prototype_of(&agent, Some(obj_b));
@@ -2140,7 +2140,7 @@ fn set_prototype_of_04() {
 #[test]
 fn set_prototype_of_05() {
     // Changing the prototype of an object that's not extensible
-    let agent = test_agent();
+    setup_test_agent();
     let proto = ordinary_object_create(&agent, None, &[]);
     let obj_b = ordinary_object_create(&agent, Some(proto.clone()), &[]);
     obj_b.o.common_object_data().borrow_mut().extensible = false;
@@ -2153,7 +2153,7 @@ fn set_prototype_of_05() {
 
 #[test]
 fn is_extensible_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let result = obj.o.is_extensible(&agent);
     assert!(result.is_ok());
@@ -2161,7 +2161,7 @@ fn is_extensible_01() {
 }
 #[test]
 fn is_extensible_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     obj.o.common_object_data().borrow_mut().extensible = false;
     let result = obj.o.is_extensible(&agent);
@@ -2171,7 +2171,7 @@ fn is_extensible_02() {
 
 #[test]
 fn prevent_extensions_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let result = obj.o.prevent_extensions(&agent);
     assert!(result.is_ok());
@@ -2181,7 +2181,7 @@ fn prevent_extensions_01() {
 
 #[test]
 fn get_own_property_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
     let result = obj.o.get_own_property(&agent, &key);
@@ -2190,7 +2190,7 @@ fn get_own_property_01() {
 }
 #[test]
 fn get_own_property_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(89.0);
@@ -2220,7 +2220,7 @@ fn get_own_property_02() {
 
 #[test]
 fn set_and_get() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let obj = ordinary_object_create(&agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
@@ -2237,7 +2237,7 @@ mod private_element_find {
     use test_case::test_case;
 
     fn setup() -> (Object, Vec<PrivateName>) {
-        let agent = test_agent();
+        setup_test_agent();
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(&agent, Some(object_proto), &[]);
 
@@ -2323,7 +2323,7 @@ mod private_field_add {
 
     #[test_case(PrivateName::new("orange") => (true, Some(ECMAScriptValue::Null)); "orange")]
     fn normal(name: PrivateName) -> (bool, Option<ECMAScriptValue>) {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, _) = setup(&agent);
 
         let result = private_field_add(&agent, &obj, name.clone(), ECMAScriptValue::Null);
@@ -2343,7 +2343,7 @@ mod private_field_add {
     #[test_case(1; "second")]
     #[test_case(2; "last")]
     fn previously_added(idx: usize) {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, names) = setup(&agent);
 
         let result = private_field_add(&agent, &obj, names[idx].clone(), ECMAScriptValue::Null).unwrap_err();
@@ -2373,7 +2373,7 @@ mod private_method_or_accessor_add {
 
     #[test]
     fn add() {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, _) = setup(&agent);
         let key = PrivateName::new("orange");
         let method = Rc::new(PrivateElement {
@@ -2393,7 +2393,7 @@ mod private_method_or_accessor_add {
 
     #[test]
     fn replace() {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, key) = setup(&agent);
         let method =
             Rc::new(PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
@@ -2471,7 +2471,7 @@ mod private_get {
     #[test_case(FieldName::NoGetter => Err(String::from("PrivateName has no getter")); "no getter")]
     #[test_case(FieldName::Unavailable => Err(String::from("PrivateName not defined")); "undefined")]
     fn f(field: FieldName) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, field_name, method_name, getter_name, nogetter_name) = setup(&agent);
 
         let query = match field {
@@ -2565,7 +2565,7 @@ mod private_set {
     #[test_case(FieldName::NoSetter => Err(String::from("PrivateName has no setter")); "no-setter")]
     #[test_case(FieldName::Unavailable => Err(String::from("PrivateName not defined")); "undefined")]
     fn f(field: FieldName) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let (obj, field_name, method_name, setter_name, nosetter_name) = setup(&agent);
         let new_value = ECMAScriptValue::from("NEW VALUE");
         let query = match field {
@@ -2593,7 +2593,7 @@ mod create_data_property_or_throw {
         use super::*;
         #[test]
         fn string() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
 
             create_data_property_or_throw(&agent, &obj, "key", "blue").unwrap();
@@ -2602,7 +2602,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn boolean() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
 
             create_data_property_or_throw(&agent, &obj, "key", true).unwrap();
@@ -2611,7 +2611,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn value() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
 
             create_data_property_or_throw(&agent, &obj, "key", ECMAScriptValue::Null).unwrap();
@@ -2620,7 +2620,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn integer() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
 
             create_data_property_or_throw(&agent, &obj, "key", 10).unwrap();
@@ -2633,7 +2633,7 @@ mod create_data_property_or_throw {
         use super::*;
         #[test]
         fn string() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             obj.o.prevent_extensions(&agent).unwrap();
 
@@ -2643,7 +2643,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn boolean() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             obj.o.prevent_extensions(&agent).unwrap();
 
@@ -2653,7 +2653,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn value() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             obj.o.prevent_extensions(&agent).unwrap();
 
@@ -2663,7 +2663,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn integer() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             obj.o.prevent_extensions(&agent).unwrap();
 
@@ -2677,7 +2677,7 @@ mod create_data_property_or_throw {
         use super::*;
         #[test]
         fn string() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = TestObject::object(&agent, &[FunctionId::DefineOwnProperty(None)]);
 
             let err = create_data_property_or_throw(&agent, &obj, "key", "blue").unwrap_err();
@@ -2686,7 +2686,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn boolean() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = TestObject::object(&agent, &[FunctionId::DefineOwnProperty(None)]);
 
             let err = create_data_property_or_throw(&agent, &obj, "key", true).unwrap_err();
@@ -2695,7 +2695,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn value() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = TestObject::object(&agent, &[FunctionId::DefineOwnProperty(None)]);
 
             let err = create_data_property_or_throw(&agent, &obj, "key", ECMAScriptValue::Null).unwrap_err();
@@ -2704,7 +2704,7 @@ mod create_data_property_or_throw {
         }
         #[test]
         fn integer() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = TestObject::object(&agent, &[FunctionId::DefineOwnProperty(None)]);
 
             let err = create_data_property_or_throw(&agent, &obj, "key", 10).unwrap_err();
@@ -2765,7 +2765,7 @@ mod from_property_descriptor {
         configurable:ECMAScriptValue::from(true)
     }); "standard accessor")]
     fn happy(pd: Option<PropertyDescriptor>) -> Option<TestResult> {
-        let agent = test_agent();
+        setup_test_agent();
         from_property_descriptor(&agent, pd).map(|o| TestResult {
             value: maybeprop(&agent, &o, "value"),
             writable: maybeprop(&agent, &o, "writable"),
@@ -2824,7 +2824,7 @@ mod to_property_descriptor {
         configurable: Some(true),
     }; "normal accessor")]
     fn happy(create_input: fn(&Agent) -> ECMAScriptValue) -> PotentialPropertyDescriptor {
-        let agent = test_agent();
+        setup_test_agent();
         let input = create_input(&agent);
         let result = to_property_descriptor(&agent, &input);
         result.unwrap()
@@ -2881,7 +2881,7 @@ mod to_property_descriptor {
     #[test_case(|a| create_nonfcn(a, "get") => "Getter must be callable (or undefined)"; "uncallable getter")]
     #[test_case(|a| create_nonfcn(a, "set") => "Setter must be callable (or undefined)"; "uncallable setter")]
     fn error(create_input: fn(&Agent) -> ECMAScriptValue) -> String {
-        let agent = test_agent();
+        setup_test_agent();
         let input = create_input(&agent);
         let result = to_property_descriptor(&agent, &input);
         unwind_type_error(&agent, result.unwrap_err())
@@ -2942,7 +2942,7 @@ mod create_array_from_list {
         },
     ]; "some items")]
     fn cafl(items: &[ECMAScriptValue]) -> Vec<PropertyInfo> {
-        let agent = test_agent();
+        setup_test_agent();
         create_array_from_list(&agent, items).o.common_object_data().borrow().propdump()
     }
 }
@@ -3018,14 +3018,14 @@ mod enumerable_own_property_names {
     #[test_case(getthrows, EnumerationStyle::Value => Err("TypeError: [[Get]] called on TestObject".to_string()); "get throws")]
     #[test_case(lyingkeys, EnumerationStyle::Value => Ok(Vec::<ECMAScriptValue>::new()); "ownkeys lies")]
     fn f(make_obj: fn(&Agent) -> Object, kind: EnumerationStyle) -> Result<Vec<ECMAScriptValue>, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_obj(&agent);
         enumerable_own_property_names(&agent, &obj, kind).map_err(|err| unwind_any_error(&agent, err))
     }
 
     #[test]
     fn keyvalue() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = normal(&agent);
         let result = enumerable_own_property_names(&agent, &obj, EnumerationStyle::KeyPlusValue).unwrap();
         assert_eq!(result.len(), 2);
@@ -3169,7 +3169,7 @@ mod set_integrity_level {
     #[test_case(gop_throws, IntegrityLevel::Frozen => Err("TypeError: [[GetOwnProperty]] called more than once".to_string()); "GetOwnProp throws")]
     #[test_case(lyingkeys, IntegrityLevel::Frozen => Ok((true, Vec::<PropertyInfo>::new())); "lying own property keys")]
     fn sil(make_obj: fn(&Agent) -> Object, level: IntegrityLevel) -> Result<(bool, Vec<PropertyInfo>), String> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_obj(&agent);
         set_integrity_level(&agent, &obj, level)
             .map(|success| (success, obj.o.common_object_data().borrow().propdump()))
@@ -3269,7 +3269,7 @@ mod ordinary_has_instance {
     #[test_case(bool_class, bool_child => Ok(true); "true instance via prototype chain (child)")]
     #[test_case(bool_class, bool_grandchild => Ok(true); "true instance via prototype chain (grandchild)")]
     fn ordinary_has_instance(make_c: ValueMaker, make_o: ValueMaker) -> Result<bool, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let c = make_c(&agent);
         let o = make_o(&agent);
 

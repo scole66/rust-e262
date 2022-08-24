@@ -53,7 +53,7 @@ mod agent {
 
     #[test]
     fn pop_execution_context() {
-        let agent = test_agent();
+        setup_test_agent();
         let realm_ref = agent.current_realm_record().unwrap();
         // build a new EC, and add it to the EC stack
         let sr = ScriptRecord {
@@ -72,7 +72,7 @@ mod agent {
     }
     #[test]
     fn push_execution_context() {
-        let agent = test_agent();
+        setup_test_agent();
         let realm_ref = agent.current_realm_record().unwrap();
         let prior_length = agent.execution_context_stack.borrow().len();
         // build a new EC, and add it to the EC stack
@@ -179,7 +179,7 @@ mod agent {
             Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "debug_token", true, None)))
         } => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)); "valid ref")]
     fn void_operator(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let expr = make_expr(&agent);
         agent.void_operator(expr).map_err(|ac| unwind_any_error(&agent, ac))
     }
@@ -206,7 +206,7 @@ mod agent {
         Ok(NormalCompletion::from(bool_proto))
     } => Ok(NormalCompletion::from("object")); "typeof Boolean.prototype")]
     fn typeof_operator(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let expr = make_expr(&agent);
         agent.typeof_operator(expr).map_err(|ac| unwind_any_error(&agent, ac))
     }
@@ -264,7 +264,7 @@ mod agent {
     #[test_case(ref_to_undefined => Ok(NormalCompletion::from(false)); "undefined ref")]
     #[test_case(dead_env => serr("TypeError: delete called on DeadObject"); "env ref delete errors")]
     fn delete_ref(make_expr: fn(&Agent) -> FullCompletion) -> Result<NormalCompletion, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let expr = make_expr(&agent);
         agent.delete_ref(expr).map_err(|ac| unwind_any_error(&agent, ac))
     }
@@ -442,7 +442,7 @@ mod agent {
         make_rval: fn(&Agent) -> ECMAScriptValue,
         op: BinOp,
     ) -> Result<NormalCompletion, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let lval = make_lval(&agent);
         let rval = make_rval(&agent);
         agent.apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(&agent, ac))
@@ -462,13 +462,13 @@ mod agent {
     #[test_case(WksId::ToStringTag => "Symbol.toStringTag"; "Symbol.toStringTag")]
     #[test_case(WksId::Unscopables => "Symbol.unscopables"; "Symbol.unscopables")]
     fn wks(id: WksId) -> String {
-        let agent = test_agent();
+        setup_test_agent();
         String::from(agent.wks(id).description().unwrap())
     }
 
     #[test]
     fn prepare_for_execution() {
-        let agent = test_agent();
+        setup_test_agent();
         let chunk = Rc::new(Chunk::new("test sentinel"));
 
         agent.prepare_for_execution(0, Rc::clone(&chunk));
@@ -480,7 +480,7 @@ mod agent {
 
     #[test]
     fn two_values() {
-        let agent = test_agent();
+        setup_test_agent();
         let index = agent.execution_context_stack.borrow().len() - 1;
         agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
         agent.execution_context_stack.borrow_mut()[index]
@@ -532,7 +532,7 @@ mod agent {
         make_y: fn(&Agent) -> ECMAScriptValue,
         left_first: bool,
     ) -> Result<Option<bool>, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let x = make_x(&agent);
         let y = make_y(&agent);
         agent.is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(&agent, completion))
@@ -610,7 +610,7 @@ mod agent {
     #[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
     #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
     fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let v = make_v(&agent);
         let target = make_target(&agent);
 
@@ -628,7 +628,7 @@ mod agent {
         #[test_case(&[]; "no args")]
         #[test_case(&[88.into()]; "one arg")]
         fn normal(values: &[ECMAScriptValue]) {
-            let agent = test_agent();
+            setup_test_agent();
             let num_values = values.len() as u32;
             let index = agent.execution_context_stack.borrow().len() - 1;
             {
@@ -683,7 +683,7 @@ mod agent {
         #[test]
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
-            let agent = test_agent();
+            setup_test_agent();
             let index = agent.execution_context_stack.borrow().len() - 1;
             agent.create_unmapped_arguments_object(index);
         }
@@ -691,7 +691,7 @@ mod agent {
         #[test]
         #[should_panic(expected = "Stack too short to fit all the arguments")]
         fn panics_short() {
-            let agent = test_agent();
+            setup_test_agent();
             let index = agent.execution_context_stack.borrow().len() - 1;
             {
                 let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -709,7 +709,7 @@ mod agent {
         #[test_case(&[]; "empty")]
         #[test_case(&[10.into(), 20.into()]; "multiple")]
         fn normal(values: &[ECMAScriptValue]) {
-            let agent = test_agent();
+            setup_test_agent();
             let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
             let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
             agent.set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
@@ -762,7 +762,7 @@ mod agent {
         #[test]
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
-            let agent = test_agent();
+            setup_test_agent();
             let index = agent.execution_context_stack.borrow().len() - 1;
             agent.create_mapped_arguments_object(index);
         }
@@ -770,7 +770,7 @@ mod agent {
         #[test]
         #[should_panic(expected = "Stack too short to fit all the arguments plus the function obj")]
         fn panics_short() {
-            let agent = test_agent();
+            setup_test_agent();
             let index = agent.execution_context_stack.borrow().len() - 1;
             {
                 let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -787,7 +787,7 @@ mod agent {
 
         #[test_case(&[10.into(), "blue".into(), true.into()], &["number".into(), "string".into(), "boolean".into()]; "typical")]
         fn normal(values: &[ECMAScriptValue], names: &[JSString]) {
-            let agent = test_agent();
+            setup_test_agent();
             let realm = agent.current_realm_record().unwrap();
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
@@ -833,7 +833,7 @@ mod agent {
         #[test]
         #[should_panic(expected = "stack must not be empty")]
         fn empty_stack() {
-            let agent = test_agent();
+            setup_test_agent();
             let index = agent.execution_context_stack.borrow().len() - 1;
             agent.attach_mapped_arg(index, &"bbo".into(), 12);
         }
@@ -868,7 +868,7 @@ mod well_known_symbols {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let s = format!("{:?}", agent.0.symbols);
         assert_ne!(s, "");
     }
@@ -880,7 +880,7 @@ mod parse_script {
 
     #[test]
     fn happy() {
-        let agent = test_agent();
+        setup_test_agent();
         let src = "/* hello! */ 'hello world';";
         let starting_realm = agent.current_realm_record().unwrap();
         let ScriptRecord { realm, ecmascript_code, compiled, text } =
@@ -898,7 +898,7 @@ mod parse_script {
     #[test_case("for [i=0, i<10, i++] {}" => sset(&["1:5: ‘(’ expected"]); "parse time syntax")]
     #[test_case("break lbl;" => sset(&["undefined break target detected"]); "early error syntax")]
     fn parse_error(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let starting_realm = agent.current_realm_record().unwrap();
         let errs = super::parse_script(&agent, src, starting_realm).unwrap_err();
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -1077,7 +1077,7 @@ mod fcn_def {
     #[test_case({ let src = "async function *orange(){}"; (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.into()) } => panics "not yet implemented"; "async generator decl")]
     fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
         let (part, src) = part;
-        let agent = test_agent();
+        setup_test_agent();
         let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let env = global_env as Rc<dyn EnvironmentRecord>;
 
@@ -1152,7 +1152,7 @@ mod global_declaration_instantiation {
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
     #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
-        let agent = test_agent();
+        setup_test_agent();
         let script = Maker::new(src).script();
         let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         global_env.create_global_var_binding(&agent, "already_var_declared".into(), false).unwrap();
@@ -1182,7 +1182,7 @@ mod script_evaluation {
     #[test_case("undeclared" => serr("ReferenceError: Unresolvable Reference"); "invalid")]
     #[test_case("" => Ok(ECMAScriptValue::Undefined); "empty")]
     fn script_evaluation(src: &str) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let realm = agent.current_realm_record().unwrap();
         let script_record = parse_script(&agent, src, realm).unwrap();
 
@@ -1236,14 +1236,14 @@ mod process_error {
     #[test_case(runtime_err_non_err_obj => using matches_object; "error obj but not error")]
     #[test_case(compiler_objs => "During compilation:\nSyntaxError: Trouble in Paradise\nReferenceError: yeah, compiler errs are only syntax...\n"; "compiler err list")]
     fn display(make_error: fn(&Agent) -> ProcessError) -> String {
-        let agent = test_agent();
+        setup_test_agent();
         let err = make_error(&agent);
         format!("{err}")
     }
 
     #[test]
     fn display_err() {
-        let agent = test_agent();
+        setup_test_agent();
         let err = compiler_objs(&agent);
         display_error_validate(err);
     }
@@ -1257,7 +1257,7 @@ mod process_ecmascript {
     #[test_case("void" => serr("During compilation:\nSyntaxError: 1:5: UnaryExpression expected\n"); "syntax error")]
     #[test_case("a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "runtime error")]
     fn process_ecmascript(src: &str) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let result = super::process_ecmascript(&agent, src);
         result.map_err(|e| format!("{e}"))
     }

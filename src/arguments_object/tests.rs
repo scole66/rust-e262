@@ -8,7 +8,7 @@ mod parameter_map {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap = ParameterMap { env, properties: vec![] };
 
@@ -17,7 +17,7 @@ mod parameter_map {
 
     #[test]
     fn new() {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
 
         let map = ParameterMap::new(env.clone());
@@ -33,7 +33,7 @@ mod parameter_map {
     #[test_case(|_| PropertyKey::from("83828") => Some(83828); "valid nonzero")]
     #[test_case(|a| PropertyKey::from(a.wks(WksId::Iterator)) => None; "symbol key")]
     fn idx_from_key(make_key: impl FnOnce(&Agent) -> PropertyKey) -> Option<usize> {
-        let agent = test_agent();
+        setup_test_agent();
         let actual_key = make_key(&agent);
         ParameterMap::idx_from_key(&actual_key)
     }
@@ -44,7 +44,7 @@ mod parameter_map {
     #[test_case("3" => Some(3); "three")]
     #[test_case("4" => None; "too large")]
     fn to_index(key: &str) -> Option<usize> {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
 
         let pmap = ParameterMap {
@@ -57,7 +57,7 @@ mod parameter_map {
     #[test_case("bob", 10 => ssome("bob"); "expand")]
     #[test_case("alice", 0 => ssome("alice"); "precede")]
     fn add_mapped_name(name: &str, loc: usize) -> Option<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let mut pmap = ParameterMap::new(env);
 
@@ -72,7 +72,7 @@ mod parameter_map {
     #[test_case(&[Some("first"), Some("second"), Some("third")], 4 => panics "index out of bounds: the len is 3 but the index is 4"; "delete past end")]
     #[test_case(&[Some("first"), None, Some("third")], 1 => vec![ssome("first"), None, ssome("third")]; "delete already deleted")]
     fn delete(before: &[Option<&str>], loc: usize) -> Vec<Option<String>> {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let mut pmap = ParameterMap { env, properties: before.iter().map(|os| os.map(JSString::from)).collect() };
 
@@ -84,7 +84,7 @@ mod parameter_map {
     #[test_case(&[Some("first"), Some("second"), Some("third")], 0 => ECMAScriptValue::from("first+0"); "typical")]
     #[test_case(&[Some("first"), None, Some("third")], 1 => panics "Get only used on existing values"; "get a deleted item")]
     fn get(before: &[Option<&str>], loc: usize) -> ECMAScriptValue {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap =
             ParameterMap { env: env.clone(), properties: before.iter().map(|os| os.map(JSString::from)).collect() };
@@ -102,7 +102,7 @@ mod parameter_map {
     #[test_case(&[Some("first"), Some("second"), Some("third")], 0, ECMAScriptValue::from("sentinel") => ECMAScriptValue::from("sentinel"); "typical")]
     #[test_case(&[Some("first"), None, Some("third")], 1, ECMAScriptValue::from("sentinel") => panics "Set only used on existing values"; "set a deleted item")]
     fn set(before: &[Option<&str>], loc: usize, val: ECMAScriptValue) -> ECMAScriptValue {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap =
             ParameterMap { env: env.clone(), properties: before.iter().map(|os| os.map(JSString::from)).collect() };
@@ -127,7 +127,7 @@ mod arguments_object {
 
     #[test]
     fn object() {
-        let agent = test_agent();
+        setup_test_agent();
         let env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap = ParameterMap {
             env: env.clone(),
@@ -201,76 +201,76 @@ mod arguments_object {
     #[test_case(|ao| ao.o.is_ordinary() => true; "is_ordinary")]
     #[test_case(|ao| ao.o.is_arguments_object() => true; "is_arguments_object")]
     fn bool_stub(op: impl FnOnce(&Object) -> bool) -> bool {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         op(&ao)
     }
 
     #[test]
     fn to_array_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_array_object().is_none());
     }
 
     #[test]
     fn to_boolean_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_boolean_obj().is_none());
     }
 
     #[test]
     fn to_error_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_error_obj().is_none());
     }
     #[test]
     fn to_symbol_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_symbol_obj().is_none());
     }
 
     #[test]
     fn to_number_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_number_obj().is_none());
     }
 
     #[test]
     fn to_callable_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_callable_obj().is_none());
     }
 
     #[test]
     fn to_constructable() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_constructable().is_none());
     }
 
     #[test]
     fn to_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_function_obj().is_none());
     }
 
     #[test]
     fn to_builtin_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let ao = test_ao(&agent);
         assert!(ao.o.to_builtin_function_obj().is_none());
     }
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = test_ao(&agent);
         let ao = obj.o.to_arguments_object().unwrap();
         assert_ne!(format!("{:?}", ao), "");
@@ -281,7 +281,7 @@ mod arguments_object {
     #[test_case(|a| { let ao = test_ao(a); ao.o.delete(a, &"1".into()).unwrap(); ao }, "1" => Ok(ECMAScriptValue::Undefined); "tried to get a deleted one")]
     #[test_case(|a| ArgumentsObject::object(a, None), "10" => Ok(ECMAScriptValue::Undefined); "unmapped")]
     fn get(make_object: impl FnOnce(&Agent) -> Object, propname: &str) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
         let receiver = ECMAScriptValue::from(obj.clone());
 
@@ -314,7 +314,7 @@ mod arguments_object {
         val: ECMAScriptValue,
         to_check: &[&str],
     ) -> Result<(bool, Vec<(ECMAScriptValue, ECMAScriptValue)>), String> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
         let env = agent
             .current_lexical_environment()
@@ -382,7 +382,7 @@ mod arguments_object {
         obj
     }, "key", &["key"] => Ok((false, test_hm(&[("key", ECMAScriptValue::from(39), ECMAScriptValue::Undefined)]), None)); "undeletable")]
     fn delete(make_object: impl FnOnce(&Agent) -> Object, name: &str, to_check: &[&str]) -> TestResult {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
         let env = agent
             .current_lexical_environment()
@@ -455,7 +455,7 @@ mod arguments_object {
     #[test_case(test_unmapped, "2" => using prop_checker(PotentialPropertyDescriptor::new().value("value of 'test'").writable(true).enumerable(true).configurable(true)); "unmapped obj")]
     #[test_case(test_unmapped, "200" => None; "property not present")]
     fn get_own_property(make_object: impl FnOnce(&Agent) -> Object, name: &str) -> Option<PropertyDescriptor> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
 
         obj.o.get_own_property(&agent, &name.into()).unwrap()
@@ -539,7 +539,7 @@ mod arguments_object {
         name: &str,
         desc: PotentialPropertyDescriptor,
     ) -> DefineOwnPropertyTestResult {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
         let env = agent.current_lexical_environment().unwrap();
 
@@ -563,7 +563,7 @@ mod arguments_object {
     #[test_case(test_ao, "0" => true; "exists")]
     #[test_case(test_ao, "from" => false; "not in ao")]
     fn has_property(make_object: impl FnOnce(&Agent) -> Object, name: &str) -> bool {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
 
         obj.o.has_property(&agent, &name.into()).unwrap()
@@ -571,7 +571,7 @@ mod arguments_object {
 
     #[test_case(test_ao => true; "typical")]
     fn set_prototype_of(make_object: impl FnOnce(&Agent) -> Object) -> bool {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
 
         obj.o.set_prototype_of(&agent, None).unwrap()
@@ -579,7 +579,7 @@ mod arguments_object {
 
     #[test_case(test_ao => true; "typical")]
     fn prevent_extensions(make_object: impl FnOnce(&Agent) -> Object) -> bool {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make_object(&agent);
 
         obj.o.prevent_extensions(&agent).unwrap()

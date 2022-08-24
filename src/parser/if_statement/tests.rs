@@ -242,7 +242,7 @@ mod if_statement {
     #[test_case("if (a) alpha; else b: function f(){}", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (in else clause)")]
     #[test_case("if (a) b: function f(){} else c;", false => sset(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled fucntion (in then clause)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()

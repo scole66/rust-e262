@@ -143,7 +143,7 @@ mod with_statement {
     #[test_case("with(a){}", true => sset(&[WITH_NOT_ALLOWED]); "strict")]
     #[test_case("with(function (){break;}()){continue;}", false => sset(&[BAD_BREAK, BAD_CONTINUE]); "non-strict")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).with_statement().early_errors(&agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

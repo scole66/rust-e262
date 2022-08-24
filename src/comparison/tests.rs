@@ -23,7 +23,7 @@ mod require_object_coercible {
     #[test_case(|_| BigInt::from(10).into() => Ok(()); "bigint")]
     #[test_case(|a| ordinary_object_create(a, None, &[]).into() => Ok(()); "object")]
     fn roc(make_arg: fn(&Agent) -> ECMAScriptValue) -> Result<(), String> {
-        let agent = test_agent();
+        setup_test_agent();
         let arg = make_arg(&agent);
 
         require_object_coercible(&agent, &arg).map_err(|err| unwind_any_error(&agent, err))

@@ -4,7 +4,7 @@ use test_case::test_case;
 
 #[test]
 fn create_native_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let constructor = agent.intrinsic(IntrinsicId::RangeError);
     let message = "Great Googly Moogly!";
     let proto_id = IntrinsicId::RangeErrorPrototype;
@@ -20,7 +20,7 @@ fn create_native_error_object_01() {
 
 #[test]
 fn create_type_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_type_error_object(&agent, "Happy Days");
 
@@ -31,7 +31,7 @@ fn create_type_error_object_01() {
 
 #[test]
 fn create_type_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_type_error(&agent, "A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -47,7 +47,7 @@ fn create_type_error_01() {
 
 #[test]
 fn create_eval_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_eval_error_object(&agent, "Happy Days");
 
@@ -58,7 +58,7 @@ fn create_eval_error_object_01() {
 
 #[test]
 fn create_eval_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_eval_error(&agent, "A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -74,7 +74,7 @@ fn create_eval_error_01() {
 
 #[test]
 fn create_reference_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_reference_error_object(&agent, "Happy Days");
 
@@ -85,7 +85,7 @@ fn create_reference_error_object_01() {
 
 #[test]
 fn create_reference_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_reference_error(&agent, "A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -101,7 +101,7 @@ fn create_reference_error_01() {
 
 #[test]
 fn create_range_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_range_error_object(&agent, "Happy Days");
 
@@ -112,7 +112,7 @@ fn create_range_error_object_01() {
 
 #[test]
 fn create_range_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_range_error(&agent, "A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -128,7 +128,7 @@ fn create_range_error_01() {
 
 #[test]
 fn create_syntax_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_syntax_error_object(
         &agent,
@@ -147,7 +147,7 @@ fn create_syntax_error_object_01() {
 
 #[test]
 fn create_syntax_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_syntax_error(&agent, "A", None);
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -163,7 +163,7 @@ fn create_syntax_error_01() {
 
 #[test]
 fn create_uri_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_uri_error_object(&agent, "Happy Days");
 
@@ -174,7 +174,7 @@ fn create_uri_error_object_01() {
 
 #[test]
 fn create_uri_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_uri_error(&agent, "A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
@@ -190,14 +190,14 @@ fn create_uri_error_01() {
 
 #[test]
 fn error_object_debug() {
-    let agent = test_agent();
+    setup_test_agent();
     let eo = ErrorObject { common: RefCell::new(CommonObjectData::new(&agent, None, true, &[])) };
     assert_ne!(format!("{:?}", eo), "");
 }
 
 #[test]
 fn error_object_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let eo = ErrorObject::object(&agent, None);
 
     assert!(eo.o.is_error_object());
@@ -210,7 +210,7 @@ fn create_error_object(agent: &Agent) -> Object {
 }
 #[test]
 fn error_object_common_object_data() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
 
@@ -224,7 +224,7 @@ fn error_object_common_object_data() {
 }
 #[test]
 fn error_object_is_ordinary() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.is_ordinary();
@@ -233,7 +233,7 @@ fn error_object_is_ordinary() {
 }
 #[test]
 fn error_object_id() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     // ... essentially, assert that it doesn't panic.
@@ -241,7 +241,7 @@ fn error_object_id() {
 }
 #[test]
 fn error_object_to_error_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.to_error_obj();
@@ -249,7 +249,7 @@ fn error_object_to_error_object() {
 }
 #[test]
 fn error_object_is_error_object() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.is_error_object();
@@ -258,7 +258,7 @@ fn error_object_is_error_object() {
 }
 #[test]
 fn error_object_get_prototype_of() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.get_prototype_of(&agent).unwrap();
@@ -266,7 +266,7 @@ fn error_object_get_prototype_of() {
 }
 #[test]
 fn error_object_set_prototype_of() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.set_prototype_of(&agent, None).unwrap();
@@ -274,7 +274,7 @@ fn error_object_set_prototype_of() {
 }
 #[test]
 fn error_object_is_extensible() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.is_extensible(&agent).unwrap();
@@ -282,7 +282,7 @@ fn error_object_is_extensible() {
 }
 #[test]
 fn error_object_prevent_extensions() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.prevent_extensions(&agent).unwrap();
@@ -290,7 +290,7 @@ fn error_object_prevent_extensions() {
 }
 #[test]
 fn error_object_get_own_property() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.get_own_property(&agent, &PropertyKey::from("a")).unwrap();
@@ -298,7 +298,7 @@ fn error_object_get_own_property() {
 }
 #[test]
 fn error_object_define_own_property() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result =
@@ -312,7 +312,7 @@ fn error_object_define_own_property() {
 }
 #[test]
 fn error_object_has_property() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.has_property(&agent, &PropertyKey::from("a")).unwrap();
@@ -320,7 +320,7 @@ fn error_object_has_property() {
 }
 #[test]
 fn error_object_get() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.get(&agent, &PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
@@ -328,7 +328,7 @@ fn error_object_get() {
 }
 #[test]
 fn error_object_set() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result =
@@ -338,7 +338,7 @@ fn error_object_set() {
 }
 #[test]
 fn error_object_delete() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.delete(&agent, &PropertyKey::from("a")).unwrap();
@@ -346,7 +346,7 @@ fn error_object_delete() {
 }
 #[test]
 fn error_object_own_property_keys() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     let result = no.o.own_property_keys(&agent).unwrap();
@@ -354,7 +354,7 @@ fn error_object_own_property_keys() {
 }
 #[test]
 fn error_object_other_automatic_functions() {
-    let agent = test_agent();
+    setup_test_agent();
     let no = create_error_object(&agent);
 
     assert!(!no.o.is_number_object());
@@ -374,7 +374,7 @@ fn error_object_other_automatic_functions() {
 
 #[test]
 fn error_constructor_data_props() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
 
     let val = get(&agent, &error_constructor, &PropertyKey::from("prototype")).unwrap();
@@ -385,7 +385,7 @@ fn error_constructor_data_props() {
 #[test]
 fn error_constructor_function_01() {
     // Called as function, with argument.
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
 
     let result = call(&agent, &error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
@@ -399,7 +399,7 @@ fn error_constructor_function_01() {
 #[test]
 fn error_constructor_function_02() {
     // Called as function, with no argument.
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
 
     let result = call(&agent, &error_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
@@ -413,7 +413,7 @@ fn error_constructor_function_02() {
 #[test]
 fn error_constructor_function_03() {
     // Called as constructor
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
 
     let result = construct(&agent, &error_constructor, &[ECMAScriptValue::from("A")], None).unwrap();
@@ -428,7 +428,7 @@ fn error_constructor_function_03() {
 fn error_constructor_throws() {
     // ordinary_create_from_contructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
 
     // This hack is to get around the "not configurable" characteristic of Error.prototype.
@@ -448,7 +448,7 @@ fn error_constructor_throws() {
 }
 #[test]
 fn error_constructor_to_string_throws() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
 
@@ -458,7 +458,7 @@ fn error_constructor_to_string_throws() {
 
 #[test]
 fn error_prototype_data_props() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
 
     let val = get(&agent, &error_prototype, &PropertyKey::from("constructor")).unwrap();
@@ -475,7 +475,7 @@ fn error_prototype_data_props() {
 use crate::object::{define_property_or_throw, invoke, set};
 #[test]
 fn error_prototype_tostring_01() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobj = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
 
@@ -484,7 +484,7 @@ fn error_prototype_tostring_01() {
 }
 #[test]
 fn error_prototype_tostring_02() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -496,7 +496,7 @@ fn error_prototype_tostring_02() {
 }
 #[test]
 fn error_prototype_tostring_03() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -508,7 +508,7 @@ fn error_prototype_tostring_03() {
 }
 #[test]
 fn error_prototype_tostring_04() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -520,7 +520,7 @@ fn error_prototype_tostring_04() {
 }
 #[test]
 fn error_prototype_tostring_05() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -532,7 +532,7 @@ fn error_prototype_tostring_05() {
 }
 #[test]
 fn error_prototype_tostring_06() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -545,7 +545,7 @@ fn error_prototype_tostring_06() {
 #[test]
 fn error_prototype_tostring_07() {
     // getting property "name" throws
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -561,7 +561,7 @@ fn error_prototype_tostring_07() {
 #[test]
 fn error_prototype_tostring_08() {
     // getting property "message" throws
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -576,7 +576,7 @@ fn error_prototype_tostring_08() {
 }
 #[test]
 fn error_prototype_tostring_09() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -588,7 +588,7 @@ fn error_prototype_tostring_09() {
 }
 #[test]
 fn error_prototype_tostring_10() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&agent, errobjval.clone()).unwrap();
@@ -600,7 +600,7 @@ fn error_prototype_tostring_10() {
 }
 #[test]
 fn error_prototype_to_string_11() {
-    let agent = test_agent();
+    setup_test_agent();
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
     let func = get(&agent, &error_prototype, &PropertyKey::from("toString")).unwrap();
 
@@ -609,7 +609,7 @@ fn error_prototype_to_string_11() {
 }
 
 fn native_error_constructor_properties(intrinsic: IntrinsicId, expected_name: &str) {
-    let agent = test_agent();
+    setup_test_agent();
     let constructor = agent.intrinsic(intrinsic);
 
     let proto = constructor.o.get_prototype_of(&agent).unwrap().unwrap();
@@ -644,7 +644,7 @@ fn uri_error_constructor_properties() {
 }
 
 fn native_error_prototype_properties(prototype: IntrinsicId, constructor: IntrinsicId, name: &str) {
-    let agent = test_agent();
+    setup_test_agent();
     let prototype = agent.intrinsic(prototype);
     let constructor = agent.intrinsic(constructor);
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
@@ -693,7 +693,7 @@ fn uri_error_prototype_properties() {
 }
 
 fn test_error_constructor(const_id: IntrinsicId, proto_id: IntrinsicId, name: &str) {
-    let agent = test_agent();
+    setup_test_agent();
     let constructor = agent.intrinsic(const_id);
     let proto = agent.intrinsic(proto_id);
     let objval = construct(&agent, &constructor, &[ECMAScriptValue::from("test message")], None).unwrap();
@@ -733,7 +733,7 @@ fn test_uri_error_constructor() {
 #[test_case(|a: &Agent| create_type_error_object(a, "message 1") => "TypeError: message 1"; "type error")]
 #[test_case(|a: &Agent| create_syntax_error_object(a, "message 2", None) => "SyntaxError: message 2"; "syntax error")]
 fn unwind_any_error_value(maker: fn(&Agent) -> Object) -> String {
-    let agent = test_agent();
+    setup_test_agent();
     let errobj = maker(&agent);
     super::unwind_any_error_value(&agent, ECMAScriptValue::from(errobj))
 }
@@ -742,7 +742,7 @@ fn unwind_any_error_value(maker: fn(&Agent) -> Object) -> String {
 #[test_case(|a: &Agent| create_syntax_error(a, "ouch", None) => "SyntaxError: ouch"; "syntax error")]
 #[test_case(|_: &Agent| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
 fn unwind_any_error(maker: fn(&Agent) -> AbruptCompletion) -> String {
-    let agent = test_agent();
+    setup_test_agent();
     let completion = maker(&agent);
     super::unwind_any_error(&agent, completion)
 }

@@ -138,7 +138,7 @@ mod script {
     #[test_case("let x; var x=10;" => sset(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
     #[test_case("break a;" => sset(&[UNDEF_BREAK]); "undefined break target")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -278,7 +278,7 @@ mod script_body {
     #[test_case("continue bob;", false => sset(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
     #[test_case("a.#mystery;", false => sset(&["invalid private identifier detected"]); "invalid private id")]
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

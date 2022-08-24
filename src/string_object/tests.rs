@@ -9,7 +9,7 @@ mod string_object {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject {
             common: RefCell::new(CommonObjectData::new(&agent, Some(prototype), true, STRING_OBJECT_SLOTS)),
@@ -20,7 +20,7 @@ mod string_object {
 
     #[test]
     fn object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -33,7 +33,7 @@ mod string_object {
 
     #[test]
     fn is_boolean_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -42,7 +42,7 @@ mod string_object {
 
     #[test]
     fn is_date_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -51,7 +51,7 @@ mod string_object {
 
     #[test]
     fn is_array_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -60,7 +60,7 @@ mod string_object {
 
     #[test]
     fn is_proxy_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -69,7 +69,7 @@ mod string_object {
 
     #[test]
     fn is_symbol_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -78,7 +78,7 @@ mod string_object {
 
     #[test]
     fn is_number_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -87,7 +87,7 @@ mod string_object {
 
     #[test]
     fn is_arguments_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -96,7 +96,7 @@ mod string_object {
 
     #[test]
     fn is_plain_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -105,7 +105,7 @@ mod string_object {
 
     #[test]
     fn is_regexp_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -114,7 +114,7 @@ mod string_object {
 
     #[test]
     fn is_error_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -123,7 +123,7 @@ mod string_object {
 
     #[test]
     fn is_callable_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -132,7 +132,7 @@ mod string_object {
 
     #[test]
     fn is_string_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -141,7 +141,7 @@ mod string_object {
 
     #[test]
     fn is_ordinary() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -150,7 +150,7 @@ mod string_object {
 
     #[test]
     fn to_arguments_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -159,7 +159,7 @@ mod string_object {
 
     #[test]
     fn to_boolean_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -168,7 +168,7 @@ mod string_object {
 
     #[test]
     fn to_array_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -177,7 +177,7 @@ mod string_object {
 
     #[test]
     fn to_callable_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -186,7 +186,7 @@ mod string_object {
 
     #[test]
     fn to_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -195,7 +195,7 @@ mod string_object {
 
     #[test]
     fn to_error_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -204,7 +204,7 @@ mod string_object {
 
     #[test]
     fn to_builtin_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -213,7 +213,7 @@ mod string_object {
 
     #[test]
     fn to_symbol_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -222,7 +222,7 @@ mod string_object {
 
     #[test]
     fn to_number_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -231,7 +231,7 @@ mod string_object {
 
     #[test]
     fn to_constructable() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object(&agent, "orange".into(), Some(prototype));
 
@@ -240,7 +240,7 @@ mod string_object {
 
     #[test]
     fn get_prototype_of() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let proto = str_obj.o.get_prototype_of(&agent).unwrap().unwrap();
         assert_eq!(proto, agent.intrinsic(IntrinsicId::StringPrototype));
@@ -248,7 +248,7 @@ mod string_object {
 
     #[test]
     fn set_prototype_of() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let res = str_obj.o.set_prototype_of(&agent, None).unwrap();
         assert!(res);
@@ -257,7 +257,7 @@ mod string_object {
 
     #[test]
     fn is_extensible() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let res = str_obj.o.is_extensible(&agent).unwrap();
         assert!(res);
@@ -265,7 +265,7 @@ mod string_object {
 
     #[test]
     fn prevent_extensions() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let res = str_obj.o.prevent_extensions(&agent).unwrap();
         assert!(res);
@@ -326,7 +326,7 @@ mod string_object {
         new_val: impl Into<ECMAScriptValue>,
         key: impl Into<PropertyKey>,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object(value.into());
         let receiver = ECMAScriptValue::Object(str_obj.clone());
         let success = str_obj.o.set(&agent, key.into(), new_val.into(), &receiver).unwrap();
@@ -343,7 +343,7 @@ mod string_object {
 
     #[test]
     fn delete() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let res = str_obj.o.delete(&agent, &PropertyKey::from("rust")).unwrap();
         assert_eq!(res, true);
@@ -351,7 +351,7 @@ mod string_object {
 
     #[test]
     fn id() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let str_obj2 = agent.create_string_object("orange".into());
         assert_ne!(str_obj.o.id(), str_obj2.o.id());
@@ -359,7 +359,7 @@ mod string_object {
 
     #[test]
     fn has_property() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let res = str_obj.o.has_property(&agent, &PropertyKey::from("rust")).unwrap();
         assert_eq!(res, false);
@@ -369,7 +369,7 @@ mod string_object {
 
     #[test]
     fn common_object_data() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
         let cod = str_obj.o.common_object_data().borrow();
 
@@ -398,7 +398,7 @@ mod string_object {
         value: &str,
         make_key: impl FnOnce(&Agent) -> PropertyKey,
     ) -> Option<IdealizedPropertyDescriptor> {
-        let agent = test_agent();
+        setup_test_agent();
         let probe = make_key(&agent);
         let str_obj = agent.create_string_object(value.into());
         str_obj.o.to_string_obj().unwrap().string_get_own_property(&probe).map(IdealizedPropertyDescriptor::from)
@@ -408,7 +408,7 @@ mod string_object {
     #[test_case("orange", "3" => Some(IdealizedPropertyDescriptor{configurable: false, enumerable: true, writable: Some(false), value: Some(ECMAScriptValue::from("n")), get: None, set: None}); "stringish get")]
     #[test_case("orange", "color" => None; "key not present")]
     fn get_own_property(value: &str, key: &str) -> Option<IdealizedPropertyDescriptor> {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object(value.into());
         str_obj.o.get_own_property(&agent, &key.into()).unwrap().map(IdealizedPropertyDescriptor::from)
     }
@@ -504,7 +504,7 @@ mod string_object {
         new_value: PotentialPropertyDescriptor,
         key: &str,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object(value.into());
 
         let success = str_obj.o.define_own_property(&agent, key.into(), new_value).unwrap();
@@ -522,7 +522,7 @@ mod string_object {
     #[test_case("orange", "length" => ECMAScriptValue::from(6); "exists")]
     #[test_case("orange", "friendliness" => ECMAScriptValue::Undefined; "doesn't exist")]
     fn get(value: &str, key: &str) -> ECMAScriptValue {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object(value.into());
 
         let receiver = ECMAScriptValue::from(str_obj.clone());
@@ -531,7 +531,7 @@ mod string_object {
 
     #[test]
     fn own_property_keys() {
-        let agent = test_agent();
+        setup_test_agent();
         let str_obj = agent.create_string_object("orange".into());
 
         let to_prim = agent.wks(WksId::ToPrimitive);
@@ -615,7 +615,7 @@ mod agent {
 
     #[test]
     fn string_create() {
-        let agent = test_agent();
+        setup_test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let s = agent.string_create("value".into(), Some(object_prototype.clone()));
 
@@ -628,7 +628,7 @@ mod agent {
 
     #[test]
     fn create_string_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let string_prototype = agent.intrinsic(IntrinsicId::StringPrototype);
         let s = agent.create_string_object("value".into());
 
@@ -663,7 +663,7 @@ mod agent {
 
         #[test]
         fn string_prototype_intrinsic() {
-            let agent = test_agent();
+            setup_test_agent();
 
             // The String prototype object: is %String.prototype%.
             let string_proto = agent.intrinsic(IntrinsicId::StringPrototype);
@@ -746,7 +746,7 @@ mod agent {
         #[test_case("valueOf" => "valueOf;0"; "valueOf function")]
         #[test_case(WksId::Iterator => "[Symbol.iterator];0"; "@@iterator function")]
         fn prototype_func(key: impl Into<ToKey>) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let key = match key.into() {
                 ToKey::String(s) => PropertyKey::from(s),
                 ToKey::Symbol(id) => PropertyKey::from(agent.wks(id)),
@@ -763,7 +763,7 @@ mod agent {
 
         #[test]
         fn string_intrinsic() {
-            let agent = test_agent();
+            setup_test_agent();
             // The String constructor: is %String%.
             let string_object = agent.intrinsic(IntrinsicId::String);
 
@@ -800,7 +800,7 @@ mod agent {
         #[test_case("fromCodePoint" => "fromCodePoint;1"; "String.fromCodePoint")]
         #[test_case("raw" => "raw;1"; "String.raw")]
         fn constructor_func(key: impl Into<ToKey>) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let key = match key.into() {
                 ToKey::String(s) => PropertyKey::from(s),
                 ToKey::Symbol(id) => PropertyKey::from(agent.wks(id)),
@@ -821,7 +821,7 @@ mod agent {
     #[test_case(|_| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
     #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
     fn this_string_value(make_val: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let val = make_val(&agent);
         agent.this_string_value(val, "unit testing").map(String::from).map_err(|e| unwind_any_error(&agent, e))
     }
@@ -836,7 +836,7 @@ mod agent {
 fn string_constructor_function(
     make_params: impl FnOnce(&Agent) -> (Option<Object>, Vec<ECMAScriptValue>),
 ) -> Result<(bool, String), String> {
-    let agent = test_agent();
+    setup_test_agent();
     let (new_target, arguments) = make_params(&agent);
     super::string_constructor_function(&agent, ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
@@ -853,7 +853,7 @@ fn string_constructor_function(
 #[test_case(|a| vec![ECMAScriptValue::from(a.wks(WksId::ToPrimitive))] => serr("TypeError: Symbol values cannot be converted to Number values"); "bad args")]
 #[test_case(|_| vec![] => sok(""); "emtpy args")]
 fn string_from_char_code(make_params: impl FnOnce(&Agent) -> Vec<ECMAScriptValue>) -> Result<String, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let args = make_params(&agent);
     super::string_from_char_code(&agent, ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
@@ -872,7 +872,7 @@ fn string_from_char_code(make_params: impl FnOnce(&Agent) -> Vec<ECMAScriptValue
 fn string_prototype_index_of(
     make_params: impl FnOnce(&Agent) -> (ECMAScriptValue, Vec<ECMAScriptValue>),
 ) -> Result<f64, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let (this_value, arguments) = make_params(&agent);
     super::string_prototype_index_of(&agent, this_value, None, &arguments)
         .map(|val| match val {
@@ -885,7 +885,7 @@ fn string_prototype_index_of(
 #[test_case(|a| ECMAScriptValue::from(a.create_string_object("a string".into())) => sok("a string"); "from string object")]
 #[test_case(|a| ECMAScriptValue::from(DeadObject::object(a)) => serr("TypeError: String.prototype.toString requires that 'this' be a String"); "bad this value")]
 fn string_prototype_to_string(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let this_value = make_params(&agent);
     super::string_prototype_to_string(&agent, this_value, None, &[])
         .map(|val| match val {
@@ -898,7 +898,7 @@ fn string_prototype_to_string(make_params: impl FnOnce(&Agent) -> ECMAScriptValu
 #[test_case(|a| ECMAScriptValue::from(a.create_string_object("a string".into())) => sok("a string"); "from string object")]
 #[test_case(|a| ECMAScriptValue::from(DeadObject::object(a)) => serr("TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this value")]
 fn string_prototype_value_of(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<String, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let this_value = make_params(&agent);
     super::string_prototype_value_of(&agent, this_value, None, &[])
         .map(|val| match val {

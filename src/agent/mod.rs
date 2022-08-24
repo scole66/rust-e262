@@ -94,6 +94,13 @@ impl Agent {
             gsr: RefCell::new(None),
         }
     }
+
+    pub fn reset(&self) {
+        self.obj_id.set(1);
+        self.execution_context_stack.borrow_mut().clear();
+        self.symbol_id.set(14);
+        self.gsr.borrow_mut().take();
+    }
 }
 
 pub fn active_function_object() -> Option<Object> {

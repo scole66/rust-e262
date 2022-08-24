@@ -82,7 +82,7 @@ mod expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
     #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "Expression , AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Expression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()

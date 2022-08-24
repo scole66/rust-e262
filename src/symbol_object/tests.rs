@@ -7,7 +7,7 @@ mod symbol_object {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = SymbolObject {
             common: RefCell::new(CommonObjectData::new(&agent, Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
@@ -18,7 +18,7 @@ mod symbol_object {
 
     #[test]
     fn object() {
-        let agent = test_agent();
+        setup_test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let prototype = ordinary_object_create(&agent, Some(object_prototype), &[]);
         define_property_or_throw(&agent, &prototype, "marker", PotentialPropertyDescriptor::new().value("sentinel"))
@@ -34,7 +34,7 @@ mod symbol_object {
 
     #[test]
     fn symbol_data() {
-        let agent = test_agent();
+        setup_test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let so = SymbolObject {
             common: RefCell::new(CommonObjectData::new(&agent, Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
@@ -48,7 +48,7 @@ mod symbol_object {
 
     #[test]
     fn is_callable_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -57,7 +57,7 @@ mod symbol_object {
 
     #[test]
     fn is_number_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -66,7 +66,7 @@ mod symbol_object {
 
     #[test]
     fn is_arguments_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -75,7 +75,7 @@ mod symbol_object {
 
     #[test]
     fn is_boolean_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -84,7 +84,7 @@ mod symbol_object {
 
     #[test]
     fn is_array_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -93,7 +93,7 @@ mod symbol_object {
 
     #[test]
     fn is_error_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -102,7 +102,7 @@ mod symbol_object {
 
     #[test]
     fn is_regexp_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -111,7 +111,7 @@ mod symbol_object {
 
     #[test]
     fn is_proxy_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -120,7 +120,7 @@ mod symbol_object {
 
     #[test]
     fn is_string_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -129,7 +129,7 @@ mod symbol_object {
 
     #[test]
     fn is_date_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -138,7 +138,7 @@ mod symbol_object {
 
     #[test]
     fn to_callable_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -147,7 +147,7 @@ mod symbol_object {
 
     #[test]
     fn to_error_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -156,7 +156,7 @@ mod symbol_object {
 
     #[test]
     fn to_constructable() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -165,7 +165,7 @@ mod symbol_object {
 
     #[test]
     fn to_array_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -174,7 +174,7 @@ mod symbol_object {
 
     #[test]
     fn to_boolean_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -183,7 +183,7 @@ mod symbol_object {
 
     #[test]
     fn to_number_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -192,7 +192,7 @@ mod symbol_object {
 
     #[test]
     fn to_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -201,7 +201,7 @@ mod symbol_object {
 
     #[test]
     fn to_builtin_function_obj() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -210,7 +210,7 @@ mod symbol_object {
 
     #[test]
     fn is_ordinary() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -219,7 +219,7 @@ mod symbol_object {
 
     #[test]
     fn is_plain_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -228,7 +228,7 @@ mod symbol_object {
 
     #[test]
     fn to_arguments_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let obj = create_symbol_object(&agent, sym);
 
@@ -237,7 +237,7 @@ mod symbol_object {
 
     #[test]
     fn get_prototype_of() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let proto = sym_obj.o.get_prototype_of(&agent).unwrap().unwrap();
@@ -246,7 +246,7 @@ mod symbol_object {
 
     #[test]
     fn set_prototype_of() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.set_prototype_of(&agent, None).unwrap();
@@ -256,7 +256,7 @@ mod symbol_object {
 
     #[test]
     fn is_extensible() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.is_extensible(&agent).unwrap();
@@ -265,7 +265,7 @@ mod symbol_object {
 
     #[test]
     fn prevent_extensions() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.prevent_extensions(&agent).unwrap();
@@ -275,7 +275,7 @@ mod symbol_object {
 
     #[test]
     fn define_and_get_own_property() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj
@@ -299,7 +299,7 @@ mod symbol_object {
 
     #[test]
     fn has_property() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.has_property(&agent, &PropertyKey::from("rust")).unwrap();
@@ -311,7 +311,7 @@ mod symbol_object {
 
     #[test]
     fn get() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.get(&agent, &PropertyKey::from("rust"), &ECMAScriptValue::Undefined).unwrap();
@@ -323,7 +323,7 @@ mod symbol_object {
 
     #[test]
     fn set() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let receiver = ECMAScriptValue::Object(sym_obj.clone());
@@ -333,7 +333,7 @@ mod symbol_object {
 
     #[test]
     fn delete() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.delete(&agent, &PropertyKey::from("rust")).unwrap();
@@ -342,7 +342,7 @@ mod symbol_object {
 
     #[test]
     fn own_keys() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym);
         let res = sym_obj.o.own_property_keys(&agent).unwrap();
@@ -351,7 +351,7 @@ mod symbol_object {
 
     #[test]
     fn id() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&agent, sym.clone());
         let sym_obj2 = create_symbol_object(&agent, sym);
@@ -378,7 +378,7 @@ fn symbol_constructor_function(
     tgt_maker: fn(&Agent) -> Option<Object>,
     arg_maker: fn(&Agent) -> Vec<ECMAScriptValue>,
 ) -> Result<ECMAScriptValue, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let nt = tgt_maker(&agent);
     let args = arg_maker(&agent);
     super::symbol_constructor_function(&agent, ECMAScriptValue::Undefined, nt.as_ref(), &args)
@@ -390,7 +390,7 @@ mod symbol_for {
 
     #[test]
     fn new() {
-        let agent = test_agent();
+        setup_test_agent();
         let gsr = agent.global_symbol_registry();
         let count_prior = gsr.borrow().len();
         let result = symbol_for(&agent, ECMAScriptValue::Undefined, None, &["key".into()]);
@@ -405,7 +405,7 @@ mod symbol_for {
 
     #[test]
     fn duplicate() {
-        let agent = test_agent();
+        setup_test_agent();
         let gsr = agent.global_symbol_registry();
         let count_prior = gsr.borrow().len();
         let first = symbol_for(&agent, ECMAScriptValue::Undefined, None, &["key".into()]);
@@ -422,7 +422,7 @@ mod symbol_for {
 
     #[test]
     fn bad_key() {
-        let agent = test_agent();
+        setup_test_agent();
         let to_primitive = agent.wks(WksId::ToPrimitive);
         let result = symbol_for(&agent, ECMAScriptValue::Undefined, None, &[to_primitive.into()]).unwrap_err();
         assert_eq!(unwind_any_error(&agent, result), "TypeError: Symbols may not be converted to strings");
@@ -434,7 +434,7 @@ mod symbol_key_for {
 
     #[test]
     fn not_symbol() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let new_target = None;
         let arguments = &[];
@@ -446,7 +446,7 @@ mod symbol_key_for {
 
     #[test]
     fn not_in_registry() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let new_target = None;
         let sym = agent.wks(WksId::ToPrimitive);
@@ -459,7 +459,7 @@ mod symbol_key_for {
 
     #[test]
     fn in_registry() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let new_target = None;
         let registry_sym =
@@ -477,7 +477,7 @@ mod this_symbol_value {
 
     #[test]
     fn not_symbol() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
 
         let result = this_symbol_value(&agent, this_value);
@@ -487,7 +487,7 @@ mod this_symbol_value {
 
     #[test]
     fn symbol() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = Symbol::new(&agent, Some("test_sentinel".into()));
         let this_value = ECMAScriptValue::from(sym.clone());
 
@@ -499,7 +499,7 @@ mod this_symbol_value {
 
     #[test]
     fn symbol_in_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = Symbol::new(&agent, Some("test_sentinel".into()));
         let o = create_symbol_object(&agent, sym.clone());
         let this_value = ECMAScriptValue::from(o);
@@ -536,7 +536,7 @@ mod symbol_registry {
     fn len() {
         let mut sr = SymbolRegistry::new();
         assert_eq!(sr.len(), 0);
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = Symbol::new(&agent, Some("fisrt".into()));
         let s2 = Symbol::new(&agent, Some("second".into()));
         let s3: Symbol = Symbol::new(&agent, Some("third".into()));
@@ -550,7 +550,7 @@ mod symbol_registry {
     fn is_empty() {
         let mut sr = SymbolRegistry::new();
         assert!(sr.is_empty());
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = Symbol::new(&agent, Some("fisrt".into()));
         sr.add("1".into(), s1);
         assert!(!sr.is_empty());
@@ -562,7 +562,7 @@ mod symbol_registry {
         #[test]
         fn safe() {
             let mut sr = SymbolRegistry::new();
-            let agent = test_agent();
+            setup_test_agent();
             let s1 = Symbol::new(&agent, Some("fisrt".into()));
             let s2 = Symbol::new(&agent, Some("second".into()));
             let s3: Symbol = Symbol::new(&agent, Some("third".into()));
@@ -576,7 +576,7 @@ mod symbol_registry {
         #[should_panic(expected = "second")]
         fn duplicates() {
             let mut sr = SymbolRegistry::new();
-            let agent = test_agent();
+            setup_test_agent();
             let s1 = Symbol::new(&agent, Some("fisrt".into()));
             let s2 = Symbol::new(&agent, Some("second".into()));
             sr.add("1".into(), s1);
@@ -587,7 +587,7 @@ mod symbol_registry {
     #[test]
     fn key_by_symbol() {
         let mut sr = SymbolRegistry::new();
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = Symbol::new(&agent, Some("fisrt".into()));
         let s2 = Symbol::new(&agent, Some("second".into()));
         let s3 = Symbol::new(&agent, Some("third".into()));
@@ -605,7 +605,7 @@ mod symbol_registry {
     #[test]
     fn symbol_by_key() {
         let mut sr = SymbolRegistry::new();
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = Symbol::new(&agent, Some("fisrt".into()));
         let s2 = Symbol::new(&agent, Some("second".into()));
         let s3 = Symbol::new(&agent, Some("third".into()));
@@ -625,7 +625,7 @@ mod create_symbol_object {
 
     #[test]
     fn normal() {
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = Symbol::new(&agent, Some("train".into()));
         let sobj = create_symbol_object(&agent, s1.clone());
         assert_eq!(s1, this_symbol_value(&agent, sobj.into()).unwrap());
@@ -639,7 +639,7 @@ mod symbol_to_string {
     #[test_case(|_| ECMAScriptValue::Undefined => serr("TypeError: Not a symbol"); "Not a symbol")]
     #[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test sentinel".into()))) => sok("Symbol(test sentinel)"); "true symbol")]
     fn normal(maker: fn(&Agent) -> ECMAScriptValue) -> Result<String, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = maker(&agent);
         symbol_to_string(&agent, this_value, None, &[])
             .map(|val| format!("{val}"))
@@ -652,7 +652,7 @@ mod symbol_value_of {
 
     #[test]
     fn symbol() {
-        let agent = test_agent();
+        setup_test_agent();
         let s = Symbol::new(&agent, Some("test sentinel".into()));
         let this_value = ECMAScriptValue::from(s.clone());
         let result = symbol_value_of(&agent, this_value, None, &[]).unwrap();
@@ -661,7 +661,7 @@ mod symbol_value_of {
 
     #[test]
     fn error() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let result = symbol_value_of(&agent, this_value, None, &[]).unwrap_err();
         assert_eq!(unwind_any_error(&agent, result), "TypeError: Not a symbol");
@@ -675,7 +675,7 @@ mod symbol_description {
     #[test_case(None => ECMAScriptValue::Undefined; "no description")]
     #[test_case(Some("alice") => ECMAScriptValue::from("alice"); "with description")]
     fn normal(src: Option<&str>) -> ECMAScriptValue {
-        let agent = test_agent();
+        setup_test_agent();
         let sym = Symbol::new(&agent, src.map(JSString::from));
         let this_value = ECMAScriptValue::from(sym);
         symbol_description(&agent, this_value, None, &[]).unwrap()
@@ -683,7 +683,7 @@ mod symbol_description {
 
     #[test]
     fn bad_this() {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let result = symbol_description(&agent, this_value, None, &[]).unwrap_err();
         assert_eq!(unwind_any_error(&agent, result), "TypeError: Not a symbol");

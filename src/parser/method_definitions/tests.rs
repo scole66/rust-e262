@@ -565,7 +565,7 @@ mod method_definition {
     #[test_case("set foo(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "setter; duped lexical")]
     #[test_case("set foo([a, a]){}", false => sset(&[A_ALREADY_DEFN]); "setter; duped params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).method_definition().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -675,7 +675,7 @@ mod property_set_parameter_list {
 
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         PropertySetParameterList::parse(&mut newparser(src), Scanner::new())
             .unwrap()

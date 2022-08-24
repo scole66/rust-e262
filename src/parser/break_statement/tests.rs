@@ -112,7 +112,7 @@ mod break_statement {
     #[test_case("break;", true, false => sset(&[ILLEGAL_BREAK]); "break not in a good spot")]
     #[test_case("break package;", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
     fn early_errors(src: &str, strict: bool, within_breakable: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BreakStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
             &agent,

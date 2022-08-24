@@ -56,7 +56,7 @@ mod function_declaration {
         fn typical(name: &str) -> String {
             let src = format!("function {name}(){{}}");
             let fd = Maker::new(&src).function_declaration();
-            let agent = test_agent();
+            setup_test_agent();
             let realm_rc = agent.current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
@@ -93,7 +93,7 @@ mod function_declaration {
         fn compile_error() {
             let src = "function a(){ if (true) { @@@; } return 3; }";
             let fd = Maker::new(src).function_declaration();
-            let agent = test_agent();
+            setup_test_agent();
             let realm_rc = agent.current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
@@ -113,7 +113,7 @@ mod generator_declaration {
     fn instantiate_function_object() {
         let src = "function *a(){}";
         let fd = Maker::new(src).generator_declaration();
-        let agent = test_agent();
+        setup_test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
@@ -131,7 +131,7 @@ mod async_function_declaration {
     fn instantiate_function_object() {
         let src = "async function a(){}";
         let fd = Maker::new(src).async_function_declaration();
-        let agent = test_agent();
+        setup_test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
@@ -149,7 +149,7 @@ mod async_generator_declaration {
     fn instantiate_function_object() {
         let src = "async function *a(){}";
         let fd = Maker::new(src).async_generator_declaration();
-        let agent = test_agent();
+        setup_test_agent();
         let global_env = {
             let realm_rc = agent.current_realm_record().unwrap();
             let realm = realm_rc.borrow();
@@ -220,7 +220,7 @@ mod function_prototype_call {
         get_this: impl FnOnce(&Agent) -> ECMAScriptValue,
         args: &[ECMAScriptValue],
     ) -> Result<ECMAScriptValue, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let this_value = get_this(&agent);
         super::function_prototype_call(&agent, this_value, None, args).map_err(|err| unwind_any_error(&agent, err))
     }

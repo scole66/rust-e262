@@ -137,7 +137,7 @@ mod referenced_name {
         }
         #[test]
         fn symbol() {
-            let agent = test_agent();
+            setup_test_agent();
             let sym = Symbol::new(&agent, None);
             let rn = ReferencedName::from(sym.clone());
             assert_eq!(rn, ReferencedName::Symbol(sym));
@@ -158,7 +158,7 @@ mod referenced_name {
             }
             #[test]
             fn symbol() {
-                let agent = test_agent();
+                setup_test_agent();
                 let sym = Symbol::new(&agent, Some(JSString::from("crazy")));
                 let pk = PropertyKey::from(sym.clone());
                 let rn = ReferencedName::from(pk);
@@ -180,7 +180,7 @@ mod referenced_name {
             }
             #[test]
             fn symbol() {
-                let agent = test_agent();
+                setup_test_agent();
                 let sym = Symbol::new(&agent, None);
                 let rn = ReferencedName::from(sym);
                 let err = JSString::try_from(rn).unwrap_err();
@@ -205,7 +205,7 @@ mod referenced_name {
             }
             #[test]
             fn symbol() {
-                let agent = test_agent();
+                setup_test_agent();
                 let sym = Symbol::new(&agent, None);
                 let rn = ReferencedName::from(sym.clone());
                 let pk: PropertyKey = rn.try_into().unwrap();
@@ -232,7 +232,7 @@ mod referenced_name {
 
         #[test]
         fn symbol() {
-            let agent = test_agent();
+            setup_test_agent();
             let sym = Symbol::new(&agent, Some("symbol-test".into()));
             let rn = ReferencedName::from(sym);
             let result = format!("{rn}");
@@ -381,7 +381,7 @@ mod reference {
         }
         #[test]
         fn value_has_this() {
-            let agent = test_agent();
+            setup_test_agent();
             let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let normal_object = ordinary_object_create(&agent, Some(object_proto), &[]);
             let this_value = ECMAScriptValue::from(normal_object);
@@ -413,7 +413,7 @@ mod get_value {
 
     #[test]
     fn abrupt() {
-        let agent = test_agent();
+        setup_test_agent();
         let err = create_type_error(&agent, "Test Path");
         let result = get_value(&agent, Err(err)).unwrap_err();
         assert_eq!(unwind_type_error(&agent, result), "Test Path");
@@ -421,7 +421,7 @@ mod get_value {
 
     #[test]
     fn simple_value() {
-        let agent = test_agent();
+        setup_test_agent();
         let val = ECMAScriptValue::from("a value");
         let result = get_value(&agent, Ok(NormalCompletion::from(val))).unwrap();
         assert_eq!(result, ECMAScriptValue::from("a value"));
@@ -429,21 +429,21 @@ mod get_value {
 
     #[test]
     fn unresolvable() {
-        let agent = test_agent();
+        setup_test_agent();
         let badref = Reference::new(Base::Unresolvable, "no_ref", true, None);
         let result = get_value(&agent, Ok(NormalCompletion::from(badref))).unwrap_err();
         assert_eq!(unwind_reference_error(&agent, result), "Unresolvable Reference");
     }
     #[test]
     fn empty() {
-        let agent = test_agent();
+        setup_test_agent();
         let val = Ok(NormalCompletion::Empty);
         let result = get_value(&agent, val).unwrap_err();
         assert_eq!(unwind_reference_error(&agent, result), "Unresolvable Reference");
     }
     #[test]
     fn value_base() {
-        let agent = test_agent();
+        setup_test_agent();
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let normal_object = ordinary_object_create(&agent, Some(object_proto), &[]);
         let value = ECMAScriptValue::from("value_base test value");
@@ -462,14 +462,14 @@ mod get_value {
     }
     #[test]
     fn to_object_err() {
-        let agent = test_agent();
+        setup_test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "test_value", true, None);
         let result = get_value(&agent, Ok(NormalCompletion::from(reference))).unwrap_err();
         assert_eq!(unwind_type_error(&agent, result), "Undefined and null cannot be converted to objects");
     }
     #[test]
     fn private() {
-        let agent = test_agent();
+        setup_test_agent();
         let pn = PrivateName::new("test name");
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let normal_object = ordinary_object_create(&agent, Some(object_proto), &[]);
@@ -481,7 +481,7 @@ mod get_value {
     }
     #[test]
     fn environment() {
-        let agent = test_agent();
+        setup_test_agent();
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let global = ordinary_object_create(&agent, Some(object_proto), &[]);
         let this_obj = global.clone();
@@ -502,7 +502,7 @@ mod put_value {
 
     #[test]
     fn err_v() {
-        let agent = test_agent();
+        setup_test_agent();
         let v = create_type_error(&agent, "Error in V");
         let w = create_type_error(&agent, "Error in W");
         let result = put_value(&agent, Err(v), Err(w)).unwrap_err();
@@ -511,7 +511,7 @@ mod put_value {
     }
     #[test]
     fn err_w() {
-        let agent = test_agent();
+        setup_test_agent();
         let v = ECMAScriptValue::Undefined;
         let w = create_type_error(&agent, "Error in W");
         let result = put_value(&agent, Ok(NormalCompletion::from(v)), Err(w)).unwrap_err();
@@ -520,7 +520,7 @@ mod put_value {
     }
     #[test]
     fn bad_lhs() {
-        let agent = test_agent();
+        setup_test_agent();
         let result =
             put_value(&agent, Ok(NormalCompletion::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined))
                 .unwrap_err();
@@ -529,7 +529,7 @@ mod put_value {
     }
     #[test]
     fn unresolvable_strict() {
-        let agent = test_agent();
+        setup_test_agent();
         let reference = Reference::new(Base::Unresolvable, "blue", true, None);
         let result =
             put_value(&agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap_err();
@@ -537,7 +537,7 @@ mod put_value {
     }
     #[test]
     fn unresolvable_nonstrict() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("Test Value for Unresolvable, non-strict writes");
         let reference = Reference::new(Base::Unresolvable, "blue", false, None);
         put_value(&agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
@@ -547,7 +547,7 @@ mod put_value {
     }
     #[test]
     fn unresolvable_throws() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("Test Value");
         let reference = Reference::new(Base::Unresolvable, "thrower", false, None);
         let thrower = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError));
@@ -571,7 +571,7 @@ mod put_value {
     }
     #[test]
     fn private() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("In my younger and more vulnerable years");
         let pn = PrivateName::new("test name");
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
@@ -588,14 +588,14 @@ mod put_value {
 
     #[test]
     fn bad_value() {
-        let agent = test_agent();
+        setup_test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "test", true, None);
         let result = put_value(&agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Null)).unwrap_err();
         assert_eq!(unwind_type_error(&agent, result), "Undefined and null cannot be converted to objects");
     }
     #[test]
     fn ordinary() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("my father gave me some advice");
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let normal_object = ordinary_object_create(&agent, Some(object_proto), &[]);
@@ -610,7 +610,7 @@ mod put_value {
     }
     #[test]
     fn object_throws() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("that I’ve been turning over in my mind ever since.");
         let thrower = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError));
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
@@ -637,7 +637,7 @@ mod put_value {
     #[test_case(false => Ok(()); "non-strict")]
     #[test_case(true => Err(String::from("Invalid Assignment Target")); "strict")]
     fn immutable(strict: bool) -> Result<(), String> {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from("“Whenever you feel like criticizing anyone,”");
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let normal_object = ordinary_object_create(&agent, Some(object_proto), &[]);
@@ -668,7 +668,7 @@ mod put_value {
     }
     #[test]
     fn environment() {
-        let agent = test_agent();
+        setup_test_agent();
         let value = ECMAScriptValue::from(
             "he told me, “just remember that all the people in this world haven’t had the advantages that you’ve had.”",
         );
@@ -690,7 +690,7 @@ mod initialize_referenced_binding {
 
     #[test]
     fn err_v() {
-        let agent = test_agent();
+        setup_test_agent();
         let v = create_type_error(&agent, "Error in V");
         let w = create_type_error(&agent, "Error in W");
         let result = initialize_referenced_binding(&agent, Err(v), Err(w)).unwrap_err();
@@ -699,7 +699,7 @@ mod initialize_referenced_binding {
     }
     #[test]
     fn err_w() {
-        let agent = test_agent();
+        setup_test_agent();
         let v = ECMAScriptValue::Undefined;
         let w = create_type_error(&agent, "Error in W");
         let result = initialize_referenced_binding(&agent, Ok(NormalCompletion::from(v)), Err(w)).unwrap_err();
@@ -708,7 +708,7 @@ mod initialize_referenced_binding {
     }
     #[test]
     fn happy() {
-        let agent = test_agent();
+        setup_test_agent();
         let key = JSString::from("variable");
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         env.create_mutable_binding(&agent, key.clone(), true).unwrap();
@@ -723,7 +723,7 @@ mod initialize_referenced_binding {
     #[test]
     #[should_panic(expected = "unreachable code")]
     fn value_ref() {
-        let agent = test_agent();
+        setup_test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "phrase", true, None);
         initialize_referenced_binding(&agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined))
             .unwrap();
@@ -731,7 +731,7 @@ mod initialize_referenced_binding {
     #[test]
     #[should_panic(expected = "unreachable code")]
     fn unresolveable_ref() {
-        let agent = test_agent();
+        setup_test_agent();
         let reference = Reference::new(Base::Unresolvable, "phrase", true, None);
         initialize_referenced_binding(&agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined))
             .unwrap();
@@ -739,7 +739,7 @@ mod initialize_referenced_binding {
     #[test]
     #[should_panic(expected = "unreachable code")]
     fn value() {
-        let agent = test_agent();
+        setup_test_agent();
         initialize_referenced_binding(
             &agent,
             Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),

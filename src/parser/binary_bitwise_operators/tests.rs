@@ -115,7 +115,7 @@ mod bitwise_and_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package&interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -266,7 +266,7 @@ mod bitwise_xor_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package^interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise xor")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -423,7 +423,7 @@ mod bitwise_or_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package|interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()

@@ -52,7 +52,7 @@ mod normal_completion {
 
         #[test]
         fn object() {
-            let agent = test_agent();
+            setup_test_agent();
             let obj = ordinary_object_create(&agent, None, &[]);
             let nc = NormalCompletion::from(obj.clone());
 
@@ -113,7 +113,7 @@ mod normal_completion {
 
             #[test]
             fn actual() {
-                let agent = test_agent();
+                setup_test_agent();
                 let obj = ordinary_object_create(&agent, None, &[]);
                 let val = ECMAScriptValue::from(obj.clone());
                 let nc = NormalCompletion::from(val);

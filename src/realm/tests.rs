@@ -74,13 +74,13 @@ fn intrinsic_id_clone() {
 
 #[test]
 fn intrinsics_debug() {
-    let agent = test_agent();
+    setup_test_agent();
     assert_ne!(format!("{:?}", Intrinsics::new(&agent)), "")
 }
 
 #[test]
 fn intrinsics_get() {
-    let agent = test_agent();
+    setup_test_agent();
     let realm_ptr = agent.current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
     let intrinsics = &realm.intrinsics;
@@ -125,7 +125,7 @@ fn intrinsics_get() {
 
 #[test]
 fn realm_debug() {
-    let agent = test_agent();
+    setup_test_agent();
     let realm_ptr = agent.current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
     assert_ne!(format!("{:?}", realm), "");
@@ -133,7 +133,7 @@ fn realm_debug() {
 
 #[test]
 fn throw_type_error_test() {
-    let agent = test_agent();
+    setup_test_agent();
     let err = throw_type_error(&agent, ECMAScriptValue::Undefined, None, &[]).unwrap_err();
     let msg = unwind_type_error(&agent, err);
     assert_eq!(msg, "Generic TypeError");

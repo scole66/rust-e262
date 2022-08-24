@@ -15,14 +15,14 @@ mod script_record {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let sr = ScriptRecord::new_empty(agent.current_realm_record().unwrap());
         assert_ne!(format!("{:?}", sr), "");
     }
 
     #[test]
     fn clone() {
-        let agent = test_agent();
+        setup_test_agent();
         let sr = ScriptRecord::new_empty(agent.current_realm_record().unwrap());
         let sr2 = sr.clone();
         assert!(Rc::ptr_eq(&sr.realm, &sr2.realm));
@@ -54,7 +54,7 @@ mod script_or_module {
 
     #[test]
     fn clone() {
-        let agent = test_agent();
+        setup_test_agent();
         let s1 = ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(agent.current_realm_record().unwrap())));
         let s2 = s1.clone();
 
@@ -72,7 +72,7 @@ mod script_or_module {
     } => "I am a walrus"; "Script")]
     #[test_case(|_| ScriptOrModule::Module(Rc::new(ModuleRecord{})) => panics "not yet implemented"; "module")]
     fn source_text(maker: impl FnOnce(&Agent) -> ScriptOrModule) -> String {
-        let agent = test_agent();
+        setup_test_agent();
         let som = maker(&agent);
         let text = som.source_text();
         text.clone()
@@ -85,7 +85,7 @@ mod execution_context {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let ec = ExecutionContext::new(None, agent.current_realm_record().unwrap(), None);
 
         assert_ne!(format!("{:?}", ec), "");
@@ -95,7 +95,7 @@ mod execution_context {
     #[test_case(|_| Some(ScriptOrModule::Module(Rc::new(ModuleRecord{}))) => panics "not yet implemented"; "SOM is module")]
     #[test_case(|a| Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(a.current_realm_record().unwrap())))); "SOM is script")]
     fn new(maker: fn(&Agent) -> Option<ScriptOrModule>) {
-        let agent = test_agent();
+        setup_test_agent();
         let som = maker(&agent);
         let original_was_none = som.is_none();
         let func = Some(ordinary_object_create(&agent, None, &[]));
@@ -135,7 +135,7 @@ mod agent {
         fn global() {
             // Where the "this object" is the global object.
 
-            let agent = test_agent();
+            setup_test_agent();
             // Need to establish a lexical environment first.
             let realm = agent.current_realm_record().unwrap();
             let global_env = realm.borrow().global_env.clone();
@@ -154,7 +154,7 @@ mod agent {
         #[test]
         fn child() {
             // Where the we start from a child node without a this binding and work our way up.
-            let agent = test_agent();
+            setup_test_agent();
             // Need to establish a lexical environment first.
             let realm = agent.current_realm_record().unwrap();
             let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
@@ -175,7 +175,7 @@ mod agent {
 
     #[test]
     fn resolve_this_binding() {
-        let agent = test_agent();
+        setup_test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
@@ -205,7 +205,7 @@ mod agent {
         env_maker: fn(&Agent) -> Option<Rc<dyn EnvironmentRecord>>,
         strict: bool,
     ) -> Result<(String, ReferencedName, bool, Option<ECMAScriptValue>), String> {
-        let agent = test_agent();
+        setup_test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;

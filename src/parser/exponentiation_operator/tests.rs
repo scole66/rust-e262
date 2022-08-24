@@ -127,7 +127,7 @@ mod exponentiation_expression {
     #[test_case("package**3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ** right; left bad")]
     #[test_case("3**package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ** right; right bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()

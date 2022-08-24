@@ -153,7 +153,7 @@ mod additive_expression {
     #[test_case("package-3", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; AE bad")]
     #[test_case("3-package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; ME bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()

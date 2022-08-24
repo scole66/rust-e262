@@ -223,7 +223,7 @@ mod function_declaration {
     #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
     #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -375,7 +375,7 @@ mod function_expression {
     #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
     #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         FunctionExpression::parse(&mut newparser(src), Scanner::new())
             .unwrap()
@@ -473,7 +473,7 @@ mod function_body {
     #[test_case("break a;", false => sset(&[UNDEF_BREAK]); "undefined break")]
     #[test_case("while (1) continue a;", false => sset(&[UNDEF_CONTINUE]); "undefined continue")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_body().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -605,7 +605,7 @@ mod function_statement_list {
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
     #[test_case("", true => sset(&[]); "[empty]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_statement_list().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

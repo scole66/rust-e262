@@ -293,7 +293,7 @@ mod iteration_statement {
     #[test_case("for(;;)package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "ForStatement")]
     #[test_case("for(let package in b);", true => sset(&[PACKAGE_NOT_ALLOWED]); "ForInOfStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -491,7 +491,7 @@ mod do_while_statement {
 
     #[test_case("do package; while(implements);", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "do Statement while ( Expression ) ;")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -626,7 +626,7 @@ mod while_statement {
 
     #[test_case("while(package)implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "while ( Expression ) Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -1541,7 +1541,7 @@ mod for_statement {
     #[test_case("for (let package; ; ) private;", true => sset(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ;  ) Statement")]
     #[test_case("for (let a;;) { var a; }", false => sset(&[A_LEXVARCLASH]); "lex/var clash")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -2449,7 +2449,7 @@ mod for_in_of_statement {
     #[test_case("for await (var package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( var ForBinding of AssignmentExpresion ) Statement")]
     #[test_case("for await (let package of implements) interface;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( ForDeclaration of AssignmentExpresion ) Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -2620,7 +2620,7 @@ mod for_declaration {
 
     #[test_case("let package", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_declaration().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -2726,7 +2726,7 @@ mod for_binding {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "identifier")]
     #[test_case("[a, package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "pattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_binding().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

@@ -9,7 +9,7 @@ mod agent {
 
     #[test]
     fn provision_iterator_prototype() {
-        let agent = test_agent();
+        setup_test_agent();
 
         let iterator_prototype = agent.intrinsic(IntrinsicId::IteratorPrototype);
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
@@ -39,7 +39,7 @@ mod agent {
 
         #[test]
         fn generator_function() {
-            let agent = test_agent();
+            setup_test_agent();
             let function = agent.intrinsic(IntrinsicId::Function);
             let generator_function = agent.intrinsic(IntrinsicId::GeneratorFunction);
 
@@ -62,7 +62,7 @@ mod agent {
 
         #[test]
         fn generator_function_prototype() {
-            let agent = test_agent();
+            setup_test_agent();
             let generator_function_prototype = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototype);
             let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
 
@@ -89,7 +89,7 @@ mod agent {
 
         #[test]
         fn generator_prototype() {
-            let agent = test_agent();
+            setup_test_agent();
             let generator_prototype = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
 
             assert_eq!(
@@ -111,7 +111,7 @@ mod agent {
         #[test_case("return" => "return;1"; "return function")]
         #[test_case("throw" => "throw;1"; "throw function")]
         fn generator_prototype_func(key: &str) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let key = PropertyKey::from(key);
             let proto = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
             let val = super::get(&agent, &proto, &key).unwrap();
@@ -127,7 +127,7 @@ mod agent {
     #[test_case("a value".into(), true; "is done")]
     #[test_case(ECMAScriptValue::Undefined, false; "not done")]
     fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = agent.create_iter_result_object(value.clone(), done);
         let value_res = get(&agent, &obj, &"value".into()).unwrap();
         let done_res = get(&agent, &obj, &"done".into()).unwrap();
@@ -154,7 +154,7 @@ mod agent {
         make_value: impl FnOnce(&Agent) -> ECMAScriptValue,
         desired_brand: &str,
     ) -> Result<GeneratorState, String> {
-        let agent = test_agent();
+        setup_test_agent();
         let value = make_value(&agent);
         agent.generator_validate(value, desired_brand).map_err(|e| unwind_any_error(&agent, e))
     }
@@ -163,7 +163,7 @@ mod agent {
 #[test_case(|_| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
 #[test_case(|_| ECMAScriptValue::from(67) => Ok(ECMAScriptValue::from(67)); "pass-thru/number")]
 fn iterator_prototype_iterator(make_params: impl FnOnce(&Agent) -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
-    let agent = test_agent();
+    setup_test_agent();
     let this_value = make_params(&agent);
     super::iterator_prototype_iterator(&agent, this_value, None, &[]).map_err(|e| unwind_any_error(&agent, e))
 }
@@ -240,7 +240,7 @@ mod generator_object {
 
     #[test]
     fn object() {
-        let agent = test_agent();
+        setup_test_agent();
         let gp = agent.intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         let o = GeneratorObject::object(&agent, Some(gp.clone()), GeneratorState::Undefined, "TestingBrand");
 
@@ -289,7 +289,7 @@ mod generator_object {
 
     #[test]
     fn debug() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make(&agent);
         let go = obj.o.to_generator_object().unwrap();
         assert_ne!(format!("{:?}", go), "");
@@ -297,7 +297,7 @@ mod generator_object {
 
     #[test]
     fn common_object_data() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make(&agent);
         super::set(&agent, &obj, "test".into(), "sentinel".into(), true).unwrap();
 
@@ -322,14 +322,14 @@ mod generator_object {
 
     #[test]
     fn is_generator_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make(&agent);
         assert!(obj.o.is_generator_object());
     }
 
     #[test]
     fn to_generator_object() {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make(&agent);
         let go = obj.o.to_generator_object();
         assert!(go.is_some());
@@ -339,7 +339,7 @@ mod generator_object {
     #[test_case("OtherBrand", GeneratorState::SuspendedStart => Err(GeneratorError::BrandMismatch); "brand mismatch")]
     #[test_case("TestingBrand", GeneratorState::Executing => Err(GeneratorError::AlreadyActive); "already active")]
     fn validate(desired_brand: &str, generator_state: GeneratorState) -> Result<GeneratorState, GeneratorError> {
-        let agent = test_agent();
+        setup_test_agent();
         let obj = make(&agent); // brand is "TestingBrand"
         let gen_obj = obj.o.to_generator_object().unwrap();
         gen_obj.generator_data.borrow_mut().generator_state = generator_state;

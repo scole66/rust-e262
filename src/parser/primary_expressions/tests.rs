@@ -515,7 +515,7 @@ mod primary_expression {
     #[test_case("`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "TemplateLiteral")]
     #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -991,7 +991,7 @@ mod spread_element {
 
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         SpreadElement::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -1354,7 +1354,7 @@ mod element_list {
     #[test_case("package,,...b", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: list err")]
     #[test_case("a,,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: element err")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ElementList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -1627,7 +1627,7 @@ mod array_literal {
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList")]
     #[test_case("[package,,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -1724,7 +1724,7 @@ mod initializer {
 
     #[test_case("=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true)
             .unwrap()
@@ -1809,7 +1809,7 @@ mod cover_initialized_name {
     #[test_case("a=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp errs")]
     #[test_case("package=3", true => sset(&[PACKAGE_NOT_ALLOWED]); "id errs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -1895,7 +1895,7 @@ mod computed_property_name {
 
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentExpression ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -2137,7 +2137,7 @@ mod property_name {
     #[test_case("package", true => sset(&[]); "LiteralPropertyName")]
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         PropertyName::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -2396,7 +2396,7 @@ mod property_definition {
     #[test_case("a(b=super()){}", true => sset(&[UNEXPECTED_SUPER]); "HasDirectSuper of MethodDefinition")]
     #[test_case("#a(){}", true => sset(&[UNEXPECTED_PRIVATE]); "unexpected private id in MethodDef")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -2554,7 +2554,7 @@ mod property_definition_list {
     #[test_case("[package]:3,b", true => sset(&[PACKAGE_NOT_ALLOWED]); "list head")]
     #[test_case("a,[package]:3", true => sset(&[PACKAGE_NOT_ALLOWED]); "list tail")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -2740,7 +2740,7 @@ mod object_literal {
     #[test_case("{__proto__:a,__proto__:b}", true => sset(&[DUP_PROTO]); "duplicate proto")]
     #[test_case("{__proto__:a,__proto__:b,}", true => sset(&[DUP_PROTO]); "duplicate proto; trailing comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
@@ -2831,7 +2831,7 @@ mod parenthesized_expression {
 
     #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -3003,7 +3003,7 @@ mod template_middle_list {
     #[test_case("}list${1}\\u{}${3", true, true => sset(&[]); "list mid exp; mid bad, but tagged")]
     #[test_case("}list${1}${package", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "list mid exp; exp bad")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
             .unwrap()
@@ -3124,7 +3124,7 @@ mod template_spans {
     #[test_case("}${0}\\u{}`", true, false => sset(&[RE_ESCAPE_ONE]); "list tail; tail bad")]
     #[test_case("}${0}\\u{}`", true, true => sset(&[]); "list tail; tail bad, but tagged")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
             .unwrap()
@@ -3247,7 +3247,7 @@ mod substitution_template {
     #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "tagged")]
     #[test_case("`\\u{99}${package}\\u{98}`", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "not tagged, but no unicode errs")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).tagged_ok(tagged).substitution_template().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -3384,7 +3384,7 @@ mod template_literal {
         #[test_case("`\\u{`", true, true => sset(&[]); "no-substitution bad escape; tagged")]
         #[test_case("`${package}`", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "substitution template")]
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
-            let agent = test_agent();
+            setup_test_agent();
             let mut errs = vec![];
             TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
                 .unwrap()
@@ -3396,7 +3396,7 @@ mod template_literal {
         #[test]
         fn complex() {
             let limit = 1000;
-            let agent = test_agent();
+            setup_test_agent();
             let mut src = String::with_capacity(2 + 4 * limit);
             src.push('`');
             for _ in 0..limit {
@@ -3992,7 +3992,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     #[test_case("(package, ...{a=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; exp bad")]
     #[test_case("(a, ...{package=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; pat bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()

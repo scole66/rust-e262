@@ -121,7 +121,7 @@ mod lexical_declaration {
     #[test_case("let a=1,a=2,b=3,b=4,c=5,c=6;", true => sset(&[DUPLICATE_LEX_ABC]); "many duplicates")]
     #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "sub-productions")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -254,7 +254,7 @@ mod binding_list {
     #[test_case("package", true, true => sset(&[PACKAGE_NOT_ALLOWED, MISSING_INITIALIZER]); "LexicalBinding")]
     #[test_case("package,implements", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingList , LexicalBinding")]
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
             &agent,
@@ -386,7 +386,7 @@ mod lexical_binding {
     #[test_case("package=implements", true, true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
     #[test_case("[package]=implements", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
             &agent,
@@ -480,7 +480,7 @@ mod variable_statement {
 
     #[test_case("var package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "var VariableDeclarationList ;")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -606,7 +606,7 @@ mod variable_declaration_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "VariableDeclaration")]
     #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "VariableDeclarationList , VariableDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -751,7 +751,7 @@ mod variable_declaration {
     #[test_case("package=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
     #[test_case("[package]=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -854,7 +854,7 @@ mod binding_pattern {
     #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ObjectBindingPattern")]
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrayBindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1079,7 +1079,7 @@ mod object_binding_pattern {
     #[test_case("{package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ BindingPropertyList , } (trailing comma)")]
     #[test_case("{package,...implements}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "{ BindingPropertyList , BindingRestProperty }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1473,7 +1473,7 @@ mod array_binding_pattern {
     #[test_case("[package,...implements]", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , BindingRestElement ]")]
     #[test_case("[package,,...implements]", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , Elision BindingRestElement ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1575,7 +1575,7 @@ mod binding_rest_property {
 
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1684,7 +1684,7 @@ mod binding_property_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingProperty")]
     #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPropertyList , BindingProperty")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1807,7 +1807,7 @@ mod binding_element_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingElisionElement")]
     #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingElementList , BindingElisionElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -1907,7 +1907,7 @@ mod binding_elision_element {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingElement")]
     #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -2028,7 +2028,7 @@ mod binding_property {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "SingleNameBinding")]
     #[test_case("[package]:implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "PropertyName : BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -2175,7 +2175,7 @@ mod binding_element {
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
     #[test_case("[package]=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -2300,7 +2300,7 @@ mod single_name_binding {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
     #[test_case("package=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
@@ -2418,7 +2418,7 @@ mod binding_rest_element {
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
     #[test_case("...[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()

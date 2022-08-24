@@ -132,7 +132,7 @@ mod generator_method {
     #[test_case("*a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     #[test_case("*a(b){super(b);}", false => sset(&[UNEXPECTED_SUPER]); "direct super")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_method().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -393,7 +393,7 @@ mod generator_declaration {
     #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
     #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_declaration().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -568,7 +568,7 @@ mod generator_expression {
     #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
     #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_expression().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -635,7 +635,7 @@ mod generator_body {
 
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "statements")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_body().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -811,7 +811,7 @@ mod yield_expression {
     #[test_case("yield", true => sset(&[]); "no expresion")]
     #[test_case("yield *package", true => sset(&[PACKAGE_NOT_ALLOWED]); "yield from")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).yield_expression().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

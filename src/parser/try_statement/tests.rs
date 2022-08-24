@@ -230,7 +230,7 @@ mod try_statement {
     #[test_case("try{package;}finally{implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
     #[test_case("try{package;}catch(implements){}finally{interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).try_statement().early_errors(&agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -396,7 +396,7 @@ mod catch {
     #[test_case("catch({a,b}){let a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
     #[test_case("catch({a,b}){var a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in var")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch().early_errors(&agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -496,7 +496,7 @@ mod finally {
 
     #[test_case("finally{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).finally().early_errors(&agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
@@ -598,7 +598,7 @@ mod catch_parameter {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
     #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch_parameter().early_errors(&agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))

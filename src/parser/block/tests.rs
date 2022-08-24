@@ -89,7 +89,7 @@ mod block_statement {
 
     #[test_case("{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "Block")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -260,7 +260,7 @@ mod block {
     #[test_case("{ let a = 10; const a = 20; }", true => sset(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]
     #[test_case("{ var x; print(x); let x = 27; }", true => sset(&[LEX_DUPED_BY_VAR]); "Name declared both lex & var")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Block::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -519,7 +519,7 @@ mod statement_list {
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "StatementListItem")]
     #[test_case("package;implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "StatementList StatementListItem")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -778,7 +778,7 @@ mod statement_list_item {
     #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Declaration")]
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Statement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()

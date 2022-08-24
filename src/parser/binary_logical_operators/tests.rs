@@ -117,7 +117,7 @@ mod logical_and_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package&&interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -278,7 +278,7 @@ mod logical_or_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package||interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -429,7 +429,7 @@ mod coalesce_expression {
 
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
@@ -536,7 +536,7 @@ mod coalesce_expression_head {
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
     #[test_case("package??interface??q", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AE plus ME; AE bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         let ce = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), false, true, true).unwrap().0;
         let ceh = &ce.head;
@@ -659,7 +659,7 @@ mod short_circuit_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
