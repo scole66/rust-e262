@@ -383,8 +383,7 @@ mod arguments_object {
     fn delete(make_object: impl FnOnce() -> Object, name: &str, to_check: &[&str]) -> TestResult {
         setup_test_agent();
         let obj = make_object();
-        let env = agent
-            .current_lexical_environment()
+        let env = current_lexical_environment()
             .unwrap_or_else(|| current_realm_record().unwrap().borrow().global_env.clone().unwrap());
         let receiver = ECMAScriptValue::from(obj.clone());
 

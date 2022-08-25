@@ -60,12 +60,14 @@ mod agent {
             text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
-        agent.push_execution_context(test_ec);
+        super::push_execution_context(test_ec);
         // now pop it.
-        agent.pop_execution_context();
+        super::pop_execution_context();
         // And verify the one on top has no script_or_module value
-        let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
-        assert!(r.script_or_module.is_none());
+        AGENT.with(|agent| {
+            let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
+            assert!(r.script_or_module.is_none());
+        })
     }
     #[test]
     fn push_execution_context() {
@@ -495,7 +497,7 @@ mod agent {
         make_test_obj_uncallable(agent).into()
     }
     fn make_symbol() -> ECMAScriptValue {
-        Symbol::new(agent, None).into()
+        Symbol::new(None).into()
     }
     #[test_case(no_primitive_val, || ECMAScriptValue::from(10), true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; first errs")]
     #[test_case(|| ECMAScriptValue::from(10), no_primitive_val, true => serr("TypeError: Cannot convert object to primitive value"); "lf:true; second errs")]
@@ -533,34 +535,33 @@ mod agent {
         left_first: bool,
     ) -> Result<Option<bool>, String> {
         setup_test_agent();
-        let x = make_x(&agent);
-        let y = make_y(&agent);
-        agent.is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(completion))
+        let x = make_x();
+        let y = make_y();
+        super::is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(completion))
     }
 
     type ValueMaker = fn() -> ECMAScriptValue;
     fn empty_object() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ECMAScriptValue::from(ordinary_object_create(agent, Some(obj_proto), &[]))
+        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
     }
     fn bool_class() -> ECMAScriptValue {
         let boolean = intrinsic(IntrinsicId::Boolean);
         ECMAScriptValue::from(boolean)
     }
-    fn undef(_: &Agent) -> ECMAScriptValue {
+    fn undef() -> ECMAScriptValue {
         ECMAScriptValue::Undefined
     }
-    fn number(_: &Agent) -> ECMAScriptValue {
+    fn number() -> ECMAScriptValue {
         ECMAScriptValue::from(10)
     }
-    fn string(_: &Agent) -> ECMAScriptValue {
+    fn string() -> ECMAScriptValue {
         ECMAScriptValue::from("Test Sentinel")
     }
     fn dead_object() -> ECMAScriptValue {
         ECMAScriptValue::from(DeadObject::object())
     }
     fn test_has_instance(
-        agent: &Agent,
         _: ECMAScriptValue,
         _: Option<&Object>,
         arguments: &[ECMAScriptValue],
@@ -577,11 +578,10 @@ mod agent {
     }
     fn faux_class() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto), &[]);
         let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let has_instance = create_builtin_function(
-            agent,
             test_has_instance,
             false,
             1_f64,
@@ -593,7 +593,6 @@ mod agent {
         );
         let hi = wks(WksId::HasInstance);
         define_property_or_throw(
-            agent,
             &obj,
             hi,
             PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(true),
@@ -611,11 +610,10 @@ mod agent {
     #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
     fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        let v = make_v(&agent);
-        let target = make_target(&agent);
+        let v = make_v();
+        let target = make_target();
 
-        agent
-            .instanceof_operator(v, target)
+        super::instanceof_operator(v, target)
             .map_err(|completion| unwind_any_error(completion))
             .map(|nc| nc.try_into().unwrap())
     }
@@ -630,43 +628,46 @@ mod agent {
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
             let num_values = values.len() as u32;
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            {
-                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                let stack = &mut top_ec.stack;
-                for value in values {
-                    stack.push(Ok(value.clone().into()));
+            AGENT.with(|agent| {
+                let index = agent.execution_context_stack.borrow().len() - 1;
+                {
+                    let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let stack = &mut top_ec.stack;
+                    for value in values {
+                        stack.push(Ok(value.clone().into()));
+                    }
+                    stack.push(Ok(num_values.into()));
                 }
-                stack.push(Ok(num_values.into()));
-            }
+            });
 
-            agent.create_unmapped_arguments_object(index);
+            super::create_unmapped_arguments_object(index);
 
-            let stack = &agent.execution_context_stack.borrow()[index].stack;
-            let stack_size = stack.len();
+            let ao = AGENT.with(|agent| {
+                let stack = &agent.execution_context_stack.borrow()[index].stack;
+                let stack_size = stack.len();
 
-            // Assert arg vector is still in the right spot
-            assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
-            for (idx, val) in values.iter().enumerate() {
-                assert_eq!(
-                    stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
-                    &NormalCompletion::from(val.clone())
-                );
-            }
+                // Assert arg vector is still in the right spot
+                assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
+                for (idx, val) in values.iter().enumerate() {
+                    assert_eq!(
+                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        &NormalCompletion::from(val.clone())
+                    );
+                }
 
-            // Validate the arguments object.
-            let ao =
+                // Validate the arguments object.
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
-                    .unwrap();
-            assert_eq!(get(&agent, &ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+                    .unwrap()
+            });
+            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&agent, &ao, &idx.into()).unwrap(), val);
+                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let type_error_generator = intrinsic(IntrinsicId::ThrowTypeError);
             let iterator_sym = wks(WksId::Iterator);
-            assert_eq!(get(&agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
-            let callee = ao.o.get_own_property(&agent, &"callee".into()).unwrap().unwrap();
+            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            let callee = ao.o.get_own_property(&"callee".into()).unwrap().unwrap();
             assert_eq!(
                 callee.property,
                 PropertyKind::Accessor(AccessorProperty {
@@ -712,13 +713,13 @@ mod agent {
             setup_test_agent();
             let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
             let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
-            agent.set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+            super::set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
-            let func_obj = ordinary_object_create(&agent, None, &[]);
+            let func_obj = ordinary_object_create(None, &[]);
 
             let num_values = values.len() as u32;
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            {
+            let index = AGENT.with(|agent| {
+                let index = agent.execution_context_stack.borrow().len() - 1;
                 let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                 let stack = &mut top_ec.stack;
                 stack.push(Ok(func_obj.clone().into()));
@@ -726,37 +727,41 @@ mod agent {
                     stack.push(Ok(value.clone().into()));
                 }
                 stack.push(Ok(num_values.into()));
-            }
+                index
+            });
 
-            agent.create_mapped_arguments_object(index);
-            let stack = &agent.execution_context_stack.borrow()[index].stack;
-            let stack_size = stack.len();
+            super::create_mapped_arguments_object(index);
 
-            // Assert arg vector is still in the right spot
-            assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
-            for (idx, val) in values.iter().enumerate() {
+            let ao = AGENT.with(|agent| {
+                let stack = &agent.execution_context_stack.borrow()[index].stack;
+                let stack_size = stack.len();
+
+                // Assert arg vector is still in the right spot
+                assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
+                for (idx, val) in values.iter().enumerate() {
+                    assert_eq!(
+                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        &NormalCompletion::from(val.clone())
+                    );
+                }
                 assert_eq!(
-                    stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
-                    &NormalCompletion::from(val.clone())
+                    stack[stack_size - 3 - values.len()].as_ref().unwrap(),
+                    &NormalCompletion::from(func_obj.clone())
                 );
-            }
-            assert_eq!(
-                stack[stack_size - 3 - values.len()].as_ref().unwrap(),
-                &NormalCompletion::from(func_obj.clone())
-            );
 
-            // Validate the arguments object.
-            let ao =
+                // Validate the arguments object.
+
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
-                    .unwrap();
-            assert_eq!(get(&agent, &ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+                    .unwrap()
+            });
+            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&agent, &ao, &idx.into()).unwrap(), val);
+                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let iterator_sym = wks(WksId::Iterator);
-            assert_eq!(get(&agent, &ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
-            assert_eq!(get(&agent, &ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
+            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(get(&ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
         }
 
         #[test]
@@ -816,7 +821,7 @@ mod agent {
             .unwrap();
 
             for (idx, (name, value)) in zip(names, values).enumerate().rev() {
-                lex.create_mutable_binding(&agent, name.clone(), false).unwrap();
+                lex.create_mutable_binding(name.clone(), false).unwrap();
                 lex.initialize_binding(&agent, name, value.clone()).unwrap();
                 agent.attach_mapped_arg(index, name, idx);
             }
@@ -1200,7 +1205,7 @@ mod process_error {
         assert_ne!(s, "");
     }
 
-    fn internal_err(_: &Agent) -> ProcessError {
+    fn internal_err() -> ProcessError {
         ProcessError::InternalError { reason: "blue".into() }
     }
 
@@ -1208,7 +1213,7 @@ mod process_error {
         let err = create_type_error_object(agent, "test sentinel");
         ProcessError::RuntimeError { error: err.into() }
     }
-    fn runtime_err_value(_: &Agent) -> ProcessError {
+    fn runtime_err_value() -> ProcessError {
         let error = "test sentinel".into();
         ProcessError::RuntimeError { error }
     }
