@@ -893,7 +893,7 @@ mod well_known_symbols {
     #[test]
     fn debug() {
         setup_test_agent();
-        let s = format!("{:?}", agent.0.symbols);
+        let s = AGENT.with(|agent| format!("{:?}", agent.0.symbols));
         assert_ne!(s, "");
     }
 }
