@@ -504,7 +504,6 @@ impl AdaptableObject {
 
 // error
 pub fn faux_errors(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -512,12 +511,12 @@ pub fn faux_errors(
     Err(create_type_error("Test Sentinel"))
 }
 
-pub fn make_toprimitive_throw_obj(agent: &Agent) -> Object {
-    let realm = agent.current_realm_record().unwrap();
-    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
+pub fn make_toprimitive_throw_obj() -> Object {
+    let realm = current_realm_record().unwrap();
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+    let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
     let target = ordinary_object_create(Some(object_prototype), &[]);
-    let to_prim_sym = agent.wks(WksId::ToPrimitive);
+    let to_prim_sym = wks(WksId::ToPrimitive);
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(
         faux_errors,

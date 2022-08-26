@@ -73,20 +73,22 @@ mod agent {
     fn push_execution_context() {
         setup_test_agent();
         let realm_ref = current_realm_record().unwrap();
-        let prior_length = agent.execution_context_stack.borrow().len();
-        // build a new EC, and add it to the EC stack
-        let sr = ScriptRecord {
-            realm: realm_ref.clone(),
-            ecmascript_code: Maker::new("").script(),
-            compiled: Rc::new(Chunk::new("test")),
-            text: String::new(),
-        };
-        let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
-        agent.push_execution_context(test_ec);
+        AGENT.with(|agent| {
+            let prior_length = agent.execution_context_stack.borrow().len();
+            // build a new EC, and add it to the EC stack
+            let sr = ScriptRecord {
+                realm: realm_ref.clone(),
+                ecmascript_code: Maker::new("").script(),
+                compiled: Rc::new(Chunk::new("test")),
+                text: String::new(),
+            };
+            let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
+            super::push_execution_context(test_ec);
 
-        assert_eq!(agent.execution_context_stack.borrow().len(), prior_length + 1);
-        let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
-        assert!(r.script_or_module.is_some());
+            assert_eq!(agent.execution_context_stack.borrow().len(), prior_length + 1);
+            let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
+            assert!(r.script_or_module.is_some());
+        });
     }
     #[test]
     fn active_function_object() {
@@ -156,11 +158,11 @@ mod agent {
 
             let first_realm = create_named_realm("first");
             let first_context = ExecutionContext::new(None, first_realm, None);
-            a.push_execution_context(first_context);
+            push_execution_context(first_context);
 
             let second_realm = create_named_realm("second");
             let second_context = ExecutionContext::new(None, second_realm, None);
-            a.push_execution_context(second_context);
+            push_execution_context(second_context);
 
             let current = current_realm_record().unwrap();
             assert_eq!(get_realm_name(&current.borrow()), "second");
@@ -181,7 +183,7 @@ mod agent {
     fn void_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        agent.void_operator(expr).map_err(|ac| unwind_any_error(ac))
+        super::void_operator(expr).map_err(|ac| unwind_any_error(ac))
     }
 
     #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from("undefined")); "unresolvable ref")]
@@ -273,12 +275,12 @@ mod agent {
                 || ECMAScriptValue::from("right"),
                 BinOp::Add
                 => Ok(NormalCompletion::from("left right")); "string catentation")]
-    #[test_case(|agent| ECMAScriptValue::from(make_toprimitive_throw_obj(agent)),
+    #[test_case(|| ECMAScriptValue::from(make_toprimitive_throw_obj()),
                 || ECMAScriptValue::from("a"),
                 BinOp::Add
                 => serr("TypeError: Test Sentinel"); "left toPrimitive error")]
     #[test_case(|| ECMAScriptValue::from("a"),
-                |agent| ECMAScriptValue::from(make_toprimitive_throw_obj(agent)),
+                || ECMAScriptValue::from(make_toprimitive_throw_obj()),
                 BinOp::Add
                 => serr("TypeError: Test Sentinel"); "right toPrimitive error")]
     #[test_case(|| ECMAScriptValue::from(10),
@@ -483,18 +485,22 @@ mod agent {
     #[test]
     fn two_values() {
         setup_test_agent();
-        let index = agent.execution_context_stack.borrow().len() - 1;
-        agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
-        agent.execution_context_stack.borrow_mut()[index]
-            .stack
-            .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
-        let (left, right) = agent.two_values(index);
-        assert_eq!(left, ECMAScriptValue::Null);
-        assert_eq!(right, ECMAScriptValue::from("test"));
+        AGENT.with(|agent| {
+            let index = agent.execution_context_stack.borrow().len() - 1;
+            agent.execution_context_stack.borrow_mut()[index]
+                .stack
+                .push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
+            agent.execution_context_stack.borrow_mut()[index]
+                .stack
+                .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
+            let (left, right) = agent.two_values(index);
+            assert_eq!(left, ECMAScriptValue::Null);
+            assert_eq!(right, ECMAScriptValue::from("test"));
+        });
     }
 
     fn no_primitive_val() -> ECMAScriptValue {
-        make_test_obj_uncallable(agent).into()
+        make_test_obj_uncallable().into()
     }
     fn make_symbol() -> ECMAScriptValue {
         Symbol::new(None).into()
@@ -628,7 +634,7 @@ mod agent {
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
             let num_values = values.len() as u32;
-            AGENT.with(|agent| {
+            let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
                     let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -638,6 +644,7 @@ mod agent {
                     }
                     stack.push(Ok(num_values.into()));
                 }
+                index
             });
 
             super::create_unmapped_arguments_object(index);
@@ -685,21 +692,24 @@ mod agent {
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             setup_test_agent();
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            agent.create_unmapped_arguments_object(index);
+            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
+            super::create_unmapped_arguments_object(index);
         }
 
         #[test]
         #[should_panic(expected = "Stack too short to fit all the arguments")]
         fn panics_short() {
             setup_test_agent();
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            {
-                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                let stack = &mut top_ec.stack;
-                stack.push(Ok(NormalCompletion::from(800)));
-            }
-            agent.create_unmapped_arguments_object(index);
+            let index = AGENT.with(|agent| {
+                let index = agent.execution_context_stack.borrow().len() - 1;
+                {
+                    let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let stack = &mut top_ec.stack;
+                    stack.push(Ok(NormalCompletion::from(800)));
+                }
+                index
+            });
+            super::create_unmapped_arguments_object(index);
         }
     }
 
@@ -768,21 +778,24 @@ mod agent {
         #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             setup_test_agent();
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            agent.create_mapped_arguments_object(index);
+            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
+            super::create_mapped_arguments_object(index);
         }
 
         #[test]
         #[should_panic(expected = "Stack too short to fit all the arguments plus the function obj")]
         fn panics_short() {
             setup_test_agent();
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            {
-                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                let stack = &mut top_ec.stack;
-                stack.push(Ok(NormalCompletion::from(800)));
-            }
-            agent.create_mapped_arguments_object(index);
+            let index = AGENT.with(|agent| {
+                let index = agent.execution_context_stack.borrow().len() - 1;
+                {
+                    let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let stack = &mut top_ec.stack;
+                    stack.push(Ok(NormalCompletion::from(800)));
+                }
+                index
+            });
+            super::create_mapped_arguments_object(index);
         }
     }
 
@@ -797,40 +810,46 @@ mod agent {
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
             let num_values = values.len() as u32;
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            {
-                let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                top_ec.lexical_environment = Some(lex.clone());
-                let stack = &mut top_ec.stack;
-                stack.push(Ok(ECMAScriptValue::Null.into())); // faux function
-                for value in values {
-                    stack.push(Ok(value.clone().into()));
+            let index = AGENT.with(|agent| {
+                let index = agent.execution_context_stack.borrow().len() - 1;
+                {
+                    let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    top_ec.lexical_environment = Some(lex.clone());
+                    let stack = &mut top_ec.stack;
+                    stack.push(Ok(ECMAScriptValue::Null.into())); // faux function
+                    for value in values {
+                        stack.push(Ok(value.clone().into()));
+                    }
+                    stack.push(Ok(num_values.into()));
                 }
-                stack.push(Ok(num_values.into()));
-            }
-            agent.create_mapped_arguments_object(index);
-            let ao = Object::try_from(
-                ECMAScriptValue::try_from(
-                    agent.execution_context_stack.borrow()[index].stack
-                        [agent.execution_context_stack.borrow()[index].stack.len() - 1]
-                        .clone()
-                        .unwrap(),
+                index
+            });
+            super::create_mapped_arguments_object(index);
+
+            let ao = AGENT.with(|agent| {
+                Object::try_from(
+                    ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow()[index].stack
+                            [agent.execution_context_stack.borrow()[index].stack.len() - 1]
+                            .clone()
+                            .unwrap(),
+                    )
+                    .unwrap(),
                 )
-                .unwrap(),
-            )
-            .unwrap();
+                .unwrap()
+            });
 
             for (idx, (name, value)) in zip(names, values).enumerate().rev() {
                 lex.create_mutable_binding(name.clone(), false).unwrap();
-                lex.initialize_binding(&agent, name, value.clone()).unwrap();
-                agent.attach_mapped_arg(index, name, idx);
+                lex.initialize_binding(name, value.clone()).unwrap();
+                super::attach_mapped_arg(index, name, idx);
             }
 
             for (idx, (name, value)) in zip(names, values).enumerate() {
-                let val = get(&agent, &ao, &idx.into()).unwrap();
+                let val = get(&ao, &idx.into()).unwrap();
                 assert_eq!(&val, value);
-                set(&agent, &ao, idx.into(), (idx as u32).into(), true).unwrap();
-                let val = lex.get_binding_value(&agent, name, true).unwrap();
+                set(&ao, idx.into(), (idx as u32).into(), true).unwrap();
+                let val = lex.get_binding_value(name, true).unwrap();
                 assert_eq!(val, ECMAScriptValue::from(idx as u32));
             }
         }
@@ -839,8 +858,8 @@ mod agent {
         #[should_panic(expected = "stack must not be empty")]
         fn empty_stack() {
             setup_test_agent();
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            agent.attach_mapped_arg(index, &"bbo".into(), 12);
+            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
+            super::attach_mapped_arg(index, &"bbo".into(), 12);
         }
     }
 }
@@ -889,7 +908,7 @@ mod parse_script {
         let src = "/* hello! */ 'hello world';";
         let starting_realm = current_realm_record().unwrap();
         let ScriptRecord { realm, ecmascript_code, compiled, text } =
-            super::parse_script(&agent, src, starting_realm.clone()).unwrap();
+            super::parse_script(src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
         assert_eq!(format!("{}", ecmascript_code), "'hello world' ;");
         assert_eq!(compiled.name, "top level script");
@@ -905,8 +924,8 @@ mod parse_script {
     fn parse_error(src: &str) -> AHashSet<String> {
         setup_test_agent();
         let starting_realm = current_realm_record().unwrap();
-        let errs = super::parse_script(&agent, src, starting_realm).unwrap_err();
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        let errs = super::parse_script(src, starting_realm).unwrap_err();
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 }
 
@@ -1086,9 +1105,9 @@ mod fcn_def {
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let env = global_env as Rc<dyn EnvironmentRecord>;
 
-        part.instantiate_function_object(&agent, env, None, true, &src)
+        part.instantiate_function_object(env, None, true, &src)
             .map_err(|err| err.to_string())
-            .map(|value| getv(&agent, &value, &"name".into()).unwrap().to_string())
+            .map(|value| getv(&value, &"name".into()).unwrap().to_string())
     }
 }
 
@@ -1160,13 +1179,13 @@ mod global_declaration_instantiation {
         setup_test_agent();
         let script = Maker::new(src).script();
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-        global_env.create_global_var_binding(&agent, "already_var_declared".into(), false).unwrap();
-        global_env.create_mutable_binding(&agent, "existing_mutable".into(), false).unwrap();
+        global_env.create_global_var_binding("already_var_declared".into(), false).unwrap();
+        global_env.create_mutable_binding("existing_mutable".into(), false).unwrap();
 
         let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
         let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        let result = super::global_declaration_instantiation(&agent, script, global_env.clone(), false, src);
+        let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
 
         result.map_err(|err| unwind_any_error(err)).map(|| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
@@ -1189,9 +1208,9 @@ mod script_evaluation {
     fn script_evaluation(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let realm = current_realm_record().unwrap();
-        let script_record = parse_script(&agent, src, realm).unwrap();
+        let script_record = parse_script(src, realm).unwrap();
 
-        super::script_evaluation(&agent, script_record).map_err(|err| unwind_any_error(err))
+        super::script_evaluation(script_record).map_err(|err| unwind_any_error(err))
     }
 }
 
@@ -1210,7 +1229,7 @@ mod process_error {
     }
 
     fn runtime_err_obj() -> ProcessError {
-        let err = create_type_error_object(agent, "test sentinel");
+        let err = create_type_error_object("test sentinel");
         ProcessError::RuntimeError { error: err.into() }
     }
     fn runtime_err_value() -> ProcessError {
@@ -1218,7 +1237,7 @@ mod process_error {
         ProcessError::RuntimeError { error }
     }
     fn runtime_err_non_err_obj() -> ProcessError {
-        let error = ordinary_object_create(agent, None, &[]).into();
+        let error = ordinary_object_create(None, &[]).into();
         ProcessError::RuntimeError { error }
     }
     fn matches_object(s: String) {
@@ -1230,8 +1249,8 @@ mod process_error {
     fn compiler_objs() -> ProcessError {
         ProcessError::CompileErrors {
             values: vec![
-                create_syntax_error_object(agent, "Trouble in Paradise", None),
-                create_reference_error_object(agent, "yeah, compiler errs are only syntax..."),
+                create_syntax_error_object("Trouble in Paradise", None),
+                create_reference_error_object("yeah, compiler errs are only syntax..."),
             ],
         }
     }
@@ -1242,14 +1261,14 @@ mod process_error {
     #[test_case(compiler_objs => "During compilation:\nSyntaxError: Trouble in Paradise\nReferenceError: yeah, compiler errs are only syntax...\n"; "compiler err list")]
     fn display(make_error: fn() -> ProcessError) -> String {
         setup_test_agent();
-        let err = make_error(&agent);
+        let err = make_error();
         format!("{err}")
     }
 
     #[test]
     fn display_err() {
         setup_test_agent();
-        let err = compiler_objs(&agent);
+        let err = compiler_objs();
         display_error_validate(err);
     }
 }
@@ -1263,7 +1282,7 @@ mod process_ecmascript {
     #[test_case("a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "runtime error")]
     fn process_ecmascript(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        let result = super::process_ecmascript(&agent, src);
+        let result = super::process_ecmascript(src);
         result.map_err(|e| format!("{e}"))
     }
 }
