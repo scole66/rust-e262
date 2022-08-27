@@ -143,8 +143,8 @@ mod labelled_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_statement().early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).labelled_statement().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -364,8 +364,8 @@ mod labelled_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_item().early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).labelled_item().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("function alice(){}" => true; "direct labelled function")]

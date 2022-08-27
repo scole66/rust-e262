@@ -127,8 +127,8 @@ mod arrow_function {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_function().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).arrow_function().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("(a=arguments) => a" => true; "left")]
@@ -255,8 +255,8 @@ mod arrow_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_parameters().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).arrow_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]
@@ -385,8 +385,8 @@ mod concise_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).concise_body().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).concise_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -482,8 +482,8 @@ mod expression_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).expression_body().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).expression_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "yes")]
@@ -573,8 +573,8 @@ mod arrow_formal_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_formal_parameters().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).arrow_formal_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("(a=arguments)" => true; "yes")]

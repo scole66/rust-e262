@@ -13,11 +13,11 @@ mod update_expression {
         #[test_case("let a = 10n;let b = a++;({ a, b })" => (BigInt::from(11).into(), BigInt::from(10).into()); "bigint")]
         fn normal(src: &str) -> (ECMAScriptValue, ECMAScriptValue) {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap();
+            let result = process_ecmascript(src).unwrap();
 
-            let result_obj = to_object(&agent, result).unwrap();
-            let a = get(&agent, &result_obj, &"a".into()).unwrap();
-            let b = get(&agent, &result_obj, &"b".into()).unwrap();
+            let result_obj = to_object(result).unwrap();
+            let a = get(&result_obj, &"a".into()).unwrap();
+            let b = get(&result_obj, &"b".into()).unwrap();
             (a, b)
         }
 
@@ -27,7 +27,7 @@ mod update_expression {
         #[test_case("const a=0;a++;" => "Thrown: TypeError: Cannot change read-only value"; "PutValue errs")]
         fn errors(src: &str) -> String {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap_err();
+            let result = process_ecmascript(src).unwrap_err();
             result.to_string()
         }
     }
@@ -40,11 +40,11 @@ mod update_expression {
         #[test_case("let a = 10n;let b = a--;({ a, b })" => (BigInt::from(9).into(), BigInt::from(10).into()); "bigint")]
         fn normal(src: &str) -> (ECMAScriptValue, ECMAScriptValue) {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap();
+            let result = process_ecmascript(src).unwrap();
 
-            let result_obj = to_object(&agent, result).unwrap();
-            let a = get(&agent, &result_obj, &"a".into()).unwrap();
-            let b = get(&agent, &result_obj, &"b".into()).unwrap();
+            let result_obj = to_object(result).unwrap();
+            let a = get(&result_obj, &"a".into()).unwrap();
+            let b = get(&result_obj, &"b".into()).unwrap();
             (a, b)
         }
 
@@ -54,7 +54,7 @@ mod update_expression {
         #[test_case("const a=0;a--;" => "Thrown: TypeError: Cannot change read-only value"; "PutValue errs")]
         fn errors(src: &str) -> String {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap_err();
+            let result = process_ecmascript(src).unwrap_err();
             result.to_string()
         }
     }
@@ -67,11 +67,11 @@ mod update_expression {
         #[test_case("let a = 10n;let b = ++a;({ a, b })" => (BigInt::from(11).into(), BigInt::from(11).into()); "bigint")]
         fn normal(src: &str) -> (ECMAScriptValue, ECMAScriptValue) {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap();
+            let result = process_ecmascript(src).unwrap();
 
-            let result_obj = to_object(&agent, result).unwrap();
-            let a = get(&agent, &result_obj, &"a".into()).unwrap();
-            let b = get(&agent, &result_obj, &"b".into()).unwrap();
+            let result_obj = to_object(result).unwrap();
+            let a = get(&result_obj, &"a".into()).unwrap();
+            let b = get(&result_obj, &"b".into()).unwrap();
             (a, b)
         }
 
@@ -81,7 +81,7 @@ mod update_expression {
         #[test_case("const a=0;++a;" => "Thrown: TypeError: Cannot change read-only value"; "PutValue errs")]
         fn errors(src: &str) -> String {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap_err();
+            let result = process_ecmascript(src).unwrap_err();
             result.to_string()
         }
     }
@@ -94,11 +94,11 @@ mod update_expression {
         #[test_case("let a = 10n;let b = --a;({ a, b })" => (BigInt::from(9).into(), BigInt::from(9).into()); "bigint")]
         fn normal(src: &str) -> (ECMAScriptValue, ECMAScriptValue) {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap();
+            let result = process_ecmascript(src).unwrap();
 
-            let result_obj = to_object(&agent, result).unwrap();
-            let a = get(&agent, &result_obj, &"a".into()).unwrap();
-            let b = get(&agent, &result_obj, &"b".into()).unwrap();
+            let result_obj = to_object(result).unwrap();
+            let a = get(&result_obj, &"a".into()).unwrap();
+            let b = get(&result_obj, &"b".into()).unwrap();
             (a, b)
         }
 
@@ -108,7 +108,7 @@ mod update_expression {
         #[test_case("const a=0;--a;" => "Thrown: TypeError: Cannot change read-only value"; "PutValue errs")]
         fn errors(src: &str) -> String {
             setup_test_agent();
-            let result = process_ecmascript(&agent, src).unwrap_err();
+            let result = process_ecmascript(src).unwrap_err();
             result.to_string()
         }
     }
@@ -127,14 +127,14 @@ mod unary_expression {
     #[test_case("'use strict'; delete Boolean.prototype" => serr("Thrown: TypeError: property not deletable"); "strict, not deletable")]
     fn delete(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 
     #[test_case("void 3;" => Ok(ECMAScriptValue::Undefined); "simple")]
     #[test_case("void a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err")]
     fn void(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 
     #[test_case("typeof a;" => Ok("undefined".into()); "undefined via unresolvable")]
@@ -150,7 +150,7 @@ mod unary_expression {
     #[test_case("typeof Boolean;" => Ok("function".into()); "function")]
     fn typeof_op(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -168,7 +168,7 @@ mod member_expression {
     #[test_case("let m={'1':99};m[1]" => vok(99); "exp member exp")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -185,7 +185,7 @@ mod exponentiation_expression {
     #[test_case("(-Infinity) ** 8" => vok(f64::INFINITY) ; "-Inf ** 8")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -202,7 +202,7 @@ mod if_statement {
     #[test_case("if (false) 1; else a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in stmt2")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -218,7 +218,7 @@ mod do_while {
     #[test_case("do null; while (a);" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in expr")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -254,7 +254,7 @@ mod labelled_statement {
     " => vok("1 "); "loopless targeted break")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        process_ecmascript(&agent, src).map_err(|e| e.to_string())
+        process_ecmascript(src).map_err(|e| e.to_string())
     }
 }
 
@@ -264,7 +264,7 @@ mod labelled_statement {
 #[test_case(r"'9876543210'.length;" => vok(10); "coerced string length")]
 fn string_exotic_object(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("String()" => vok(""); "no args")]
@@ -274,7 +274,7 @@ fn string_exotic_object(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("String(Symbol('oops'))" => vok("Symbol(oops)"); "symbol in function")]
 fn string_constructor(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("String.fromCharCode(112, 97, 115, 115)" => vok("pass"); "normal")]
@@ -284,7 +284,7 @@ fn string_constructor(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("String.fromCharCode.length" => vok(1); "length")]
 fn string_from_char_code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("'12345'.indexOf('2')" => vok(1); "found a match")]
@@ -298,7 +298,7 @@ fn string_from_char_code(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'what if things are undefined?'.indexOf()" => vok(19); "first arg missing")]
 fn string_prototype_index_of(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("String.prototype.toString.call(0)" => serr("Thrown: TypeError: String.prototype.toString requires that 'this' be a String"); "bad this")]
@@ -306,7 +306,7 @@ fn string_prototype_index_of(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'alpha'.toString()" => vok("alpha"); "string literal")]
 fn string_prototype_to_string(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("String.prototype.valueOf.call(0)" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this")]
@@ -314,12 +314,12 @@ fn string_prototype_to_string(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'alpha'.valueOf()" => vok("alpha"); "string literal")]
 fn string_prototype_value_of(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }
 
 #[test_case("(x => x * 2).call(undefined, 99);" => vok(198); "call a user defined func")]
 #[test_case("Number.prototype.toString.call(991)" => vok("991"); "call a builtin func")]
 fn function_prototype_call(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
-    process_ecmascript(&agent, src).map_err(|e| e.to_string())
+    process_ecmascript(src).map_err(|e| e.to_string())
 }

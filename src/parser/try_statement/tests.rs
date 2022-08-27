@@ -232,8 +232,8 @@ mod try_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).try_statement().early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).try_statement().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("try { arguments; } catch {}" => true; "try-catch (left)")]
@@ -398,8 +398,8 @@ mod catch {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).catch().early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).catch().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("catch({a=arguments}){}" => true; "param (left)")]
@@ -498,8 +498,8 @@ mod finally {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).finally().early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).finally().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("finally{arguments;}" => true; "yes")]
@@ -600,8 +600,8 @@ mod catch_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).catch_parameter().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).catch_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]

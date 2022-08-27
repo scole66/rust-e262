@@ -1047,7 +1047,6 @@ fn to_string_09() {
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 fn tostring_symbol(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1147,7 +1146,6 @@ fn to_object_08() {
 
 // non-object number
 fn faux_makes_number(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1156,7 +1154,6 @@ fn faux_makes_number(
 }
 // non-object string
 fn faux_makes_string(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1165,7 +1162,6 @@ fn faux_makes_string(
 }
 // object value
 fn faux_makes_obj(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1176,7 +1172,6 @@ fn faux_makes_obj(
 }
 // error
 fn faux_errors(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1189,7 +1184,7 @@ enum FauxKind {
     Error,
 }
 fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
-    let realm = agent.current_realm_record().unwrap();
+    let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype), &[]);
@@ -1242,7 +1237,7 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
 }
 pub fn make_tostring_getter_error() -> Object {
     // valueOf returns 123456; tostring is a getter that errors
-    let realm = agent.current_realm_record().unwrap();
+    let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype), &[]);
@@ -1432,7 +1427,6 @@ fn to_primitive_prefer_number() {
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
 fn exotic_to_prim(
-    _agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -1453,7 +1447,7 @@ fn exotic_to_prim(
 fn make_toprimitive_obj(
     steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
 ) -> Object {
-    let realm = agent.current_realm_record().unwrap();
+    let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype), &[]);
@@ -1496,12 +1490,11 @@ fn to_primitive_uses_exotics() {
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
 fn exotic_returns_object(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let realm = agent.current_realm_record().unwrap();
+    let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype), &[]);
     Ok(ECMAScriptValue::from(target))
@@ -1516,7 +1509,6 @@ fn to_primitive_exotic_returns_object() {
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -1535,7 +1527,7 @@ fn to_primitive_exotic_throws() {
 #[test]
 fn to_primitive_exotic_getter_throws() {
     setup_test_agent();
-    let realm = agent.current_realm_record().unwrap();
+    let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype), &[]);
@@ -2002,19 +1994,14 @@ mod agent {
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
     }
-    fn returns_10(
-        _: &Agent,
-        _: ECMAScriptValue,
-        _: Option<&Object>,
-        _: &[ECMAScriptValue],
-    ) -> Completion<ECMAScriptValue> {
+    fn returns_10(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
     fn object_10() -> ECMAScriptValue {
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let object = ordinary_object_create(Some(object_prototype), &[]);
         let to_primitive = wks(WksId::ToPrimitive);
-        let realm = agent.current_realm_record();
+        let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let to_prim_func = create_builtin_function(
             returns_10,
@@ -2063,6 +2050,6 @@ mod agent {
         let x = make_x();
         let y = make_y();
 
-        agent.is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(e))
+        super::is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(e))
     }
 }

@@ -60,8 +60,8 @@ mod unique_formal_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).unique_formal_parameters().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).unique_formal_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
@@ -312,8 +312,8 @@ mod formal_parameters {
     fn early_errors(src: &str, strict: bool, dups_already_checked: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameters().early_errors(&agent, &mut errs, strict, dups_already_checked);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameters().early_errors(&mut errs, strict, dups_already_checked);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("" => false; "empty")]
@@ -479,8 +479,8 @@ mod formal_parameter_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameter_list().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameter_list().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -581,8 +581,8 @@ mod function_rest_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).function_rest_parameter().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).function_rest_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...{a=arguments}" => true; "yes")]
@@ -677,8 +677,8 @@ mod formal_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameter().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "yes")]

@@ -2777,7 +2777,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(TestObject::object(&[FunctionId::GetOwnProperty(Some(PropertyKey::from(name)))]))
     }
     fn create_getter_error(name: &str) -> ECMAScriptValue {
-        let realm = agent.current_realm_record().unwrap();
+        let realm = current_realm_record().unwrap();
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(object_prototype), &[]);
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
@@ -2938,7 +2938,7 @@ mod enumerable_own_property_names {
         create_data_property_or_throw(&obj, "one", 1.0).unwrap();
         obj
     }
-    fn lying_ownprops(_: &Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
+    fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> Object {
@@ -3002,7 +3002,7 @@ mod set_integrity_level {
     }
     fn prevention_disabled() -> Object {
         AdaptableObject::object(AdaptableMethods {
-            prevent_extensions_override: Some(|_, _| Ok(false)),
+            prevent_extensions_override: Some(|_| Ok(false)),
             ..Default::default()
         })
     }
@@ -3011,7 +3011,7 @@ mod set_integrity_level {
     }
     fn dop_throws() -> Object {
         let obj = AdaptableObject::object(AdaptableMethods {
-            define_own_property_override: Some(|agent, this, key, desc| {
+            define_own_property_override: Some(|this, key, desc| {
                 if this.something.get() == 0 {
                     this.something.set(1);
                     ordinary_define_own_property(this, key, desc)
@@ -3040,7 +3040,7 @@ mod set_integrity_level {
         create_data_property_or_throw(&obj, "one", 1.0).unwrap();
         obj
     }
-    fn lying_ownprops(_: &Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
+    fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> Object {
@@ -3112,7 +3112,7 @@ mod ordinary_has_instance {
 
     type ValueMaker = fn() -> ECMAScriptValue;
 
-    fn undef(_: &Agent) -> ECMAScriptValue {
+    fn undef() -> ECMAScriptValue {
         ECMAScriptValue::Undefined
     }
     fn bool_class() -> ECMAScriptValue {
@@ -3120,7 +3120,7 @@ mod ordinary_has_instance {
         ECMAScriptValue::from(boolean)
     }
     fn basic_constructor() -> Object {
-        let realm = agent.current_realm_record();
+        let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         create_builtin_function(
             throw_type_error,
@@ -3195,7 +3195,7 @@ mod ordinary_has_instance {
         let c = make_c();
         let o = make_o();
 
-        agent.ordinary_has_instance(&c, &o).map_err(|completion| unwind_any_error(completion))
+        super::ordinary_has_instance(&c, &o).map_err(|completion| unwind_any_error(completion))
     }
 }
 

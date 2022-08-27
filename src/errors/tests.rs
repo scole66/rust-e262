@@ -330,8 +330,7 @@ fn error_object_set() {
     let no = create_error_object();
 
     let result =
-        no.o.set(PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone()))
-            .unwrap();
+        no.o.set(PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
     assert!(result);
 }
 #[test]
@@ -606,9 +605,9 @@ fn error_prototype_to_string_11() {
     assert_eq!(unwind_type_error(result), "Error.prototype.toString called with non-object this value");
 }
 
-fn native_error_constructor_properties(intrinsic: IntrinsicId, expected_name: &str) {
+fn native_error_constructor_properties(id: IntrinsicId, expected_name: &str) {
     setup_test_agent();
-    let constructor = intrinsic(intrinsic);
+    let constructor = intrinsic(id);
 
     let proto = constructor.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(proto, intrinsic(IntrinsicId::Error));
@@ -728,16 +727,16 @@ fn test_uri_error_constructor() {
     test_error_constructor(IntrinsicId::URIError, IntrinsicId::URIErrorPrototype, "URIError");
 }
 
-#[test_case(|| create_type_error_object(a, "message 1") => "TypeError: message 1"; "type error")]
-#[test_case(|| create_syntax_error_object(a, "message 2", None) => "SyntaxError: message 2"; "syntax error")]
+#[test_case(|| create_type_error_object("message 1") => "TypeError: message 1"; "type error")]
+#[test_case(|| create_syntax_error_object("message 2", None) => "SyntaxError: message 2"; "syntax error")]
 fn unwind_any_error_value(maker: fn() -> Object) -> String {
     setup_test_agent();
     let errobj = maker();
     super::unwind_any_error_value(ECMAScriptValue::from(errobj))
 }
 
-#[test_case(|| create_type_error(a, "blue") => "TypeError: blue"; "type error")]
-#[test_case(|| create_syntax_error(a, "ouch", None) => "SyntaxError: ouch"; "syntax error")]
+#[test_case(|| create_type_error("blue") => "TypeError: blue"; "type error")]
+#[test_case(|| create_syntax_error("ouch", None) => "SyntaxError: ouch"; "syntax error")]
 #[test_case(|| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
 fn unwind_any_error(maker: fn() -> AbruptCompletion) -> String {
     setup_test_agent();

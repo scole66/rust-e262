@@ -126,8 +126,8 @@ mod lexical_declaration {
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("let a=arguments;" => true; "yes")]
@@ -257,12 +257,11 @@ mod binding_list {
         setup_test_agent();
         let mut errs = vec![];
         BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
-            &agent,
             &mut errs,
             strict,
             is_constant_declaration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -389,12 +388,11 @@ mod lexical_binding {
         setup_test_agent();
         let mut errs = vec![];
         LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
-            &agent,
             &mut errs,
             strict,
             is_constant_declaration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]
@@ -485,8 +483,8 @@ mod variable_statement {
         VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("var a=arguments;" => true; "yes")]
@@ -611,8 +609,8 @@ mod variable_declaration_list {
         VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -756,8 +754,8 @@ mod variable_declaration {
         VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -859,8 +857,8 @@ mod binding_pattern {
         BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{a=arguments}" => true; "Object (yes)")]
@@ -1084,8 +1082,8 @@ mod object_binding_pattern {
         ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -1478,8 +1476,8 @@ mod array_binding_pattern {
         ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[]" => false; "emtpy")]
@@ -1580,8 +1578,8 @@ mod binding_rest_property {
         BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 }
 
@@ -1689,8 +1687,8 @@ mod binding_property_list {
         BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1812,8 +1810,8 @@ mod binding_element_list {
         BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1912,8 +1910,8 @@ mod binding_elision_element {
         BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -2033,8 +2031,8 @@ mod binding_property {
         BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -2180,8 +2178,8 @@ mod binding_element {
         BindingElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -2305,8 +2303,8 @@ mod single_name_binding {
         SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -2423,8 +2421,8 @@ mod binding_rest_element {
         BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...a" => false; "id")]

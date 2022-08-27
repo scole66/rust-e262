@@ -550,8 +550,8 @@ pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
 
     r
 }
-pub fn get_realm_name(realm: &Realm) -> String {
-    let op = intrinsics.get(IntrinsicId::ObjectPrototype);
+pub fn get_realm_name() -> String {
+    let op = intrinsic(IntrinsicId::ObjectPrototype);
     let name = get(&op, &"name".into()).unwrap();
     to_string(name).unwrap().into()
 }
@@ -609,7 +609,7 @@ macro_rules! tbd_function {
         #[should_panic(expected = "not yet implemented")]
         fn $name() {
             setup_test_agent();
-            super::$name(&ECMAScriptValue::Undefined, None, &[]).unwrap();
+            super::$name(ECMAScriptValue::Undefined, None, &[]).unwrap();
         }
     };
 }
@@ -654,7 +654,7 @@ macro_rules! default_set_prototype_of_test {
         fn set_prototype_of() {
             setup_test_agent();
             let obj = make();
-            let res = obj.o.set_prototype_of(&None).unwrap();
+            let res = obj.o.set_prototype_of(None).unwrap();
             assert!(res);
             assert!(obj.o.get_prototype_of().unwrap().is_none());
         }
@@ -692,7 +692,7 @@ macro_rules! default_delete_test {
         fn delete() {
             setup_test_agent();
             let obj = make();
-            let res = obj.o.delete(&&PropertyKey::from("rust")).unwrap();
+            let res = obj.o.delete(&PropertyKey::from("rust")).unwrap();
             assert_eq!(res, true);
         }
     };
@@ -716,7 +716,7 @@ macro_rules! default_has_property_test {
         fn has_property() {
             setup_test_agent();
             let obj = make();
-            let res = obj.o.has_property(&&PropertyKey::from("test_sentinel")).unwrap();
+            let res = obj.o.has_property(&PropertyKey::from("test_sentinel")).unwrap();
             assert_eq!(res, false);
             obj.o
                 .define_own_property(
@@ -728,7 +728,7 @@ macro_rules! default_has_property_test {
                         .configurable(true),
                 )
                 .unwrap();
-            let res2 = obj.o.has_property(&&PropertyKey::from("test_sentinel")).unwrap();
+            let res2 = obj.o.has_property(&PropertyKey::from("test_sentinel")).unwrap();
             assert_eq!(res2, true);
         }
     };
@@ -797,7 +797,7 @@ macro_rules! default_define_own_property_test {
             setup_test_agent();
             let obj = make();
 
-            let success = obj.o.define_own_property(& key.into(), new_value).unwrap();
+            let success = obj.o.define_own_property(key.into(), new_value).unwrap();
             let properties = obj
                 .o
                 .common_object_data()
@@ -813,10 +813,10 @@ macro_rules! default_define_own_property_test {
 #[macro_export]
 macro_rules! default_get_test {
     ( $key_on_proto:expr, $val_on_proto:expr ) => {
-        #[test_case(|_| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
-        #[test_case(|_| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
+        #[test_case(|| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
+        #[test_case(|| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
         #[test_case($key_on_proto => $val_on_proto; "from prototype")]
-        fn get(make_key: impl FnOnce(&Agent) -> PropertyKey) -> ECMAScriptValue {
+        fn get(make_key: impl FnOnce() -> PropertyKey) -> ECMAScriptValue {
             setup_test_agent();
             let obj = make();
             let key = make_key();
@@ -832,7 +832,7 @@ macro_rules! default_get_test {
                 .unwrap();
 
             let receiver = ECMAScriptValue::from(obj.clone());
-            obj.o.get(&&key, &receiver).unwrap()
+            obj.o.get(&key, &receiver).unwrap()
         }
     };
 }
@@ -865,7 +865,7 @@ macro_rules! default_set_test {
             setup_test_agent();
             let obj = make();
             let receiver = ECMAScriptValue::Object(obj.clone());
-            let success = obj.o.set(& key.into(), new_val.into(), &receiver).unwrap();
+            let success = obj.o.set(key.into(), new_val.into(), &receiver).unwrap();
             let properties = obj
                 .o
                 .common_object_data()

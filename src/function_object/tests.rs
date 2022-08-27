@@ -57,14 +57,13 @@ mod function_declaration {
             let src = format!("function {name}(){{}}");
             let fd = Maker::new(&src).function_declaration();
             setup_test_agent();
-            let realm_rc = agent.current_realm_record().unwrap();
+            let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-            let fvalue =
-                fd.instantiate_function_object(&agent, global_env.clone(), None, false, &src, fd.clone()).unwrap();
+            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &src, fd.clone()).unwrap();
             let fobj = Object::try_from(fvalue).unwrap();
 
-            let result = String::from(JSString::try_from(get(&agent, &fobj, &"name".into()).unwrap()).unwrap());
+            let result = String::from(JSString::try_from(get(&fobj, &"name".into()).unwrap()).unwrap());
 
             let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
             assert_eq!(function.environment.name(), global_env.name());
@@ -94,13 +93,12 @@ mod function_declaration {
             let src = "function a(){ if (true) { @@@; } return 3; }";
             let fd = Maker::new(src).function_declaration();
             setup_test_agent();
-            let realm_rc = agent.current_realm_record().unwrap();
+            let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-            let fvalue =
-                fd.instantiate_function_object(&agent, global_env.clone(), None, false, src, fd.clone()).unwrap_err();
+            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap_err();
 
-            let msg = unwind_any_error(&agent, fvalue);
+            let msg = unwind_any_error(fvalue);
             assert_eq!(msg, "TypeError: out of range integral type conversion attempted");
         }
     }
@@ -115,12 +113,12 @@ mod generator_declaration {
         let fd = Maker::new(src).generator_declaration();
         setup_test_agent();
         let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
+            let realm_rc = current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -133,12 +131,12 @@ mod async_function_declaration {
         let fd = Maker::new(src).async_function_declaration();
         setup_test_agent();
         let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
+            let realm_rc = current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -151,12 +149,12 @@ mod async_generator_declaration {
         let fd = Maker::new(src).async_generator_declaration();
         setup_test_agent();
         let global_env = {
-            let realm_rc = agent.current_realm_record().unwrap();
+            let realm_rc = current_realm_record().unwrap();
             let realm = realm_rc.borrow();
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(&agent, global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
     }
 }
 
@@ -214,14 +212,14 @@ mod function_prototype_call {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(|_| ECMAScriptValue::Undefined, &[] => serr("TypeError: this isn't a function"); "bad this")]
-    #[test_case(|agent| ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
+    #[test_case(|| ECMAScriptValue::Undefined, &[] => serr("TypeError: this isn't a function"); "bad this")]
+    #[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
     fn function_prototype_call(
-        get_this: impl FnOnce(&Agent) -> ECMAScriptValue,
+        get_this: impl FnOnce() -> ECMAScriptValue,
         args: &[ECMAScriptValue],
     ) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        let this_value = get_this(&agent);
-        super::function_prototype_call(&agent, this_value, None, args).map_err(|err| unwind_any_error(&agent, err))
+        let this_value = get_this();
+        super::function_prototype_call(this_value, None, args).map_err(|err| unwind_any_error(err))
     }
 }

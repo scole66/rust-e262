@@ -122,8 +122,8 @@ mod switch_statement {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).switch_statement().early_errors(&agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).switch_statement().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("switch(arguments){}" => true; "left")]
@@ -388,8 +388,8 @@ mod case_block {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_block().early_errors(&agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).case_block().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{ }" => Vec::<String>::new(); "empty")]
@@ -556,8 +556,8 @@ mod case_clauses {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clauses().early_errors(&agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).case_clauses().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("case 0: let a;" => vec!["a"]; "single")]
@@ -694,8 +694,8 @@ mod case_clause {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clause().early_errors(&agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).case_clause().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
@@ -822,8 +822,8 @@ mod default_clause {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).default_clause().early_errors(&agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).default_clause().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("default:" => Vec::<String>::new(); "no statements")]

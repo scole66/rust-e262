@@ -130,12 +130,11 @@ mod continue_statement {
         setup_test_agent();
         let mut errs = vec![];
         ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
-            &agent,
             &mut errs,
             strict,
             within_iteration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "no label")]

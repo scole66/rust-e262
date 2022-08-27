@@ -218,12 +218,12 @@ mod identifier {
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
-            identifier.early_errors(&agent, &mut errs, strict, false);
+            identifier.early_errors(&mut errs, strict, false);
             if errs.is_empty() {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(&agent, errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(errs.swap_remove(0)))
             }
         }
 
@@ -268,9 +268,9 @@ mod identifier {
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
-            identifier.early_errors(&agent, &mut errs, false, false);
+            identifier.early_errors(&mut errs, false, false);
             assert_eq!(errs.len(), 1);
-            unwind_syntax_error_object(&agent, errs.swap_remove(0))
+            unwind_syntax_error_object(errs.swap_remove(0))
         }
 
         #[test_case("aw\\u0061it", true => Err(String::from("‘await’ not allowed as an identifier in modules")); "await in module")]
@@ -279,12 +279,12 @@ mod identifier {
             setup_test_agent();
             let (ident, _) = Identifier::parse(&mut newparser(src), Scanner::new()).unwrap();
             let mut errs = vec![];
-            ident.early_errors(&agent, &mut errs, false, in_module);
+            ident.early_errors(&mut errs, false, in_module);
             if errs.is_empty() {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(&agent, errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(errs.swap_remove(0)))
             }
         }
     }
@@ -543,8 +543,8 @@ mod identifier_reference {
         )
         .unwrap();
         let mut errs = vec![];
-        item.early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        item.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "IdentifierName/no")]
@@ -842,8 +842,8 @@ mod binding_identifier {
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&agent, &mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            item.early_errors(&mut errs, strict);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
     }
 
@@ -1110,8 +1110,8 @@ mod label_identifier {
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&agent, &mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            item.early_errors(&mut errs, strict);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
     }
 

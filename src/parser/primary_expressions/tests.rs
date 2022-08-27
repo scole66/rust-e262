@@ -520,8 +520,8 @@ mod primary_expression {
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("this" => true; "this")]
@@ -996,8 +996,8 @@ mod spread_element {
         SpreadElement::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...xyzzy" => false; "no")]
@@ -1356,11 +1356,8 @@ mod element_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        ElementList::parse(&mut newparser(src), Scanner::new(), false, true)
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        ElementList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("xyzzy" => false; "AssignmentExpression (no)")]
@@ -1632,8 +1629,8 @@ mod array_literal {
         ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[]" => false; "empty")]
@@ -1729,8 +1726,8 @@ mod initializer {
         Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("=xyzzy" => false; "no")]
@@ -1814,8 +1811,8 @@ mod cover_initialized_name {
         CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test]
@@ -1900,8 +1897,8 @@ mod computed_property_name {
         ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
     #[test_case("[xyzzy]" => false; "no")]
     #[test_case("[arguments]" => true; "yes")]
@@ -2142,8 +2139,8 @@ mod property_name {
         PropertyName::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => Some(JSString::from("a")); "normal")]
@@ -2401,8 +2398,8 @@ mod property_definition {
         PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => Some(JSString::from("a")); "identifier")]
@@ -2559,8 +2556,8 @@ mod property_definition_list {
         PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a:x" => 0; "one item, not proto")]
@@ -2745,8 +2742,8 @@ mod object_literal {
         ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "{} (empty)")]
@@ -2836,8 +2833,8 @@ mod parenthesized_expression {
         ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("(a)" => false; "parenthesized idref")]
@@ -3008,8 +3005,8 @@ mod template_middle_list {
         TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("}\\u{66}${0", true => vec![Some(JSString::from("\\u{66}"))]; "item-raw")]
@@ -3129,8 +3126,8 @@ mod template_spans {
         TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("}\\u{66}`", true => vec![Some(JSString::from("\\u{66}"))]; "tail-raw")]
@@ -3249,8 +3246,8 @@ mod substitution_template {
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).tagged_ok(tagged).substitution_template().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).tagged_ok(tagged).substitution_template().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("`a${0}\\u{66}`", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "raw")]
@@ -3389,8 +3386,8 @@ mod template_literal {
             TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
                 .unwrap()
                 .0
-                .early_errors(&agent, &mut errs, strict, 4294967295);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+                .early_errors(&mut errs, strict, 4294967295);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
 
         #[test]
@@ -3405,13 +3402,11 @@ mod template_literal {
             src.push('`');
             let mut errs = vec![];
             TemplateLiteral::parse(&mut newparser(&src), Scanner::new(), false, true, false).unwrap().0.early_errors(
-                &agent,
                 &mut errs,
                 false,
                 limit - 1,
             );
-            let err_set =
-                AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())));
+            let err_set = AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())));
             assert_eq!(err_set, sset(&["Template literal too complex"]));
         }
     }
@@ -3997,8 +3992,8 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]

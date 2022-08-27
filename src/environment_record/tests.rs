@@ -1017,17 +1017,8 @@ mod function_environment_record {
         let global_env = realm.borrow().global_env.clone().unwrap();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let chunk = Rc::new(Chunk::new("empty"));
-        let closure = ordinary_function_create(
-            function_prototype,
-            src,
-            params,
-            body,
-            this_mode,
-            global_env,
-            None,
-            true,
-            chunk,
-        );
+        let closure =
+            ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk);
         (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
     }
 

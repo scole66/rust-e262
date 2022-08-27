@@ -49,10 +49,7 @@ mod agent {
                 function
             );
 
-            assert_eq!(
-                get(&generator_function, &"name".into()).unwrap(),
-                ECMAScriptValue::from("GeneratorFunction")
-            );
+            assert_eq!(get(&generator_function, &"name".into()).unwrap(), ECMAScriptValue::from("GeneratorFunction"));
             assert_eq!(get(&generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
             assert_eq!(
                 get(&generator_function, &"prototype".into()).unwrap(),
@@ -101,10 +98,7 @@ mod agent {
                 ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
             );
             let to_string_tag = wks(WksId::ToStringTag);
-            assert_eq!(
-                get(&generator_prototype, &to_string_tag.into()).unwrap(),
-                ECMAScriptValue::from("Generator")
-            );
+            assert_eq!(get(&generator_prototype, &to_string_tag.into()).unwrap(), ECMAScriptValue::from("Generator"));
         }
 
         #[test_case("next" => "next;1"; "next function")]
@@ -136,19 +130,19 @@ mod agent {
         assert_eq!(done_res, ECMAScriptValue::from(done));
     }
 
-    #[test_case(|_| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
-    #[test_case(|a| a.create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
-    #[test_case(|a| {
+    #[test_case(|| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
+    #[test_case(|| create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
+    #[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        GeneratorObject::object(a, Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
+        GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
     }, "TestingBrand" => Ok(GeneratorState::SuspendedStart); "valid")]
-    #[test_case(|a| {
+    #[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        GeneratorObject::object(a, Some(proto), GeneratorState::Executing, "TestingBrand").into()
+        GeneratorObject::object(Some(proto), GeneratorState::Executing, "TestingBrand").into()
     }, "TestingBrand" => serr("TypeError: Generator is already executing"); "already running")]
-    #[test_case(|a| {
+    #[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        GeneratorObject::object(a, Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
+        GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
     }, "OtherBrand" => serr("TypeError: Generator brand mismatch"); "brand mismatch")]
     fn generator_validate(
         make_value: impl FnOnce() -> ECMAScriptValue,
@@ -160,8 +154,8 @@ mod agent {
     }
 }
 
-#[test_case(|_| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
-#[test_case(|_| ECMAScriptValue::from(67) => Ok(ECMAScriptValue::from(67)); "pass-thru/number")]
+#[test_case(|| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
+#[test_case(|| ECMAScriptValue::from(67) => Ok(ECMAScriptValue::from(67)); "pass-thru/number")]
 fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let this_value = make_params();

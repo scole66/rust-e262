@@ -92,41 +92,44 @@ mod agent {
     }
     #[test]
     fn active_function_object() {
-        let agent = Agent::new();
+        setup_test_agent();
+        AGENT.with(|agent| agent.reset());
         // no Running Execution Context, so this should be None.
-        let afo = agent.active_function_object();
+        let afo = super::active_function_object();
         assert!(afo.is_none());
 
-        agent.initialize_host_defined_realm(true);
+        super::initialize_host_defined_realm(true);
         // Now there's an execution context, but still no active function, so this should still be None.
-        let afo = agent.active_function_object();
+        let afo = super::active_function_object();
         assert!(afo.is_none());
 
         // Create a new EC that _does_ have a function object; push it, and then check the active function.
         let fo = intrinsic(IntrinsicId::ThrowTypeError);
         let realm = current_realm_record().unwrap();
         let function_ec = ExecutionContext::new(Some(fo.clone()), realm, None);
-        agent.push_execution_context(function_ec);
+        super::push_execution_context(function_ec);
 
-        let afo = agent.active_function_object().unwrap();
+        let afo = super::active_function_object().unwrap();
         assert_eq!(afo, fo);
     }
     #[test]
     fn next_object_id() {
-        let agent = Agent::new();
+        setup_test_agent();
+        AGENT.with(|agent| agent.reset());
         // Starts at something, and then increases monotonically.
-        let first = agent.next_object_id();
+        let first = super::next_object_id();
         for x in 1..10 {
-            assert_eq!(agent.next_object_id(), x + first);
+            assert_eq!(super::next_object_id(), x + first);
         }
     }
     #[test]
     fn next_symbol_id() {
-        let agent = Agent::new();
+        setup_test_agent();
+        AGENT.with(|agent| agent.reset());
         // Starts at something, and then increases monotonically.
-        let first = agent.next_symbol_id();
+        let first = super::next_symbol_id();
         for x in 1..10 {
-            assert_eq!(agent.next_symbol_id(), x + first);
+            assert_eq!(super::next_symbol_id(), x + first);
         }
     }
     #[test]
@@ -136,10 +139,11 @@ mod agent {
 
     #[test]
     fn global_symbol_registry() {
+        setup_test_agent();
+        AGENT.with(|agent| agent.reset());
         let registry = Rc::new(RefCell::new(SymbolRegistry::new()));
-        let agent = Agent::new();
-        agent.set_global_symbol_registry(registry.clone());
-        let gsr = agent.global_symbol_registry();
+        AGENT.with(|agent| agent.set_global_symbol_registry(registry.clone()));
+        let gsr = super::global_symbol_registry();
         assert!(Rc::ptr_eq(&registry, &gsr));
     }
 
@@ -148,7 +152,8 @@ mod agent {
 
         #[test]
         fn empty_ec_stack() {
-            let agent = Agent::new();
+            setup_test_agent();
+            AGENT.with(|agent| agent.reset());
             assert!(current_realm_record().is_none());
         }
 
@@ -164,13 +169,11 @@ mod agent {
             let second_context = ExecutionContext::new(None, second_realm, None);
             push_execution_context(second_context);
 
-            let current = current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&current.borrow()), "second");
+            assert_eq!(get_realm_name(), "second");
 
             pop_execution_context();
 
-            let current = current_realm_record().unwrap();
-            assert_eq!(get_realm_name(&current.borrow()), "first");
+            assert_eq!(get_realm_name(), "first");
         }
     }
 
@@ -210,7 +213,7 @@ mod agent {
     fn typeof_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        typeof_operator(expr).map_err(|ac| unwind_any_error(ac))
+        super::typeof_operator(expr).map_err(|ac| unwind_any_error(ac))
     }
 
     fn superproperty() -> FullCompletion {
@@ -268,7 +271,7 @@ mod agent {
     fn delete_ref(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        delete_ref(expr).map_err(|ac| unwind_any_error(ac))
+        super::delete_ref(expr).map_err(|ac| unwind_any_error(ac))
     }
 
     #[test_case(|| ECMAScriptValue::from("left "),
@@ -291,20 +294,20 @@ mod agent {
                 || ECMAScriptValue::from(10),
                 BinOp::Add
                 => Ok(NormalCompletion::from("a10")); "stringify from left")]
-    #[test_case(|| ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+    #[test_case(|| ECMAScriptValue::from(super::super::wks(WksId::ToPrimitive)),
                 || ECMAScriptValue::from("a"),
                 BinOp::Add
                 => serr("TypeError: Symbols may not be converted to strings"); "left tostring errs")]
     #[test_case(|| ECMAScriptValue::from("a"),
-                || ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+                || ECMAScriptValue::from(super::super::wks(WksId::ToPrimitive)),
                 BinOp::Add
                 => serr("TypeError: Symbols may not be converted to strings"); "right tostring errs")]
-    #[test_case(|| ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+    #[test_case(|| ECMAScriptValue::from(super::super::wks(WksId::ToPrimitive)),
                 || ECMAScriptValue::from(10),
                 BinOp::Add
                 => serr("TypeError: Symbol values cannot be converted to Number values"); "left tonumeric errs")]
     #[test_case(|| ECMAScriptValue::from(10),
-                || ECMAScriptValue::from(wks(WksId::ToPrimitive)),
+                || ECMAScriptValue::from(super::super::wks(WksId::ToPrimitive)),
                 BinOp::Add
                 => serr("TypeError: Symbol values cannot be converted to Number values"); "right tonumeric errs")]
     #[test_case(|| ECMAScriptValue::from(2.0),
@@ -447,7 +450,7 @@ mod agent {
         setup_test_agent();
         let lval = make_lval();
         let rval = make_rval();
-        apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(ac))
+        super::apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(ac))
     }
 
     #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
@@ -465,7 +468,7 @@ mod agent {
     #[test_case(WksId::Unscopables => "Symbol.unscopables"; "Symbol.unscopables")]
     fn wks(id: WksId) -> String {
         setup_test_agent();
-        String::from(wks(id).description().unwrap())
+        String::from(super::wks(id).description().unwrap())
     }
 
     #[test]
@@ -597,7 +600,7 @@ mod agent {
             Some(function_prototype),
             None,
         );
-        let hi = wks(WksId::HasInstance);
+        let hi = super::wks(WksId::HasInstance);
         define_property_or_throw(
             &obj,
             hi,
@@ -672,7 +675,7 @@ mod agent {
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let type_error_generator = intrinsic(IntrinsicId::ThrowTypeError);
-            let iterator_sym = wks(WksId::Iterator);
+            let iterator_sym = super::super::wks(WksId::Iterator);
             assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             let callee = ao.o.get_own_property(&"callee".into()).unwrap().unwrap();
             assert_eq!(
@@ -769,7 +772,7 @@ mod agent {
                 assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
-            let iterator_sym = wks(WksId::Iterator);
+            let iterator_sym = super::super::wks(WksId::Iterator);
             assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             assert_eq!(get(&ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
         }
@@ -893,7 +896,7 @@ mod well_known_symbols {
     #[test]
     fn debug() {
         setup_test_agent();
-        let s = AGENT.with(|agent| format!("{:?}", agent.0.symbols));
+        let s = AGENT.with(|agent| format!("{:?}", agent.symbols));
         assert_ne!(s, "");
     }
 }
@@ -1187,7 +1190,7 @@ mod global_declaration_instantiation {
 
         let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
 
-        result.map_err(|err| unwind_any_error(err)).map(|| {
+        result.map_err(|err| unwind_any_error(err)).map(|_| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 

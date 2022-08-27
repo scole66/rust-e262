@@ -573,10 +573,10 @@ fn make_array_object() -> ECMAScriptValue {
 }
 #[test_case(make_ordinary_object => Ok(false); "ordinary object")]
 #[test_case(make_array_object => Ok(true); "array object")]
-#[test_case(|_| ECMAScriptValue::Undefined => Ok(false); "undefined")]
-#[test_case(|_| ECMAScriptValue::Null => Ok(false); "null")]
-#[test_case(|_| ECMAScriptValue::from(true) => Ok(false); "boolean")]
-#[test_case(|_| ECMAScriptValue::from(33.2) => Ok(false); "number")]
+#[test_case(|| ECMAScriptValue::Undefined => Ok(false); "undefined")]
+#[test_case(|| ECMAScriptValue::Null => Ok(false); "null")]
+#[test_case(|| ECMAScriptValue::from(true) => Ok(false); "boolean")]
+#[test_case(|| ECMAScriptValue::from(33.2) => Ok(false); "number")]
 fn is_array(make_arg: fn() -> ECMAScriptValue) -> Result<bool, String> {
     setup_test_agent();
     let arg = make_arg();

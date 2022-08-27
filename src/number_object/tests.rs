@@ -6,7 +6,7 @@ use num::BigInt;
 fn number_object_debug() {
     setup_test_agent();
     let no = NumberObject {
-        common: RefCell::new(CommonObjectData::new(&agent, None, false, NUMBER_OBJECT_SLOTS)),
+        common: RefCell::new(CommonObjectData::new(None, false, NUMBER_OBJECT_SLOTS)),
         number_data: RefCell::new(0.0),
     };
 
@@ -17,8 +17,8 @@ fn number_object_debug() {
 #[allow(clippy::float_cmp)]
 fn number_object_object() {
     setup_test_agent();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    let no = NumberObject::object(&agent, Some(number_prototype.clone()));
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    let no = NumberObject::object(Some(number_prototype.clone()));
 
     assert_eq!(no.o.common_object_data().borrow().prototype, Some(number_prototype));
     assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 0.0);
@@ -28,18 +28,18 @@ fn number_object_object() {
 #[allow(clippy::float_cmp)]
 fn create_number_object_01() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    assert_eq!(no.o.get_prototype_of(&agent).unwrap(), Some(number_prototype));
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    assert_eq!(no.o.get_prototype_of().unwrap(), Some(number_prototype));
     assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 100.0);
 }
 
 #[test]
 fn number_object_common_object_data() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let no = create_number_object(100.0);
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
 
     let cod = no.o.common_object_data();
 
@@ -52,7 +52,7 @@ fn number_object_common_object_data() {
 #[test]
 fn number_object_is_ordinary() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     let result = no.o.is_ordinary();
 
@@ -61,7 +61,7 @@ fn number_object_is_ordinary() {
 #[test]
 fn number_object_id() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     // ... essentially, assert that it doesn't panic.
     no.o.id();
@@ -69,7 +69,7 @@ fn number_object_id() {
 #[test]
 fn number_object_to_number_object() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     let result = no.o.to_number_obj();
     assert!(result.is_some());
@@ -77,7 +77,7 @@ fn number_object_to_number_object() {
 #[test]
 fn number_object_is_number_object() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     let result = no.o.is_number_object();
 
@@ -86,51 +86,50 @@ fn number_object_is_number_object() {
 #[test]
 fn number_object_get_prototype_of() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.get_prototype_of(&agent).unwrap();
+    let result = no.o.get_prototype_of().unwrap();
     assert!(result.is_some());
 }
 #[test]
 fn number_object_set_prototype_of() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.set_prototype_of(&agent, None).unwrap();
+    let result = no.o.set_prototype_of(None).unwrap();
     assert!(result);
 }
 #[test]
 fn number_object_is_extensible() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.is_extensible(&agent).unwrap();
+    let result = no.o.is_extensible().unwrap();
     assert!(result);
 }
 #[test]
 fn number_object_prevent_extensions() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.prevent_extensions(&agent).unwrap();
+    let result = no.o.prevent_extensions().unwrap();
     assert!(result);
 }
 #[test]
 fn number_object_get_own_property() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.get_own_property(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.get_own_property(&PropertyKey::from("a")).unwrap();
     assert!(result.is_none());
 }
 #[test]
 fn number_object_define_own_property() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     let result =
         no.o.define_own_property(
-            &agent,
             PropertyKey::from("a"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
         )
@@ -140,49 +139,48 @@ fn number_object_define_own_property() {
 #[test]
 fn number_object_has_property() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.has_property(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.has_property(&PropertyKey::from("a")).unwrap();
     assert!(!result);
 }
 #[test]
 fn number_object_get() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.get(&agent, &PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
+    let result = no.o.get(&PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
     assert_eq!(result, ECMAScriptValue::Undefined);
 }
 #[test]
 fn number_object_set() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     let result =
-        no.o.set(&agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone()))
-            .unwrap();
+        no.o.set(PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
     assert!(result);
 }
 #[test]
 fn number_object_delete() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.delete(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.delete(&PropertyKey::from("a")).unwrap();
     assert!(result);
 }
 #[test]
 fn number_object_own_property_keys() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
-    let result = no.o.own_property_keys(&agent).unwrap();
+    let result = no.o.own_property_keys().unwrap();
     assert_eq!(result, &[]);
 }
 #[test]
 fn number_object_other_automatic_functions() {
     setup_test_agent();
-    let no = create_number_object(&agent, 100.0);
+    let no = create_number_object(100.0);
 
     assert!(!no.o.is_error_object());
     assert!(no.o.to_function_obj().is_none());
@@ -202,37 +200,37 @@ fn number_object_other_automatic_functions() {
 #[test]
 fn number_constructor_data_props() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("EPSILON")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("EPSILON")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::EPSILON));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("MAX_SAFE_INTEGER")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("MAX_SAFE_INTEGER")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(9007199254740991.0));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("MAX_VALUE")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("MAX_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::MAX));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("MIN_SAFE_INTEGER")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("MIN_SAFE_INTEGER")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(-9007199254740991.0));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("MIN_VALUE")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("MIN_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(5e-324));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("NaN")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("NaN")).unwrap();
     assert!(matches!(val, ECMAScriptValue::Number(_)));
     if let ECMAScriptValue::Number(n) = val {
         assert!(n.is_nan());
     }
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("NEGATIVE_INFINITY")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("NEGATIVE_INFINITY")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::NEG_INFINITY));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("POSITIVE_INFINITY")).unwrap();
+    let val = get(&number_constructor, &PropertyKey::from("POSITIVE_INFINITY")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::INFINITY));
 
-    let val = get(&agent, &number_constructor, &PropertyKey::from("prototype")).unwrap();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let val = get(&number_constructor, &PropertyKey::from("prototype")).unwrap();
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
     assert_eq!(val, ECMAScriptValue::from(number_prototype));
 }
 
@@ -242,9 +240,9 @@ fn number_constructor_called_as_function_01() {
     //   > Number()
     //   0
     setup_test_agent();
-    let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
+    let number_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Number));
 
-    let result = call(&agent, &number_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
+    let result = call(&number_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(0));
 }
 #[test]
@@ -253,10 +251,9 @@ fn number_constructor_called_as_function_02() {
     //   > Number(true)
     //   1
     setup_test_agent();
-    let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
+    let number_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Number));
 
-    let result =
-        call(&agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(true)]).unwrap();
+    let result = call(&number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(true)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(1));
 }
 #[test]
@@ -265,11 +262,10 @@ fn number_constructor_called_as_function_03() {
     //   > Number(10n)
     //   10
     setup_test_agent();
-    let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
+    let number_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Number));
 
     let result =
-        call(&agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(BigInt::from(10))])
-            .unwrap();
+        call(&number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(BigInt::from(10))]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(10));
 }
 #[test]
@@ -279,12 +275,11 @@ fn number_constructor_called_as_function_04() {
     //   Uncaught TypeError: Cannot convert a Symbol value to a number
     //       at Number (<anonymous>)
     setup_test_agent();
-    let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
+    let number_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Number));
 
-    let sym = Symbol::new(&agent, None);
-    let result =
-        call(&agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(sym)]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
+    let sym = Symbol::new(None);
+    let result = call(&number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(sym)]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 
 #[test]
@@ -294,9 +289,9 @@ fn number_constructor_as_constructor_01() {
     //   > new Number()
     //   [Number: 0]
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let result = construct(&agent, &number_constructor, &[], None).unwrap();
+    let result = construct(&number_constructor, &[], None).unwrap();
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
@@ -312,10 +307,10 @@ fn number_constructor_as_constructor_02() {
     //   > new Number("0xbadfade")
     //   [Number: 195951326]
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
     let arg = ECMAScriptValue::from("0xbadfade");
 
-    let result = construct(&agent, &number_constructor, &[arg], None).unwrap();
+    let result = construct(&number_constructor, &[arg], None).unwrap();
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
@@ -329,12 +324,12 @@ fn number_constructor_throws() {
     // ordinary_create_from_contructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
     // This hack is to get around the "not configurable" characteristic of Number.prototype.
     // (It replaces Number.prototype (a data property) with an accessor property that throws when "prototype" is gotten.)
     let new_prop = PropertyKind::Accessor(AccessorProperty {
-        get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)),
+        get: ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError)),
         set: ECMAScriptValue::Undefined,
     });
     {
@@ -343,8 +338,8 @@ fn number_constructor_throws() {
         prop.property = new_prop;
     }
 
-    let result = construct(&agent, &number_constructor, &[], None).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Generic TypeError");
+    let result = construct(&number_constructor, &[], None).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 
 #[test]
@@ -353,18 +348,18 @@ fn number_is_finite_no_args() {
     //    > Number.isFinite()
     //    false
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_finite = get(&agent, &number_constructor, &PropertyKey::from("isFinite")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_finite = get(&number_constructor, &PropertyKey::from("isFinite")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    let result = call(&agent, &is_finite, &this_value, &[]).unwrap();
+    let result = call(&is_finite, &this_value, &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 #[test]
 fn number_is_finite_one_arg() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_finite = get(&agent, &number_constructor, &PropertyKey::from("isFinite")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_finite = get(&number_constructor, &PropertyKey::from("isFinite")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -376,29 +371,29 @@ fn number_is_finite_one_arg() {
         (89.3, true),
         (-89.3, true),
     ] {
-        let result = call(&agent, &is_finite, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
+        let result = call(&is_finite, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
 
-    let result = call(&agent, &is_finite, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
+    let result = call(&is_finite, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 
 #[test]
 fn number_is_integer_no_args() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_integer = get(&agent, &number_constructor, &PropertyKey::from("isInteger")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_integer = get(&number_constructor, &PropertyKey::from("isInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    let result = call(&agent, &is_integer, &this_value, &[]).unwrap();
+    let result = call(&is_integer, &this_value, &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 #[test]
 fn number_is_integer_one_arg() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_integer = get(&agent, &number_constructor, &PropertyKey::from("isInteger")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_integer = get(&number_constructor, &PropertyKey::from("isInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -412,29 +407,29 @@ fn number_is_integer_one_arg() {
         (10.0, true),
         (3.33e200, true),
     ] {
-        let result = call(&agent, &is_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
+        let result = call(&is_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
 
-    let result = call(&agent, &is_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
+    let result = call(&is_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 
 #[test]
 fn number_is_nan_no_args() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_nan = get(&agent, &number_constructor, &PropertyKey::from("isNaN")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_nan = get(&number_constructor, &PropertyKey::from("isNaN")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    let result = call(&agent, &is_nan, &this_value, &[]).unwrap();
+    let result = call(&is_nan, &this_value, &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 #[test]
 fn number_is_nan_one_arg() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_nan = get(&agent, &number_constructor, &PropertyKey::from("isNaN")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_nan = get(&number_constructor, &PropertyKey::from("isNaN")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -445,29 +440,29 @@ fn number_is_nan_one_arg() {
         (-0.0, false),
         (89.3, false),
     ] {
-        let result = call(&agent, &is_nan, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
+        let result = call(&is_nan, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
 
-    let result = call(&agent, &is_nan, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
+    let result = call(&is_nan, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 
 #[test]
 fn number_is_safe_integer_no_args() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_safe_integer = get(&agent, &number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_safe_integer = get(&number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    let result = call(&agent, &is_safe_integer, &this_value, &[]).unwrap();
+    let result = call(&is_safe_integer, &this_value, &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 #[test]
 fn number_is_safe_integer_one_arg() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let is_safe_integer = get(&agent, &number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let is_safe_integer = get(&number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -483,11 +478,11 @@ fn number_is_safe_integer_one_arg() {
         (-0x1fffffffffffff_i64 as f64, true),
         (-0x20000000000000_i64 as f64, false),
     ] {
-        let result = call(&agent, &is_safe_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
+        let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected), "Tried {}, should have been {:?}", arg, expected);
     }
 
-    let result = call(&agent, &is_safe_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
+    let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
 }
 
@@ -496,10 +491,10 @@ fn number_is_safe_integer_one_arg() {
 fn this_number_value_01() {
     // called with number object
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = this_number_value(&agent, number).unwrap();
+    let result = this_number_value(number).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
@@ -508,44 +503,44 @@ fn this_number_value_02() {
     // called with number value
     setup_test_agent();
 
-    let result = this_number_value(&agent, ECMAScriptValue::from(123)).unwrap();
+    let result = this_number_value(ECMAScriptValue::from(123)).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
 fn this_number_value_03() {
     // called with non-number object
     setup_test_agent();
-    let obj = ordinary_object_create(&agent, None, &[]);
+    let obj = ordinary_object_create(None, &[]);
 
-    let result = this_number_value(&agent, ECMAScriptValue::from(obj)).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = this_number_value(ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
 fn this_number_value_04() {
     // called with non-number, non-object value
     setup_test_agent();
 
-    let result = this_number_value(&agent, ECMAScriptValue::from(true)).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = this_number_value(ECMAScriptValue::from(true)).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 
 #[test]
 fn number_proto_to_string_01() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(number, &PropertyKey::from("toString"), &[]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("123"));
 }
 #[test]
 fn number_proto_to_string_02() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(25)]).unwrap();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(25)]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("4n.ji33333333"));
 }
@@ -553,71 +548,71 @@ fn number_proto_to_string_02() {
 #[test]
 fn number_proto_to_string_03() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
-    let sym = Symbol::new(&agent, None);
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
+    let sym = Symbol::new(None);
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(sym)]).unwrap_err();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(sym)]).unwrap_err();
 
-    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
+    assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 #[test]
 fn number_proto_to_string_04() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(2)]).unwrap();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(2)]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("1111011"));
 }
 #[test]
 fn number_proto_to_string_05() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(36)]).unwrap();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(36)]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("3f"));
 }
 #[test]
 fn number_proto_to_string_06() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(1)]).unwrap_err();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(1)]).unwrap_err();
 
-    assert_eq!(unwind_range_error(&agent, result), "Radix 1 out of range (must be in 2..36)");
+    assert_eq!(unwind_range_error(result), "Radix 1 out of range (must be in 2..36)");
 }
 #[test]
 fn number_proto_to_string_07() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(37)]).unwrap_err();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(37)]).unwrap_err();
 
-    assert_eq!(unwind_range_error(&agent, result), "Radix 37 out of range (must be in 2..36)");
+    assert_eq!(unwind_range_error(result), "Radix 37 out of range (must be in 2..36)");
 }
 #[test]
 fn number_proto_to_string_08() {
     // this_number_value is not actually a number
     setup_test_agent();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    let to_string = get(&agent, &number_prototype, &PropertyKey::from("toString")).unwrap();
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    let to_string = get(&number_prototype, &PropertyKey::from("toString")).unwrap();
 
-    let result = call(&agent, &to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = call(&to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
 fn number_proto_to_string_09() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(1.0e100)], None).unwrap();
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(1.0e100)], None).unwrap();
 
-    let result = invoke(&agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(30)]).unwrap();
+    let result = invoke(number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(30)]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("anhmc58j7ljq00000000000000000000000000000000000000000000000000000000"));
 }
@@ -631,11 +626,10 @@ fn double_to_radix_string_01() {
 
 fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
-    let result =
-        invoke(&agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(precision)]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(precision)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 #[test]
@@ -691,61 +685,61 @@ fn number_proto_to_precision_15() {
 fn number_proto_to_precision_12() {
     // this_number_value is not actually a number
     setup_test_agent();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&agent, &number_prototype, &PropertyKey::from("toPrecision")).unwrap();
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&number_prototype, &PropertyKey::from("toPrecision")).unwrap();
 
-    let result = call(&agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
 fn number_proto_to_precision_13() {
     // precision not present
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toPrecision"), &[]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("548.333"));
 }
 #[test]
 fn number_proto_to_precision_14() {
     // precision not convertable to number
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(None));
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toPrecision"), &[sym]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 #[test]
 fn number_proto_to_precision_16() {
     // precision out of range
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(0)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "Precision ‘0’ must lie within the range 1..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(0)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "Precision ‘0’ must lie within the range 1..100");
 }
 #[test]
 fn number_proto_to_precision_17() {
     // precision out of range
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(101)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "Precision ‘101’ must lie within the range 1..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "Precision ‘101’ must lie within the range 1..100");
 }
 #[test]
 fn number_proto_to_precision_18() {
     // precision just in range
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(100)]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(100)]).unwrap();
     assert_eq!(
         result,
         ECMAScriptValue::from(
@@ -756,11 +750,11 @@ fn number_proto_to_precision_18() {
 
 fn number_proto_to_exponent_test(value: f64, fraction_digits: u32, expected: &str) {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
     let result =
-        invoke(&agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+        invoke(number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 #[test]
@@ -778,32 +772,32 @@ fn number_proto_to_exponential_02() {
 #[test]
 fn number_proto_to_exponential_03() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toExponential"), &[]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toExponential"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("1e-1"));
 }
 #[test]
 fn number_proto_to_exponential_04() {
     // this_number_value is not actually a number
     setup_test_agent();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&agent, &number_prototype, &PropertyKey::from("toExponential")).unwrap();
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&number_prototype, &PropertyKey::from("toExponential")).unwrap();
 
-    let result = call(&agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
 fn number_proto_to_exponential_05() {
     // fractionDigits not convertable to number
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(None));
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toExponential"), &[sym]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toExponential"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 #[test]
 fn number_proto_to_exponential_06() {
@@ -813,22 +807,21 @@ fn number_proto_to_exponential_06() {
 fn number_proto_to_exponential_07() {
     // fractionDigits out of range
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result =
-        invoke(&agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(101)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "FractionDigits ‘101’ must lie within the range 0..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "FractionDigits ‘101’ must lie within the range 0..100");
 }
 #[test]
 fn number_proto_to_exponential_08() {
     // fractionDigits out of range
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(-1)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "FractionDigits ‘-1’ must lie within the range 0..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(-1)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "FractionDigits ‘-1’ must lie within the range 0..100");
 }
 #[test]
 fn number_proto_to_exponential_09() {
@@ -837,11 +830,10 @@ fn number_proto_to_exponential_09() {
 
 fn number_proto_to_fixed_test(value: f64, fraction_digits: u32, expected: &str) {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
-    let result =
-        invoke(&agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 
@@ -910,42 +902,42 @@ fn number_proto_to_fixed_15() {
 fn number_proto_to_fixed_16() {
     // empty arg list
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toFixed"), &[]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toFixed"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("0"));
 }
 #[test]
 fn number_proto_to_fixed_17() {
     // bad argument
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
+    let number_constructor = intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(None));
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toFixed"), &[sym]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbol values cannot be converted to Number values");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toFixed"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 #[test]
 fn number_proto_to_fixed_18() {
     // bad argument
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(-1)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "Argument for Number.toFixed must be in the range 0..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(-1)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "Argument for Number.toFixed must be in the range 0..100");
 }
 #[test]
 fn number_proto_to_fixed_19() {
     // bad argument
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(101)]).unwrap_err();
-    assert_eq!(unwind_range_error(&agent, result), "Argument for Number.toFixed must be in the range 0..100");
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(result), "Argument for Number.toFixed must be in the range 0..100");
 }
 #[test]
 fn number_proto_to_fixed_20() {
@@ -960,11 +952,11 @@ fn number_proto_to_fixed_20() {
 fn number_proto_to_fixed_21() {
     // this_number_value is not actually a number
     setup_test_agent();
-    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&agent, &number_prototype, &PropertyKey::from("toFixed")).unwrap();
+    let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&number_prototype, &PropertyKey::from("toFixed")).unwrap();
 
-    let result = call(&agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Number method called with non-number receiver");
+    let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 
 #[test]
@@ -996,20 +988,20 @@ fn number_proto_to_locale_string_01() {
     // Implementations of toLocaleString may not use the arguments for any use beyond their ECMA-402 specified uses. In
     // particular, if we defer to toString, the first argument must _not_ be used as the radix argument.
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(10)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(10)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("10"));
 }
 
 #[test]
 fn number_proto_value_of() {
     setup_test_agent();
-    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let number = construct(&agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
-    let result = invoke(&agent, number, &PropertyKey::from("valueOf"), &[]).unwrap();
+    let number = construct(&number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(number, &PropertyKey::from("valueOf"), &[]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from(0.1));
 }
