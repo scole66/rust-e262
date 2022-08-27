@@ -158,7 +158,7 @@ mod declarative_environment_record {
     fn new(name: impl Into<String> + Clone) {
         setup_test_agent();
         let name_dup: String = name.clone().into();
-        let global_env = agent.current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let der = DeclarativeEnvironmentRecord::new(Some(global_env.clone()), name);
         assert_eq!(der.outer_env.unwrap().name(), global_env.name());
         assert_eq!(der.name, name_dup);
@@ -1013,12 +1013,11 @@ mod function_environment_record {
         let params = node.params();
         let body = node.body();
 
-        let realm = agent.current_realm_record().unwrap();
+        let realm = current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let chunk = Rc::new(Chunk::new("empty"));
         let closure = ordinary_function_create(
-            agent,
             function_prototype,
             src,
             params,

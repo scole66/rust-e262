@@ -228,13 +228,7 @@ impl ObjectInterface for TestObject {
             ordinary_get(self, key, receiver)
         }
     }
-    fn set(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        value: ECMAScriptValue,
-        receiver: &ECMAScriptValue,
-    ) -> Completion<bool> {
+    fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         if self.set_throws.0 && self.set_throws.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error("[[Set]] called on TestObject"))
         } else {
@@ -304,7 +298,7 @@ impl TestObject {
         (false, None)
     }
     pub fn object(throwers: &[FunctionId]) -> Object {
-        let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
@@ -481,7 +475,7 @@ pub struct AdaptableMethods {
 
 impl AdaptableObject {
     pub fn object(methods: AdaptableMethods) -> Object {
-        let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
@@ -557,7 +551,7 @@ pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
     r
 }
 pub fn get_realm_name(realm: &Realm) -> String {
-    let op = realm.intrinsics.get(IntrinsicId::ObjectPrototype);
+    let op = intrinsics.get(IntrinsicId::ObjectPrototype);
     let name = get(&op, &"name".into()).unwrap();
     to_string(name).unwrap().into()
 }
@@ -625,7 +619,7 @@ macro_rules! false_function {
         #[test]
         fn $name() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             assert!(!obj.o.$name());
         }
     };
@@ -636,7 +630,7 @@ macro_rules! none_function {
         #[test]
         fn $name() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             assert!(obj.o.$name().is_none());
         }
     };
@@ -647,9 +641,9 @@ macro_rules! default_get_prototype_of_test {
         #[test]
         fn get_prototype_of() {
             setup_test_agent();
-            let obj = make(&agent);
-            let proto = obj.o.get_prototype_of(&agent).unwrap().unwrap();
-            assert_eq!(proto, agent.intrinsic(IntrinsicId::$proto));
+            let obj = make();
+            let proto = obj.o.get_prototype_of().unwrap().unwrap();
+            assert_eq!(proto, intrinsic(IntrinsicId::$proto));
         }
     };
 }
@@ -659,10 +653,10 @@ macro_rules! default_set_prototype_of_test {
         #[test]
         fn set_prototype_of() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             let res = obj.o.set_prototype_of(&None).unwrap();
             assert!(res);
-            assert!(obj.o.get_prototype_of(&agent).unwrap().is_none());
+            assert!(obj.o.get_prototype_of().unwrap().is_none());
         }
     };
 }
@@ -672,8 +666,8 @@ macro_rules! default_is_extensible_test {
         #[test]
         fn is_extensible() {
             setup_test_agent();
-            let obj = make(&agent);
-            let res = obj.o.is_extensible(&agent).unwrap();
+            let obj = make();
+            let res = obj.o.is_extensible().unwrap();
             assert!(res);
         }
     };
@@ -684,10 +678,10 @@ macro_rules! default_prevent_extensions_test {
         #[test]
         fn prevent_extensions() {
             setup_test_agent();
-            let obj = make(&agent);
-            let res = obj.o.prevent_extensions(&agent).unwrap();
+            let obj = make();
+            let res = obj.o.prevent_extensions().unwrap();
             assert!(res);
-            assert!(!obj.o.is_extensible(&agent).unwrap());
+            assert!(!obj.o.is_extensible().unwrap());
         }
     };
 }
@@ -697,7 +691,7 @@ macro_rules! default_delete_test {
         #[test]
         fn delete() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             let res = obj.o.delete(&&PropertyKey::from("rust")).unwrap();
             assert_eq!(res, true);
         }
@@ -709,8 +703,8 @@ macro_rules! default_id_test {
         #[test]
         fn id() {
             setup_test_agent();
-            let obj = make(&agent);
-            let obj2 = make(&agent);
+            let obj = make();
+            let obj2 = make();
             assert_ne!(obj.o.id(), obj2.o.id());
         }
     };
@@ -721,12 +715,11 @@ macro_rules! default_has_property_test {
         #[test]
         fn has_property() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             let res = obj.o.has_property(&&PropertyKey::from("test_sentinel")).unwrap();
             assert_eq!(res, false);
             obj.o
                 .define_own_property(
-                    &agent,
                     "test_sentinel".into(),
                     PotentialPropertyDescriptor::new()
                         .value("present")
@@ -746,7 +739,7 @@ macro_rules! default_is_ordinary_test {
         #[test]
         fn is_ordinary() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             assert!(obj.o.is_ordinary());
         }
     };
@@ -758,10 +751,10 @@ macro_rules! default_get_own_property_test {
         #[test_case("color" => None; "key not present")]
         fn get_own_property(key: &str) -> Option<IdealizedPropertyDescriptor> {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             obj.o
                 .define_own_property(
-                    &agent,
+
                     "test_sentinel".into(),
                     PotentialPropertyDescriptor::new().value("present").writable(true).enumerable(true).configurable(true),
                 )
@@ -802,7 +795,7 @@ macro_rules! default_define_own_property_test {
             key: &str,
         ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
 
             let success = obj.o.define_own_property(& key.into(), new_value).unwrap();
             let properties = obj
@@ -825,11 +818,10 @@ macro_rules! default_get_test {
         #[test_case($key_on_proto => $val_on_proto; "from prototype")]
         fn get(make_key: impl FnOnce(&Agent) -> PropertyKey) -> ECMAScriptValue {
             setup_test_agent();
-            let obj = make(&agent);
-            let key = make_key(&agent);
+            let obj = make();
+            let key = make_key();
             obj.o
                 .define_own_property(
-                    &agent,
                     "test_sentinel".into(),
                     PotentialPropertyDescriptor::new()
                         .value("present")
@@ -871,7 +863,7 @@ macro_rules! default_set_test {
             key: impl Into<PropertyKey>,
         ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
             let receiver = ECMAScriptValue::Object(obj.clone());
             let success = obj.o.set(& key.into(), new_val.into(), &receiver).unwrap();
             let properties = obj
@@ -892,55 +884,49 @@ macro_rules! default_own_property_keys_test {
         #[test]
         fn own_property_keys() {
             setup_test_agent();
-            let obj = make(&agent);
+            let obj = make();
 
-            let to_prim = agent.wks(WksId::ToPrimitive);
-            let species = agent.wks(WksId::Species);
+            let to_prim = wks(WksId::ToPrimitive);
+            let species = wks(WksId::Species);
 
             obj.o
                 .define_own_property(
-                    &agent,
                     "60".into(),
                     PotentialPropertyDescriptor::new().value("q").writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
             obj.o
                 .define_own_property(
-                    &agent,
                     "6".into(),
                     PotentialPropertyDescriptor::new().value("s").writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
             obj.o
                 .define_own_property(
-                    &agent,
                     "zebra".into(),
                     PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
             obj.o
                 .define_own_property(
-                    &agent,
                     "alpha".into(),
                     PotentialPropertyDescriptor::new().value(1).writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
             obj.o
                 .define_own_property(
-                    &agent,
                     to_prim.clone().into(),
                     PotentialPropertyDescriptor::new().value(2).writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
             obj.o
                 .define_own_property(
-                    &agent,
                     species.clone().into(),
                     PotentialPropertyDescriptor::new().value(3).writable(true).enumerable(true).configurable(true),
                 )
                 .unwrap();
 
-            let keys = obj.o.own_property_keys(&agent).unwrap();
+            let keys = obj.o.own_property_keys().unwrap();
 
             assert_eq!(
                 keys,

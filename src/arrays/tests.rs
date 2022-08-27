@@ -24,7 +24,7 @@ mod array_object {
                 Err(err) => Err(unwind_any_error(err)),
                 Ok(obj) => {
                     assert!(obj.is_array().unwrap());
-                    assert_eq!(obj.o.get_prototype_of().unwrap(), Some(agent.intrinsic(IntrinsicId::ArrayPrototype)));
+                    assert_eq!(obj.o.get_prototype_of().unwrap(), Some(intrinsic(IntrinsicId::ArrayPrototype)));
                     Ok(obj.o.common_object_data().borrow().propdump())
                 }
             }
@@ -33,7 +33,7 @@ mod array_object {
         #[test]
         fn proto_specified() {
             setup_test_agent();
-            let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
 
             let obj = ArrayObject::create(600, Some(object_proto.clone())).unwrap();
             assert!(obj.is_array().unwrap());
@@ -60,14 +60,14 @@ mod array_object {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
         let a_proto = a.o.get_prototype_of().unwrap().unwrap();
-        assert_eq!(a_proto, agent.intrinsic(IntrinsicId::ArrayPrototype));
+        assert_eq!(a_proto, intrinsic(IntrinsicId::ArrayPrototype));
     }
 
     #[test]
     fn set_prototype_of() {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
-        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let success = a.o.set_prototype_of(Some(obj_proto.clone())).unwrap();
         assert!(success);
         assert_eq!(obj_proto, a.o.get_prototype_of().unwrap().unwrap());
@@ -281,7 +281,6 @@ mod array_object {
         use test_case::test_case;
 
         fn value_just_once(
-            agent: &Agent,
             this_value: ECMAScriptValue,
             _: Option<&Object>,
             _: &[ECMAScriptValue],
@@ -298,8 +297,8 @@ mod array_object {
             }
         }
         fn screwy_get_value() -> PotentialPropertyDescriptor {
-            let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
             let obj = ordinary_object_create(Some(object_proto), &[]);
             let value_of = create_builtin_function(
                 value_just_once,
@@ -325,29 +324,29 @@ mod array_object {
             .unwrap();
             PotentialPropertyDescriptor { value: Some(obj.into()), ..Default::default() }
         }
-        fn readonly(_: &Agent) -> PotentialPropertyDescriptor {
+        fn readonly() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }
         }
-        fn fraction(_: &Agent) -> PotentialPropertyDescriptor {
+        fn fraction() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(1.5.into()), ..Default::default() }
         }
-        fn symbol(a: &Agent) -> PotentialPropertyDescriptor {
-            let sym = a.wks(WksId::Species);
+        fn symbol() -> PotentialPropertyDescriptor {
+            let sym = wks(WksId::Species);
             PotentialPropertyDescriptor { value: Some(sym.into()), ..Default::default() }
         }
-        fn bigger(_: &Agent) -> PotentialPropertyDescriptor {
+        fn bigger() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(7000.into()), ..Default::default() }
         }
-        fn configurable_400(_: &Agent) -> PotentialPropertyDescriptor {
+        fn configurable_400() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(400.into()), configurable: Some(true), ..Default::default() }
         }
-        fn writable_700(_: &Agent) -> PotentialPropertyDescriptor {
+        fn writable_700() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(700.0.into()), writable: Some(true), ..Default::default() }
         }
-        fn readonly_0(_: &Agent) -> PotentialPropertyDescriptor {
+        fn readonly_0() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(0.into()), writable: Some(false), ..Default::default() }
         }
-        fn fifty(_: &Agent) -> PotentialPropertyDescriptor {
+        fn fifty() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(50.0.into()), ..Default::default() }
         }
 
@@ -557,7 +556,7 @@ mod array_object {
 #[test]
 fn array_create() {
     setup_test_agent();
-    let array_proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
+    let array_proto = intrinsic(IntrinsicId::ArrayPrototype);
     let custom_proto = ordinary_object_create(Some(array_proto), &[]);
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
@@ -566,7 +565,7 @@ fn array_create() {
 }
 
 fn make_ordinary_object() -> ECMAScriptValue {
-    let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let proto = intrinsic(IntrinsicId::ObjectPrototype);
     ordinary_object_create(Some(proto), &[]).into()
 }
 fn make_array_object() -> ECMAScriptValue {
@@ -590,13 +589,13 @@ mod array_species_create {
     use test_case::test_case;
 
     fn make_ordinary() -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let proto = intrinsic(IntrinsicId::ObjectPrototype);
         ordinary_object_create(Some(proto), &[])
     }
 
     fn make_throwing_constructor_prop() -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-        let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
         let obj = super::super::array_create(0, Some(proto)).unwrap();
         let constructor_getter = create_builtin_function(
             faux_errors,
@@ -623,7 +622,7 @@ mod array_species_create {
         obj
     }
     fn make_undefined_constructor_prop() -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
         let obj = super::super::array_create(0, Some(proto)).unwrap();
         define_property_or_throw(
             &obj,
@@ -640,11 +639,11 @@ mod array_species_create {
         obj
     }
     fn make_plain_array() -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
         super::super::array_create(5, Some(proto)).unwrap()
     }
     fn make_primitive_constructor_prop() -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
         let obj = super::super::array_create(0, Some(proto)).unwrap();
         define_property_or_throw(
             &obj,
