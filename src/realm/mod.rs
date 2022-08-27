@@ -130,14 +130,14 @@ pub struct Intrinsics {
 }
 
 impl Intrinsics {
-    fn new(agent: &Agent) -> Self {
+    fn new() -> Self {
         // Since an intrinsics struct needs to be populated in a particular order and then fixed up, RAII doesn't work
         // so grand. Therefore, a "dead object" is placed in each field instead. This quickly gives us an initialized
         // struct, and also generates run-time panics if any "un-initialized" members are actually used. (Option<Object>
         // could have done a similar thing, except that then the check would be made for _every_ access of the field
         // itself, rather than when the data the field references is manipulated. In other words, this is actually far
         // less overhead.)
-        let dead = DeadObject::object(agent);
+        let dead = DeadObject::object();
         Intrinsics {
             aggregate_error: dead.clone(),
             array: dead.clone(),
@@ -299,9 +299,9 @@ pub struct Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm(agent: &Agent) -> Rc<RefCell<Realm>> {
-    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(agent), global_object: None, global_env: None }));
-    create_intrinsics(agent, r.clone());
+pub fn create_realm() -> Rc<RefCell<Realm>> {
+    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None }));
+    create_intrinsics(r.clone());
     r
 }
 
@@ -323,26 +323,25 @@ pub fn create_realm(agent: &Agent) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
+pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
-    let object_prototype = immutable_prototype_exotic_object_create(agent, None);
+    let object_prototype = immutable_prototype_exotic_object_create(None);
     realm_rec.borrow_mut().intrinsics.object_prototype = object_prototype.clone();
     // %Function.prototype%
-    let function_prototype = ordinary_object_create(agent, Some(object_prototype.clone()), &[]);
+    let function_prototype = ordinary_object_create(Some(object_prototype.clone()), &[]);
     realm_rec.borrow_mut().intrinsics.function_prototype = function_prototype.clone();
     // %ThrowTypeError%
-    realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(agent, realm_rec.clone());
+    realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
 
-    agent.provision_function_intrinsic(&realm_rec);
+    provision_function_intrinsic(&realm_rec);
 
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
-    let boolean_prototype = ordinary_object_create(agent, Some(object_prototype), &[InternalSlotName::BooleanData]);
+    let boolean_prototype = ordinary_object_create(Some(object_prototype), &[InternalSlotName::BooleanData]);
     realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
     let bool_constructor = create_builtin_function(
-        agent,
         throw_type_error,
         false,
         1_f64,
@@ -353,7 +352,6 @@ pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
         None,
     );
     define_property_or_throw(
-        agent,
         &bool_constructor,
         "prototype",
         PotentialPropertyDescriptor::new()
@@ -365,7 +363,6 @@ pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
     .unwrap();
     realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
     define_property_or_throw(
-        agent,
         &boolean_prototype,
         "constructor",
         PotentialPropertyDescriptor::new()
@@ -377,23 +374,23 @@ pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
-    provision_number_intrinsic(agent, &realm_rec);
+    provision_number_intrinsic(&realm_rec);
 
-    provision_error_intrinsic(agent, &realm_rec);
-    provision_eval_error_intrinsic(agent, &realm_rec);
-    provision_range_error_intrinsic(agent, &realm_rec);
-    provision_reference_error_intrinsic(agent, &realm_rec);
-    provision_syntax_error_intrinsic(agent, &realm_rec);
-    provision_type_error_intrinsic(agent, &realm_rec);
-    provision_uri_error_intrinsic(agent, &realm_rec);
-    provision_object_intrinsic(agent, &realm_rec);
-    provision_array_intrinsic(agent, &realm_rec);
-    provision_symbol_intrinsic(agent, &realm_rec);
-    agent.provision_string_intrinsic(&realm_rec);
-    agent.provision_iterator_prototype(&realm_rec);
-    agent.provision_generator_function_intrinsics(&realm_rec);
+    provision_error_intrinsic(&realm_rec);
+    provision_eval_error_intrinsic(&realm_rec);
+    provision_range_error_intrinsic(&realm_rec);
+    provision_reference_error_intrinsic(&realm_rec);
+    provision_syntax_error_intrinsic(&realm_rec);
+    provision_type_error_intrinsic(&realm_rec);
+    provision_uri_error_intrinsic(&realm_rec);
+    provision_object_intrinsic(&realm_rec);
+    provision_array_intrinsic(&realm_rec);
+    provision_symbol_intrinsic(&realm_rec);
+    provision_string_intrinsic(&realm_rec);
+    provision_iterator_prototype(&realm_rec);
+    provision_generator_function_intrinsics(&realm_rec);
 
-    add_restricted_function_properties(agent, &function_prototype, realm_rec);
+    add_restricted_function_properties(&function_prototype, realm_rec);
 }
 
 // From function objects...
@@ -408,10 +405,9 @@ pub fn create_intrinsics(agent: &Agent, realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(agent: &Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
+pub fn add_restricted_function_properties(f: &Object, realm: Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
-        agent,
         f,
         "caller",
         PotentialPropertyDescriptor::new()
@@ -422,7 +418,6 @@ pub fn add_restricted_function_properties(agent: &Agent, f: &Object, realm: Rc<R
     )
     .unwrap();
     define_property_or_throw(
-        agent,
         f,
         "arguments",
         PotentialPropertyDescriptor::new().get(thrower.clone()).set(thrower).enumerable(false).configurable(true),
@@ -445,18 +440,16 @@ pub fn add_restricted_function_properties(agent: &Agent, f: &Object, realm: Rc<R
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
 pub fn throw_type_error(
-    agent: &Agent,
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Err(create_type_error(agent, "Generic TypeError"))
+    Err(create_type_error("Generic TypeError"))
 }
 
-fn create_throw_type_error_builtin(agent: &Agent, realm: Rc<RefCell<Realm>>) -> Object {
+fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(
-        agent,
         throw_type_error,
         false,
         0_f64,
@@ -466,16 +459,14 @@ fn create_throw_type_error_builtin(agent: &Agent, realm: Rc<RefCell<Realm>>) -> 
         Some(function_proto),
         None,
     );
-    fcn.o.prevent_extensions(agent).unwrap();
+    fcn.o.prevent_extensions().unwrap();
     define_property_or_throw(
-        agent,
         &fcn,
         "length",
         PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false),
     )
     .unwrap();
     define_property_or_throw(
-        agent,
         &fcn,
         "name",
         PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false),

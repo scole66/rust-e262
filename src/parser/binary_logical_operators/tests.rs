@@ -117,13 +117,13 @@ mod logical_and_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package&&interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -278,13 +278,13 @@ mod logical_or_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package||interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -429,13 +429,13 @@ mod coalesce_expression {
 
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments??bob" => true; "a coal b (left)")]
@@ -536,12 +536,12 @@ mod coalesce_expression_head {
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
     #[test_case("package??interface??q", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AE plus ME; AE bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         let ce = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), false, true, true).unwrap().0;
         let ceh = &ce.head;
-        ceh.early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        ceh.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments??bob" => true; "Exp (yes)")]
@@ -659,13 +659,13 @@ mod short_circuit_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package??interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

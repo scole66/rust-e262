@@ -127,13 +127,13 @@ mod exponentiation_expression {
     #[test_case("package**3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ** right; left bad")]
     #[test_case("3**package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ** right; right bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

@@ -63,10 +63,10 @@ mod throw_statement {
 
     #[test_case("throw package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).throw_statement().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).throw_statement().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("throw arguments;" => true; "yes")]

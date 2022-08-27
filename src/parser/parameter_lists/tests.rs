@@ -58,10 +58,10 @@ mod unique_formal_parameters {
     #[test_case("a,b,a", true => sset(&[A_ALREADY_DEFINED]); "strict: duplicate ids")]
     #[test_case("a,b,a", false => sset(&[A_ALREADY_DEFINED]); "non-strict: duplicate ids")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).unique_formal_parameters().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).unique_formal_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
@@ -310,10 +310,10 @@ mod formal_parameters {
     #[test_case("a,a", true, true => sset(&[]); "strict; duplicates; already reported")]
     #[test_case("a,...a", false, false => sset(&[A_ALREADY_DEFINED]); "not-simple")]
     fn early_errors(src: &str, strict: bool, dups_already_checked: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameters().early_errors(&agent, &mut errs, strict, dups_already_checked);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameters().early_errors(&mut errs, strict, dups_already_checked);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("" => false; "empty")]
@@ -477,10 +477,10 @@ mod formal_parameter_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
     #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "FormalParameterList , FormalParameter")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameter_list().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameter_list().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -579,10 +579,10 @@ mod function_rest_parameter {
 
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingRestElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).function_rest_parameter().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).function_rest_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...{a=arguments}" => true; "yes")]
@@ -675,10 +675,10 @@ mod formal_parameter {
 
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).formal_parameter().early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Maker::new(src).formal_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "yes")]

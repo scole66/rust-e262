@@ -1,7 +1,6 @@
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::testhelp::*;
-use crate::tests::*;
 use test_case::test_case;
 
 // ASYNC ARROW FUNCTION
@@ -250,7 +249,7 @@ fn async_arrow_function_test_early_errors() {
     AsyncArrowFunction::parse(&mut newparser("async x => x"), Scanner::new(), true, true, true)
         .unwrap()
         .0
-        .early_errors(&test_agent(), &mut vec![], true);
+        .early_errors(&mut vec![], true);
 }
 
 mod async_arrow_function {
@@ -356,11 +355,7 @@ fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_concise_body_test_early_errors() {
-    AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(
-        &test_agent(),
-        &mut vec![],
-        true,
-    );
+    AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut vec![], true);
 }
 
 mod async_concise_body {
@@ -413,11 +408,10 @@ fn async_arrow_binding_identifier_test_contains_01() {
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_binding_identifier_test_early_errors() {
-    AsyncArrowBindingIdentifier::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(
-        &test_agent(),
-        &mut vec![],
-        true,
-    );
+    AsyncArrowBindingIdentifier::parse(&mut newparser("x"), Scanner::new(), true)
+        .unwrap()
+        .0
+        .early_errors(&mut vec![], true);
 }
 
 // COVER CALL EXPRESSION AND ASYNC ARROW HEAD
@@ -503,7 +497,7 @@ fn cceaaah_test_early_errors() {
     CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("x()"), Scanner::new(), true, true)
         .unwrap()
         .0
-        .early_errors(&test_agent(), &mut vec![], true);
+        .early_errors(&mut vec![], true);
 }
 
 // ASYNC ARROW HEAD
@@ -556,11 +550,7 @@ fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_head_test_early_errors() {
-    AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(
-        &test_agent(),
-        &mut vec![],
-        true,
-    );
+    AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(&mut vec![], true);
 }
 
 mod async_arrow_head {

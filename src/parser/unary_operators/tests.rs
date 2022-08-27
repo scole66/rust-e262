@@ -399,13 +399,13 @@ mod unary_expression {
     #[test_case("! package", true => sset(&[PACKAGE_NOT_ALLOWED]); "not")]
     #[test_case("await package", true => sset(&[PACKAGE_NOT_ALLOWED]); "await_")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

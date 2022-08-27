@@ -214,16 +214,16 @@ mod identifier {
         #[test_case("static", false => Ok(()); "static non-strict")]
         #[test_case("yield", false => Ok(()); "yield non-strict")]
         fn strict(id: &str, strict: bool) -> Result<(), String> {
-            let agent = test_agent();
+            setup_test_agent();
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
-            identifier.early_errors(&agent, &mut errs, strict, false);
+            identifier.early_errors(&mut errs, strict, false);
             if errs.is_empty() {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(&agent, errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(errs.swap_remove(0)))
             }
         }
 
@@ -264,27 +264,27 @@ mod identifier {
         #[test_case("while" => String::from("‘while’ is a reserved word and may not be used as an identifier"); "keyword while")]
         #[test_case("with" => String::from("‘with’ is a reserved word and may not be used as an identifier"); "keyword with")]
         fn keyword(id: &str) -> String {
-            let agent = test_agent();
+            setup_test_agent();
             let (identifier, _) =
                 Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
-            identifier.early_errors(&agent, &mut errs, false, false);
+            identifier.early_errors(&mut errs, false, false);
             assert_eq!(errs.len(), 1);
-            unwind_syntax_error_object(&agent, errs.swap_remove(0))
+            unwind_syntax_error_object(errs.swap_remove(0))
         }
 
         #[test_case("aw\\u0061it", true => Err(String::from("‘await’ not allowed as an identifier in modules")); "await in module")]
         #[test_case("aw\\u0061it", false => Ok(()); "await in script")]
         fn module(src: &str, in_module: bool) -> Result<(), String> {
-            let agent = test_agent();
+            setup_test_agent();
             let (ident, _) = Identifier::parse(&mut newparser(src), Scanner::new()).unwrap();
             let mut errs = vec![];
-            ident.early_errors(&agent, &mut errs, false, in_module);
+            ident.early_errors(&mut errs, false, in_module);
             if errs.is_empty() {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(&agent, errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(errs.swap_remove(0)))
             }
         }
     }
@@ -533,7 +533,7 @@ mod identifier_reference {
         yield_expr_allowed: bool,
         await_expr_allowed: bool,
     ) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
         let (item, _) = IdentifierReference::parse(
             &mut Parser::new(src, false, goal),
@@ -543,8 +543,8 @@ mod identifier_reference {
         )
         .unwrap();
         let mut errs = vec![];
-        item.early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        item.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "IdentifierName/no")]
@@ -832,7 +832,7 @@ mod binding_identifier {
             yield_expr_allowed: bool,
             await_expr_allowed: bool,
         ) -> AHashSet<String> {
-            let agent = test_agent();
+            setup_test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = BindingIdentifier::parse(
                 &mut Parser::new(src, false, goal),
@@ -842,8 +842,8 @@ mod binding_identifier {
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&agent, &mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            item.early_errors(&mut errs, strict);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
     }
 
@@ -1100,7 +1100,7 @@ mod label_identifier {
             yield_expr_allowed: bool,
             await_expr_allowed: bool,
         ) -> AHashSet<String> {
-            let agent = test_agent();
+            setup_test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = LabelIdentifier::parse(
                 &mut Parser::new(src, false, goal),
@@ -1110,8 +1110,8 @@ mod label_identifier {
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&agent, &mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            item.early_errors(&mut errs, strict);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
     }
 

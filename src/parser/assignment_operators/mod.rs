@@ -413,7 +413,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentExpression :
         // LeftHandSideExpression AssignmentOperator AssignmentExpression
@@ -422,10 +422,10 @@ impl AssignmentExpression {
         // LeftHandSideExpression ??= AssignmentExpression
         // It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
         match self {
-            AssignmentExpression::FallThru(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::Yield(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::Arrow(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::AsyncArrow(node) => node.early_errors(agent, errs, strict),
+            AssignmentExpression::FallThru(node) => node.early_errors(errs, strict),
+            AssignmentExpression::Yield(node) => node.early_errors(errs, strict),
+            AssignmentExpression::Arrow(node) => node.early_errors(errs, strict),
+            AssignmentExpression::AsyncArrow(node) => node.early_errors(errs, strict),
             AssignmentExpression::Assignment(left, right)
             | AssignmentExpression::OpAssignment(left, _, right)
             | AssignmentExpression::LandAssignment(left, right)
@@ -441,17 +441,16 @@ impl AssignmentExpression {
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
                 if left.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "Invalid left-hand side in assignment",
                         Some(left.location()),
                     ));
                 }
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
             AssignmentExpression::Destructuring(pat, exp) => {
-                pat.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+                pat.early_errors(errs, strict);
+                exp.early_errors(errs, strict);
             }
         }
     }
@@ -683,10 +682,10 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentPattern::Object(obj) => obj.early_errors(agent, errs, strict),
-            AssignmentPattern::Array(ary) => ary.early_errors(agent, errs, strict),
+            AssignmentPattern::Object(obj) => obj.early_errors(errs, strict),
+            AssignmentPattern::Array(ary) => ary.early_errors(errs, strict),
         }
     }
 }
@@ -878,15 +877,15 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ObjectAssignmentPattern::Empty { .. } => (),
-            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.early_errors(agent, errs, strict),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.early_errors(errs, strict),
             ObjectAssignmentPattern::ListOnly { apl, .. }
-            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.early_errors(agent, errs, strict),
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.early_errors(errs, strict),
             ObjectAssignmentPattern::ListRest { apl, arp: Some(apr), .. } => {
-                apl.early_errors(agent, errs, strict);
-                apr.early_errors(agent, errs, strict);
+                apl.early_errors(errs, strict);
+                apr.early_errors(errs, strict);
             }
         }
     }
@@ -1128,16 +1127,16 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
-            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(errs, strict),
             ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
-                ael.early_errors(agent, errs, strict)
+                ael.early_errors(errs, strict)
             }
             ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
-                ael.early_errors(agent, errs, strict);
-                are.early_errors(agent, errs, strict);
+                ael.early_errors(errs, strict);
+                are.early_errors(errs, strict);
             }
         }
     }
@@ -1209,19 +1208,18 @@ impl AssignmentRestProperty {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
         if let DestructuringAssignmentTarget::AssignmentPattern(pat) = &*self.0 {
             // e.g.: ({...{a}}=b)
             errs.push(create_syntax_error_object(
-                agent,
                 "`...` must be followed by an assignable reference in assignment contexts",
                 Some(pat.location()),
             ));
         }
-        self.0.early_errors(agent, errs, strict);
+        self.0.early_errors(errs, strict);
     }
 }
 
@@ -1331,12 +1329,12 @@ impl AssignmentPropertyList {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentPropertyList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentPropertyList::Item(item) => item.early_errors(errs, strict),
             AssignmentPropertyList::List(list, item) => {
-                list.early_errors(agent, errs, strict);
-                item.early_errors(agent, errs, strict);
+                list.early_errors(errs, strict);
+                item.early_errors(errs, strict);
             }
         }
     }
@@ -1449,12 +1447,12 @@ impl AssignmentElementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentElementList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentElementList::Item(item) => item.early_errors(errs, strict),
             AssignmentElementList::List(list, item) => {
-                list.early_errors(agent, errs, strict);
-                item.early_errors(agent, errs, strict);
+                list.early_errors(errs, strict);
+                item.early_errors(errs, strict);
             }
         }
     }
@@ -1543,8 +1541,8 @@ impl AssignmentElisionElement {
         self.element.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(errs, strict);
     }
 }
 
@@ -1675,7 +1673,7 @@ impl AssignmentProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentProperty : IdentifierReference Initializeropt
         //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
@@ -1689,19 +1687,18 @@ impl AssignmentProperty {
                     // that returns a Result<(), String>, where the error case is a description of why things aren't
                     // simple.
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("Identifier {} is an invalid left-hand-side", idref.string_value()),
                         Some(idref.location()),
                     ));
                 }
-                idref.early_errors(agent, errs, strict);
+                idref.early_errors(errs, strict);
                 if let Some(i) = izer {
-                    i.early_errors(agent, errs, strict);
+                    i.early_errors(errs, strict);
                 }
             }
             AssignmentProperty::Property(pn, ae) => {
-                pn.early_errors(agent, errs, strict);
-                ae.early_errors(agent, errs, strict);
+                pn.early_errors(errs, strict);
+                ae.early_errors(errs, strict);
             }
         }
     }
@@ -1799,10 +1796,10 @@ impl AssignmentElement {
         self.target.contains_arguments() || self.initializer.as_ref().map_or(false, |izer| izer.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.target.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.target.early_errors(errs, strict);
         if let Some(izer) = &self.initializer {
-            izer.early_errors(agent, errs, strict);
+            izer.early_errors(errs, strict);
         }
     }
 }
@@ -1874,8 +1871,8 @@ impl AssignmentRestElement {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(errs, strict);
     }
 }
 
@@ -1974,7 +1971,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // DestructuringAssignmentTarget : LeftHandSideExpression
         //  * If LeftHandSideExpression is an ObjectLiteral or an ArrayLiteral, the following Early Error rules are applied:
@@ -1982,16 +1979,12 @@ impl DestructuringAssignmentTarget {
         //  * If LeftHandSideExpression is neither an ObjectLiteral nor an ArrayLiteral, the following Early Error rule is applied:
         //      * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
         match self {
-            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(agent, errs, strict),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(errs, strict),
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
                 if lhs.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        "Invalid left-hand side in assignment",
-                        Some(lhs.location()),
-                    ));
+                    errs.push(create_syntax_error_object("Invalid left-hand side in assignment", Some(lhs.location())));
                 }
-                lhs.early_errors(agent, errs, strict);
+                lhs.early_errors(errs, strict);
             }
         }
     }

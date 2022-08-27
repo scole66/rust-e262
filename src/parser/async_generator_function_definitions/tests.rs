@@ -1,7 +1,6 @@
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::testhelp::*;
-use crate::tests::*;
 use test_case::test_case;
 
 // ASYNC GENERATOR METHOD
@@ -181,7 +180,7 @@ mod async_generator_method {
         AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&test_agent(), &mut vec![], true);
+            .early_errors(&mut vec![], true);
     }
 
     #[test]
@@ -523,7 +522,7 @@ mod async_generator_declaration {
         AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&test_agent(), &mut vec![], true);
+            .early_errors(&mut vec![], true);
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -754,7 +753,7 @@ mod async_generator_expression {
         AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new())
             .unwrap()
             .0
-            .early_errors(&test_agent(), &mut vec![], true);
+            .early_errors(&mut vec![], true);
     }
 
     #[test_case("async function *a(){}" => true; "named")]
@@ -819,11 +818,7 @@ mod async_generator_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(
-            &test_agent(),
-            &mut vec![],
-            true,
-        );
+        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut vec![], true);
     }
 
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]

@@ -338,7 +338,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             MethodDefinition::NamedFunction(cen, ufp, fb, _) => {
@@ -349,23 +349,18 @@ impl MethodDefinition {
                 //        the LexicallyDeclaredNames of FunctionBody.
                 if fb.function_body_contains_use_strict() && !ufp.is_simple_parameter_list() {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "Illegal 'use strict' directive in function with non-simple parameter list",
                         Some(ufp.location()),
                     ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        format!("‘{}’ already defined", name),
-                        Some(ufp.location()),
-                    ));
+                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(ufp.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
-                cen.early_errors(agent, errs, strict_function);
-                ufp.early_errors(agent, errs, strict_function);
-                fb.early_errors(agent, errs, strict_function);
+                cen.early_errors(errs, strict_function);
+                ufp.early_errors(errs, strict_function);
+                fb.early_errors(errs, strict_function);
             }
             MethodDefinition::Setter(cen, pspl, fb, _) => {
                 //  MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
@@ -377,40 +372,31 @@ impl MethodDefinition {
                 //        in the LexicallyDeclaredNames of FunctionBody.
                 let bn = pspl.bound_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        format!("‘{}’ already defined", name),
-                        Some(pspl.location()),
-                    ));
+                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
                 }
                 if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "Illegal 'use strict' directive in function with non-simple parameter list",
                         Some(pspl.location()),
                     ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        format!("‘{}’ already defined", name),
-                        Some(pspl.location()),
-                    ));
+                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
-                cen.early_errors(agent, errs, strict_function);
-                pspl.early_errors(agent, errs, strict_function);
-                fb.early_errors(agent, errs, strict_function);
+                cen.early_errors(errs, strict_function);
+                pspl.early_errors(errs, strict_function);
+                fb.early_errors(errs, strict_function);
             }
             MethodDefinition::Getter(cen, fb, _) => {
                 let strict_function = strict || fb.function_body_contains_use_strict();
-                cen.early_errors(agent, errs, strict_function);
-                fb.early_errors(agent, errs, strict_function);
+                cen.early_errors(errs, strict_function);
+                fb.early_errors(errs, strict_function);
             }
-            MethodDefinition::Generator(g) => g.early_errors(agent, errs, strict),
-            MethodDefinition::Async(a) => a.early_errors(agent, errs, strict),
-            MethodDefinition::AsyncGenerator(ag) => ag.early_errors(agent, errs, strict),
+            MethodDefinition::Generator(g) => g.early_errors(errs, strict),
+            MethodDefinition::Async(a) => a.early_errors(errs, strict),
+            MethodDefinition::AsyncGenerator(ag) => ag.early_errors(errs, strict),
         }
     }
 
@@ -507,8 +493,8 @@ impl PropertySetParameterList {
         self.node.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.node.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.node.early_errors(errs, strict);
     }
 }
 

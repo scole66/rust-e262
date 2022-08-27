@@ -149,14 +149,14 @@ impl ClassDeclaration {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>) {
         if let ClassDeclaration::Named { ident, .. } = self {
-            ident.early_errors(agent, errs, true);
+            ident.early_errors(errs, true);
         }
         let tail = match self {
             ClassDeclaration::Named { tail, .. } | ClassDeclaration::Unnamed { tail, .. } => tail,
         };
-        tail.early_errors(agent, errs, true);
+        tail.early_errors(errs, true);
     }
 
     pub fn is_constant_declaration(&self) -> bool {
@@ -271,11 +271,11 @@ impl ClassExpression {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>) {
         if let Some(name) = &self.ident {
-            name.early_errors(agent, errs, true);
+            name.early_errors(errs, true);
         }
-        self.tail.early_errors(agent, errs, true);
+        self.tail.early_errors(errs, true);
     }
 
     pub fn is_named_function(&self) -> bool {
@@ -426,7 +426,7 @@ impl ClassTail {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // ClassTail : ClassHeritageopt { ClassBody }
         //  * It is a Syntax Error if ClassHeritage is not present and the following algorithm returns true:
         //
@@ -438,7 +438,6 @@ impl ClassTail {
                 if let Some(constructor) = body.constructor_method() {
                     if constructor.has_direct_super() {
                         errs.push(create_syntax_error_object(
-                            agent,
                             "Cannot use super in a constructor with no parent class",
                             Some(constructor.location()),
                         ));
@@ -448,10 +447,10 @@ impl ClassTail {
         }
 
         if let Some(heritage) = &self.heritage {
-            heritage.early_errors(agent, errs, strict);
+            heritage.early_errors(errs, strict);
         }
         if let Some(body) = &self.body {
-            body.early_errors(agent, errs, strict);
+            body.early_errors(errs, strict);
         }
     }
 }
@@ -542,8 +541,8 @@ impl ClassHeritage {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.exp.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.exp.early_errors(errs, strict);
     }
 }
 
@@ -633,7 +632,7 @@ impl ClassBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // ClassBody : ClassElementList
         //  * It is a Syntax Error if PrototypePropertyNameList of ClassElementList contains more than one occurrence
         //    of "constructor".
@@ -641,11 +640,7 @@ impl ClassBody {
         //    unless the name is used once for a getter and once for a setter and in no other entries, and the getter
         //    and setter are either both static or both non-static.
         if self.0.prototype_property_name_list().into_iter().filter(|x| x == &"constructor").count() > 1 {
-            errs.push(create_syntax_error_object(
-                agent,
-                "Classes may have only one constructor",
-                Some(self.0.location()),
-            ));
+            errs.push(create_syntax_error_object("Classes may have only one constructor", Some(self.0.location())));
         }
         enum HowSeen {
             Completely,   // Any further use triggers "duplicate" error
@@ -659,14 +654,12 @@ impl ClassBody {
             match private_ids.get(&pid.name) {
                 Some(&HowSeen::Completely) => {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ already defined", pid.name),
                         Some(self.0.location()),
                     ));
                 }
                 Some(&HowSeen::Getter) if pid.usage != IdUsage::Setter => {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ was previously defined as a getter method.", pid.name),
                         Some(self.0.location()),
                     ));
@@ -676,7 +669,6 @@ impl ClassBody {
                 }
                 Some(&HowSeen::Setter) if pid.usage != IdUsage::Getter => {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ was previously defined as a setter method.", pid.name),
                         Some(self.0.location()),
                     ));
@@ -686,7 +678,6 @@ impl ClassBody {
                 }
                 Some(&HowSeen::StaticGetter) if pid.usage != IdUsage::StaticSetter => {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ was previously defined as a static getter method.", pid.name),
                         Some(self.0.location()),
                     ));
@@ -696,7 +687,6 @@ impl ClassBody {
                 }
                 Some(&HowSeen::StaticSetter) if pid.usage != IdUsage::StaticGetter => {
                     errs.push(create_syntax_error_object(
-                        agent,
                         format!("‘{}’ was previously defined as a static setter method.", pid.name),
                         Some(self.0.location()),
                     ));
@@ -719,7 +709,7 @@ impl ClassBody {
                 }
             }
         }
-        self.0.early_errors(agent, errs, strict);
+        self.0.early_errors(errs, strict);
     }
 
     pub fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
@@ -919,12 +909,12 @@ impl ClassElementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ClassElementList::Item(ce) => ce.early_errors(agent, errs, strict),
+            ClassElementList::Item(ce) => ce.early_errors(errs, strict),
             ClassElementList::List(cel, ce) => {
-                cel.early_errors(agent, errs, strict);
-                ce.early_errors(agent, errs, strict);
+                cel.early_errors(errs, strict);
+                ce.early_errors(errs, strict);
             }
         }
     }
@@ -1214,7 +1204,7 @@ impl ClassElement {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElement::Standard { method } => {
                 // ClassElement : MethodDefinition
@@ -1225,7 +1215,6 @@ impl ClassElement {
                     Some(s) if s == "constructor" => {
                         if method.special_method() {
                             errs.push(create_syntax_error_object(
-                                agent,
                                 "special methods not allowed for constructors",
                                 Some(method.location()),
                             ));
@@ -1234,14 +1223,13 @@ impl ClassElement {
                     Some(_) | None => {
                         if method.has_direct_super() {
                             errs.push(create_syntax_error_object(
-                                agent,
                                 "super only allowed for constructors",
                                 Some(method.location()),
                             ));
                         }
                     }
                 }
-                method.early_errors(agent, errs, strict);
+                method.early_errors(errs, strict);
             }
             ClassElement::Static { method, .. } => {
                 // ClassElement : static MethodDefinition
@@ -1249,52 +1237,43 @@ impl ClassElement {
                 //  * It is a Syntax Error if PropName of MethodDefinition is "prototype".
                 if method.has_direct_super() {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "super only allowed for constructors",
                         Some(method.location()),
                     ));
                 }
                 if matches!(method.prop_name(), Some(s) if s == "prototype") {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        "prototypes cannot be static",
-                        Some(method.location()),
-                    ));
+                    errs.push(create_syntax_error_object("prototypes cannot be static", Some(method.location())));
                 }
-                method.early_errors(agent, errs, strict);
+                method.early_errors(errs, strict);
             }
             ClassElement::Field { field, .. } => {
                 // ClassElement : FieldDefinition ;
                 //  * It is a Syntax Error if PropName of FieldDefinition is "constructor".
                 if matches!(field.prop_name(), Some(s) if s == "constructor") {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "constructors may not be defined as class fields",
                         Some(field.location()),
                     ));
                 }
-                field.early_errors(agent, errs, strict);
+                field.early_errors(errs, strict);
             }
             ClassElement::StaticField { field, .. } => {
                 // ClassElement : static FieldDefinition ;
                 //  * It is a Syntax Error if PropName of FieldDefinition is "prototype" or "constructor".
                 let pn = field.prop_name();
                 match pn {
-                    Some(s) if s == "prototype" => errs.push(create_syntax_error_object(
-                        agent,
-                        "prototypes cannot be static",
-                        Some(field.location()),
-                    )),
+                    Some(s) if s == "prototype" => {
+                        errs.push(create_syntax_error_object("prototypes cannot be static", Some(field.location())))
+                    }
                     Some(s) if s == "constructor" => errs.push(create_syntax_error_object(
-                        agent,
                         "constructors may not be defined as class fields",
                         Some(field.location()),
                     )),
                     _ => (),
                 }
-                field.early_errors(agent, errs, strict);
+                field.early_errors(errs, strict);
             }
-            ClassElement::StaticBlock { block } => block.early_errors(agent, errs, strict),
+            ClassElement::StaticBlock { block } => block.early_errors(errs, strict),
             ClassElement::Empty { .. } => (),
         }
     }
@@ -1474,24 +1453,20 @@ impl FieldDefinition {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // FieldDefinition :
         //  ClassElementName Initializer[opt]
         //  * It is a Syntax Error if Initializer is present and ContainsArguments of Initializer is true.
         //  * It is a Syntax Error if Initializer is present and Initializer Contains SuperCall is true.
-        self.name.early_errors(agent, errs, strict);
+        self.name.early_errors(errs, strict);
         if let Some(izer) = self.init.as_ref() {
             if izer.contains_arguments() {
-                errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here", Some(izer.location())));
+                errs.push(create_syntax_error_object("‘arguments’ not expected here", Some(izer.location())));
             }
             if izer.contains(ParseNodeKind::SuperCall) {
-                errs.push(create_syntax_error_object(
-                    agent,
-                    "Calls to ‘super’ not allowed here",
-                    Some(izer.location()),
-                ));
+                errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(izer.location())));
             }
-            izer.early_errors(agent, errs, strict);
+            izer.early_errors(errs, strict);
         }
     }
 
@@ -1638,20 +1613,16 @@ impl ClassElementName {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElementName::PrivateIdentifier { data: pid, location } => {
                 // ClassElementName : PrivateIdentifier
                 //  * It is a Syntax Error if StringValue of PrivateIdentifier is "#constructor".
                 if pid.string_value == "#constructor" {
-                    errs.push(create_syntax_error_object(
-                        agent,
-                        "#constructor is an invalid private id",
-                        Some(*location),
-                    ));
+                    errs.push(create_syntax_error_object("#constructor is an invalid private id", Some(*location)));
                 }
             }
-            ClassElementName::PropertyName(pn) => pn.early_errors(agent, errs, strict),
+            ClassElementName::PropertyName(pn) => pn.early_errors(errs, strict),
         }
     }
 
@@ -1761,8 +1732,8 @@ impl ClassStaticBlock {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.block.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.block.early_errors(errs, strict);
     }
 }
 
@@ -1821,7 +1792,7 @@ impl ClassStaticBlockBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ClassStaticBlockBody : ClassStaticBlockStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of ClassStaticBlockStatementList contains any duplicate
@@ -1839,43 +1810,31 @@ impl ClassStaticBlockBody {
         //  * It is a Syntax Error if ClassStaticBlockStatementList Contains await is true.
         let ldn = self.0.lexically_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", name),
-                Some(self.0.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.0.location())));
         }
         let vdn = self.0.var_declared_names();
         for name in ldn.iter().filter(|n| vdn.contains(n)) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", name),
-                Some(self.0.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.0.location())));
         }
         if self.0.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected", Some(self.0.location())));
+            errs.push(create_syntax_error_object("duplicate labels detected", Some(self.0.location())));
         }
         if self.0.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target detected", Some(self.0.location())));
+            errs.push(create_syntax_error_object("undefined break target detected", Some(self.0.location())));
         }
         if self.0.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target detected", Some(self.0.location())));
+            errs.push(create_syntax_error_object("undefined continue target detected", Some(self.0.location())));
         }
         if self.0.contains_arguments() {
-            errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here", Some(self.0.location())));
+            errs.push(create_syntax_error_object("‘arguments’ not expected here", Some(self.0.location())));
         }
         if self.0.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here", Some(self.0.location())));
+            errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(self.0.location())));
         }
         if self.0.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(
-                agent,
-                "await expressions not expected here",
-                Some(self.0.location()),
-            ));
+            errs.push(create_syntax_error_object("await expressions not expected here", Some(self.0.location())));
         }
-        self.0.early_errors(agent, errs, strict);
+        self.0.early_errors(errs, strict);
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1975,9 +1934,9 @@ impl ClassStaticBlockStatementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if let ClassStaticBlockStatementList::Statements(sl) = self {
-            sl.early_errors(agent, errs, strict, false, false);
+            sl.early_errors(errs, strict, false, false);
         }
     }
 

@@ -116,26 +116,18 @@ impl WithStatement {
         self.expression.contains_arguments() || self.statement.contains_arguments()
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  WithStatement : with ( Expression ) Statement
         //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.
         if strict {
             errs.push(create_syntax_error_object(
-                agent,
                 "'with' statements not allowed in strict mode",
                 Some(self.location()),
             ));
         }
-        self.expression.early_errors(agent, errs, strict);
-        self.statement.early_errors(agent, errs, strict, within_iteration, within_switch);
+        self.expression.early_errors(errs, strict);
+        self.statement.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.

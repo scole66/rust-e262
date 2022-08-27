@@ -228,19 +228,19 @@ impl UpdateExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            UpdateExpression::LeftHandSideExpression(n) => n.early_errors(agent, errs, strict),
+            UpdateExpression::LeftHandSideExpression(n) => n.early_errors(errs, strict),
             UpdateExpression::PostIncrement { lhs: n, .. } | UpdateExpression::PostDecrement { lhs: n, .. } => {
                 //  UpdateExpression :
                 //      LeftHandSideExpression ++
                 //      LeftHandSideExpression --
                 // * It is an early Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
                 if n.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid target for update", Some(n.location())));
+                    errs.push(create_syntax_error_object("Invalid target for update", Some(n.location())));
                 }
-                n.early_errors(agent, errs, strict);
+                n.early_errors(errs, strict);
             }
             UpdateExpression::PreIncrement { ue: n, .. } | UpdateExpression::PreDecrement { ue: n, .. } => {
                 //  UpdateExpression :
@@ -248,9 +248,9 @@ impl UpdateExpression {
                 //      -- UnaryExpression
                 // * It is an early Syntax Error if AssignmentTargetType of UnaryExpression is not simple.
                 if n.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid target for update", Some(n.location())));
+                    errs.push(create_syntax_error_object("Invalid target for update", Some(n.location())));
                 }
-                n.early_errors(agent, errs, strict);
+                n.early_errors(errs, strict);
             }
         }
     }

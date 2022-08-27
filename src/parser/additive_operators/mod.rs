@@ -163,12 +163,12 @@ impl AdditiveExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(agent, errs, strict),
+            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(errs, strict),
             AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }
