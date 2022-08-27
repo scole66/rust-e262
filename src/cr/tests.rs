@@ -52,8 +52,8 @@ mod normal_completion {
 
         #[test]
         fn object() {
-            let agent = test_agent();
-            let obj = ordinary_object_create(&agent, None, &[]);
+            setup_test_agent();
+            let obj = ordinary_object_create(None, &[]);
             let nc = NormalCompletion::from(obj.clone());
 
             if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
@@ -100,8 +100,6 @@ mod normal_completion {
 
         mod object {
             use super::*;
-            use crate::object::ordinary_object_create;
-            use crate::tests::test_agent;
             use test_case::test_case;
 
             #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "empty")]
@@ -113,8 +111,8 @@ mod normal_completion {
 
             #[test]
             fn actual() {
-                let agent = test_agent();
-                let obj = ordinary_object_create(&agent, None, &[]);
+                setup_test_agent();
+                let obj = ordinary_object_create(None, &[]);
                 let val = ECMAScriptValue::from(obj.clone());
                 let nc = NormalCompletion::from(val);
                 let extracted: Object = nc.try_into().unwrap();

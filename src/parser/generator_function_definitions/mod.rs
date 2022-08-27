@@ -127,7 +127,7 @@ impl GeneratorMethod {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
         //  * It is a Syntax Error if HasDirectSuper of GeneratorMethod is true.
@@ -138,40 +138,30 @@ impl GeneratorMethod {
         //    LexicallyDeclaredNames of GeneratorBody.
         let cus = self.body.function_body_contains_use_strict();
         if self.has_direct_super() {
-            errs.push(create_syntax_error_object(
-                agent,
-                "Calls to ‘super’ not allowed here",
-                Some(self.body.location()),
-            ));
+            errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(self.body.location())));
         }
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Yield expressions can't be parameter initializers in generators",
                 Some(self.params.location()),
             ));
         }
         if cus && !self.params.is_simple_parameter_list() {
             errs.push(create_syntax_error_object(
-                agent,
                 "Illegal 'use strict' directive in function with non-simple parameter list",
                 Some(self.params.location()),
             ));
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{name}’ already defined"),
-                Some(self.body.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.body.location())));
         }
 
         let strict_func = strict || cus;
 
-        self.name.early_errors(agent, errs, strict_func);
-        self.params.early_errors(agent, errs, strict_func);
-        self.body.early_errors(agent, errs, strict_func);
+        self.name.early_errors(errs, strict_func);
+        self.params.early_errors(errs, strict_func);
+        self.body.early_errors(errs, strict_func);
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -310,7 +300,7 @@ impl GeneratorDeclaration {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorDeclaration :
         //      function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
@@ -330,12 +320,11 @@ impl GeneratorDeclaration {
         //  * It is a Syntax Error if GeneratorBody Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Yield expressions can't be parameter initializers in generators",
                 Some(self.params.location()),
             ));
         }
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
 
     pub fn is_constant_declaration(&self) -> bool {
@@ -452,7 +441,7 @@ impl GeneratorExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorExpression :
         //      function * BindingIdentifier[opt] ( FormalParameters ) { GeneratorBody }
@@ -471,12 +460,11 @@ impl GeneratorExpression {
         //  * It is a Syntax Error if GeneratorBody Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
-                agent,
                 "Yield expressions can't be parameter initializers in generators",
                 Some(self.params.location()),
             ));
         }
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
 
     pub fn is_named_function(&self) -> bool {
@@ -558,8 +546,8 @@ impl GeneratorBody {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(errs, strict);
     }
 
     pub fn function_body_contains_use_strict(&self) -> bool {
@@ -740,10 +728,10 @@ impl YieldExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
-                exp.early_errors(agent, errs, strict)
+                exp.early_errors(errs, strict)
             }
             YieldExpression::Simple { .. } => (),
         }

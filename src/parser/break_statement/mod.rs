@@ -84,7 +84,7 @@ impl BreakStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
         // Static Semantics: Early Errors
         //  BreakStatement : break ;
         //      * It is a Syntax Error if this BreakStatement is not nested, directly or indirectly (but not crossing
@@ -94,13 +94,12 @@ impl BreakStatement {
             BreakStatement::Bare { .. } => {
                 if !within_breakable {
                     errs.push(create_syntax_error_object(
-                        agent,
                         "break statement must lie within iteration or switch statement",
                         Some(self.location()),
                     ));
                 }
             }
-            BreakStatement::Labelled { label, .. } => label.early_errors(agent, errs, strict),
+            BreakStatement::Labelled { label, .. } => label.early_errors(errs, strict),
         }
     }
 }

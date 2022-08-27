@@ -93,16 +93,9 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let BlockStatement::Block(node) = self;
-        node.early_errors(agent, errs, strict, within_iteration, within_switch);
+        node.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -290,14 +283,7 @@ impl Block {
         self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         if let Some(sl) = &self.statements {
             // Static Semantics: Early Errors
             // Block : { StatementList }
@@ -309,18 +295,14 @@ impl Block {
             let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
             let unique_lexname_count = lex_names_set.len();
             if lexname_count != unique_lexname_count {
-                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names", Some(sl.location())));
+                errs.push(create_syntax_error_object("Duplicate lexically declared names", Some(sl.location())));
             }
             let vdn = sl.var_declared_names();
             let var_names_set: AHashSet<JSString> = vdn.into_iter().collect();
             if !lex_names_set.is_disjoint(&var_names_set) {
-                errs.push(create_syntax_error_object(
-                    agent,
-                    "Name defined both lexically and var-style",
-                    Some(sl.location()),
-                ));
+                errs.push(create_syntax_error_object("Name defined both lexically and var-style", Some(sl.location())));
             }
-            sl.early_errors(agent, errs, strict, within_iteration, within_switch);
+            sl.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
 
@@ -494,16 +476,9 @@ impl StatementList {
         self.list.iter().all(|item| item.all_private_identifiers_valid(names))
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         for item in self.list.iter() {
-            item.early_errors(agent, errs, strict, within_iteration, within_switch);
+            item.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
 
@@ -717,19 +692,10 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            StatementListItem::Statement(node) => {
-                node.early_errors(agent, errs, strict, within_iteration, within_switch)
-            }
-            StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
+            StatementListItem::Statement(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            StatementListItem::Declaration(node) => node.early_errors(errs, strict),
         }
     }
 

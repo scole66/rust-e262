@@ -448,13 +448,13 @@ mod relational_expression {
     #[test_case("3 in package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left in right; right bad")]
     #[test_case("#a in package", true => sset(&[PACKAGE_NOT_ALLOWED]); "privateid")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

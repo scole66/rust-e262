@@ -391,13 +391,13 @@ mod member_expression {
     #[test_case("new a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
     #[test_case("package.#a", true => sset(&[PACKAGE_NOT_ALLOWED]); "private id")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -606,13 +606,13 @@ mod super_property {
     #[test_case("super.package", true => sset(&[]); "super.member")]
     #[test_case("super[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("super[arguments]" => true; "Expression (yes)")]
@@ -713,13 +713,10 @@ mod meta_property {
     #[test_case("import.meta", ParseGoal::Script => sset(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
     #[test_case("import.meta", ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
     fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new())
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "new.target")]
@@ -856,13 +853,10 @@ mod arguments {
     #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list")]
     #[test_case("(package,)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Arguments::parse(&mut newparser(src), Scanner::new(), false, true)
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("()" => false; "empty")]
@@ -1072,13 +1066,13 @@ mod argument_list {
     #[test_case("package,...a", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
     #[test_case("0,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "AssignmentExpression (yes)")]
@@ -1212,13 +1206,13 @@ mod new_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp")]
     #[test_case("new package", true => sset(&[PACKAGE_NOT_ALLOWED]); "new exp")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         NewExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -1342,13 +1336,13 @@ mod call_member_expression {
     #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
     #[test_case("a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "args bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments()" => true; "Exp Args (left)")]
@@ -1417,13 +1411,10 @@ mod super_call {
 
     #[test_case("super(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true)
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("super(arguments)" => true; "yes")]
@@ -1505,13 +1496,10 @@ mod import_call {
 
     #[test_case("import(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true)
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("import(arguments)" => true; "yes")]
@@ -1891,13 +1879,13 @@ mod call_expression {
     #[test_case("package(0)`${0}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
     #[test_case("a(0)`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         CallExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a()" => true; "standard")]
@@ -2129,13 +2117,13 @@ mod optional_expression {
     #[test_case("package?.a?.(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
     #[test_case("a?.b?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a?.b" => true; "member exp")]
@@ -2576,13 +2564,13 @@ mod optional_chain {
     #[test_case("?.(package)`${interface}`", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
     #[test_case("?.(package).#interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "chain private")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("?.()" => true; "args")]
@@ -2768,13 +2756,13 @@ mod left_hand_side_expression {
     #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "call expression")]
     #[test_case("package?.()", true => sset(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

@@ -4,215 +4,214 @@ use test_case::test_case;
 
 #[test]
 fn create_native_error_object_01() {
-    let agent = test_agent();
-    let constructor = agent.intrinsic(IntrinsicId::RangeError);
+    setup_test_agent();
+    let constructor = intrinsic(IntrinsicId::RangeError);
     let message = "Great Googly Moogly!";
     let proto_id = IntrinsicId::RangeErrorPrototype;
 
-    let result = create_native_error_object(&agent, message, constructor, proto_id, None);
+    let result = create_native_error_object(message, constructor, proto_id, None);
 
     assert!(result.o.is_error_object());
-    let msg_val = get(&agent, &result, &PropertyKey::from("message")).unwrap();
+    let msg_val = get(&result, &PropertyKey::from("message")).unwrap();
     assert_eq!(msg_val, ECMAScriptValue::from(message));
-    let kind = get(&agent, &result, &PropertyKey::from("name")).unwrap();
+    let kind = get(&result, &PropertyKey::from("name")).unwrap();
     assert_eq!(kind, ECMAScriptValue::from("RangeError"));
 }
 
 #[test]
 fn create_type_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_type_error_object(&agent, "Happy Days");
+    let result = create_type_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
 fn create_type_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_type_error(&agent, "A");
+    let result = create_type_error("A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn create_eval_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_eval_error_object(&agent, "Happy Days");
+    let result = create_eval_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
 fn create_eval_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_eval_error(&agent, "A");
+    let result = create_eval_error("A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn create_reference_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_reference_error_object(&agent, "Happy Days");
+    let result = create_reference_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
 fn create_reference_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_reference_error(&agent, "A");
+    let result = create_reference_error("A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn create_range_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_range_error_object(&agent, "Happy Days");
+    let result = create_range_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
 fn create_range_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_range_error(&agent, "A");
+    let result = create_range_error("A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn create_syntax_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
     let result = create_syntax_error_object(
-        &agent,
         "Happy Days",
         Some(Location { starting_line: 10, starting_column: 5, span: Span { starting_index: 232, length: 12 } }),
     );
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
-    let loc_obj = Object::try_from(get(&agent, &result, &"location".into()).unwrap()).unwrap();
-    assert_eq!(get(&agent, &loc_obj, &"line".into()).unwrap(), ECMAScriptValue::from(10));
-    assert_eq!(get(&agent, &loc_obj, &"column".into()).unwrap(), ECMAScriptValue::from(5));
-    assert_eq!(get(&agent, &loc_obj, &"byte_length".into()).unwrap(), ECMAScriptValue::from(12));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    let loc_obj = Object::try_from(get(&result, &"location".into()).unwrap()).unwrap();
+    assert_eq!(get(&loc_obj, &"line".into()).unwrap(), ECMAScriptValue::from(10));
+    assert_eq!(get(&loc_obj, &"column".into()).unwrap(), ECMAScriptValue::from(5));
+    assert_eq!(get(&loc_obj, &"byte_length".into()).unwrap(), ECMAScriptValue::from(12));
 }
 
 #[test]
 fn create_syntax_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_syntax_error(&agent, "A", None);
+    let result = create_syntax_error("A", None);
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn create_uri_error_object_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_uri_error_object(&agent, "Happy Days");
+    let result = create_uri_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&agent, &result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
-    assert_eq!(get(&agent, &result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
+    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
 fn create_uri_error_01() {
-    let agent = test_agent();
+    setup_test_agent();
 
-    let result = create_uri_error(&agent, "A");
+    let result = create_uri_error("A");
     assert!(matches!(result, AbruptCompletion::Throw { .. }));
     if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
-            assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
+            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
 
 #[test]
 fn error_object_debug() {
-    let agent = test_agent();
-    let eo = ErrorObject { common: RefCell::new(CommonObjectData::new(&agent, None, true, &[])) };
+    setup_test_agent();
+    let eo = ErrorObject { common: RefCell::new(CommonObjectData::new(None, true, &[])) };
     assert_ne!(format!("{:?}", eo), "");
 }
 
 #[test]
 fn error_object_object() {
-    let agent = test_agent();
-    let eo = ErrorObject::object(&agent, None);
+    setup_test_agent();
+    let eo = ErrorObject::object(None);
 
     assert!(eo.o.is_error_object());
-    assert!(eo.o.get_prototype_of(&agent).unwrap().is_none());
+    assert!(eo.o.get_prototype_of().unwrap().is_none());
 }
 
-fn create_error_object(agent: &Agent) -> Object {
-    let error_proto = agent.intrinsic(IntrinsicId::ErrorPrototype);
-    ErrorObject::object(agent, Some(error_proto))
+fn create_error_object() -> Object {
+    let error_proto = intrinsic(IntrinsicId::ErrorPrototype);
+    ErrorObject::object(Some(error_proto))
 }
 #[test]
 fn error_object_common_object_data() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
-    let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
+    setup_test_agent();
+    let no = create_error_object();
+    let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
 
     let cod = no.o.common_object_data();
 
@@ -224,8 +223,8 @@ fn error_object_common_object_data() {
 }
 #[test]
 fn error_object_is_ordinary() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     let result = no.o.is_ordinary();
 
@@ -233,24 +232,24 @@ fn error_object_is_ordinary() {
 }
 #[test]
 fn error_object_id() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     // ... essentially, assert that it doesn't panic.
     no.o.id();
 }
 #[test]
 fn error_object_to_error_object() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     let result = no.o.to_error_obj();
     assert!(result.is_some());
 }
 #[test]
 fn error_object_is_error_object() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     let result = no.o.is_error_object();
 
@@ -258,52 +257,51 @@ fn error_object_is_error_object() {
 }
 #[test]
 fn error_object_get_prototype_of() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.get_prototype_of(&agent).unwrap();
+    let result = no.o.get_prototype_of().unwrap();
     assert!(result.is_some());
 }
 #[test]
 fn error_object_set_prototype_of() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.set_prototype_of(&agent, None).unwrap();
+    let result = no.o.set_prototype_of(None).unwrap();
     assert!(result);
 }
 #[test]
 fn error_object_is_extensible() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.is_extensible(&agent).unwrap();
+    let result = no.o.is_extensible().unwrap();
     assert!(result);
 }
 #[test]
 fn error_object_prevent_extensions() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.prevent_extensions(&agent).unwrap();
+    let result = no.o.prevent_extensions().unwrap();
     assert!(result);
 }
 #[test]
 fn error_object_get_own_property() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.get_own_property(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.get_own_property(&PropertyKey::from("a")).unwrap();
     assert!(result.is_none());
 }
 #[test]
 fn error_object_define_own_property() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     let result =
         no.o.define_own_property(
-            &agent,
             PropertyKey::from("a"),
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
         )
@@ -312,50 +310,49 @@ fn error_object_define_own_property() {
 }
 #[test]
 fn error_object_has_property() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.has_property(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.has_property(&PropertyKey::from("a")).unwrap();
     assert!(!result);
 }
 #[test]
 fn error_object_get() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.get(&agent, &PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
+    let result = no.o.get(&PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
     assert_eq!(result, ECMAScriptValue::Undefined);
 }
 #[test]
 fn error_object_set() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     let result =
-        no.o.set(&agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone()))
-            .unwrap();
+        no.o.set(PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
     assert!(result);
 }
 #[test]
 fn error_object_delete() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.delete(&agent, &PropertyKey::from("a")).unwrap();
+    let result = no.o.delete(&PropertyKey::from("a")).unwrap();
     assert!(result);
 }
 #[test]
 fn error_object_own_property_keys() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
-    let result = no.o.own_property_keys(&agent).unwrap();
+    let result = no.o.own_property_keys().unwrap();
     assert_eq!(result, &[]);
 }
 #[test]
 fn error_object_other_automatic_functions() {
-    let agent = test_agent();
-    let no = create_error_object(&agent);
+    setup_test_agent();
+    let no = create_error_object();
 
     assert!(!no.o.is_number_object());
     assert!(no.o.to_function_obj().is_none());
@@ -374,67 +371,67 @@ fn error_object_other_automatic_functions() {
 
 #[test]
 fn error_constructor_data_props() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
 
-    let val = get(&agent, &error_constructor, &PropertyKey::from("prototype")).unwrap();
-    let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
+    let val = get(&error_constructor, &PropertyKey::from("prototype")).unwrap();
+    let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
     assert_eq!(val, ECMAScriptValue::from(error_prototype));
 }
 
 #[test]
 fn error_constructor_function_01() {
     // Called as function, with argument.
-    let agent = test_agent();
-    let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
+    setup_test_agent();
+    let error_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Error));
 
-    let result = call(&agent, &error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
-    let obj = to_object(&agent, result).unwrap();
+    let result = call(&error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
+    let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
 fn error_constructor_function_02() {
     // Called as function, with no argument.
-    let agent = test_agent();
-    let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
+    setup_test_agent();
+    let error_constructor = ECMAScriptValue::from(intrinsic(IntrinsicId::Error));
 
-    let result = call(&agent, &error_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
-    let obj = to_object(&agent, result).unwrap();
+    let result = call(&error_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
+    let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert!(!has_own_property(&agent, &obj, &PropertyKey::from("message")).unwrap());
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert!(!has_own_property(&obj, &PropertyKey::from("message")).unwrap());
+    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
 fn error_constructor_function_03() {
     // Called as constructor
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
 
-    let result = construct(&agent, &error_constructor, &[ECMAScriptValue::from("A")], None).unwrap();
-    let obj = to_object(&agent, result).unwrap();
+    let result = construct(&error_constructor, &[ECMAScriptValue::from("A")], None).unwrap();
+    let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
 fn error_constructor_throws() {
     // ordinary_create_from_contructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
 
     // This hack is to get around the "not configurable" characteristic of Error.prototype.
     // (It replaces Error.prototype (a data property) with an accessor property that throws when "prototype" is gotten.)
     let new_prop = PropertyKind::Accessor(AccessorProperty {
-        get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)),
+        get: ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError)),
         set: ECMAScriptValue::Undefined,
     });
     {
@@ -443,178 +440,178 @@ fn error_constructor_throws() {
         prop.property = new_prop;
     }
 
-    let result = construct(&agent, &error_constructor, &[], None).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Generic TypeError");
+    let result = construct(&error_constructor, &[], None).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 #[test]
 fn error_constructor_to_string_throws() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let sym = ECMAScriptValue::from(Symbol::new(None));
 
-    let result = construct(&agent, &error_constructor, &[sym], None).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbols may not be converted to strings");
+    let result = construct(&error_constructor, &[sym], None).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
 }
 
 #[test]
 fn error_prototype_data_props() {
-    let agent = test_agent();
-    let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
+    setup_test_agent();
+    let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
 
-    let val = get(&agent, &error_prototype, &PropertyKey::from("constructor")).unwrap();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let val = get(&error_prototype, &PropertyKey::from("constructor")).unwrap();
+    let error_constructor = intrinsic(IntrinsicId::Error);
     assert_eq!(val, ECMAScriptValue::from(error_constructor));
 
-    let val = get(&agent, &error_prototype, &PropertyKey::from("message")).unwrap();
+    let val = get(&error_prototype, &PropertyKey::from("message")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(""));
 
-    let val = get(&agent, &error_prototype, &PropertyKey::from("name")).unwrap();
+    let val = get(&error_prototype, &PropertyKey::from("name")).unwrap();
     assert_eq!(val, ECMAScriptValue::from("Error"));
 }
 
 use crate::object::{define_property_or_throw, invoke, set};
 #[test]
 fn error_prototype_tostring_01() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobj = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobj = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
 
-    let result = invoke(&agent, errobj, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobj, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error: ErrorMessage"));
 }
 #[test]
 fn error_prototype_tostring_02() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    set(&agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
-    set(&agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob: you have a phone call"));
 }
 #[test]
 fn error_prototype_tostring_03() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    set(&agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
-    set(&agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error"));
 }
 #[test]
 fn error_prototype_tostring_04() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    set(&agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
-    set(&agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob"));
 }
 #[test]
 fn error_prototype_tostring_05() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    set(&agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
-    set(&agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error: Message"));
 }
 #[test]
 fn error_prototype_tostring_06() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    set(&agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
-    set(&agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
+    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Message"));
 }
 #[test]
 fn error_prototype_tostring_07() {
     // getting property "name" throws
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
     let desc = PotentialPropertyDescriptor {
-        get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))),
+        get: Some(ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError))),
         ..Default::default()
     };
-    define_property_or_throw(&agent, &errobj, PropertyKey::from("name"), desc).unwrap();
+    define_property_or_throw(&errobj, PropertyKey::from("name"), desc).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Generic TypeError");
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 #[test]
 fn error_prototype_tostring_08() {
     // getting property "message" throws
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
     let desc = PotentialPropertyDescriptor {
-        get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))),
+        get: Some(ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError))),
         ..Default::default()
     };
-    define_property_or_throw(&agent, &errobj, PropertyKey::from("message"), desc).unwrap();
+    define_property_or_throw(&errobj, PropertyKey::from("message"), desc).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Generic TypeError");
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 #[test]
 fn error_prototype_tostring_09() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
-    set(&agent, &errobj, PropertyKey::from("name"), sym, false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    let sym = ECMAScriptValue::from(Symbol::new(None));
+    set(&errobj, PropertyKey::from("name"), sym, false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbols may not be converted to strings");
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
 }
 #[test]
 fn error_prototype_tostring_10() {
-    let agent = test_agent();
-    let error_constructor = agent.intrinsic(IntrinsicId::Error);
-    let errobjval = construct(&agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
-    let errobj = to_object(&agent, errobjval.clone()).unwrap();
-    let sym = ECMAScriptValue::from(Symbol::new(&agent, None));
-    set(&agent, &errobj, PropertyKey::from("message"), sym, false).unwrap();
+    setup_test_agent();
+    let error_constructor = intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(errobjval.clone()).unwrap();
+    let sym = ECMAScriptValue::from(Symbol::new(None));
+    set(&errobj, PropertyKey::from("message"), sym, false).unwrap();
 
-    let result = invoke(&agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Symbols may not be converted to strings");
+    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
 }
 #[test]
 fn error_prototype_to_string_11() {
-    let agent = test_agent();
-    let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
-    let func = get(&agent, &error_prototype, &PropertyKey::from("toString")).unwrap();
+    setup_test_agent();
+    let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
+    let func = get(&error_prototype, &PropertyKey::from("toString")).unwrap();
 
-    let result = call(&agent, &func, &ECMAScriptValue::Undefined, &[]).unwrap_err();
-    assert_eq!(unwind_type_error(&agent, result), "Error.prototype.toString called with non-object this value");
+    let result = call(&func, &ECMAScriptValue::Undefined, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(result), "Error.prototype.toString called with non-object this value");
 }
 
-fn native_error_constructor_properties(intrinsic: IntrinsicId, expected_name: &str) {
-    let agent = test_agent();
-    let constructor = agent.intrinsic(intrinsic);
+fn native_error_constructor_properties(id: IntrinsicId, expected_name: &str) {
+    setup_test_agent();
+    let constructor = intrinsic(id);
 
-    let proto = constructor.o.get_prototype_of(&agent).unwrap().unwrap();
-    assert_eq!(proto, agent.intrinsic(IntrinsicId::Error));
-    let name = get(&agent, &constructor, &PropertyKey::from("name")).unwrap();
+    let proto = constructor.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(proto, intrinsic(IntrinsicId::Error));
+    let name = get(&constructor, &PropertyKey::from("name")).unwrap();
     assert_eq!(name, ECMAScriptValue::from(expected_name));
 }
 
@@ -644,22 +641,22 @@ fn uri_error_constructor_properties() {
 }
 
 fn native_error_prototype_properties(prototype: IntrinsicId, constructor: IntrinsicId, name: &str) {
-    let agent = test_agent();
-    let prototype = agent.intrinsic(prototype);
-    let constructor = agent.intrinsic(constructor);
-    let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
+    setup_test_agent();
+    let prototype = intrinsic(prototype);
+    let constructor = intrinsic(constructor);
+    let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
 
     assert!(!prototype.o.is_error_object());
-    let proto_proto = prototype.o.get_prototype_of(&agent).unwrap().unwrap();
+    let proto_proto = prototype.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(proto_proto, error_prototype);
 
-    let cons = get(&agent, &prototype, &PropertyKey::from("constructor")).unwrap();
+    let cons = get(&prototype, &PropertyKey::from("constructor")).unwrap();
     assert_eq!(cons, ECMAScriptValue::from(constructor));
 
-    let msg = get(&agent, &prototype, &PropertyKey::from("message")).unwrap();
+    let msg = get(&prototype, &PropertyKey::from("message")).unwrap();
     assert_eq!(msg, ECMAScriptValue::from(""));
 
-    let myname = get(&agent, &prototype, &PropertyKey::from("name")).unwrap();
+    let myname = get(&prototype, &PropertyKey::from("name")).unwrap();
     assert_eq!(myname, ECMAScriptValue::from(name));
 }
 
@@ -693,16 +690,16 @@ fn uri_error_prototype_properties() {
 }
 
 fn test_error_constructor(const_id: IntrinsicId, proto_id: IntrinsicId, name: &str) {
-    let agent = test_agent();
-    let constructor = agent.intrinsic(const_id);
-    let proto = agent.intrinsic(proto_id);
-    let objval = construct(&agent, &constructor, &[ECMAScriptValue::from("test message")], None).unwrap();
-    let obj = to_object(&agent, objval).unwrap();
+    setup_test_agent();
+    let constructor = intrinsic(const_id);
+    let proto = intrinsic(proto_id);
+    let objval = construct(&constructor, &[ECMAScriptValue::from("test message")], None).unwrap();
+    let obj = to_object(objval).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from(name));
-    assert_eq!(get(&agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("test message"));
-    assert_eq!(obj.o.get_prototype_of(&agent).unwrap().unwrap(), proto);
+    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from(name));
+    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("test message"));
+    assert_eq!(obj.o.get_prototype_of().unwrap().unwrap(), proto);
 }
 
 #[test]
@@ -730,19 +727,19 @@ fn test_uri_error_constructor() {
     test_error_constructor(IntrinsicId::URIError, IntrinsicId::URIErrorPrototype, "URIError");
 }
 
-#[test_case(|a: &Agent| create_type_error_object(a, "message 1") => "TypeError: message 1"; "type error")]
-#[test_case(|a: &Agent| create_syntax_error_object(a, "message 2", None) => "SyntaxError: message 2"; "syntax error")]
-fn unwind_any_error_value(maker: fn(&Agent) -> Object) -> String {
-    let agent = test_agent();
-    let errobj = maker(&agent);
-    super::unwind_any_error_value(&agent, ECMAScriptValue::from(errobj))
+#[test_case(|| create_type_error_object("message 1") => "TypeError: message 1"; "type error")]
+#[test_case(|| create_syntax_error_object("message 2", None) => "SyntaxError: message 2"; "syntax error")]
+fn unwind_any_error_value(maker: fn() -> Object) -> String {
+    setup_test_agent();
+    let errobj = maker();
+    super::unwind_any_error_value(ECMAScriptValue::from(errobj))
 }
 
-#[test_case(|a: &Agent| create_type_error(a, "blue") => "TypeError: blue"; "type error")]
-#[test_case(|a: &Agent| create_syntax_error(a, "ouch", None) => "SyntaxError: ouch"; "syntax error")]
-#[test_case(|_: &Agent| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
-fn unwind_any_error(maker: fn(&Agent) -> AbruptCompletion) -> String {
-    let agent = test_agent();
-    let completion = maker(&agent);
-    super::unwind_any_error(&agent, completion)
+#[test_case(|| create_type_error("blue") => "TypeError: blue"; "type error")]
+#[test_case(|| create_syntax_error("ouch", None) => "SyntaxError: ouch"; "syntax error")]
+#[test_case(|| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
+fn unwind_any_error(maker: fn() -> AbruptCompletion) -> String {
+    setup_test_agent();
+    let completion = maker();
+    super::unwind_any_error(completion)
 }

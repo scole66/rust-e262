@@ -26,10 +26,10 @@ use super::*;
 // +---------------+------------------------------+
 //
 // https://tc39.es/ecma262/#sec-requireobjectcoercible
-pub fn require_object_coercible(agent: &Agent, argument: &ECMAScriptValue) -> Completion<()> {
+pub fn require_object_coercible(argument: &ECMAScriptValue) -> Completion<()> {
     match argument {
         ECMAScriptValue::Undefined | ECMAScriptValue::Null => {
-            Err(create_type_error(agent, "Undefined and null are not allowed in this context"))
+            Err(create_type_error("Undefined and null are not allowed in this context"))
         }
         _ => Ok(()),
     }
@@ -43,11 +43,11 @@ pub fn require_object_coercible(agent: &Agent, argument: &ECMAScriptValue) -> Co
 //
 //  1. Assert: Type(O) is Object.
 //  2. Return ? O.[[IsExtensible]]().
-pub fn is_extensible<'a, T>(agent: &Agent, obj: T) -> Completion<bool>
+pub fn is_extensible<'a, T>(obj: T) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    obj.into().is_extensible(agent)
+    obj.into().is_extensible()
 }
 
 // IsIntegralNumber ( argument )

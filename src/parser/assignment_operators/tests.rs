@@ -376,13 +376,13 @@ mod assignment_expression {
     #[test_case("(a=>a)||=b", true => sset(&[INVALID_LHS]); "LHS must be simple (logical or)")]
     #[test_case("(a=>a)??=b", true => sset(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -682,13 +682,13 @@ mod assignment_pattern {
     #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
     #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrayAssignmentPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments]" => true; "array (yes)")]
@@ -810,13 +810,13 @@ mod object_assignment_pattern {
     #[test_case("{package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList , } (trailing comma)")]
     #[test_case("{package,...interface}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "{ AssignmentPropertyList , AssignmentRestProperty }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -994,13 +994,13 @@ mod array_assignment_pattern {
     #[test_case("[package,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , AssignmentRestElement ]")]
     #[test_case("[package,,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[]" => false; "Empty")]
@@ -1085,13 +1085,13 @@ mod assignment_rest_property {
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
     #[test_case("...{a}", true => sset(&["`...` must be followed by an assignable reference in assignment contexts"]); "assignable refs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...arguments" => true; "Rest (yes)")]
@@ -1166,13 +1166,13 @@ mod assignment_property_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
     #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPropertyList , AssignmentProperty")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1250,13 +1250,13 @@ mod assignment_element_list {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
     #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentElementList , AssignmentElisionElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1331,13 +1331,13 @@ mod assignment_elision_element {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
     #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1428,13 +1428,13 @@ mod assignment_property {
     #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer")]
     #[test_case("[package]:interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "PropertyName : AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "id (yes)")]
@@ -1517,13 +1517,13 @@ mod assignment_element {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
     #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "DestructuringAssignmentTarget Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1584,13 +1584,13 @@ mod assignment_rest_element {
 
     #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...arguments" => true; "yes")]
@@ -1666,13 +1666,13 @@ mod destructuring_assignment_target {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "lhs")]
     #[test_case("(a=>a)", true => sset(&[INVALID_LHS]); "not simple")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]

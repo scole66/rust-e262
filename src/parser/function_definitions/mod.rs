@@ -136,8 +136,8 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
     pub fn is_constant_declaration(&self) -> bool {
@@ -146,7 +146,6 @@ impl FunctionDeclaration {
 }
 
 pub fn function_early_errors(
-    agent: &Agent,
     errs: &mut Vec<Object>,
     strict: bool,
     ident: Option<&Rc<BindingIdentifier>>,
@@ -180,17 +179,12 @@ pub fn function_early_errors(
 
     if strict_function {
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", name),
-                Some(params.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(params.location())));
         }
     }
 
     if body.function_body_contains_use_strict() && !params.is_simple_parameter_list() {
         errs.push(create_syntax_error_object(
-            agent,
             "Illegal 'use strict' directive in function with non-simple parameter list",
             Some(body.location()),
         ));
@@ -199,11 +193,7 @@ pub fn function_early_errors(
     let lexnames = body.lexically_declared_names();
     for lexname in lexnames {
         if bn.contains(&lexname) {
-            errs.push(create_syntax_error_object(
-                agent,
-                format!("‘{}’ already defined", lexname),
-                Some(body.location()),
-            ));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", lexname), Some(body.location())));
         }
     }
 
@@ -212,14 +202,14 @@ pub fn function_early_errors(
         || body.contains(ParseNodeKind::SuperProperty)
         || body.contains(ParseNodeKind::SuperCall)
     {
-        errs.push(create_syntax_error_object(agent, "‘super’ not allowed here", Some(params.location())));
+        errs.push(create_syntax_error_object("‘super’ not allowed here", Some(params.location())));
     }
 
     if let Some(ident) = ident {
-        ident.early_errors(agent, errs, strict_function);
+        ident.early_errors(errs, strict_function);
     }
-    params.early_errors(agent, errs, strict_function, strict_function);
-    body.early_errors(agent, errs, strict_function);
+    params.early_errors(errs, strict_function, strict_function);
+    body.early_errors(errs, strict_function);
 }
 
 // FunctionExpression :
@@ -321,8 +311,8 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
     pub fn is_named_function(&self) -> bool {
@@ -432,7 +422,7 @@ impl FunctionBody {
         self.statements.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // FunctionBody : FunctionStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of FunctionStatementList contains any duplicate
         //    entries.
@@ -445,7 +435,6 @@ impl FunctionBody {
         let ldn = self.statements.lexically_declared_names();
         for name in duplicates(&ldn) {
             errs.push(create_syntax_error_object(
-                agent,
                 format!("‘{}’ already defined", name),
                 Some(self.statements.location()),
             ));
@@ -454,31 +443,25 @@ impl FunctionBody {
         for name in vdn {
             if ldn.contains(&name) {
                 errs.push(create_syntax_error_object(
-                    agent,
                     format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name),
                     Some(self.statements.location()),
                 ));
             }
         }
         if self.statements.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected", Some(self.statements.location())));
+            errs.push(create_syntax_error_object("duplicate labels detected", Some(self.statements.location())));
         }
         if self.statements.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(
-                agent,
-                "undefined break target detected",
-                Some(self.statements.location()),
-            ));
+            errs.push(create_syntax_error_object("undefined break target detected", Some(self.statements.location())));
         }
         if self.statements.contains_undefined_continue_target(&[], &[]) {
             errs.push(create_syntax_error_object(
-                agent,
                 "undefined continue target detected",
                 Some(self.statements.location()),
             ));
         }
 
-        self.statements.early_errors(agent, errs, strict);
+        self.statements.early_errors(errs, strict);
     }
 
     /// Return a list of identifiers defined by the `var` statement for this node.
@@ -658,9 +641,9 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if let FunctionStatementList::Statements(sl) = self {
-            sl.early_errors(agent, errs, strict, false, false);
+            sl.early_errors(errs, strict, false, false);
         }
     }
 

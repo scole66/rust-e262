@@ -354,28 +354,21 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
-            Statement::Breakable(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Block(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Break(node) => node.early_errors(errs, strict, within_iteration || within_switch),
+            Statement::Breakable(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Continue(node) => node.early_errors(errs, strict, within_iteration),
             Statement::Debugger(_) | Statement::Empty(_) => (),
-            Statement::Expression(node) => node.early_errors(agent, errs, strict),
-            Statement::If(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Return(node) => node.early_errors(agent, errs, strict),
-            Statement::Throw(node) => node.early_errors(agent, errs, strict),
-            Statement::Try(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Variable(node) => node.early_errors(agent, errs, strict),
-            Statement::With(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            Statement::Expression(node) => node.early_errors(errs, strict),
+            Statement::If(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Labelled(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Return(node) => node.early_errors(errs, strict),
+            Statement::Throw(node) => node.early_errors(errs, strict),
+            Statement::Try(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Variable(node) => node.early_errors(errs, strict),
+            Statement::With(node) => node.early_errors(errs, strict, within_iteration, within_switch),
         }
     }
 
@@ -639,11 +632,11 @@ impl Declaration {
     /// See [Early Errors][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#early-error
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
-            Declaration::Class(node) => node.early_errors(agent, errs),
-            Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
+            Declaration::Hoistable(node) => node.early_errors(errs, strict),
+            Declaration::Class(node) => node.early_errors(errs),
+            Declaration::Lexical(node) => node.early_errors(errs, strict),
         }
     }
 
@@ -814,12 +807,12 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            HoistableDeclaration::Function(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::Generator(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::Function(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::Generator(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::AsyncFunction(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(errs, strict),
         }
     }
 
@@ -976,17 +969,10 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(
-        &self,
-        agent: &Agent,
-        errs: &mut Vec<Object>,
-        strict: bool,
-        within_iteration: bool,
-        within_switch: bool,
-    ) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
-            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),
+            BreakableStatement::Iteration(node) => node.early_errors(errs, strict, within_switch),
+            BreakableStatement::Switch(node) => node.early_errors(errs, strict, within_iteration),
         }
     }
 

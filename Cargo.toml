@@ -32,3 +32,6 @@ test-case = "2.0"
 [profile.coverage]
 inherits = "dev"
 #rustflags = [ "-Cinstrument-coverage" ]
+
+[profile.bacon]
+inherits = "dev"

@@ -654,7 +654,7 @@ pub enum ParsedText {
     // ... more to come
 }
 
-pub fn parse_text(agent: &Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
+pub fn parse_text(src: &str, goal_symbol: ParseGoal) -> ParsedText {
     let mut parser = Parser::new(src, false, goal_symbol);
     match goal_symbol {
         ParseGoal::Script => {
@@ -662,7 +662,6 @@ pub fn parse_text(agent: &Agent, src: &str, goal_symbol: ParseGoal) -> ParsedTex
             match potential_script {
                 Err(pe) => {
                     let syntax_error = create_syntax_error_object(
-                        agent,
                         format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
                         Some(pe.location),
                     );
@@ -670,7 +669,7 @@ pub fn parse_text(agent: &Agent, src: &str, goal_symbol: ParseGoal) -> ParsedTex
                 }
                 Ok((node, _)) => {
                     let mut errs = vec![];
-                    node.early_errors(agent, &mut errs);
+                    node.early_errors(&mut errs);
                     if errs.is_empty() {
                         ParsedText::Script(node)
                     } else {

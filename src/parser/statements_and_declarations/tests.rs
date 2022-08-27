@@ -520,13 +520,13 @@ mod statement {
     #[test_case("try {} catch (package) {}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "TryStatement")]
     #[test_case("debugger;", true, false => sset(&[]); "DebuggerStatement")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         Statement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict, wi, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict, wi, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -807,13 +807,10 @@ mod declaration {
     #[test_case("class package{}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ClassDeclaration")]
     #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Declaration::parse(&mut newparser(src), Scanner::new(), true, true)
-            .unwrap()
-            .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+        Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("function a(){}" => false; "Hoistable")]
@@ -1062,13 +1059,13 @@ mod hoistable_declaration {
     #[test_case("async function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionDeclaration")]
     #[test_case("async function *package(){}", true => panics "not yet implemented" /* sset(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, false)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("function a(){}" => "function a (  ) {  }"; "function def")]
@@ -1216,13 +1213,13 @@ mod breakable_statement {
     #[test_case("while(package);", true => sset(&[PACKAGE_NOT_ALLOWED]); "IterationStatement")]
     #[test_case("switch(package){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("for(;;)arguments;" => true; "Iteration (yes)")]

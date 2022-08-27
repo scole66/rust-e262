@@ -243,27 +243,27 @@ impl Reference {
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
 //          object.
-pub fn get_value(agent: &Agent, v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
+pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
     let v = v_completion?;
     match v {
         NormalCompletion::Value(val) => Ok(val),
         NormalCompletion::Reference(reference) => match &reference.base {
             Base::Value(val) => {
-                let base_obj = to_object(agent, val.clone())?;
+                let base_obj = to_object(val.clone())?;
                 match &reference.referenced_name {
-                    ReferencedName::PrivateName(private) => private_get(agent, &base_obj, private),
+                    ReferencedName::PrivateName(private) => private_get(&base_obj, private),
                     _ => {
                         let this_value = reference.get_this_value();
-                        base_obj.o.get(agent, &reference.referenced_name.try_into().unwrap(), &this_value)
+                        base_obj.o.get(&reference.referenced_name.try_into().unwrap(), &this_value)
                     }
                 }
             }
-            Base::Unresolvable => Err(create_reference_error(agent, "Unresolvable Reference")),
+            Base::Unresolvable => Err(create_reference_error("Unresolvable Reference")),
             Base::Environment(env) => {
-                env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict)
+                env.get_binding_value(&reference.referenced_name.try_into().unwrap(), reference.strict)
             }
         },
-        NormalCompletion::Empty => Err(create_reference_error(agent, "Unresolvable Reference")),
+        NormalCompletion::Empty => Err(create_reference_error("Unresolvable Reference")),
         NormalCompletion::Environment(_) => unreachable!(),
     }
 }
@@ -294,45 +294,39 @@ pub fn get_value(agent: &Agent, v_completion: FullCompletion) -> Completion<ECMA
 // NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(
-    agent: &Agent,
-    v_completion: FullCompletion,
-    w_completion: Completion<ECMAScriptValue>,
-) -> Completion<()> {
+pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
         NormalCompletion::Environment(_) => unreachable!(),
-        NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error(agent, "Invalid Reference")),
+        NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {
                 if r.strict {
-                    Err(create_reference_error(agent, "Unknown reference"))
+                    Err(create_reference_error("Unknown reference"))
                 } else {
-                    let global_object = get_global_object(agent).unwrap();
-                    set(agent, &global_object, r.referenced_name.try_into().unwrap(), w, false)?;
+                    let global_object = get_global_object().unwrap();
+                    set(&global_object, r.referenced_name.try_into().unwrap(), w, false)?;
                     Ok(())
                 }
             }
             Base::Value(val) => {
-                let base_obj = to_object(agent, val.clone())?;
+                let base_obj = to_object(val.clone())?;
                 match &r.referenced_name {
-                    ReferencedName::PrivateName(pn) => private_set(agent, &base_obj, pn, w),
+                    ReferencedName::PrivateName(pn) => private_set(&base_obj, pn, w),
                     _ => {
                         let this_value = r.get_this_value();
                         let propkey_ref: &PropertyKey = &r.referenced_name.try_into().unwrap();
-                        let succeeded = base_obj.o.set(agent, propkey_ref.clone(), w, &this_value)?;
+                        let succeeded = base_obj.o.set(propkey_ref.clone(), w, &this_value)?;
                         if !succeeded && r.strict {
-                            Err(create_type_error(agent, "Invalid Assignment Target"))
+                            Err(create_type_error("Invalid Assignment Target"))
                         } else {
                             Ok(())
                         }
                     }
                 }
             }
-            Base::Environment(env) => {
-                env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict)
-            }
+            Base::Environment(env) => env.set_mutable_binding(r.referenced_name.try_into().unwrap(), w, r.strict),
         },
     }
 }
@@ -350,7 +344,6 @@ pub fn put_value(
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
 pub fn initialize_referenced_binding(
-    agent: &Agent,
     v_completion: FullCompletion,
     w_completion: Completion<ECMAScriptValue>,
 ) -> Completion<()> {
@@ -358,9 +351,7 @@ pub fn initialize_referenced_binding(
     let w = w_completion?;
     match v {
         NormalCompletion::Reference(reference) => match &reference.base {
-            Base::Environment(base) => {
-                base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w)
-            }
+            Base::Environment(base) => base.initialize_binding(&reference.referenced_name.try_into().unwrap(), w),
             _ => unreachable!(),
         },
         _ => unreachable!(),

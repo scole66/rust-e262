@@ -35,14 +35,14 @@ impl ParameterMap {
         self.properties[idx] = None;
     }
 
-    pub fn get(&self, agent: &Agent, idx: usize) -> Completion<ECMAScriptValue> {
+    pub fn get(&self, idx: usize) -> Completion<ECMAScriptValue> {
         let name = self.properties[idx].as_ref().expect("Get only used on existing values");
-        self.env.get_binding_value(agent, name, false)
+        self.env.get_binding_value(name, false)
     }
 
-    pub fn set(&self, agent: &Agent, idx: usize, value: ECMAScriptValue) -> Completion<()> {
+    pub fn set(&self, idx: usize, value: ECMAScriptValue) -> Completion<()> {
         let name = self.properties[idx].as_ref().expect("Set only used on existing values").clone();
-        self.env.set_mutable_binding(agent, name, value, false)
+        self.env.set_mutable_binding(name, value, false)
     }
 }
 
@@ -75,7 +75,7 @@ impl ObjectInterface for ArgumentsObject {
         Some(self)
     }
 
-    fn get_prototype_of(&self, _agent: &Agent) -> Completion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -85,7 +85,7 @@ impl ObjectInterface for ArgumentsObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &Agent, obj: Option<Object>) -> Completion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -95,7 +95,7 @@ impl ObjectInterface for ArgumentsObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &Agent) -> Completion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -105,14 +105,14 @@ impl ObjectInterface for ArgumentsObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &Agent) -> Completion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
     /// Returns the property descriptor corresponding to the given key, or None if the key does not exist.
     ///
     /// See [GetOwnProperty](https://tc39.es/ecma262/#sec-arguments-exotic-objects-getownproperty-p) from ECMA-262.
-    fn get_own_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         // [[GetOwnProperty]] ( P )
         //
         // The [[GetOwnProperty]] internal method of an arguments exotic object args takes argument P (a property key)
@@ -135,7 +135,7 @@ impl ObjectInterface for ArgumentsObject {
                 Some(map) => {
                     let map = map.borrow();
                     if let Some(idx) = map.to_index(key) {
-                        let value = map.get(agent, idx).expect("Property must exist, as we just checked");
+                        let value = map.get(idx).expect("Property must exist, as we just checked");
                         let writable = desc.is_writable().expect("Property cannot be an accessor");
                         desc.property = PropertyKind::Data(DataProperty { value, writable });
                     }
@@ -172,14 +172,9 @@ impl ObjectInterface for ArgumentsObject {
     //          ii. If Desc has a [[Writable]] field and Desc.[[Writable]] is false, then
     //              1. Perform ! map.[[Delete]](P).
     //  8. Return true.
-    fn define_own_property(
-        &self,
-        agent: &Agent,
-        key: PropertyKey,
-        desc: PotentialPropertyDescriptor,
-    ) -> Completion<bool> {
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         match &self.parameter_map {
-            None => ordinary_define_own_property(agent, self, key, desc),
+            None => ordinary_define_own_property(self, key, desc),
             Some(map) => {
                 let mut new_arg_desc = desc.clone();
                 {
@@ -187,20 +182,18 @@ impl ObjectInterface for ArgumentsObject {
                     let maybe_index = map.to_index(&key);
                     if let Some(idx) = maybe_index {
                         if desc.is_data_descriptor() && desc.value.is_none() && desc.writable == Some(false) {
-                            new_arg_desc.value =
-                                Some(map.get(agent, idx).expect("Property must exist, as we just checked"));
+                            new_arg_desc.value = Some(map.get(idx).expect("Property must exist, as we just checked"));
                         }
                     }
                 }
-                let allowed =
-                    ordinary_define_own_property(agent, self, key.clone(), new_arg_desc).expect("Simple Object");
+                let allowed = ordinary_define_own_property(self, key.clone(), new_arg_desc).expect("Simple Object");
                 if allowed {
                     let mut map = map.borrow_mut();
                     if let Some(idx) = map.to_index(&key) {
                         if desc.is_accessor_descriptor() || (desc.value.is_none() && desc.writable == Some(false)) {
                             map.delete(idx);
                         } else if let Some(value) = desc.value {
-                            map.set(agent, idx, value)
+                            map.set(idx, value)
                                 .expect("formal parameters mapped by arguments objects are always writable");
                         }
                     }
@@ -216,14 +209,14 @@ impl ObjectInterface for ArgumentsObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
 
     /// Retrieves the value of a property from an object, following the prototype chain
     ///
     /// See [Get](https://tc39.es/ecma262/#sec-arguments-exotic-objects-get-p-receiver) in ECMA-262.
-    fn get(&self, agent: &Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         // [[Get]] ( P, Receiver )
         //
         // The [[Get]] internal method of an arguments exotic object args takes arguments P (a property key) and
@@ -238,12 +231,12 @@ impl ObjectInterface for ArgumentsObject {
         //      a. Assert: map contains a formal parameter mapping for P.
         //      b. Return ! Get(map, P).
         match &self.parameter_map {
-            None => ordinary_get(agent, self, key, receiver),
+            None => ordinary_get(self, key, receiver),
             Some(map) => {
                 let map = map.borrow();
                 match map.to_index(key) {
-                    None => ordinary_get(agent, self, key, receiver),
-                    Some(idx) => Ok(map.get(agent, idx).expect("Assert: map contains a formal mapping for P.")),
+                    None => ordinary_get(self, key, receiver),
+                    Some(idx) => Ok(map.get(idx).expect("Assert: map contains a formal mapping for P.")),
                 }
             }
         }
@@ -255,7 +248,7 @@ impl ObjectInterface for ArgumentsObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         // [[Set]] ( P, V, Receiver )
         //
         // The [[Set]] internal method of an arguments exotic object args takes arguments P (a property key), V (an
@@ -279,11 +272,10 @@ impl ObjectInterface for ArgumentsObject {
         {
             let map = pmap.borrow_mut();
             if let Some(idx) = map.to_index(&key) {
-                map.set(agent, idx, v.clone())
-                    .expect("formal parameters mapped by arguments objects are always writable");
+                map.set(idx, v.clone()).expect("formal parameters mapped by arguments objects are always writable");
             }
         }
-        ordinary_set(agent, self, key, v, receiver)
+        ordinary_set(self, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -298,12 +290,12 @@ impl ObjectInterface for ArgumentsObject {
     //  4. If result is true and isMapped is true, then
     //      a. Perform ! map.[[Delete]](P).
     //  5. Return result.
-    fn delete(&self, agent: &Agent, key: &PropertyKey) -> Completion<bool> {
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
         // Note: ordinary_delete only fails if its call to o.[[GetOwnProperty]]
         // fails. And the ArgumentsObject::GetOwnProperty routine, just above,
         // cannot fail. Thus: we don't need to pass back an error from
         // ordinary_delete, and ArgumentsObject::Delete cannot fail, either!
-        let result = ordinary_delete(agent, self, key).expect("Arguments Objects can always delete");
+        let result = ordinary_delete(self, key).expect("Arguments Objects can always delete");
         if let Some(map) = self.parameter_map.as_ref().filter(|_| result) {
             let mut pmap = map.borrow_mut();
             if let Some(idx) = pmap.to_index(key) {
@@ -319,17 +311,17 @@ impl ObjectInterface for ArgumentsObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &Agent) -> Completion<Vec<PropertyKey>> {
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
 
 impl ArgumentsObject {
-    pub fn object(agent: &Agent, parameter_map: Option<ParameterMap>) -> Object {
-        let prototype = Some(agent.intrinsic(IntrinsicId::ObjectPrototype));
+    pub fn object(parameter_map: Option<ParameterMap>) -> Object {
+        let prototype = Some(intrinsic(IntrinsicId::ObjectPrototype));
         Object {
             o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, prototype, true, ARGUMENTS_OBJECT_SLOTS)),
+                common: RefCell::new(CommonObjectData::new(prototype, true, ARGUMENTS_OBJECT_SLOTS)),
                 parameter_map: parameter_map.map(RefCell::new),
             }),
         }

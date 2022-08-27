@@ -130,13 +130,13 @@ mod conditional_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
     #[test_case("package?interface:implements", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "conditional")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
         ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
             .unwrap()
             .0
-            .early_errors(&agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&agent, err.clone())))
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

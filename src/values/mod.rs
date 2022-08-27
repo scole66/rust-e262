@@ -79,9 +79,9 @@ impl ECMAScriptValue {
     //      b. Let target be argument.[[ProxyTarget]].
     //      c. Return ? IsArray(target).
     //  4. Return false.
-    pub fn is_array(&self, agent: &Agent) -> Completion<bool> {
+    pub fn is_array(&self) -> Completion<bool> {
         match self {
-            ECMAScriptValue::Object(obj) => obj.is_array(agent),
+            ECMAScriptValue::Object(obj) => obj.is_array(),
             _ => Ok(false),
         }
     }
@@ -437,8 +437,8 @@ impl Hash for Symbol {
 }
 
 impl Symbol {
-    pub fn new(agent: &Agent, description: Option<JSString>) -> Self {
-        Self(Rc::new(SymbolInternals { id: agent.next_symbol_id(), description }))
+    pub fn new(description: Option<JSString>) -> Self {
+        Self(Rc::new(SymbolInternals { id: next_symbol_id(), description }))
     }
     pub fn description(&self) -> Option<JSString> {
         self.0.description.as_ref().cloned()
@@ -627,7 +627,7 @@ pub enum ConversionHint {
     String,
     Number,
 }
-pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
+pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
     let method_names = match hint {
         ConversionHint::String => {
             vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")]
@@ -637,15 +637,15 @@ pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) 
         }
     };
     for name in method_names.iter() {
-        let method = get(agent, obj, name)?;
+        let method = get(obj, name)?;
         if is_callable(&method) {
-            let result = call(agent, &method, &ECMAScriptValue::from(obj), &[])?;
+            let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
                 return Ok(result);
             }
         }
     }
-    Err(create_type_error(agent, "Cannot convert object to primitive value"))
+    Err(create_type_error("Cannot convert object to primitive value"))
 }
 
 // ToPrimitive ( input [ , preferredType ] )
@@ -674,27 +674,23 @@ pub fn ordinary_to_primitive(agent: &Agent, obj: &Object, hint: ConversionHint) 
 //          objects may over-ride this behaviour by defining a @@toPrimitive method. Of the objects defined in this
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
-pub fn to_primitive(
-    agent: &Agent,
-    input: ECMAScriptValue,
-    preferred_type: Option<ConversionHint>,
-) -> Completion<ECMAScriptValue> {
+pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = get_method(agent, &input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
+        let exotic_to_prim = get_method(&input, &PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
                 Some(ConversionHint::Number) => "number",
                 Some(ConversionHint::String) => "string",
             });
-            let result = call(agent, &exotic_to_prim, &input, &[hint])?;
+            let result = call(&exotic_to_prim, &input, &[hint])?;
             if !result.is_object() {
                 return Ok(result);
             }
-            return Err(create_type_error(agent, "Cannot convert object to primitive value"));
+            return Err(create_type_error("Cannot convert object to primitive value"));
         }
         let pt = preferred_type.unwrap_or(ConversionHint::Number);
-        ordinary_to_primitive(agent, obj, pt)
+        ordinary_to_primitive(obj, pt)
     } else {
         Ok(input)
     }
@@ -749,12 +745,12 @@ pub enum Numeric {
     Number(f64),
     BigInt(Rc<BigInt>),
 }
-pub fn to_numeric(agent: &Agent, value: ECMAScriptValue) -> Completion<Numeric> {
-    let prim_value = to_primitive(agent, value, Some(ConversionHint::Number))?;
+pub fn to_numeric(value: ECMAScriptValue) -> Completion<Numeric> {
+    let prim_value = to_primitive(value, Some(ConversionHint::Number))?;
     if let ECMAScriptValue::BigInt(bi) = prim_value {
         Ok(Numeric::BigInt(bi))
     } else {
-        Ok(Numeric::Number(to_number(agent, prim_value)?))
+        Ok(Numeric::Number(to_number(prim_value)?))
     }
 }
 
@@ -785,22 +781,18 @@ pub fn to_numeric(agent: &Agent, value: ECMAScriptValue) -> Completion<Numeric> 
 // |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
 // |               |     2. Return ? ToNumber(primValue).                              |
 // +---------------+-------------------------------------------------------------------+
-pub fn to_number(agent: &Agent, value: impl Into<ECMAScriptValue>) -> Completion<f64> {
+pub fn to_number(value: impl Into<ECMAScriptValue>) -> Completion<f64> {
     match value.into() {
         ECMAScriptValue::Undefined => Ok(f64::NAN),
         ECMAScriptValue::Null => Ok(0_f64),
         ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
         ECMAScriptValue::Number(n) => Ok(n),
         ECMAScriptValue::String(s) => Ok(string_to_number(s)),
-        ECMAScriptValue::BigInt(_) => {
-            Err(create_type_error(agent, "BigInt values cannot be converted to Number values"))
-        }
-        ECMAScriptValue::Symbol(_) => {
-            Err(create_type_error(agent, "Symbol values cannot be converted to Number values"))
-        }
+        ECMAScriptValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
+        ECMAScriptValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
         ECMAScriptValue::Object(o) => {
-            let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
-            to_number(agent, prim_value)
+            let prim_value = to_primitive(ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
+            to_number(prim_value)
         }
     }
 }
@@ -882,8 +874,8 @@ fn string_to_number(string: JSString) -> f64 {
 //  5. Let integer be floor(abs(ℝ(number))).
 //  6. If number < +0𝔽, set integer to -integer.
 //  7. Return integer.
-pub fn to_integer_or_infinity(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    let number = to_number(agent, argument)?;
+pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
+    let number = to_number(argument)?;
     if number.is_nan() || number == 0.0 {
         Ok(0.0)
     } else if number.is_infinite() {
@@ -916,9 +908,9 @@ pub fn to_integer_or_infinity(agent: &Agent, argument: impl Into<ECMAScriptValue
 //      | * ToInt32(ToUint32(x)) is the same value as ToInt32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToInt32 maps -0𝔽 to +0𝔽.
-fn to_core_int(agent: &Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
+fn to_core_int(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     Ok({
-        let number = to_number(agent, argument)?;
+        let number = to_number(argument)?;
         if !number.is_finite() || number == 0.0 {
             0.0
         } else {
@@ -936,9 +928,9 @@ fn to_core_int_agentless(modulo: f64, argument: impl Into<ECMAScriptValue>) -> a
         Ok(i % modulo)
     }
 }
-fn to_core_signed(agent: &Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
+fn to_core_signed(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     Ok({
-        let intval = to_core_int(agent, modulo, argument)?;
+        let intval = to_core_int(modulo, argument)?;
         if intval >= modulo / 2.0 {
             intval - modulo
         } else {
@@ -946,8 +938,8 @@ fn to_core_signed(agent: &Agent, modulo: f64, argument: impl Into<ECMAScriptValu
         }
     })
 }
-pub fn to_int32(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
-    Ok(to_core_signed(agent, 4294967296.0, argument)? as i32)
+pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
+    Ok(to_core_signed(4294967296.0, argument)? as i32)
 }
 
 // ToUint32 ( argument )
@@ -969,8 +961,8 @@ pub fn to_int32(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completi
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
-pub fn to_uint32(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
-    let i = to_core_int(agent, 4294967296.0, argument)? as i64;
+pub fn to_uint32(argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
+    let i = to_core_int(4294967296.0, argument)? as i64;
     Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
@@ -988,8 +980,8 @@ pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Resu
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
-pub fn to_int16(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
-    Ok(to_core_signed(agent, 65536.0, argument)? as i16)
+pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
+    Ok(to_core_signed(65536.0, argument)? as i16)
 }
 
 // ToUint16 ( argument )
@@ -1007,8 +999,8 @@ pub fn to_int16(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completi
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
-pub fn to_uint16(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
-    let i = to_core_int(agent, 65536.0, argument)? as i64;
+pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
+    let i = to_core_int(65536.0, argument)? as i64;
     Ok((if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
@@ -1022,8 +1014,8 @@ pub fn to_uint16(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Complet
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
-pub fn to_int8(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
-    Ok(to_core_signed(agent, 256.0, argument)? as i8)
+pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
+    Ok(to_core_signed(256.0, argument)? as i8)
 }
 
 // ToUint8 ( argument )
@@ -1036,8 +1028,8 @@ pub fn to_int8(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completio
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
-pub fn to_uint8(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
-    let i = to_core_int(agent, 256.0, argument)? as i64;
+pub fn to_uint8(argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
+    let i = to_core_int(256.0, argument)? as i64;
     Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
@@ -1069,13 +1061,13 @@ pub fn to_uint8(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completi
 // |               |      1. Let primValue be ? ToPrimitive(argument, string). |
 // |               |      2. Return ? ToString(primValue).                     |
 // +---------------+-----------------------------------------------------------+
-pub fn to_string(agent: &Agent, val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
+pub fn to_string(val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
     let val = val.into();
     if val.is_object() {
-        let prim_value = to_primitive(agent, val, Some(ConversionHint::String))?;
-        to_string(agent, prim_value)
+        let prim_value = to_primitive(val, Some(ConversionHint::String))?;
+        to_string(prim_value)
     } else {
-        JSString::try_from(val).map_err(|e| create_type_error(agent, e.to_string()))
+        JSString::try_from(val).map_err(|e| create_type_error(e.to_string()))
     }
 }
 
@@ -1121,16 +1113,16 @@ impl TryFrom<ECMAScriptValue> for JSString {
 // | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
 // | Object        | Return argument.                                                                    |
 // +---------------+-------------------------------------------------------------------------------------+
-pub fn to_object(agent: &Agent, val: impl Into<ECMAScriptValue>) -> Completion<Object> {
+pub fn to_object(val: impl Into<ECMAScriptValue>) -> Completion<Object> {
     match val.into() {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => {
-            Err(create_type_error(agent, "Undefined and null cannot be converted to objects"))
+            Err(create_type_error("Undefined and null cannot be converted to objects"))
         }
-        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
-        ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
-        ECMAScriptValue::String(s) => Ok(agent.create_string_object(s)),
-        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(agent, s)),
-        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(agent, b)),
+        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(b)),
+        ECMAScriptValue::Number(n) => Ok(create_number_object(n)),
+        ECMAScriptValue::String(s) => Ok(create_string_object(s)),
+        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(s)),
+        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(b)),
         ECMAScriptValue::Object(o) => Ok(o),
     }
 }
@@ -1144,11 +1136,11 @@ pub fn to_object(agent: &Agent, val: impl Into<ECMAScriptValue>) -> Completion<O
 //  2. If Type(key) is Symbol, then
 //      a. Return key.
 //  3. Return ! ToString(key).
-pub fn to_property_key(agent: &Agent, argument: ECMAScriptValue) -> Completion<PropertyKey> {
-    let key = to_primitive(agent, argument, Some(ConversionHint::String))?;
+pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
+    let key = to_primitive(argument, Some(ConversionHint::String))?;
     match key {
         ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
-        _ => Ok(PropertyKey::from(to_string(agent, key).unwrap())),
+        _ => Ok(PropertyKey::from(to_string(key).unwrap())),
     }
 }
 
@@ -1160,8 +1152,8 @@ pub fn to_property_key(agent: &Agent, argument: ECMAScriptValue) -> Completion<P
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-pub fn to_length(agent: &Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
-    let len = to_integer_or_infinity(agent, argument)?;
+pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
+    let len = to_integer_or_infinity(argument)?;
     Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
 }
 
@@ -1205,15 +1197,15 @@ pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
 //      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
 //      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
 //      e. Return integer.
-pub fn to_index(agent: &Agent, value: impl Into<ECMAScriptValue>) -> Completion<i64> {
+pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let value = value.into();
     if value == ECMAScriptValue::Undefined {
         Ok(0)
     } else {
-        let integer = to_integer_or_infinity(agent, value)?;
-        let clamped = to_length(agent, integer).unwrap();
+        let integer = to_integer_or_infinity(value)?;
+        let clamped = to_length(integer).unwrap();
         if clamped as f64 != integer {
-            Err(create_range_error(agent, format!("{} out of range for index", integer).as_str()))
+            Err(create_range_error(format!("{} out of range for index", integer).as_str()))
         } else {
             Ok(clamped)
         }
@@ -1308,74 +1300,69 @@ impl ECMAScriptValue {
     }
 }
 
-impl Agent {
-    pub fn is_loosely_equal(&self, x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<bool> {
-        match (x, y) {
-            (ECMAScriptValue::Number(_), ECMAScriptValue::Number(_))
-            | (ECMAScriptValue::BigInt(_), ECMAScriptValue::BigInt(_))
-            | (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
-            | (ECMAScriptValue::Null, ECMAScriptValue::Null)
-            | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
-            | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
-            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
-            | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => Ok(x.is_strictly_equal(y)),
-            (ECMAScriptValue::Undefined, ECMAScriptValue::Null)
-            | (ECMAScriptValue::Null, ECMAScriptValue::Undefined) => Ok(true),
-            (ECMAScriptValue::Number(_), ECMAScriptValue::String(y)) => {
-                let new_y =
-                    ECMAScriptValue::from(to_number(self, y).expect("Strings are always convertable to numbers"));
-                self.is_loosely_equal(x, &new_y)
-            }
-            (ECMAScriptValue::String(x), ECMAScriptValue::Number(_)) => {
-                let new_x =
-                    ECMAScriptValue::from(to_number(self, x).expect("Strings are always convertable to numbers"));
-                self.is_loosely_equal(&new_x, y)
-            }
-            (ECMAScriptValue::BigInt(_), ECMAScriptValue::String(y)) => {
-                let n = String::from(y).parse::<BigInt>();
-                match n {
-                    Err(_) => Ok(false),
-                    Ok(bi) => self.is_loosely_equal(x, &bi.into()),
-                }
-            }
-            (ECMAScriptValue::String(_), ECMAScriptValue::BigInt(_)) => self.is_loosely_equal(y, x),
-            (ECMAScriptValue::Boolean(_), _) => {
-                let new_x = ECMAScriptValue::from(
-                    to_number(self, x.clone()).expect("Booleans are always convertable to numbers"),
-                );
-                self.is_loosely_equal(&new_x, y)
-            }
-            (_, ECMAScriptValue::Boolean(_)) => {
-                let new_y = ECMAScriptValue::from(
-                    to_number(self, y.clone()).expect("Booleans are always convertable to numbers"),
-                );
-                self.is_loosely_equal(x, &new_y)
-            }
-            (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
-            | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
-            | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
-            | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
-                let new_y = to_primitive(self, y.clone(), None)?;
-                self.is_loosely_equal(x, &new_y)
-            }
-            (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
-            | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
-            | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
-            | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
-                let new_x = to_primitive(self, x.clone(), None)?;
-                self.is_loosely_equal(&new_x, y)
-            }
-            (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))
-            | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
-                Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
-            }
-            (ECMAScriptValue::Undefined, _)
-            | (ECMAScriptValue::Null, _)
-            | (ECMAScriptValue::Symbol(_), _)
-            | (_, ECMAScriptValue::Undefined)
-            | (_, ECMAScriptValue::Null)
-            | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
+pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<bool> {
+    match (x, y) {
+        (ECMAScriptValue::Number(_), ECMAScriptValue::Number(_))
+        | (ECMAScriptValue::BigInt(_), ECMAScriptValue::BigInt(_))
+        | (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+        | (ECMAScriptValue::Null, ECMAScriptValue::Null)
+        | (ECMAScriptValue::String(_), ECMAScriptValue::String(_))
+        | (ECMAScriptValue::Boolean(_), ECMAScriptValue::Boolean(_))
+        | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
+        | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => Ok(x.is_strictly_equal(y)),
+        (ECMAScriptValue::Undefined, ECMAScriptValue::Null) | (ECMAScriptValue::Null, ECMAScriptValue::Undefined) => {
+            Ok(true)
         }
+        (ECMAScriptValue::Number(_), ECMAScriptValue::String(y)) => {
+            let new_y = ECMAScriptValue::from(to_number(y).expect("Strings are always convertable to numbers"));
+            is_loosely_equal(x, &new_y)
+        }
+        (ECMAScriptValue::String(x), ECMAScriptValue::Number(_)) => {
+            let new_x = ECMAScriptValue::from(to_number(x).expect("Strings are always convertable to numbers"));
+            is_loosely_equal(&new_x, y)
+        }
+        (ECMAScriptValue::BigInt(_), ECMAScriptValue::String(y)) => {
+            let n = String::from(y).parse::<BigInt>();
+            match n {
+                Err(_) => Ok(false),
+                Ok(bi) => is_loosely_equal(x, &bi.into()),
+            }
+        }
+        (ECMAScriptValue::String(_), ECMAScriptValue::BigInt(_)) => is_loosely_equal(y, x),
+        (ECMAScriptValue::Boolean(_), _) => {
+            let new_x =
+                ECMAScriptValue::from(to_number(x.clone()).expect("Booleans are always convertable to numbers"));
+            is_loosely_equal(&new_x, y)
+        }
+        (_, ECMAScriptValue::Boolean(_)) => {
+            let new_y =
+                ECMAScriptValue::from(to_number(y.clone()).expect("Booleans are always convertable to numbers"));
+            is_loosely_equal(x, &new_y)
+        }
+        (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
+        | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
+        | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
+        | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
+            let new_y = to_primitive(y.clone(), None)?;
+            is_loosely_equal(x, &new_y)
+        }
+        (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
+        | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
+        | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
+        | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
+            let new_x = to_primitive(x.clone(), None)?;
+            is_loosely_equal(&new_x, y)
+        }
+        (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))
+        | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
+            Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
+        }
+        (ECMAScriptValue::Undefined, _)
+        | (ECMAScriptValue::Null, _)
+        | (ECMAScriptValue::Symbol(_), _)
+        | (_, ECMAScriptValue::Undefined)
+        | (_, ECMAScriptValue::Null)
+        | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
     }
 }
 
