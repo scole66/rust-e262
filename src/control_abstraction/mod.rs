@@ -171,16 +171,11 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
         };
     }
 
-    let generator_prototype_next_obj = {
-        let val = get(&generator_prototype, &"next".into()).unwrap();
-        to_object(val).unwrap()
-    };
-
     gen_prototype_data!("constructor", generator_function_prototype.clone(), false, false, true);
     gen_prototype_data!(to_string_tag, "Generator", false, false, true);
 
     macro_rules! gen_prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr, $name:expr, $length:expr ) => {{
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
@@ -196,15 +191,16 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
                 &generator_prototype,
                 key,
                 PotentialPropertyDescriptor::new()
-                    .value(function_object)
+                    .value(function_object.clone())
                     .writable(true)
                     .enumerable(false)
                     .configurable(true),
             )
             .unwrap();
-        };
+            function_object
+        }};
     }
-    gen_prototype_function!(generator_prototype_next, "next", 1.0);
+    let generator_prototype_next_obj = gen_prototype_function!(generator_prototype_next, "next", 1.0);
     gen_prototype_function!(generator_prototype_return, "return", 1.0);
     gen_prototype_function!(generator_prototype_throw, "throw", 1.0);
 
