@@ -23,5 +23,5 @@ fn require_object_coercible(make_arg: fn() -> ECMAScriptValue) -> Result<(), Str
     setup_test_agent();
     let arg = make_arg();
 
-    super::require_object_coercible(&arg).map_err(|err| unwind_any_error(err))
+    super::require_object_coercible(&arg).map_err(unwind_any_error)
 }

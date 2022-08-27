@@ -653,7 +653,7 @@ mod put_value {
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), strict, None);
 
-        let r = put_value(Ok(NormalCompletion::from(reference)), Ok(value)).map_err(|ac| unwind_type_error(ac));
+        let r = put_value(Ok(NormalCompletion::from(reference)), Ok(value)).map_err(unwind_type_error);
 
         let from_obj = get(&normal_object, &key).unwrap();
         assert_eq!(from_obj, ECMAScriptValue::Undefined);

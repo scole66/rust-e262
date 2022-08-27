@@ -1594,7 +1594,7 @@ fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
     setup_test_agent();
     let arg = make_arg();
 
-    super::to_length(arg).map_err(|e| unwind_type_error(e))
+    super::to_length(arg).map_err(unwind_type_error)
 }
 
 mod canonical_numeric_index_string {
@@ -1630,7 +1630,7 @@ mod to_index {
     #[test_case(ECMAScriptValue::from(BigInt::from(10_i32)) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "non-number")]
     fn f(arg: ECMAScriptValue) -> Result<i64, String> {
         setup_test_agent();
-        to_index(arg).map_err(|e| unwind_any_error(e))
+        to_index(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1649,7 +1649,7 @@ mod to_int32 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
         setup_test_agent();
-        to_int32(arg).map_err(|e| unwind_any_error(e))
+        to_int32(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1668,7 +1668,7 @@ mod to_uint32 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
         setup_test_agent();
-        to_uint32(arg).map_err(|e| unwind_any_error(e))
+        to_uint32(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1687,7 +1687,7 @@ mod to_int16 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i16, String> {
         setup_test_agent();
-        to_int16(arg).map_err(|e| unwind_any_error(e))
+        to_int16(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1706,7 +1706,7 @@ mod to_uint16 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u16, String> {
         setup_test_agent();
-        to_uint16(arg).map_err(|e| unwind_any_error(e))
+        to_uint16(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1725,7 +1725,7 @@ mod to_int8 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i8, String> {
         setup_test_agent();
-        to_int8(arg).map_err(|e| unwind_any_error(e))
+        to_int8(arg).map_err(unwind_any_error)
     }
 }
 
@@ -1744,7 +1744,7 @@ mod to_uint8 {
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
         setup_test_agent();
-        to_uint8(arg).map_err(|e| unwind_any_error(e))
+        to_uint8(arg).map_err(unwind_any_error)
     }
 }
 
@@ -2050,6 +2050,6 @@ mod agent {
         let x = make_x();
         let y = make_y();
 
-        super::is_loosely_equal(&x, &y).map_err(|e| unwind_any_error(e))
+        super::is_loosely_equal(&x, &y).map_err(unwind_any_error)
     }
 }

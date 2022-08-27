@@ -365,8 +365,8 @@ fn symbol_match(expected: &str) -> impl FnOnce(Result<ECMAScriptValue, String>) 
     }
 }
 
-#[test_case(|| Some(ordinary_object_create(None, &[])), || vec![] => serr("TypeError: Symbol is not a constructor"); "called as constructor")]
-#[test_case(|| None, || vec![] => using symbol_match("Symbol()"); "empty description")]
+#[test_case(|| Some(ordinary_object_create(None, &[])), Vec::new => serr("TypeError: Symbol is not a constructor"); "called as constructor")]
+#[test_case(|| None, Vec::new => using symbol_match("Symbol()"); "empty description")]
 #[test_case(|| None, || vec![ECMAScriptValue::from("giants")] => using symbol_match("Symbol(giants)"); "with description")]
 #[test_case(|| None, || vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))] => serr("TypeError: Symbols may not be converted to strings"); "with bad description")]
 fn symbol_constructor_function(
@@ -376,7 +376,7 @@ fn symbol_constructor_function(
     setup_test_agent();
     let nt = tgt_maker();
     let args = arg_maker();
-    super::symbol_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(|e| unwind_any_error(e))
+    super::symbol_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(unwind_any_error)
 }
 
 mod symbol_for {
@@ -634,7 +634,7 @@ mod symbol_to_string {
     fn normal(maker: fn() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let this_value = maker();
-        symbol_to_string(this_value, None, &[]).map(|val| format!("{val}")).map_err(|ac| unwind_any_error(ac))
+        symbol_to_string(this_value, None, &[]).map(|val| format!("{val}")).map_err(unwind_any_error)
     }
 }
 

@@ -16,7 +16,7 @@ need_stdout = false
 watch = ["tests", "benches", "examples"]
 
 [jobs.clippy]
-command = ["cargo", "clippy", "--color", "always", "--profile", "bacon"]
+command = ["cargo", "clippy", "--tests", "--color", "always", "--profile", "bacon"]
 need_stdout = false
 watch = ["tests"]
 

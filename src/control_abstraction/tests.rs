@@ -150,7 +150,7 @@ mod agent {
     ) -> Result<GeneratorState, String> {
         setup_test_agent();
         let value = make_value();
-        super::generator_validate(value, desired_brand).map_err(|e| unwind_any_error(e))
+        super::generator_validate(value, desired_brand).map_err(unwind_any_error)
     }
 }
 
@@ -159,7 +159,7 @@ mod agent {
 fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::iterator_prototype_iterator(this_value, None, &[]).map_err(|e| unwind_any_error(e))
+    super::iterator_prototype_iterator(this_value, None, &[]).map_err(unwind_any_error)
 }
 
 tbd_function!(generator_function);

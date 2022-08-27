@@ -186,7 +186,7 @@ mod agent {
     fn void_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        super::void_operator(expr).map_err(|ac| unwind_any_error(ac))
+        super::void_operator(expr).map_err(unwind_any_error)
     }
 
     #[test_case(|| Ok(NormalCompletion::from(Reference::new(Base::Unresolvable, "not_here", true, None))) => Ok(NormalCompletion::from("undefined")); "unresolvable ref")]
@@ -213,7 +213,7 @@ mod agent {
     fn typeof_operator(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        super::typeof_operator(expr).map_err(|ac| unwind_any_error(ac))
+        super::typeof_operator(expr).map_err(unwind_any_error)
     }
 
     fn superproperty() -> FullCompletion {
@@ -271,7 +271,7 @@ mod agent {
     fn delete_ref(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();
-        super::delete_ref(expr).map_err(|ac| unwind_any_error(ac))
+        super::delete_ref(expr).map_err(unwind_any_error)
     }
 
     #[test_case(|| ECMAScriptValue::from("left "),
@@ -450,7 +450,7 @@ mod agent {
         setup_test_agent();
         let lval = make_lval();
         let rval = make_rval();
-        super::apply_string_or_numeric_binary_operator(lval, rval, op).map_err(|ac| unwind_any_error(ac))
+        super::apply_string_or_numeric_binary_operator(lval, rval, op).map_err(unwind_any_error)
     }
 
     #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
@@ -546,7 +546,7 @@ mod agent {
         setup_test_agent();
         let x = make_x();
         let y = make_y();
-        super::is_less_than(x, y, left_first).map_err(|completion| unwind_any_error(completion))
+        super::is_less_than(x, y, left_first).map_err(unwind_any_error)
     }
 
     type ValueMaker = fn() -> ECMAScriptValue;
@@ -622,9 +622,7 @@ mod agent {
         let v = make_v();
         let target = make_target();
 
-        super::instanceof_operator(v, target)
-            .map_err(|completion| unwind_any_error(completion))
-            .map(|nc| nc.try_into().unwrap())
+        super::instanceof_operator(v, target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
     }
 
     mod create_unmapped_arguments_object {
@@ -1190,7 +1188,7 @@ mod global_declaration_instantiation {
 
         let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
 
-        result.map_err(|err| unwind_any_error(err)).map(|_| {
+        result.map_err(unwind_any_error).map(|_| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
@@ -1213,7 +1211,7 @@ mod script_evaluation {
         let realm = current_realm_record().unwrap();
         let script_record = parse_script(src, realm).unwrap();
 
-        super::script_evaluation(script_record).map_err(|err| unwind_any_error(err))
+        super::script_evaluation(script_record).map_err(unwind_any_error)
     }
 }
 

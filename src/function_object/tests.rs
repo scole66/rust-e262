@@ -220,6 +220,6 @@ mod function_prototype_call {
     ) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let this_value = get_this();
-        super::function_prototype_call(this_value, None, args).map_err(|err| unwind_any_error(err))
+        super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
     }
 }

@@ -815,7 +815,7 @@ mod agent {
     fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let val = make_val();
-        super::this_string_value(val, "unit testing").map(String::from).map_err(|e| unwind_any_error(e))
+        super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
     }
 }
 
@@ -838,12 +838,12 @@ fn string_constructor_function(
             }
             _ => panic!("Bad value from string_constructor_function: {:?}", val),
         })
-        .map_err(|err| unwind_any_error(err))
+        .map_err(unwind_any_error)
 }
 
 #[test_case(|| vec![ECMAScriptValue::from(112), ECMAScriptValue::from(97), ECMAScriptValue::from(115), ECMAScriptValue::from(115)] => sok("pass"); "normal")]
 #[test_case(|| vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))] => serr("TypeError: Symbol values cannot be converted to Number values"); "bad args")]
-#[test_case(|| vec![] => sok(""); "emtpy args")]
+#[test_case(Vec::new => sok(""); "emtpy args")]
 fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
     setup_test_agent();
     let args = make_params();
@@ -852,7 +852,7 @@ fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected String value from String.fromCharCode: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(e))
+        .map_err(unwind_any_error)
 }
 
 #[test_case(|| (ECMAScriptValue::Undefined, vec![]) => serr("TypeError: Undefined and null are not allowed in this context"); "'this' bad")]
@@ -871,7 +871,7 @@ fn string_prototype_index_of(
             ECMAScriptValue::Number(n) => n,
             _ => panic!("Expected number value from String.prototype.indexOf: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(e))
+        .map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::from(super::create_string_object("a string".into())) => sok("a string"); "from string object")]
@@ -884,7 +884,7 @@ fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> 
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.toString: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(e))
+        .map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::from(super::create_string_object("a string".into())) => sok("a string"); "from string object")]
@@ -897,7 +897,7 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.valueOf: {:?}", val),
         })
-        .map_err(|e| unwind_any_error(e))
+        .map_err(unwind_any_error)
 }
 
 tbd_function!(string_from_code_point);

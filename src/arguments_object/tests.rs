@@ -285,7 +285,7 @@ mod arguments_object {
         let obj = make_object();
         let receiver = ECMAScriptValue::from(obj.clone());
 
-        obj.o.get(&propname.into(), &receiver).map_err(|err| unwind_any_error(err))
+        obj.o.get(&propname.into(), &receiver).map_err(unwind_any_error)
     }
 
     #[test_case(test_ao, "0", ECMAScriptValue::from(99), &["0", "1", "2", "from", "the", "test"] => Ok((true, vec![
@@ -320,7 +320,7 @@ mod arguments_object {
             .unwrap_or_else(|| current_realm_record().unwrap().borrow().global_env.clone().unwrap());
         let receiver = ECMAScriptValue::from(obj.clone());
 
-        let result = obj.o.set(propname.into(), val, &receiver).map_err(|err| unwind_any_error(err))?;
+        let result = obj.o.set(propname.into(), val, &receiver).map_err(unwind_any_error)?;
 
         let values = to_check
             .iter()
@@ -387,7 +387,7 @@ mod arguments_object {
             .unwrap_or_else(|| current_realm_record().unwrap().borrow().global_env.clone().unwrap());
         let receiver = ECMAScriptValue::from(obj.clone());
 
-        let result = obj.o.delete(&name.into()).map_err(|err| unwind_any_error(err))?;
+        let result = obj.o.delete(&name.into()).map_err(unwind_any_error)?;
 
         let values = to_check
             .iter()
@@ -541,7 +541,7 @@ mod arguments_object {
         let obj = make_object();
         let env = current_lexical_environment().unwrap();
 
-        let result = obj.o.define_own_property(name.into(), desc).map_err(|e| unwind_any_error(e))?;
+        let result = obj.o.define_own_property(name.into(), desc).map_err(unwind_any_error)?;
 
         let object_keys = obj.o.own_property_keys().unwrap();
         let items =

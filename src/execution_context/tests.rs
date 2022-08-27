@@ -220,7 +220,7 @@ mod agent {
         let env = env_maker();
         let result = super::resolve_binding(&name.into(), env, strict);
 
-        result.map_err(|err| unwind_any_error(err)).and_then(|nc| match nc {
+        result.map_err(unwind_any_error).and_then(|nc| match nc {
             NormalCompletion::Empty | NormalCompletion::Value(_) | NormalCompletion::Environment(_) => {
                 Err("improper completion".to_string())
             }

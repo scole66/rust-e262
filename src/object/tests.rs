@@ -2428,7 +2428,7 @@ mod private_get {
             FieldName::NoGetter => nogetter_name,
             FieldName::Unavailable => PrivateName::new("unavailable"),
         };
-        private_get(&obj, &query).map_err(|e| unwind_type_error(e))
+        private_get(&obj, &query).map_err(unwind_type_error)
     }
 }
 
@@ -2520,7 +2520,7 @@ mod private_set {
             FieldName::Unavailable => PrivateName::new("unavailable"),
         };
 
-        private_set(&obj, &query, new_value).map_err(|e| unwind_type_error(e))?;
+        private_set(&obj, &query, new_value).map_err(unwind_type_error)?;
 
         Ok(private_get(&obj, &query).unwrap())
     }
@@ -2957,7 +2957,7 @@ mod enumerable_own_property_names {
     fn f(make_obj: fn() -> Object, kind: EnumerationStyle) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let obj = make_obj();
-        enumerable_own_property_names(&obj, kind).map_err(|err| unwind_any_error(err))
+        enumerable_own_property_names(&obj, kind).map_err(unwind_any_error)
     }
 
     #[test]
@@ -3102,7 +3102,7 @@ mod set_integrity_level {
         let obj = make_obj();
         set_integrity_level(&obj, level)
             .map(|success| (success, obj.o.common_object_data().borrow().propdump()))
-            .map_err(|err| unwind_any_error(err))
+            .map_err(unwind_any_error)
     }
 }
 
@@ -3195,7 +3195,7 @@ mod ordinary_has_instance {
         let c = make_c();
         let o = make_o();
 
-        super::ordinary_has_instance(&c, &o).map_err(|completion| unwind_any_error(completion))
+        super::ordinary_has_instance(&c, &o).map_err(unwind_any_error)
     }
 }
 

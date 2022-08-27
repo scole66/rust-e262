@@ -40,6 +40,12 @@ thread_local! {
     pub static AGENT: Agent = Agent::new();
 }
 
+impl Default for Agent {
+    fn default() -> Self {
+        Agent::new()
+    }
+}
+
 impl Agent {
     pub fn new() -> Self {
         Agent {

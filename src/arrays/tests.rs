@@ -377,9 +377,7 @@ mod array_object {
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc)
-                .map(|success| (success, a.common.borrow().propdump()))
-                .map_err(|err| unwind_any_error(err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
 
         #[test]
@@ -397,7 +395,7 @@ mod array_object {
             let result = a
                 .set_length(PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() })
                 .map(|success| (success, a.common.borrow().propdump()))
-                .map_err(|err| unwind_any_error(err));
+                .map_err(unwind_any_error);
             assert_eq!(
                 result,
                 Ok((
@@ -481,9 +479,7 @@ mod array_object {
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc)
-                .map(|success| (success, a.common.borrow().propdump()))
-                .map_err(|err| unwind_any_error(err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
 
         #[test_case(fifty => Ok((false, vec![
@@ -546,9 +542,7 @@ mod array_object {
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc)
-                .map(|success| (success, a.common.borrow().propdump()))
-                .map_err(|err| unwind_any_error(err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
     }
 }
@@ -581,7 +575,7 @@ fn is_array(make_arg: fn() -> ECMAScriptValue) -> Result<bool, String> {
     setup_test_agent();
     let arg = make_arg();
 
-    super::is_array(&arg).map_err(|err| unwind_any_error(err))
+    super::is_array(&arg).map_err(unwind_any_error)
 }
 
 mod array_species_create {
@@ -693,7 +687,7 @@ mod array_species_create {
         let original = make_original();
         array_species_create(&original, length)
             .map(|val| Object::try_from(val).unwrap().o.common_object_data().borrow().propdump())
-            .map_err(|err| unwind_any_error(err))
+            .map_err(unwind_any_error)
     }
 
     // todo!(): More tests want to be here to cover other code paths, but those code paths require:
