@@ -232,11 +232,15 @@ fn generator_function(
 }
 
 fn generator_prototype_next(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Generator.prototype.next ( value )
+    //  1. Return ? GeneratorResume(this value, value, empty).
+    let mut args = FuncArgs::from(arguments);
+    let value = args.next_arg();
+    generator_resume(this_value, value, "")
 }
 
 fn generator_prototype_return(
@@ -265,7 +269,7 @@ pub type ECMAClosure = Box<
     dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>>,
 >;
 
-fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
+pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     // CreateIterResultObject ( value, done )
     //
     // The abstract operation CreateIterResultObject takes arguments value (an ECMAScript language value)
@@ -553,7 +557,7 @@ impl GeneratorObject {
         //  7. Return state.
 
         // This is steps 3-7. (If you want to call the function GeneratorValidate like the specification does,
-        // use Agent::generator_validate.)
+        // use generator_validate.)
         let data = self.generator_data.borrow();
         if data.generator_brand != generator_brand {
             Err(GeneratorError::BrandMismatch)

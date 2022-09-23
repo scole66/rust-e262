@@ -2374,6 +2374,52 @@ pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClos
     }
 }
 
+pub fn generator_resume(
+    generator: ECMAScriptValue,
+    value: ECMAScriptValue,
+    generator_brand: &str,
+) -> Completion<ECMAScriptValue> {
+    // GeneratorResume ( generator, value, generatorBrand )
+    // The abstract operation GeneratorResume takes arguments generator, value, and generatorBrand and returns
+    // either a normal completion containing an ECMAScript language value or a throw completion. It performs
+    // the following steps when called:
+    //
+    //   1. Let state be ? GeneratorValidate(generator, generatorBrand).
+    //   2. If state is completed, return CreateIterResultObject(undefined, true).
+    //   3. Assert: state is either suspendedStart or suspendedYield.
+    //   4. Let genContext be generator.[[GeneratorContext]].
+    //   5. Let methodContext be the running execution context.
+    //   6. Suspend methodContext.
+    //   7. Set generator.[[GeneratorState]] to executing.
+    //   8. Push genContext onto the execution context stack; genContext is now the running execution context.
+    //   9. Resume the suspended evaluation of genContext using NormalCompletion(value) as the result of the
+    //      operation that suspended it. Let result be the value returned by the resumed computation.
+    //  10. Assert: When we return here, genContext has already been removed from the execution context stack
+    //      and methodContext is the currently running execution context.
+    //  11. Return ? result.
+    let state = generator_validate(generator.clone(), generator_brand)?;
+    if state == GeneratorState::Completed {
+        return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
+    }
+    assert!(state == GeneratorState::SuspendedStart || state == GeneratorState::SuspendedYield);
+
+    let obj = Object::try_from(generator).expect("generator previously validated");
+    let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
+    let gen_context = gdata.generator_context.take().expect("suspended generators hold their context");
+    let result = AGENT.with(|agent| {
+        agent.execution_context_stack.borrow_mut().push(gen_context);
+        gdata.generator_state = GeneratorState::Executing;
+        let ec_stack_len = agent.execution_context_stack.borrow().len();
+        let co = agent.execution_context_stack.borrow()[ec_stack_len - 1].gen_closure.expect("generator has closure?")
+        //. clone()
+        ;
+        *co. resume_with(value)
+    });
+
+
+    Ok(result)
+}
+
 #[derive(PartialEq, Eq)]
 enum BinOp {
     Exponentiate,
