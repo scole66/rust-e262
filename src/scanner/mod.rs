@@ -644,11 +644,11 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 }
 
 fn is_digit(ch: char) -> bool {
-    ('0'..='9').contains(&ch)
+    ch.is_ascii_digit()
 }
 
 fn is_hex_digit(ch: char) -> bool {
-    ('0'..='9').contains(&ch) || ('a'..='f').contains(&ch) || ('A'..='F').contains(&ch)
+    ch.is_ascii_hexdigit()
 }
 
 fn hex_four_digits(scanner: &Scanner, source: &str) -> Option<Scanner> {
@@ -841,7 +841,7 @@ impl From<HexChar> for char {
 fn mv_of_hex_digit(digit: HexChar) -> u32 {
     let ch: char = digit.into();
     let code = ch as u32;
-    if ('0'..='9').contains(&ch) {
+    if ch.is_ascii_digit() {
         code - '0' as u32
     } else if ('A'..='F').contains(&ch) {
         code - 'A' as u32 + 10
@@ -1494,7 +1494,7 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
 
     // Numbers can't be followed immediately by digits or identifiers. "3in" is a syntax error.
     if let Some(ch) = source[after.start_idx..].chars().next() {
-        if ('0'..='9').contains(&ch) || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
+        if ch.is_ascii_digit() || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
             return None;
         }
     }
@@ -1555,7 +1555,7 @@ fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
         Some('0') => {
             let lookahead = iter.next();
             match lookahead {
-                Some(ch) if ('0'..='9').contains(&ch) => None,
+                Some(ch) if ch.is_ascii_digit() => None,
                 _ => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
             }
         }

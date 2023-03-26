@@ -8,16 +8,11 @@ use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 pub enum ParseGoal {
+    #[default]
     Script,
     Module,
-}
-
-impl Default for ParseGoal {
-    fn default() -> Self {
-        ParseGoal::Script
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -366,8 +361,9 @@ impl Location {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
 pub enum PECode {
+    #[default]
     Generic,
     EoFExpected,
     ImproperNewline,
@@ -448,11 +444,6 @@ impl fmt::Display for PECode {
             PECode::CaseBlockCloseExpected => f.write_str("‘}’, ‘case’, or ‘default’ expected"),
             PECode::TryBlockError => f.write_str("Catch or Finally block expected"),
         }
-    }
-}
-impl Default for PECode {
-    fn default() -> Self {
-        PECode::Generic
     }
 }
 

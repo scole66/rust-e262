@@ -600,11 +600,11 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
             if agent.execution_context_stack.borrow()[index].pc >= chunk.opcodes.len() {
                 break;
             }
-            let (_, repr) = chunk.insn_repr_at(agent.execution_context_stack.borrow()[index].pc as usize);
+            let (_, repr) = chunk.insn_repr_at(agent.execution_context_stack.borrow()[index].pc);
             println!("{:04}{}", agent.execution_context_stack.borrow()[index].pc, repr);
 
             /* Real work */
-            let icode = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // in range due to while condition
+            let icode = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // in range due to while condition
             let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
             agent.execution_context_stack.borrow_mut()[index].pc += 1;
             match instruction {
@@ -616,7 +616,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     todo!()
                 }
                 Insn::String => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(string.into()));
@@ -653,13 +653,13 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(resolved);
                 }
                 Insn::Float => {
-                    let float_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize];
+                    let float_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let number = chunk.floats[float_index as usize];
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
                 }
                 Insn::Bigint => {
-                    let bigint_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize];
+                    let bigint_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let number = Rc::clone(&chunk.bigints[bigint_index as usize]);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
@@ -676,7 +676,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result.map(NormalCompletion::from));
                 }
                 Insn::JumpIfAbrupt => {
-                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as i16;
+                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as i16;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                     if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_err() {
@@ -688,7 +688,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpIfNormal => {
-                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as i16;
+                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as i16;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                     if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_ok() {
@@ -701,7 +701,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::JumpIfFalse | Insn::JumpIfTrue => {
                     let mut execution_context = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[execution_context.pc as usize] as i16;
+                    let jump = chunk.opcodes[execution_context.pc] as i16;
                     execution_context.pc += 1;
                     let stack_idx = execution_context.stack.len() - 1;
                     let bool_val = bool::from(
@@ -723,7 +723,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::JumpPopIfFalse | Insn::JumpPopIfTrue => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let bool_val = bool::from(
                         ECMAScriptValue::try_from(
@@ -746,7 +746,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::JumpIfNotNullish => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
                     let val = ECMAScriptValue::try_from(
@@ -763,7 +763,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::JumpIfNotUndef => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
                     let val = ECMAScriptValue::try_from(
@@ -780,7 +780,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::JumpNotThrow => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
                     let completion = &ec.stack[stack_idx];
@@ -795,7 +795,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::Jump => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc as usize] as i16;
+                    let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     if jump >= 0 {
                         ec.pc += jump as usize;
@@ -905,7 +905,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
 
                 Insn::CreateStrictImmutableLexBinding | Insn::CreateNonStrictImmutableLexBinding => {
                     let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
 
@@ -918,7 +918,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     } else {
                         current_variable_environment().expect("var environment must exist")
                     };
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = chunk.strings[string_idx].clone();
 
@@ -929,7 +929,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     //  2. If alreadyDeclared is false, then
                     //        a. Perform ! env.CreateMutableBinding(paramName, false).
                     let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
@@ -944,7 +944,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     //      a. Perform ! env.CreateMutableBinding(paramName, false).
                     //      b. Perform ! env.InitializeBinding(paramName, undefined).
                     let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
@@ -961,7 +961,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     } else {
                         current_variable_environment().expect("var environment must exist")
                     };
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
 
@@ -977,7 +977,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::GetLexBinding => {
                     let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
                     let value = env.get_binding_value(name, false).expect("Binding will be there");
@@ -985,7 +985,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::SetMutableVarBinding => {
                     let env = current_variable_environment().expect("var environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let name = &chunk.strings[string_idx];
                     let value = ECMAScriptValue::try_from(
@@ -1155,8 +1155,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Unwind => {
-                    let vals_to_remove =
-                        chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let vals_to_remove = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     assert!(vals_to_remove < agent.execution_context_stack.borrow()[index].stack.len());
                     if vals_to_remove > 0 {
@@ -1326,31 +1325,31 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::Subtract => agent.binary_operation(index, BinOp::Subtract),
 
                 Insn::InstantiateIdFreeFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     instantiate_ordinary_function_expression_without_binding_id(index, text, info)
                 }
                 Insn::InstantiateOrdinaryFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     instantiate_ordinary_function_expression_with_binding_id(index, text, info)
                 }
 
                 Insn::InstantiateArrowFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
                     instantiate_arrow_function_expression(Some(index), text, info)
                 }
                 Insn::InstantiateOrdinaryFunctionObject => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
-                    let func_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let func_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[func_index as usize];
+                    let info = &chunk.function_object_data[func_index];
                     instantiate_ordinary_function_object(Some(index), text, string, info)
                 }
                 Insn::LeftShift => agent.binary_operation(index, BinOp::LeftShift),
@@ -1435,11 +1434,10 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::CreateUnmappedArguments => create_unmapped_arguments_object(index),
                 Insn::CreateMappedArguments => create_mapped_arguments_object(index),
                 Insn::AddMappedArgument => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let string = &chunk.strings[string_index as usize];
-                    let argument_index =
-                        chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let argument_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     attach_mapped_arg(index, string, argument_index);
                 }
@@ -1459,7 +1457,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(new_result);
                 }
                 Insn::HandleTargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = &chunk.strings[str_idx];
                     let prior_result = agent.execution_context_stack.borrow_mut()[index]
@@ -1500,7 +1498,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::LoopContinues => {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let set_idx = chunk.opcodes[ec.pc as usize] as usize;
+                    let set_idx = chunk.opcodes[ec.pc] as usize;
                     ec.pc += 1;
                     let label_set = &chunk.label_sets[set_idx];
                     // 1. If completion.[[Type]] is normal, return true.
@@ -1524,7 +1522,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }));
                 }
                 Insn::TargetedContinue => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = chunk.strings[str_idx].clone();
                     agent.execution_context_stack.borrow_mut()[index]
@@ -1537,7 +1535,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }));
                 }
                 Insn::TargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc as usize] as usize;
+                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let label = chunk.strings[str_idx].clone();
                     agent.execution_context_stack.borrow_mut()[index]
