@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::error;
 use std::fmt;
+use std::pin::Pin;
 use std::rc::Rc;
 
 // Agents
@@ -2408,14 +2409,16 @@ pub fn generator_resume(
         agent.execution_context_stack.borrow_mut().push(gen_context);
         gdata.generator_state = GeneratorState::Executing;
         let ec_stack_len = agent.execution_context_stack.borrow().len();
-        let co = agent.execution_context_stack.borrow()[ec_stack_len - 1].gen_closure.expect("generator has closure?")
-        //. clone()
-        ;
-        *co. resume_with(value)
+        let mut ec_stack = agent.execution_context_stack.borrow_mut();
+        let co = ec_stack[ec_stack_len - 1].gen_closure.as_mut().expect("generator has closure?").as_mut();
+        let pinned = Pin::new(co);
+        pinned.resume_with(Ok(value))
     });
 
-
-    Ok(result)
+    match result {
+        genawaiter::GeneratorState::Yielded(y) => Ok(y),
+        genawaiter::GeneratorState::Complete(c) => c,
+    }
 }
 
 #[derive(PartialEq, Eq)]

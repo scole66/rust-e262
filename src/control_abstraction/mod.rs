@@ -266,7 +266,7 @@ pub struct IteratorRecord {
 }
 
 pub type ECMAClosure = Box<
-    dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>>,
+    dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>> + Unpin,
 >;
 
 pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
