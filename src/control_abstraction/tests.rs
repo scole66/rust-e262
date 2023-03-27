@@ -163,9 +163,25 @@ fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) ->
 }
 
 tbd_function!(generator_function);
-tbd_function!(generator_prototype_next);
 tbd_function!(generator_prototype_return);
 tbd_function!(generator_prototype_throw);
+
+fn list_iterator_sample() -> (ECMAScriptValue, Vec<ECMAScriptValue>) {
+    let ir = super::create_list_iterator_record(vec![ECMAScriptValue::from(10), ECMAScriptValue::from(2)]);
+    (ir.iterator.into(), vec![ECMAScriptValue::Undefined])
+}
+
+#[test_case(|| (ECMAScriptValue::Undefined, vec![ECMAScriptValue::Undefined]) => serr("TypeError: Generator required"); "not-a-generator")]
+#[test_case(list_iterator_sample => Ok(ECMAScriptValue::from(10)); "generator")]
+fn generator_prototype_next(
+    make_params: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let (this_value, arguments) = make_params();
+    let result_obj =
+        super::generator_prototype_next(this_value, None, arguments.as_slice()).map_err(unwind_any_error)?;
+    getv(&result_obj, &"value".into()).map_err(unwind_any_error)
+}
 
 mod generator_state {
     use super::*;
