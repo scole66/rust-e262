@@ -6,6 +6,7 @@ use genawaiter::{
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
+use std::future::Future;
 use std::pin::Pin;
 
 pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
@@ -320,7 +321,7 @@ fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     //     %GeneratorFunction.prototype.prototype.next%, [[Done]]: false }.
     //
     // NOTE: The list iterator object is never directly accessible to ECMAScript code.
-    let closure: ECMAClosure = Box::new(Gen::new(|co| list_iterator(co, data)));
+    let closure = Box::new(|co| list_iterator(co, data));
     let iterator = create_iterator_from_closure(closure, "", Some(intrinsic(IntrinsicId::IteratorPrototype)));
     IteratorRecord {
         iterator,
@@ -329,8 +330,29 @@ fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     }
 }
 
-fn create_iterator_from_closure(
-    closure: ECMAClosure,
+async fn gen_caller<F: Future<Output = Completion<ECMAScriptValue>> + 'static>(
+    generator: Object,
+    co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    closure: Box<dyn FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> F>,
+) -> Completion<ECMAScriptValue> {
+    let result = closure(co).await;
+    AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
+    generator.o.to_generator_object().unwrap().generator_data.borrow_mut().generator_state = GeneratorState::Completed;
+    let result_value = match &result {
+        Ok(_) => ECMAScriptValue::Undefined,
+        Err(e) => match e {
+            AbruptCompletion::Return { value } => value.clone(),
+            AbruptCompletion::Break { .. } | AbruptCompletion::Continue { .. } => {
+                panic!("Invalid generator return value")
+            }
+            AbruptCompletion::Throw { .. } => return result,
+        },
+    };
+    Ok(create_iter_result_object(result_value, true).into())
+}
+
+fn create_iterator_from_closure<F: Future<Output = Completion<ECMAScriptValue>> + 'static>(
+    closure: Box<dyn FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> F>,
     generator_brand: &str,
     generator_prototype: Option<Object>,
 ) -> Object {
@@ -359,7 +381,9 @@ fn create_iterator_from_closure(
     let generator = GeneratorObject::object(generator_prototype, GeneratorState::Undefined, generator_brand);
     let callee_context = ExecutionContext::new(None, current_realm_record().unwrap(), current_script_or_module());
     push_execution_context(callee_context);
-    generator_start_from_closure(&generator, closure);
+    let gen_closure = Box::new(Gen::new(|co| gen_caller(generator.clone(), co, closure)));
+
+    generator_start_from_closure(&generator, gen_closure);
     // callerContext should be back on the top already.
     generator
 }
@@ -699,8 +723,9 @@ pub fn generator_resume(
     };
     // If we get back here, the generator has been suspended.
     let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-    let gen_context = gdata.generator_context.as_mut().expect("suspended generators hold their context");
-    gen_context.gen_closure = Some(co);
+    if let Some(gen_context) = gdata.generator_context.as_mut() {
+        gen_context.gen_closure = Some(co);
+    }
 
     match result {
         genawaiter::GeneratorState::Yielded(y) => Ok(y),

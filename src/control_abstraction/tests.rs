@@ -183,6 +183,28 @@ fn generator_prototype_next(
     getv(&result_obj, &"value".into()).map_err(unwind_any_error)
 }
 
+#[test]
+fn generator_prototype_next_sequence() {
+    setup_test_agent();
+    let (this_value, _) = list_iterator_sample();
+    let mut results = vec![];
+    loop {
+        let it_obj = super::generator_prototype_next(this_value.clone(), None, &[]).unwrap();
+        let done = getv(&it_obj, &"done".into()).unwrap();
+        if bool::from(done) {
+            break;
+        }
+        let val = getv(&it_obj, &"value".into()).unwrap();
+        results.push(val.clone());
+        if val.is_undefined() {
+            break;
+        }
+    }
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0], ECMAScriptValue::from(10));
+    assert_eq!(results[1], ECMAScriptValue::from(2));
+}
+
 mod generator_state {
     use super::*;
     use test_case::test_case;
