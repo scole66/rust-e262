@@ -1259,7 +1259,7 @@ mod process_error {
     #[test_case(runtime_err_obj => "Thrown: TypeError: test sentinel"; "error obj runtime")]
     #[test_case(runtime_err_value => "Thrown: test sentinel"; "error value runtime")]
     #[test_case(runtime_err_non_err_obj => using matches_object; "error obj but not error")]
-    #[test_case(compiler_objs => "During compilation:\nSyntaxError: Trouble in Paradise\nReferenceError: yeah, compiler errs are only syntax...\n"; "compiler err list")]
+    #[test_case(compiler_objs => "During compilation: [SyntaxError: Trouble in Paradise], [ReferenceError: yeah, compiler errs are only syntax...]"; "compiler err list")]
     fn display(make_error: fn() -> ProcessError) -> String {
         setup_test_agent();
         let err = make_error();
@@ -1279,7 +1279,7 @@ mod process_ecmascript {
     use test_case::test_case;
 
     #[test_case("1;" => Ok(ECMAScriptValue::from(1)); "normal result")]
-    #[test_case("void" => serr("During compilation:\nSyntaxError: 1:5: UnaryExpression expected\n"); "syntax error")]
+    #[test_case("void" => serr("During compilation: [SyntaxError: 1:5: UnaryExpression expected]"); "syntax error")]
     #[test_case("a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "runtime error")]
     fn process_ecmascript(src: &str) -> Result<ECMAScriptValue, String> {
         setup_test_agent();

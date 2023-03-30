@@ -1000,14 +1000,14 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::ExtractThrownValue => {
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                    let completion = &agent.execution_context_stack.borrow()[index].stack[stack_idx];
-                    match completion.as_ref().unwrap_err() {
-                        AbruptCompletion::Throw { value } => {
-                            agent.execution_context_stack.borrow_mut()[index].stack[stack_idx] =
-                                Ok(value.clone().into())
+                    let errval = {
+                        let completion = &agent.execution_context_stack.borrow()[index].stack[stack_idx];
+                        match completion.as_ref().unwrap_err() {
+                            AbruptCompletion::Throw { value } => value.clone(),
+                            _ => panic!("Bad error type for ExtractThrownValue"),
                         }
-                        _ => panic!("Bad error type for ExtractThrownValue"),
-                    }
+                    };
+                    agent.execution_context_stack.borrow_mut()[index].stack[stack_idx] = Ok(errval.into());
                 }
                 Insn::ExtractArg => {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -2605,9 +2605,15 @@ impl fmt::Display for ProcessError {
                 write!(f, "Thrown: {error}")
             }
             ProcessError::CompileErrors { values } => {
-                writeln!(f, "During compilation:")?;
+                write!(f, "During compilation: ")?;
+                let mut first = true;
                 for err_obj in values {
-                    writeln!(f, "{}", unwind_any_error_object(err_obj))?;
+                    if !first {
+                        write!(f, ", ")?;
+                    } else {
+                        first = false;
+                    }
+                    write!(f, "[{}]", unwind_any_error_object(err_obj))?;
                 }
                 Ok(())
             }
