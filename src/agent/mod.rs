@@ -2605,9 +2605,15 @@ impl fmt::Display for ProcessError {
                 write!(f, "Thrown: {error}")
             }
             ProcessError::CompileErrors { values } => {
-                writeln!(f, "During compilation:")?;
+                write!(f, "During compilation: ")?;
+                let mut first = true;
                 for err_obj in values {
-                    writeln!(f, "{}", unwind_any_error_object(err_obj))?;
+                    if !first {
+                        write!(f, ", ")?;
+                    } else {
+                        first = false;
+                    }
+                    write!(f, "[{}]", unwind_any_error_object(err_obj))?;
                 }
                 Ok(())
             }
