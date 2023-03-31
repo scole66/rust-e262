@@ -135,7 +135,15 @@ fn run_file(fname: &str) {
             let script_source = String::from_utf8_lossy(&file_content);
             match process_ecmascript(&script_source) {
                 Ok(value) => println!("{:#?}", value),
-                Err(err) => println!("{}", err),
+                Err(err) => {
+                    println!("{}", err);
+                    if let ProcessError::RuntimeError { error } = err {
+                        let repr = to_string(error);
+                        if let Ok(err) = repr {
+                            println!("{}", err);
+                        }
+                    }
+                }
             }
             //match interpret(vm, &script_source) {
             //    Ok(value) => println!("{}", value),
