@@ -778,3 +778,28 @@ mod gen_caller {
         assert_eq!(unwind_any_error(ac), String::from("throw"));
     }
 }
+
+mod generator_start_from_closure {
+    use super::*;
+
+    async fn returns_normal(_: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::from(true))
+    }
+
+    #[test]
+    fn start() {
+        setup_test_agent();
+        // All the setup we would do to test generator_start_from_closure is done in
+        // create_iterator_from_closure, so it seems pointless to duplicate that here.
+        let gen = super::create_iterator_from_closure(asyncfn_wrap(returns_normal), "", None);
+
+        let gen_obj = gen.o.to_generator_object().unwrap();
+        let gen_data = gen_obj.generator_data.borrow();
+        assert_eq!(gen_data.generator_brand, "");
+        assert_eq!(gen_data.generator_state, GeneratorState::SuspendedStart);
+        assert!(gen_data.generator_context.is_some());
+        let gc = gen_data.generator_context.as_ref().unwrap();
+        assert_eq!(gc.generator.as_ref().unwrap(), &gen);
+        assert!(gc.gen_closure.is_some());
+    }
+}

@@ -683,10 +683,9 @@ pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClos
     assert!(gdata.generator_context.is_none());
     AGENT.with(|agent| gdata.generator_context = agent.execution_context_stack.borrow_mut().pop());
     gdata.generator_state = GeneratorState::SuspendedStart;
-    if let Some(gc) = &mut gdata.generator_context {
-        gc.generator = Some(generator.clone());
-        gc.gen_closure = Some(generator_body);
-    }
+    let gc = gdata.generator_context.as_mut().expect("Unstarted generators should already have their contexts");
+    gc.generator = Some(generator.clone());
+    gc.gen_closure = Some(generator_body);
 }
 
 pub fn generator_resume(
