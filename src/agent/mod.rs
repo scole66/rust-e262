@@ -29,7 +29,7 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Agent {
-    execution_context_stack: RefCell<Vec<ExecutionContext>>,
+    pub execution_context_stack: RefCell<Vec<ExecutionContext>>,
     symbols: WellKnownSymbols,
     obj_id: Cell<usize>,
     symbol_id: Cell<usize>,
@@ -140,6 +140,14 @@ pub fn get_active_script_or_module() -> Option<ScriptOrModule> {
             }
         }
         None
+    })
+}
+
+pub fn current_script_or_module() -> Option<ScriptOrModule> {
+    AGENT.with(|agent| {
+        let execution_context_stack = agent.execution_context_stack.borrow();
+        let ec = &execution_context_stack[execution_context_stack.len() - 1];
+        ec.script_or_module.clone()
     })
 }
 

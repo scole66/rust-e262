@@ -1302,3 +1302,32 @@ fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
 fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
     super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
 }
+
+mod current_script_or_module {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        setup_test_agent();
+        let som = current_script_or_module();
+        // Without any code, that should be None.
+        assert!(som.is_none());
+    }
+    #[test]
+    fn script() {
+        setup_test_agent();
+        // Add a script record; make sure it comes back...
+        let realm_ref = current_realm_record().unwrap();
+        let sr = ScriptRecord {
+            realm: realm_ref.clone(),
+            ecmascript_code: Maker::new("").script(),
+            compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
+        };
+        let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
+        push_execution_context(test_ec);
+
+        let som = current_script_or_module();
+        assert!(matches!(som, Some(ScriptOrModule::Script(_))));
+    }
+}

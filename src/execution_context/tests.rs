@@ -109,6 +109,8 @@ mod execution_context {
         assert_eq!(ec.pc, 0);
         assert_eq!(ec.script_or_module.is_none(), original_was_none);
         assert_eq!(&ec.function, &func);
+        assert!(ec.generator.is_none());
+        assert!(ec.gen_closure.is_none());
     }
 }
 

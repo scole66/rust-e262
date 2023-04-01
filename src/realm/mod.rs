@@ -21,6 +21,7 @@ pub enum IntrinsicId {
     GeneratorFunction,
     GeneratorFunctionPrototype,
     GeneratorFunctionPrototypePrototype,
+    GeneratorFunctionPrototypePrototypeNext,
     Number,
     NumberPrototype,
     Object,
@@ -79,6 +80,7 @@ pub struct Intrinsics {
     pub generator_function: Object,       // The constructor of generator objects (27.3.1)
     pub generator_function_prototype: Object, //
     pub generator_function_prototype_prototype: Object, //
+    pub generator_function_prototype_prototype_next: Object, //
     pub int8_array: Object,               // Int8Array	The Int8Array constructor (23.2)
     pub int16_array: Object,              // Int16Array	The Int16Array constructor (23.2)
     pub int32_array: Object,              // Int32Array	The Int32Array constructor (23.2)
@@ -175,6 +177,7 @@ impl Intrinsics {
             generator_function: dead.clone(),
             generator_function_prototype: dead.clone(),
             generator_function_prototype_prototype: dead.clone(),
+            generator_function_prototype_prototype_next: dead.clone(),
             int8_array: dead.clone(),
             int16_array: dead.clone(),
             int32_array: dead.clone(),
@@ -242,6 +245,7 @@ impl Intrinsics {
             IntrinsicId::GeneratorFunction => &self.generator_function,
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
+            IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
