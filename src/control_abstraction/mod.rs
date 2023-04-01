@@ -1,4 +1,5 @@
 use super::*;
+use futures::future::LocalBoxFuture;
 use genawaiter::{
     rc::{Co, Gen},
     Coroutine,
@@ -321,8 +322,9 @@ fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     //     %GeneratorFunction.prototype.prototype.next%, [[Done]]: false }.
     //
     // NOTE: The list iterator object is never directly accessible to ECMAScript code.
-    let closure = Box::new(|co| list_iterator(co, data));
-    let iterator = create_iterator_from_closure(closure, "", Some(intrinsic(IntrinsicId::IteratorPrototype)));
+    let closure = |co| list_iterator(co, data);
+    let iterator =
+        create_iterator_from_closure(asyncfn_wrap(closure), "", Some(intrinsic(IntrinsicId::IteratorPrototype)));
     IteratorRecord {
         iterator,
         next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
@@ -330,10 +332,10 @@ fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     }
 }
 
-async fn gen_caller<F: Future<Output = Completion<ECMAScriptValue>> + 'static>(
+async fn gen_caller(
     generator: Object,
     co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
-    closure: Box<dyn FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> F>,
+    closure: AsyncFnPtr,
 ) -> Completion<ECMAScriptValue> {
     let result = closure(co).await;
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
@@ -350,9 +352,23 @@ async fn gen_caller<F: Future<Output = Completion<ECMAScriptValue>> + 'static>(
     };
     Ok(create_iter_result_object(result_value, true).into())
 }
+type AsyncFnPtr = Box<
+    dyn FnOnce(
+        Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    ) -> LocalBoxFuture<'static, Completion<ECMAScriptValue>>,
+>;
+fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
+where
+    F: 'static,
+    F: FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Fut,
+    Fut: 'static,
+    Fut: Future<Output = Completion<ECMAScriptValue>>,
+{
+    Box::new(|context| Box::pin(func(context)))
+}
 
-fn create_iterator_from_closure<F: Future<Output = Completion<ECMAScriptValue>> + 'static>(
-    closure: Box<dyn FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> F>,
+fn create_iterator_from_closure(
+    closure: AsyncFnPtr,
     generator_brand: &str,
     generator_prototype: Option<Object>,
 ) -> Object {
@@ -720,6 +736,88 @@ pub fn generator_resume(
     let result = {
         let pinned = Pin::new(co.as_mut());
         pinned.resume_with(Ok(value))
+    };
+    // If we get back here, the generator has been suspended.
+    let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
+    if let Some(gen_context) = gdata.generator_context.as_mut() {
+        gen_context.gen_closure = Some(co);
+    }
+
+    match result {
+        genawaiter::GeneratorState::Yielded(y) => Ok(y),
+        genawaiter::GeneratorState::Complete(c) => c,
+    }
+}
+
+pub fn generator_resume_abrupt(
+    generator: ECMAScriptValue,
+    abrupt_completion: AbruptCompletion,
+    generator_brand: &str,
+) -> Completion<ECMAScriptValue> {
+    // GeneratorResumeAbrupt ( generator, abruptCompletion, generatorBrand )
+    //
+    // The abstract operation GeneratorResumeAbrupt takes arguments generator (an ECMAScript language value),
+    // abruptCompletion (a return completion or a throw completion), and generatorBrand (a String or empty)
+    // and returns either a normal completion containing an ECMAScript language value or a throw completion.
+    // It performs the following steps when called:
+    //
+    //   1. Let state be ? GeneratorValidate(generator, generatorBrand).
+    //   2. If state is suspendedStart, then
+    //      a. Set generator.[[GeneratorState]] to completed.
+    //      b. NOTE: Once a generator enters the completed state it never leaves it and its associated
+    //         execution context is never resumed. Any execution state associated with generator can be
+    //         discarded at this point.
+    //      c. Set state to completed.
+    //   3. If state is completed, then
+    //      a. If abruptCompletion.[[Type]] is return, then
+    //          i. Return CreateIterResultObject(abruptCompletion.[[Value]], true).
+    //      b. Return ? abruptCompletion.
+    //   4. Assert: state is suspendedYield.
+    //   5. Let genContext be generator.[[GeneratorContext]].
+    //   6. Let methodContext be the running execution context.
+    //   7. Suspend methodContext.
+    //   8. Set generator.[[GeneratorState]] to executing.
+    //   9. Push genContext onto the execution context stack; genContext is now the running execution context.
+    //  10. Resume the suspended evaluation of genContext using abruptCompletion as the result of the
+    //      operation that suspended it. Let result be the Completion Record returned by the resumed
+    //      computation.
+    //  11. Assert: When we return here, genContext has already been removed from the execution context stack
+    //      and methodContext is the currently running execution context.
+    //  12. Return ? result.
+    let state = generator_validate(generator.clone(), generator_brand)?;
+
+    if state == GeneratorState::SuspendedStart || state == GeneratorState::Completed {
+        if state == GeneratorState::SuspendedStart {
+            let obj = Object::try_from(generator).expect("generator previously validated");
+            let mut gdata =
+                obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
+            gdata.generator_state = GeneratorState::Completed;
+            gdata.generator_context = None;
+        }
+        if let AbruptCompletion::Return { value } = abrupt_completion {
+            return Ok(create_iter_result_object(value, true).into());
+        }
+        return Err(abrupt_completion);
+    }
+
+    let obj = Object::try_from(generator).expect("generator previously validated");
+    let mut co = {
+        let mut gdata =
+            obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
+        let gen_context = gdata.generator_context.take().expect("suspended generators hold their context");
+        AGENT.with(|agent| {
+            agent.execution_context_stack.borrow_mut().push(gen_context);
+            gdata.generator_state = GeneratorState::Executing;
+            let ec_stack_len = agent.execution_context_stack.borrow().len();
+            {
+                let mut ec_stack = agent.execution_context_stack.borrow_mut();
+                ec_stack[ec_stack_len - 1].gen_closure.take().expect("generator has closure?")
+            }
+        })
+    };
+    let result = {
+        let pinned = Pin::new(co.as_mut());
+        pinned.resume_with(Err(abrupt_completion))
     };
     // If we get back here, the generator has been suspended.
     let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
