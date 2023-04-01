@@ -499,5 +499,202 @@ pub fn generator_validate(generator: ECMAScriptValue, generator_brand: &str) -> 
     .map_err(|e| create_type_error(e.to_string()))
 }
 
+// Iterator Records
+//
+// An Iterator Record is a Record value used to encapsulate an Iterator or
+// AsyncIterator along with the next method.
+//
+// Iterator Records have the fields listed in Table 15.
+//
+// Table 15: Iterator Record Fields
+// +----------------+-------------------+---------------------------------------------------------------------+
+// | Field Name     | Value             | Meaning                                                             |
+// +----------------+-------------------+---------------------------------------------------------------------+
+// | [[Iterator]]   | an Object         | An object that conforms to the Iterator or AsyncIterator interface. |
+// | [[NextMethod]] | a function object | The next method of the [[Iterator]] object.                         |
+// | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
+// +----------------+-------------------+---------------------------------------------------------------------+
+
+pub struct ECMAIterator {
+    iterator: ECMAScriptValue,
+    next_method: ECMAScriptValue,
+    done: bool,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum IteratorKind {
+    Sync,
+    Async,
+}
+
+fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<ECMAIterator> {
+    // GetIteratorFromMethod ( obj, method )
+    //
+    // The abstract operation GetIteratorFromMethod takes arguments obj (an
+    // ECMAScript language value) and method (a function object) and returns
+    // either a normal completion containing an Iterator Record or a throw
+    // completion. It performs the following steps when called:
+    //
+    //  1. Let iterator be ? Call(method, obj).
+    //  2. If iterator is not an Object, throw a TypeError exception.
+    //  3. Let nextMethod be ? GetV(iterator, "next").
+    //  4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator,
+    //     [[NextMethod]]: nextMethod, [[Done]]: false }.
+    //  5. Return iteratorRecord.
+    let iterator = call(method, obj, &[])?;
+    if !iterator.is_object() {
+        return Err(create_type_error("not an object"));
+    }
+    let next_method = getv(&iterator, &"next".into())?;
+    Ok(ECMAIterator { iterator, next_method, done: false })
+}
+
+fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<ECMAIterator> {
+    // GetIterator ( obj, kind )
+    //
+    // The abstract operation GetIterator takes arguments obj (an ECMAScript
+    // language value) and kind (sync or async) and returns either a normal
+    // completion containing an Iterator Record or a throw completion. It
+    // performs the following steps when called:
+    //
+    //  1. If kind is async, then
+    //      a. Let method be ? GetMethod(obj, @@asyncIterator).
+    //      b. If method is undefined, then
+    //          i. Let syncMethod be ? GetMethod(obj, @@iterator).
+    //          ii. If syncMethod is undefined, throw a TypeError exception.
+    //          iii. Let syncIteratorRecord be ? GetIteratorFromMethod(obj, syncMethod).
+    //          iv. Return CreateAsyncFromSyncIterator(syncIteratorRecord).
+    //  2. Otherwise, let method be ? GetMethod(obj, @@iterator).
+    //  3. If method is undefined, throw a TypeError exception.
+    //  4. Return ? GetIteratorFromMethod(obj, method).
+    let method = match kind {
+        IteratorKind::Async => todo!(),
+        IteratorKind::Sync => {
+            let iter_symbol = wks(WksId::Iterator);
+            get_method(obj, &iter_symbol.into())?
+        }
+    };
+    if method.is_undefined() {
+        return Err(create_type_error("not an iterator"));
+    }
+    get_iterator_from_method(obj, &method)
+}
+
+impl ECMAIterator {
+    fn next(&self, value: Option<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+        // IteratorNext ( iteratorRecord [ , value ] )
+        //
+        // The abstract operation IteratorNext takes argument iteratorRecord (an
+        // Iterator Record) and optional argument value (an ECMAScript language
+        // value) and returns either a normal completion containing an Object or
+        // a throw completion. It performs the following steps when called:
+        //
+        //  1. If value is not present, then
+        //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        //  2. Else,
+        //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »).
+        //  3. If result is not an Object, throw a TypeError exception.
+        //  4. Return result.
+        let result = match value {
+            Some(value) => call(&self.next_method, &self.iterator, &[value])?,
+            None => call(&self.next_method, &self.iterator, &[])?,
+        };
+        if !result.is_object() {
+            Err(create_type_error("not an iterator result"))
+        } else {
+            Ok(result)
+        }
+    }
+
+    fn step(&self) -> Completion<ECMAScriptValue> {
+        // IteratorStep ( iteratorRecord )
+        //
+        // The abstract operation IteratorStep takes argument iteratorRecord (an
+        // Iterator Record) and returns either a normal completion containing
+        // either an Object or false, or a throw completion. It requests the
+        // next value from iteratorRecord.[[Iterator]] by calling
+        // iteratorRecord.[[NextMethod]] and returns either false indicating
+        // that the iterator has reached its end or the IteratorResult object if
+        // a next value is available. It performs the following steps when
+        // called:
+        //
+        //  1. Let result be ? IteratorNext(iteratorRecord).
+        //  2. Let done be ? IteratorComplete(result).
+        //  3. If done is true, return false.
+        //  4. Return result.
+        let result = Object::try_from(self.next(None)?).expect("next should return an iterator result object");
+        let done = iterator_complete(&result)?;
+        match done {
+            true => Ok(false.into()),
+            false => Ok(result.into()),
+        }
+    }
+
+    fn close(&self, completion: Completion<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+        let iterator = &self.iterator;
+        let inner_result = get_method(iterator, &"return".into());
+        let inner_result = if let Ok(return_v) = inner_result {
+            if return_v.is_undefined() {
+                return completion;
+            }
+            call(&return_v, iterator, &[])
+        } else {
+            inner_result
+        };
+        if matches!(completion, Err(AbruptCompletion::Throw { .. })) {
+            return completion;
+        }
+        let value = match &inner_result {
+            Ok(value)
+            | Err(AbruptCompletion::Break { value: NormalCompletion::Value(value), target: _ })
+            | Err(AbruptCompletion::Continue { value: NormalCompletion::Value(value), target: _ })
+            | Err(AbruptCompletion::Return { value }) => value,
+            Err(AbruptCompletion::Throw { .. }) => return inner_result,
+            _ => unreachable!(),
+        };
+        if !value.is_object() {
+            return Err(create_type_error("iterator return method returned non object"));
+        }
+        completion
+    }
+}
+
+fn iterator_next(iterator_record: &ECMAIterator, value: Option<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+    iterator_record.next(value)
+}
+
+fn iterator_complete(iter_result: &Object) -> Completion<bool> {
+    // IteratorComplete ( iterResult )
+    //
+    // The abstract operation IteratorComplete takes argument iterResult (an
+    // Object) and returns either a normal completion containing a Boolean or a
+    // throw completion. It performs the following steps when called:
+    //
+    //  1. Return ToBoolean(? Get(iterResult, "done")).
+    Ok(to_boolean(get(iter_result, &"done".into())?))
+}
+
+fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
+    // IteratorValue ( iterResult )
+    //
+    // The abstract operation IteratorValue takes argument iterResult (an
+    // Object) and returns either a normal completion containing an ECMAScript
+    // language value or a throw completion. It performs the following steps
+    // when called:
+    //
+    //  1. Return ? Get(iterResult, "value").
+    get(iter_result, &"value".into())
+}
+
+fn iterator_step(iterator_record: &ECMAIterator) -> Completion<ECMAScriptValue> {
+    iterator_record.step()
+}
+
+fn iterator_close(
+    iterator_record: &ECMAIterator,
+    completion: Completion<ECMAScriptValue>,
+) -> Completion<ECMAScriptValue> {
+    iterator_record.close(completion)
+}
 #[cfg(test)]
 mod tests;
