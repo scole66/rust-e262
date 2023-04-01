@@ -603,220 +603,211 @@ mod string_object {
     }
 }
 
-mod agent {
+#[test]
+fn string_create() {
+    setup_test_agent();
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+    let s = super::string_create("value".into(), Some(object_prototype.clone()));
+
+    let cod = s.o.common_object_data().borrow();
+    assert_eq!(cod.prototype.as_ref().unwrap(), &object_prototype);
+
+    let sobj = s.o.to_string_obj().unwrap();
+    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+}
+
+#[test]
+fn create_string_object_tst() {
+    setup_test_agent();
+    let string_prototype = intrinsic(IntrinsicId::StringPrototype);
+    let s = super::create_string_object("value".into());
+
+    let cod = s.o.common_object_data().borrow();
+    assert_eq!(cod.prototype.as_ref().unwrap(), &string_prototype);
+
+    let sobj = s.o.to_string_obj().unwrap();
+    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+}
+
+mod provision_string_intrinsic {
     use super::*;
     use test_case::test_case;
 
+    enum ToKey {
+        String(String),
+        Symbol(WksId),
+    }
+    impl From<&str> for ToKey {
+        fn from(s: &str) -> Self {
+            Self::String(s.to_string())
+        }
+    }
+    impl From<WksId> for ToKey {
+        fn from(id: WksId) -> Self {
+            Self::Symbol(id)
+        }
+    }
+
+    // Making the test agent is enough to cause intrinsics to get provisioned, so all we really do here is
+    // assert that all the things we expect to show up actually do show up.
+
     #[test]
-    fn string_create() {
+    fn string_prototype_intrinsic() {
         setup_test_agent();
-        let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let s = super::string_create("value".into(), Some(object_prototype.clone()));
 
-        let cod = s.o.common_object_data().borrow();
-        assert_eq!(cod.prototype.as_ref().unwrap(), &object_prototype);
+        // The String prototype object: is %String.prototype%.
+        let string_proto = intrinsic(IntrinsicId::StringPrototype);
 
-        let sobj = s.o.to_string_obj().unwrap();
-        assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+        // The String prototype object: has a [[StringData]] internal slot whose value is the empty
+        // String.
+        let sobj = string_proto.o.to_string_obj().unwrap();
+        assert_eq!(&*sobj.string_data.borrow(), &JSString::from(""));
+
+        // The String prototype object: has a "length" property whose initial value is +0𝔽 and whose
+        // attributes are { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
+        assert_eq!(
+            IdealizedPropertyDescriptor::from(string_proto.o.get_own_property(&"length".into()).unwrap().unwrap()),
+            IdealizedPropertyDescriptor {
+                configurable: false,
+                enumerable: false,
+                writable: Some(false),
+                value: Some(ECMAScriptValue::from(0)),
+                get: None,
+                set: None
+            }
+        );
+
+        // The String prototype object: has a [[Prototype]] internal slot whose value is
+        // %Object.prototype%.
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let sproto_proto = string_proto.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
+        assert_eq!(sproto_proto, object_proto);
+
+        // The initial value of String.prototype.constructor is %String%.
+        let string_constructor = intrinsic(IntrinsicId::String);
+        assert_eq!(
+            IdealizedPropertyDescriptor::from(string_proto.o.get_own_property(&"constructor".into()).unwrap().unwrap()),
+            IdealizedPropertyDescriptor {
+                configurable: true,
+                enumerable: false,
+                writable: Some(true),
+                value: Some(ECMAScriptValue::from(string_constructor)),
+                get: None,
+                set: None,
+            }
+        );
+    }
+
+    #[test_case("at" => "at;1"; "at function")]
+    #[test_case("charAt" => "charAt;1"; "charAt function")]
+    #[test_case("charCodeAt" => "charCodeAt;1"; "charCodeAt function")]
+    #[test_case("codePointAt" => "codePointAt;1"; "codePointAt function")]
+    #[test_case("concat" => "concat;1"; "concat function")]
+    #[test_case("endsWith" => "endsWith;1"; "endsWith function")]
+    #[test_case("includes" => "includes;1"; "includes function")]
+    #[test_case("indexOf" => "indexOf;1"; "indexOf function")]
+    #[test_case("lastIndexOf" => "lastIndexOf;1"; "lastIndexOf function")]
+    #[test_case("localeCompare" => "localeCompare;1"; "localeCompare function")]
+    #[test_case("match" => "match;1"; "match function")]
+    #[test_case("matchAll" => "matchAll;1"; "matchAll function")]
+    #[test_case("normalize" => "normalize;0"; "normalize function")]
+    #[test_case("padEnd" => "padEnd;1"; "padEnd function")]
+    #[test_case("padStart" => "padStart;1"; "padStart function")]
+    #[test_case("repeat" => "repeat;1"; "repeat function")]
+    #[test_case("replace" => "replace;2"; "replace function")]
+    #[test_case("replaceAll" => "replaceAll;2"; "replaceAll function")]
+    #[test_case("search" => "search;1"; "search function")]
+    #[test_case("slice" => "slice;1"; "slice function")]
+    #[test_case("split" => "split;2"; "split function")]
+    #[test_case("startsWith" => "startsWith;1"; "startsWith function")]
+    #[test_case("substring" => "substring;2"; "substring function")]
+    #[test_case("toLocaleLowerCase" => "toLocaleLowerCase;0"; "toLocaleLowerCase function")]
+    #[test_case("toLocaleUpperCase" => "toLocaleUpperCase;0"; "toLocaleUpperCase function")]
+    #[test_case("toLowerCase" => "toLowerCase;0"; "toLowerCase function")]
+    #[test_case("toString" => "toString;0"; "toString function")]
+    #[test_case("toUpperCase" => "toUpperCase;0"; "toUpperCase function")]
+    #[test_case("trim" => "trim;0"; "trim function")]
+    #[test_case("trimEnd" => "trimEnd;0"; "trimEnd function")]
+    #[test_case("trimStart" => "trimStart;0"; "trimStart function")]
+    #[test_case("valueOf" => "valueOf;0"; "valueOf function")]
+    #[test_case(WksId::Iterator => "[Symbol.iterator];0"; "@@iterator function")]
+    fn prototype_func(key: impl Into<ToKey>) -> String {
+        setup_test_agent();
+        let key = match key.into() {
+            ToKey::String(s) => PropertyKey::from(s),
+            ToKey::Symbol(id) => PropertyKey::from(wks(id)),
+        };
+        let proto = intrinsic(IntrinsicId::StringPrototype);
+        let val = super::get(&proto, &key).unwrap();
+        assert!(is_callable(&val));
+        let name = getv(&val, &"name".into()).unwrap();
+        let name = to_string(name).unwrap();
+        let length = getv(&val, &"length".into()).unwrap();
+        let length = to_string(length).unwrap();
+        format!("{};{}", String::from(name), length)
     }
 
     #[test]
-    fn create_string_object() {
+    fn string_intrinsic() {
         setup_test_agent();
+        // The String constructor: is %String%.
+        let string_object = intrinsic(IntrinsicId::String);
+
+        // The String constructor: is the initial value of the "String" property of the global object.
+        let global = current_realm_record().unwrap().borrow().global_object.as_ref().unwrap().clone();
+        let sfg_val = get(&global, &"String".into()).unwrap();
+        let string_from_global = to_object(sfg_val).unwrap();
+        assert_eq!(string_object, string_from_global);
+
+        // The String constructor: has a [[Prototype]] internal slot whose value is %Function.prototype%.
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+        let from_constructor = string_object.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
+        assert_eq!(from_constructor, function_proto);
+
+        // The initial value of String.prototype is the String prototype object. This property has the
+        // attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
         let string_prototype = intrinsic(IntrinsicId::StringPrototype);
-        let s = super::create_string_object("value".into());
-
-        let cod = s.o.common_object_data().borrow();
-        assert_eq!(cod.prototype.as_ref().unwrap(), &string_prototype);
-
-        let sobj = s.o.to_string_obj().unwrap();
-        assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+        assert_eq!(
+            IdealizedPropertyDescriptor::from(string_object.o.get_own_property(&"prototype".into()).unwrap().unwrap(),),
+            IdealizedPropertyDescriptor {
+                configurable: false,
+                enumerable: false,
+                writable: Some(false),
+                get: None,
+                set: None,
+                value: Some(ECMAScriptValue::from(string_prototype))
+            }
+        );
     }
 
-    mod provision_string_intrinsic {
-        use super::*;
-        use test_case::test_case;
-
-        enum ToKey {
-            String(String),
-            Symbol(WksId),
-        }
-        impl From<&str> for ToKey {
-            fn from(s: &str) -> Self {
-                Self::String(s.to_string())
-            }
-        }
-        impl From<WksId> for ToKey {
-            fn from(id: WksId) -> Self {
-                Self::Symbol(id)
-            }
-        }
-
-        // Making the test agent is enough to cause intrinsics to get provisioned, so all we really do here is
-        // assert that all the things we expect to show up actually do show up.
-
-        #[test]
-        fn string_prototype_intrinsic() {
-            setup_test_agent();
-
-            // The String prototype object: is %String.prototype%.
-            let string_proto = intrinsic(IntrinsicId::StringPrototype);
-
-            // The String prototype object: has a [[StringData]] internal slot whose value is the empty
-            // String.
-            let sobj = string_proto.o.to_string_obj().unwrap();
-            assert_eq!(&*sobj.string_data.borrow(), &JSString::from(""));
-
-            // The String prototype object: has a "length" property whose initial value is +0𝔽 and whose
-            // attributes are { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-            assert_eq!(
-                IdealizedPropertyDescriptor::from(string_proto.o.get_own_property(&"length".into()).unwrap().unwrap()),
-                IdealizedPropertyDescriptor {
-                    configurable: false,
-                    enumerable: false,
-                    writable: Some(false),
-                    value: Some(ECMAScriptValue::from(0)),
-                    get: None,
-                    set: None
-                }
-            );
-
-            // The String prototype object: has a [[Prototype]] internal slot whose value is
-            // %Object.prototype%.
-            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let sproto_proto = string_proto.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
-            assert_eq!(sproto_proto, object_proto);
-
-            // The initial value of String.prototype.constructor is %String%.
-            let string_constructor = intrinsic(IntrinsicId::String);
-            assert_eq!(
-                IdealizedPropertyDescriptor::from(
-                    string_proto.o.get_own_property(&"constructor".into()).unwrap().unwrap()
-                ),
-                IdealizedPropertyDescriptor {
-                    configurable: true,
-                    enumerable: false,
-                    writable: Some(true),
-                    value: Some(ECMAScriptValue::from(string_constructor)),
-                    get: None,
-                    set: None,
-                }
-            );
-        }
-
-        #[test_case("at" => "at;1"; "at function")]
-        #[test_case("charAt" => "charAt;1"; "charAt function")]
-        #[test_case("charCodeAt" => "charCodeAt;1"; "charCodeAt function")]
-        #[test_case("codePointAt" => "codePointAt;1"; "codePointAt function")]
-        #[test_case("concat" => "concat;1"; "concat function")]
-        #[test_case("endsWith" => "endsWith;1"; "endsWith function")]
-        #[test_case("includes" => "includes;1"; "includes function")]
-        #[test_case("indexOf" => "indexOf;1"; "indexOf function")]
-        #[test_case("lastIndexOf" => "lastIndexOf;1"; "lastIndexOf function")]
-        #[test_case("localeCompare" => "localeCompare;1"; "localeCompare function")]
-        #[test_case("match" => "match;1"; "match function")]
-        #[test_case("matchAll" => "matchAll;1"; "matchAll function")]
-        #[test_case("normalize" => "normalize;0"; "normalize function")]
-        #[test_case("padEnd" => "padEnd;1"; "padEnd function")]
-        #[test_case("padStart" => "padStart;1"; "padStart function")]
-        #[test_case("repeat" => "repeat;1"; "repeat function")]
-        #[test_case("replace" => "replace;2"; "replace function")]
-        #[test_case("replaceAll" => "replaceAll;2"; "replaceAll function")]
-        #[test_case("search" => "search;1"; "search function")]
-        #[test_case("slice" => "slice;1"; "slice function")]
-        #[test_case("split" => "split;2"; "split function")]
-        #[test_case("startsWith" => "startsWith;1"; "startsWith function")]
-        #[test_case("substring" => "substring;2"; "substring function")]
-        #[test_case("toLocaleLowerCase" => "toLocaleLowerCase;0"; "toLocaleLowerCase function")]
-        #[test_case("toLocaleUpperCase" => "toLocaleUpperCase;0"; "toLocaleUpperCase function")]
-        #[test_case("toLowerCase" => "toLowerCase;0"; "toLowerCase function")]
-        #[test_case("toString" => "toString;0"; "toString function")]
-        #[test_case("toUpperCase" => "toUpperCase;0"; "toUpperCase function")]
-        #[test_case("trim" => "trim;0"; "trim function")]
-        #[test_case("trimEnd" => "trimEnd;0"; "trimEnd function")]
-        #[test_case("trimStart" => "trimStart;0"; "trimStart function")]
-        #[test_case("valueOf" => "valueOf;0"; "valueOf function")]
-        #[test_case(WksId::Iterator => "[Symbol.iterator];0"; "@@iterator function")]
-        fn prototype_func(key: impl Into<ToKey>) -> String {
-            setup_test_agent();
-            let key = match key.into() {
-                ToKey::String(s) => PropertyKey::from(s),
-                ToKey::Symbol(id) => PropertyKey::from(wks(id)),
-            };
-            let proto = intrinsic(IntrinsicId::StringPrototype);
-            let val = super::get(&proto, &key).unwrap();
-            assert!(is_callable(&val));
-            let name = getv(&val, &"name".into()).unwrap();
-            let name = to_string(name).unwrap();
-            let length = getv(&val, &"length".into()).unwrap();
-            let length = to_string(length).unwrap();
-            format!("{};{}", String::from(name), length)
-        }
-
-        #[test]
-        fn string_intrinsic() {
-            setup_test_agent();
-            // The String constructor: is %String%.
-            let string_object = intrinsic(IntrinsicId::String);
-
-            // The String constructor: is the initial value of the "String" property of the global object.
-            let global = current_realm_record().unwrap().borrow().global_object.as_ref().unwrap().clone();
-            let sfg_val = get(&global, &"String".into()).unwrap();
-            let string_from_global = to_object(sfg_val).unwrap();
-            assert_eq!(string_object, string_from_global);
-
-            // The String constructor: has a [[Prototype]] internal slot whose value is %Function.prototype%.
-            let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-            let from_constructor = string_object.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
-            assert_eq!(from_constructor, function_proto);
-
-            // The initial value of String.prototype is the String prototype object. This property has the
-            // attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-            let string_prototype = intrinsic(IntrinsicId::StringPrototype);
-            assert_eq!(
-                IdealizedPropertyDescriptor::from(
-                    string_object.o.get_own_property(&"prototype".into()).unwrap().unwrap(),
-                ),
-                IdealizedPropertyDescriptor {
-                    configurable: false,
-                    enumerable: false,
-                    writable: Some(false),
-                    get: None,
-                    set: None,
-                    value: Some(ECMAScriptValue::from(string_prototype))
-                }
-            );
-        }
-
-        #[test_case("fromCharCode" => "fromCharCode;1"; "String.fromCharCode")]
-        #[test_case("fromCodePoint" => "fromCodePoint;1"; "String.fromCodePoint")]
-        #[test_case("raw" => "raw;1"; "String.raw")]
-        fn constructor_func(key: impl Into<ToKey>) -> String {
-            setup_test_agent();
-            let key = match key.into() {
-                ToKey::String(s) => PropertyKey::from(s),
-                ToKey::Symbol(id) => PropertyKey::from(wks(id)),
-            };
-            let cstr = intrinsic(IntrinsicId::String);
-            let val = super::get(&cstr, &key).unwrap();
-            assert!(is_callable(&val));
-            let name = getv(&val, &"name".into()).unwrap();
-            let name = to_string(name).unwrap();
-            let length = getv(&val, &"length".into()).unwrap();
-            let length = to_string(length).unwrap();
-            format!("{};{}", String::from(name), length)
-        }
-    }
-
-    #[test_case(|| ECMAScriptValue::from("blue") => sok("blue"); "string value")]
-    #[test_case(|| ECMAScriptValue::from(super::super::create_string_object(JSString::from("red"))) => sok("red"); "string object value")]
-    #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
-    #[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
-    fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+    #[test_case("fromCharCode" => "fromCharCode;1"; "String.fromCharCode")]
+    #[test_case("fromCodePoint" => "fromCodePoint;1"; "String.fromCodePoint")]
+    #[test_case("raw" => "raw;1"; "String.raw")]
+    fn constructor_func(key: impl Into<ToKey>) -> String {
         setup_test_agent();
-        let val = make_val();
-        super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
+        let key = match key.into() {
+            ToKey::String(s) => PropertyKey::from(s),
+            ToKey::Symbol(id) => PropertyKey::from(wks(id)),
+        };
+        let cstr = intrinsic(IntrinsicId::String);
+        let val = super::get(&cstr, &key).unwrap();
+        assert!(is_callable(&val));
+        let name = getv(&val, &"name".into()).unwrap();
+        let name = to_string(name).unwrap();
+        let length = getv(&val, &"length".into()).unwrap();
+        let length = to_string(length).unwrap();
+        format!("{};{}", String::from(name), length)
     }
+}
+
+#[test_case(|| ECMAScriptValue::from("blue") => sok("blue"); "string value")]
+#[test_case(|| ECMAScriptValue::from(super::super::create_string_object(JSString::from("red"))) => sok("red"); "string object value")]
+#[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
+fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+    setup_test_agent();
+    let val = make_val();
+    super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
 }
 
 #[test_case(|| (None, vec![]) => Ok((false, "".to_string())); "AsFunc / no args")]

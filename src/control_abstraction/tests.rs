@@ -3,155 +3,147 @@ use crate::tests::*;
 use ahash::AHashMap;
 use test_case::test_case;
 
-mod agent {
+#[test]
+fn provision_iterator_prototype() {
+    setup_test_agent();
+
+    let iterator_prototype = intrinsic(IntrinsicId::IteratorPrototype);
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+
+    let iter_proto_proto = iterator_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
+    assert_eq!(iter_proto_proto, object_prototype);
+
+    let iterator_sym = wks(WksId::Iterator);
+    let iterator_desc = IdealizedPropertyDescriptor::from(
+        iterator_prototype.o.get_own_property(&iterator_sym.into()).unwrap().unwrap(),
+    );
+    assert_eq!(iterator_desc.configurable, true);
+    assert_eq!(iterator_desc.enumerable, false);
+    assert_eq!(iterator_desc.writable, Some(true));
+    assert!(iterator_desc.get.is_none());
+    assert!(iterator_desc.set.is_none());
+    if let Some(val) = iterator_desc.value {
+        assert!(is_callable(&val));
+    } else {
+        panic!("Expected a value");
+    }
+}
+
+mod provision_generator_function_intrinsics {
     use super::*;
     use test_case::test_case;
 
     #[test]
-    fn provision_iterator_prototype() {
+    fn generator_function() {
         setup_test_agent();
+        let function = intrinsic(IntrinsicId::Function);
+        let generator_function = intrinsic(IntrinsicId::GeneratorFunction);
 
-        let iterator_prototype = intrinsic(IntrinsicId::IteratorPrototype);
-        let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+        assert!(generator_function.o.to_builtin_function_obj().is_some());
+        assert_eq!(generator_function.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(), function);
 
-        let iter_proto_proto = iterator_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone();
-        assert_eq!(iter_proto_proto, object_prototype);
-
-        let iterator_sym = wks(WksId::Iterator);
-        let iterator_desc = IdealizedPropertyDescriptor::from(
-            iterator_prototype.o.get_own_property(&iterator_sym.into()).unwrap().unwrap(),
+        assert_eq!(get(&generator_function, &"name".into()).unwrap(), ECMAScriptValue::from("GeneratorFunction"));
+        assert_eq!(get(&generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
+        assert_eq!(
+            get(&generator_function, &"prototype".into()).unwrap(),
+            ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
         );
-        assert_eq!(iterator_desc.configurable, true);
-        assert_eq!(iterator_desc.enumerable, false);
-        assert_eq!(iterator_desc.writable, Some(true));
-        assert!(iterator_desc.get.is_none());
-        assert!(iterator_desc.set.is_none());
-        if let Some(val) = iterator_desc.value {
-            assert!(is_callable(&val));
-        } else {
-            panic!("Expected a value");
-        }
     }
 
-    mod provision_generator_function_intrinsics {
-        use super::*;
-        use test_case::test_case;
-
-        #[test]
-        fn generator_function() {
-            setup_test_agent();
-            let function = intrinsic(IntrinsicId::Function);
-            let generator_function = intrinsic(IntrinsicId::GeneratorFunction);
-
-            assert!(generator_function.o.to_builtin_function_obj().is_some());
-            assert_eq!(
-                generator_function.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(),
-                function
-            );
-
-            assert_eq!(get(&generator_function, &"name".into()).unwrap(), ECMAScriptValue::from("GeneratorFunction"));
-            assert_eq!(get(&generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
-            assert_eq!(
-                get(&generator_function, &"prototype".into()).unwrap(),
-                ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
-            );
-        }
-
-        #[test]
-        fn generator_function_prototype() {
-            setup_test_agent();
-            let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
-            let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-
-            assert!(!generator_function_prototype.o.is_callable_obj());
-            assert_eq!(
-                generator_function_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(),
-                function_prototype
-            );
-
-            let to_string_tag = wks(WksId::ToStringTag);
-            assert_eq!(
-                get(&generator_function_prototype, &to_string_tag.into()).unwrap(),
-                ECMAScriptValue::from("GeneratorFunction")
-            );
-            assert_eq!(
-                get(&generator_function_prototype, &"constructor".into()).unwrap(),
-                ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunction))
-            );
-            assert_eq!(
-                get(&generator_function_prototype, &"prototype".into()).unwrap(),
-                ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype))
-            );
-        }
-
-        #[test]
-        fn generator_prototype() {
-            setup_test_agent();
-            let generator_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-
-            assert_eq!(
-                generator_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(),
-                intrinsic(IntrinsicId::IteratorPrototype)
-            );
-            assert_eq!(
-                get(&generator_prototype, &"constructor".into()).unwrap(),
-                ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
-            );
-            let to_string_tag = wks(WksId::ToStringTag);
-            assert_eq!(get(&generator_prototype, &to_string_tag.into()).unwrap(), ECMAScriptValue::from("Generator"));
-        }
-
-        #[test_case("next" => "next;1"; "next function")]
-        #[test_case("return" => "return;1"; "return function")]
-        #[test_case("throw" => "throw;1"; "throw function")]
-        fn generator_prototype_func(key: &str) -> String {
-            setup_test_agent();
-            let key = PropertyKey::from(key);
-            let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-            let val = super::get(&proto, &key).unwrap();
-            assert!(is_callable(&val));
-            let name = getv(&val, &"name".into()).unwrap();
-            let name = to_string(name).unwrap();
-            let length = getv(&val, &"length".into()).unwrap();
-            let length = to_string(length).unwrap();
-            format!("{};{}", String::from(name), length)
-        }
-    }
-
-    #[test_case("a value".into(), true; "is done")]
-    #[test_case(ECMAScriptValue::Undefined, false; "not done")]
-    fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
+    #[test]
+    fn generator_function_prototype() {
         setup_test_agent();
-        let obj = super::create_iter_result_object(value.clone(), done);
-        let value_res = get(&obj, &"value".into()).unwrap();
-        let done_res = get(&obj, &"done".into()).unwrap();
+        let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
 
-        assert_eq!(value_res, value);
-        assert_eq!(done_res, ECMAScriptValue::from(done));
+        assert!(!generator_function_prototype.o.is_callable_obj());
+        assert_eq!(
+            generator_function_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(),
+            function_prototype
+        );
+
+        let to_string_tag = wks(WksId::ToStringTag);
+        assert_eq!(
+            get(&generator_function_prototype, &to_string_tag.into()).unwrap(),
+            ECMAScriptValue::from("GeneratorFunction")
+        );
+        assert_eq!(
+            get(&generator_function_prototype, &"constructor".into()).unwrap(),
+            ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunction))
+        );
+        assert_eq!(
+            get(&generator_function_prototype, &"prototype".into()).unwrap(),
+            ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype))
+        );
     }
 
-    #[test_case(|| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
-    #[test_case(|| create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
-    #[test_case(|| {
+    #[test]
+    fn generator_prototype() {
+        setup_test_agent();
+        let generator_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+
+        assert_eq!(
+            generator_prototype.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(),
+            intrinsic(IntrinsicId::IteratorPrototype)
+        );
+        assert_eq!(
+            get(&generator_prototype, &"constructor".into()).unwrap(),
+            ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
+        );
+        let to_string_tag = wks(WksId::ToStringTag);
+        assert_eq!(get(&generator_prototype, &to_string_tag.into()).unwrap(), ECMAScriptValue::from("Generator"));
+    }
+
+    #[test_case("next" => "next;1"; "next function")]
+    #[test_case("return" => "return;1"; "return function")]
+    #[test_case("throw" => "throw;1"; "throw function")]
+    fn generator_prototype_func(key: &str) -> String {
+        setup_test_agent();
+        let key = PropertyKey::from(key);
+        let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let val = super::get(&proto, &key).unwrap();
+        assert!(is_callable(&val));
+        let name = getv(&val, &"name".into()).unwrap();
+        let name = to_string(name).unwrap();
+        let length = getv(&val, &"length".into()).unwrap();
+        let length = to_string(length).unwrap();
+        format!("{};{}", String::from(name), length)
+    }
+}
+
+#[test_case("a value".into(), true; "is done")]
+#[test_case(ECMAScriptValue::Undefined, false; "not done")]
+fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
+    setup_test_agent();
+    let obj = super::create_iter_result_object(value.clone(), done);
+    let value_res = get(&obj, &"value".into()).unwrap();
+    let done_res = get(&obj, &"done".into()).unwrap();
+
+    assert_eq!(value_res, value);
+    assert_eq!(done_res, ECMAScriptValue::from(done));
+}
+
+#[test_case(|| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
+#[test_case(|| create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
+#[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
     }, "TestingBrand" => Ok(GeneratorState::SuspendedStart); "valid")]
-    #[test_case(|| {
+#[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(Some(proto), GeneratorState::Executing, "TestingBrand").into()
     }, "TestingBrand" => serr("TypeError: Generator is already executing"); "already running")]
-    #[test_case(|| {
+#[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
     }, "OtherBrand" => serr("TypeError: Generator brand mismatch"); "brand mismatch")]
-    fn generator_validate(
-        make_value: impl FnOnce() -> ECMAScriptValue,
-        desired_brand: &str,
-    ) -> Result<GeneratorState, String> {
-        setup_test_agent();
-        let value = make_value();
-        super::generator_validate(value, desired_brand).map_err(unwind_any_error)
-    }
+fn generator_validate(
+    make_value: impl FnOnce() -> ECMAScriptValue,
+    desired_brand: &str,
+) -> Result<GeneratorState, String> {
+    setup_test_agent();
+    let value = make_value();
+    super::generator_validate(value, desired_brand).map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
