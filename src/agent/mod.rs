@@ -1066,6 +1066,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let o = ordinary_object_create(Some(obj_proto), &[]);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
                 }
+                Insn::Array => {
+                    let array = array_create(0, None).expect("Arrays of length zero are not too large");
+                    agent.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .push(Ok(ECMAScriptValue::from(array).into()));
+                }
                 Insn::CreateDataProperty => {
                     let nc_value = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let nc_name = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();

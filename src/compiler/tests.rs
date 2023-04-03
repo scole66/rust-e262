@@ -44,6 +44,7 @@ mod insn {
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
     #[test_case(Insn::InitializeReferencedBinding => "IRB"; "InitializeReferencedBinding instruction")]
     #[test_case(Insn::Object => "OBJECT"; "Object instruction")]
+    #[test_case(Insn::Array => "ARRAY"; "Array instruction")]
     #[test_case(Insn::CreateDataProperty => "CR_PROP"; "CreateDataProperty instruction")]
     #[test_case(Insn::SetPrototype => "SET_PROTO"; "SetPrototype instruction")]
     #[test_case(Insn::ToPropertyKey => "TO_KEY"; "ToPropertyKey instruction")]
@@ -685,7 +686,7 @@ mod primary_expression {
         ]); "literal")]
         #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
         #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
-        #[test_case("[]", true => panics "not yet implemented"; "array literal")]
+        #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
         #[test_case("``", true => panics "not yet implemented"; "template literal")]
         #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
         #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
@@ -5469,6 +5470,160 @@ mod catch {
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod elisions {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(",,", &[], 0 => Ok((2, svec(&["DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (2)", "PUT_VALUE", "POP"]), false)); "normal")]
+    #[test_case(",,", &[], u32::MAX as usize => Ok((4294967297, svec(&["DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (4294967297)", "PUT_VALUE", "UNWIND 1"]), true)); "too big (over u32 max)")]
+    #[test_case(",,", &[], (u32::MAX-2) as usize => Ok((4294967295, svec(&["DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (4294967295)", "PUT_VALUE", "UNWIND 1"]), true)); "too big (== max)")]
+    #[test_case(",,", &[(Fillable::String, 0)], 0 => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case(",,", &[(Fillable::Float, 0)], 0 => serr("Out of room for floats in this compilation unit"); "float table full")]
+    fn array_accumulation(
+        src: &str,
+        what: &[(Fillable, usize)],
+        next_index: usize,
+    ) -> Result<(usize, Vec<String>, bool), String> {
+        let node = Maker::new(src).elision();
+        let mut c = complex_filled_chunk("x", what);
+        node.array_accumulation(&mut c, next_index)
+            .map(|(size, status)| {
+                (size, c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod element_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("0", false, &[], 0 => Ok((1, svec(&["STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP"]), false)); "one simple element")]
+    #[test_case(",0", false, &[], 0 => Ok((2, svec(&["DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (1)", "PUT_VALUE", "POP", "STRING 1 (1)", "FLOAT 1 (0)", "CR_PROP"]), false)); "one element, leading elision")]
+    #[test_case(",0", false, &[], u32::MAX as usize => Ok((4294967297, svec(&["DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (4294967296)", "PUT_VALUE", "UNWIND 1", "JUMP_IF_ABRUPT 5", "STRING 1 (4294967296)", "FLOAT 1 (0)", "CR_PROP"]), true)); "one element, leading elision, no room")]
+    #[test_case(",0", false, &[(Fillable::String, 0)], 0 => serr("Out of room for strings in this compilation unit"); "leading elision compile fails")]
+    #[test_case("0", false, &[(Fillable::String, 0)], 0 => serr("Out of room for strings in this compilation unit"); "one element, String table full")]
+    #[test_case("a", false, &[(Fillable::String, 1)], 0 => serr("Out of room for strings in this compilation unit"); "one element, AE compile fails")]
+    #[test_case("a", false, &[], 0 => Ok((1, svec(&["STRING 0 (0)", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]), true)); "one element, nonstrict ref")]
+    #[test_case("a", true, &[], 0 => Ok((1, svec(&["STRING 0 (0)", "STRING 1 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]), true)); "one element, strict ref")]
+    #[test_case(",@@@", false, &[], u32::MAX as usize => serr("out of range integral type conversion attempted"); "leading elision jump too far")]
+    #[test_case("...a", false, &[], 0 => panics "not yet implemented"; "one spread element")]
+    #[test_case("0,1", false, &[], 0 => Ok((2, svec(&["STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (1)", "FLOAT 1 (1)", "CR_PROP"]), false)); "element list, simple")]
+    #[test_case("a,1", false, &[(Fillable::String, 0)], 0 => serr("Out of room for strings in this compilation unit"); "element list, first fails")]
+    #[test_case("a,1", false, &[], 0 => Ok((2, svec(&["STRING 0 (0)", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 2 (1)", "FLOAT 0 (1)", "CR_PROP"]), true)); "element list, first is fallible")]
+    #[test_case("0,,1", false, &[], 0 => Ok((3, svec(&["STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP", "DUP", "STRING 1 (length)", "STRICT_REF", "FLOAT 1 (2)", "PUT_VALUE", "POP", "STRING 2 (2)", "FLOAT 2 (1)", "CR_PROP"]), false)); "element list, with elision")]
+    #[test_case("0,,1", false, &[(Fillable::String, 1)], 0 => serr("Out of room for strings in this compilation unit"); "list form; elision fails")]
+    #[test_case("0,,1", false, &[], u32::MAX as usize => Ok((u32::MAX as usize + 3, svec(&["STRING 0 (4294967295)", "FLOAT 0 (0)", "CR_PROP", "DUP", "STRING 1 (length)", "STRICT_REF", "FLOAT 1 (4294967297)", "PUT_VALUE", "UNWIND 1", "JUMP_IF_ABRUPT 5", "STRING 2 (4294967297)", "FLOAT 2 (1)", "CR_PROP"]), true)); "list form; potential error from elision")]
+    #[test_case("0,a", false, &[(Fillable::String, 1)], 0 => serr("Out of room for strings in this compilation unit"); "list form; final index store fails")]
+    #[test_case("0,a", false, &[(Fillable::String, 2)], 0 => serr("Out of room for strings in this compilation unit"); "list form; final expression compilation fails")]
+    #[test_case("0,a", false, &[], 0 => Ok((2, svec(&["STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (1)", "STRING 2 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]), true)); "list form, final is reference")]
+    #[test_case("a,@@@", false, &[], 0 => serr("out of range integral type conversion attempted"); "can't jump over final expr")]
+    #[test_case("0,...a", false, &[], 0 => panics "not yet implemented"; "list spread element")]
+    fn array_accumulation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+        next_index: usize,
+    ) -> Result<(usize, Vec<String>, bool), String> {
+        let node = Maker::new(src).element_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.array_accumulation(&mut c, strict, src, next_index)
+            .map(|(size, status)| {
+                (size, c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod array_literal {
+    use super::*;
+    use test_case::test_case;
+
+    fn invalid_elisions() -> String {
+        let mut commas = vec![b','; 0xffffffff + 2];
+        let len = commas.len();
+        commas[0] = b'[';
+        commas[len - 1] = b']';
+        unsafe { String::from_utf8_unchecked(commas) }
+    }
+
+    #[test_case("[]", false, &[] => Ok((svec(&["ARRAY"]), false)); "empty array")]
+    #[test_case("[,]", false, &[] => Ok((svec(&["ARRAY", "DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (1)", "PUT_VALUE", "POP"]), false)); "elision only")]
+    #[test_case("[,]", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "elision only; elison compile fails")]
+    #[test_case("[0]", false, &[] => Ok((svec(&["ARRAY", "STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP"]), false)); "list, normal")]
+    #[test_case("[0,,]", false, &[] => Ok((svec(&["ARRAY", "STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP", "DUP", "STRING 1 (length)", "STRICT_REF", "FLOAT 1 (2)", "PUT_VALUE", "POP"]), false)); "list-elision, normal")]
+    #[test_case("[0,,]", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list-elision, list-part fails")]
+    #[test_case("[0,,]", false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-elision, elision fails")]
+    #[test_case("[0,]", false, &[] => Ok((svec(&["ARRAY", "STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP"]), false)); "list-elision, without elision")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).array_literal();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case(false, &[] => Ok((svec(&["ARRAY", "DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (4294967295)", "PUT_VALUE", "UNWIND 1"]), true)); "big elison only")]
+    fn too_many_commas(strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Rc::new(ArrayLiteral::Empty {
+            elision: Some(Rc::new(Elisions {
+                count: u32::MAX as usize,
+                location: Location {
+                    starting_line: 1,
+                    starting_column: 2,
+                    span: Span { starting_index: 1, length: u32::MAX as usize },
+                },
+            })),
+            location: Location {
+                starting_line: 1,
+                starting_column: 1,
+                span: Span { starting_index: 0, length: u32::MAX as usize + 2 },
+            },
+        });
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, "[,,,]")
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("0", false, &[] => Ok((svec(&["ARRAY", "STRING 0 (0)", "FLOAT 0 (0)", "CR_PROP", "DUP", "STRING 1 (length)", "STRICT_REF", "FLOAT 1 (4294967296)", "PUT_VALUE", "UNWIND 1"]), true)); "big elision, list-form")]
+    #[test_case("a", false, &[] => Ok((svec(&["ARRAY", "STRING 0 (0)", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 9", "DUP", "STRING 2 (length)", "STRICT_REF", "FLOAT 0 (4294967296)", "PUT_VALUE", "UNWIND 1"]), true)); "list-form, fallible first, big elision")]
+    fn too_many_commas_list(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let ae = Maker::new(format!(" {src}").as_str()).assignment_expression();
+        // [<ae>,,,,,,,,]
+        let node = Rc::new(ArrayLiteral::ElementListElision {
+            el: Rc::new(ElementList::AssignmentExpression { elision: None, ae }),
+            elision: Some(Rc::new(Elisions {
+                count: u32::MAX as usize,
+                location: Location {
+                    starting_line: 1,
+                    starting_column: 4,
+                    span: Span { starting_index: 3, length: u32::MAX as usize },
+                },
+            })),
+            location: Location {
+                starting_line: 1,
+                starting_column: 1,
+                span: Span { starting_index: 0, length: u32::MAX as usize + 3 + src.len() },
+            },
+        });
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, "[,,,]")
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
             })
             .map_err(|e| e.to_string())
     }
