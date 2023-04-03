@@ -231,7 +231,8 @@ impl Chunk {
             | Insn::SwapList
             | Insn::RequireConstructor
             | Insn::Construct
-            | Insn::Object => (1, format!("    {insn}")),
+            | Insn::Object
+            | Insn::Array => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

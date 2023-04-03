@@ -68,6 +68,7 @@ pub enum Insn {
     InitializeVarBinding,
     SetMutableVarBinding,
     Object,
+    Array,
     CreateDataProperty,
     SetPrototype,
     ToPropertyKey,
@@ -187,6 +188,7 @@ impl fmt::Display for Insn {
             Insn::InitializeVarBinding => "IVB",
             Insn::SetMutableVarBinding => "SMVB",
             Insn::Object => "OBJECT",
+            Insn::Array => "ARRAY",
             Insn::CreateDataProperty => "CR_PROP",
             Insn::SetPrototype => "SET_PROTO",
             Insn::ToPropertyKey => "TO_KEY",
@@ -815,7 +817,9 @@ impl PrimaryExpression {
             PrimaryExpression::ObjectLiteral { node: ol } => {
                 ol.compile(chunk, strict, text).map(CompilerStatusFlags::from)
             }
-            PrimaryExpression::ArrayLiteral { node } => todo!(),
+            PrimaryExpression::ArrayLiteral { node: al } => {
+                al.compile(chunk, strict, text).map(CompilerStatusFlags::from)
+            }
             PrimaryExpression::TemplateLiteral { node } => todo!(),
             PrimaryExpression::Function { node } => {
                 node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
@@ -925,6 +929,181 @@ impl ParenthesizedExpression {
         //      | motivation for this is so that operators such as delete and typeof may be applied to parenthesized
         //      | expressions.
         self.exp.compile(chunk, strict, text)
+    }
+}
+
+impl Elisions {
+    pub fn array_accumulation(&self, chunk: &mut Chunk, next_index: usize) -> anyhow::Result<(usize, AbruptResult)> {
+        // Stack: array ...
+        let len = next_index + self.count;
+
+        chunk.op(Insn::Dup);
+        // Stack: array array ...
+        let idx = chunk.add_to_string_pool(JSString::from("length"))?;
+        chunk.op_plus_arg(Insn::String, idx);
+        // Stack: "length" array array ...
+        chunk.op(Insn::StrictRef);
+        // Stack: Ref array ...
+        let idx = chunk.add_to_float_pool(len as f64)?;
+        chunk.op_plus_arg(Insn::Float, idx);
+        // Stack: len ref array ...
+        chunk.op(Insn::PutValue);
+        // Stack: empty/err array ...
+        // This error is only there if len > 2**32 -1, and since we _know_ len, we know if there's an
+        // error there.
+        if len >= u32::MAX as usize {
+            // Stack: err array ...
+            chunk.op_plus_arg(Insn::Unwind, 1);
+        } else {
+            // Stack: empty array ...
+            chunk.op(Insn::Pop);
+        }
+        // Stack: err/array ...
+        Ok((len, (len >= u32::MAX as usize).into()))
+    }
+}
+
+impl ElementList {
+    pub fn array_accumulation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        next_index: usize,
+    ) -> anyhow::Result<(usize, AbruptResult)> {
+        let mut next = next_index;
+        match self {
+            ElementList::AssignmentExpression { elision, ae } => {
+                let mut exit_status = AbruptResult::Never;
+                let mut exits = vec![];
+                // Stack: array ...
+                if let Some(elision) = elision {
+                    let (n, status) = elision.array_accumulation(chunk, next)?;
+                    // Stack: err/array ...
+                    next = n;
+                    if status.maybe_abrupt() {
+                        exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exit_status = AbruptResult::Maybe;
+                    }
+                }
+                // Stack: array ...
+                let idx = chunk.add_to_string_pool(JSString::from(format!("{next}")))?;
+                chunk.op_plus_arg(Insn::String, idx);
+                // Stack: "idx" array ...
+                let status = ae.compile(chunk, strict, text)?;
+                // Stack: val/ref/err "idx" array ...
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    // Stack: val/err "idx" array ...
+                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err "idx" array ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: err ...
+                    exits.push(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
+                    exit_status = AbruptResult::Maybe;
+                }
+                // Stack: val "idx" array ...
+                chunk.op(Insn::CreateDataProperty);
+                // Stack: array ...
+                for exit in exits {
+                    chunk.fixup(exit)?;
+                }
+                Ok((next + 1, exit_status))
+            }
+            ElementList::SpreadElement { elision: _, se: _ } => todo!(),
+            ElementList::ElementListAssignmentExpression { el, elision, ae } => {
+                let mut exit_status = AbruptResult::Never;
+                let mut exits = vec![];
+                // Stack: array ...
+                let (new_idx, status) = el.array_accumulation(chunk, strict, text, next)?;
+                next = new_idx;
+                // Stack: err/array ...
+                if status.maybe_abrupt() {
+                    exit_status = AbruptResult::Maybe;
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    // Stack: array ...
+                }
+                if let Some(elision) = elision {
+                    let (n, status) = elision.array_accumulation(chunk, next)?;
+                    next = n;
+                    if status.maybe_abrupt() {
+                        exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exit_status = AbruptResult::Maybe;
+                    }
+                }
+                // Stack: array ...
+                let idx = chunk.add_to_string_pool(JSString::from(format!("{next}")))?;
+                chunk.op_plus_arg(Insn::String, idx);
+                // Stack: "idx" array ...
+                let status = ae.compile(chunk, strict, text)?;
+                // Stack: val/ref/err "idx" array ...
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    // Stack: val/err "idx" array ...
+                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    // Stack: err "idx" array ...
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    // Stack: err ...
+                    exits.push(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(mark).expect("Jump is too short to overflow.");
+                    exit_status = AbruptResult::Maybe;
+                }
+                // Stack: val "idx" array ...
+                chunk.op(Insn::CreateDataProperty);
+                // Stack: array ...
+                for exit in exits {
+                    chunk.fixup(exit)?;
+                }
+                Ok((next + 1, exit_status))
+            }
+            ElementList::ElementListSpreadElement { el: _, elision: _, se: _ } => todo!(),
+        }
+    }
+}
+
+impl ArrayLiteral {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            ArrayLiteral::Empty { elision, .. } => {
+                let mut exit_status = AbruptResult::Never;
+                chunk.op(Insn::Array);
+                if let Some(elisions) = elision {
+                    let (_, status) = elisions.array_accumulation(chunk, 0)?;
+                    exit_status = status;
+                }
+                Ok(exit_status)
+            }
+            ArrayLiteral::ElementList { el, .. } => {
+                chunk.op(Insn::Array);
+                el.array_accumulation(chunk, strict, text, 0).map(|(_, r)| r)
+            }
+            ArrayLiteral::ElementListElision { el, elision, .. } => {
+                chunk.op(Insn::Array);
+                // Stack: array ...
+                let (next, mut status) = el.array_accumulation(chunk, strict, text, 0)?;
+                // Stack: array/err ...
+                let mut exit = None;
+                if let Some(elisions) = elision {
+                    if status.maybe_abrupt() {
+                        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    // Stack: array ...
+                    let (_, eli_status) = elisions.array_accumulation(chunk, next)?;
+                    if eli_status.maybe_abrupt() {
+                        status = AbruptResult::Maybe;
+                    }
+                }
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("Jump is too short to fail");
+                }
+                Ok(status)
+            }
+        }
     }
 }
 
