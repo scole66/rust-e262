@@ -323,3 +323,17 @@ fn function_prototype_call(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }
+
+#[test_case("let a=[]; 'length: ' + a.length + ', 0: ' + a[0]" => vok("length: 0, 0: undefined"); "empty array literal")]
+#[test_case("let a=[1,2]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: 1, 1: 2"); "simple element list")]
+#[test_case("let a=[,,]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: undefined, 1: undefined"); "only elisions")]
+#[test_case("let a=[,10]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: undefined, 1: 10"); "elision at start")]
+#[test_case("let a=[-10,,10]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1] + ', 2: ' + a[2]" => vok("length: 3, 0: -10, 1: undefined, 2: 10"); "elision in middle")]
+#[test_case("let a=[10,,]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: 10, 1: undefined"); "elision at end")]
+#[test_case("let a=[(() => { throw 'exception' })()];" => serr("Thrown: exception"); "exceptions in elements")]
+#[test_case("let a=[1,(() => { throw 'exception' })()];" => serr("Thrown: exception"); "exceptions in tail elements")]
+#[test_case("const x=10, y=20; const a=[x,y]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: 10, 1: 20"); "id refs")]
+fn array_literal(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}

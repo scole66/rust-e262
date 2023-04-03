@@ -491,8 +491,8 @@ impl PrimaryExpression {
 
 #[derive(Debug)]
 pub struct Elisions {
-    count: usize,
-    location: Location,
+    pub count: usize,
+    pub(crate) location: Location,
 }
 
 impl fmt::Display for Elisions {

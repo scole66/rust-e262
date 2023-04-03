@@ -29,7 +29,7 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Agent {
-    execution_context_stack: RefCell<Vec<ExecutionContext>>,
+    pub execution_context_stack: RefCell<Vec<ExecutionContext>>,
     symbols: WellKnownSymbols,
     obj_id: Cell<usize>,
     symbol_id: Cell<usize>,
@@ -140,6 +140,14 @@ pub fn get_active_script_or_module() -> Option<ScriptOrModule> {
             }
         }
         None
+    })
+}
+
+pub fn current_script_or_module() -> Option<ScriptOrModule> {
+    AGENT.with(|agent| {
+        let execution_context_stack = agent.execution_context_stack.borrow();
+        let ec = &execution_context_stack[execution_context_stack.len() - 1];
+        ec.script_or_module.clone()
     })
 }
 
@@ -1057,6 +1065,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
                     let o = ordinary_object_create(Some(obj_proto), &[]);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
+                }
+                Insn::Array => {
+                    let array = array_create(0, None).expect("Arrays of length zero are not too large");
+                    agent.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .push(Ok(ECMAScriptValue::from(array).into()));
                 }
                 Insn::CreateDataProperty => {
                     let nc_value = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();

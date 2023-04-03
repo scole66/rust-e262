@@ -24,6 +24,8 @@ anyhow = "1.0.56"
 num_enum = "0.5.7"
 bimap = "0.6.2"
 non-empty-vec = "0.2.3"
+genawaiter = "0.99.1"
+futures = "0.3.28"
 
 [dev-dependencies]
 test-case = "2.0"

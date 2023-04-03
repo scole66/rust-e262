@@ -472,20 +472,6 @@ mod agent {
     }
 
     #[test]
-    fn prepare_for_execution() {
-        setup_test_agent();
-        let chunk = Rc::new(Chunk::new("test sentinel"));
-
-        super::prepare_for_execution(0, Rc::clone(&chunk));
-
-        AGENT.with(|agent| {
-            assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
-            assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
-            assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
-        })
-    }
-
-    #[test]
     fn two_values() {
         setup_test_agent();
         AGENT.with(|agent| {
@@ -547,82 +533,6 @@ mod agent {
         let x = make_x();
         let y = make_y();
         super::is_less_than(x, y, left_first).map_err(unwind_any_error)
-    }
-
-    type ValueMaker = fn() -> ECMAScriptValue;
-    fn empty_object() -> ECMAScriptValue {
-        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
-    }
-    fn bool_class() -> ECMAScriptValue {
-        let boolean = intrinsic(IntrinsicId::Boolean);
-        ECMAScriptValue::from(boolean)
-    }
-    fn undef() -> ECMAScriptValue {
-        ECMAScriptValue::Undefined
-    }
-    fn number() -> ECMAScriptValue {
-        ECMAScriptValue::from(10)
-    }
-    fn string() -> ECMAScriptValue {
-        ECMAScriptValue::from("Test Sentinel")
-    }
-    fn dead_object() -> ECMAScriptValue {
-        ECMAScriptValue::from(DeadObject::object())
-    }
-    fn test_has_instance(
-        _: ECMAScriptValue,
-        _: Option<&Object>,
-        arguments: &[ECMAScriptValue],
-    ) -> Completion<ECMAScriptValue> {
-        let mut args = FuncArgs::from(arguments);
-        let thing_to_check = args.next_arg();
-        // Let's say: all numbers are instances of our "class"
-        // But that strings are a type error
-        match thing_to_check {
-            ECMAScriptValue::Number(_) => Ok(true.into()),
-            ECMAScriptValue::String(s) => Err(create_type_error(s)),
-            _ => Ok(false.into()),
-        }
-    }
-    fn faux_class() -> ECMAScriptValue {
-        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
-        let realm = current_realm_record();
-        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-        let has_instance = create_builtin_function(
-            test_has_instance,
-            false,
-            1_f64,
-            PropertyKey::from("[Symbol.hasInstance]"),
-            BUILTIN_FUNCTION_SLOTS,
-            realm,
-            Some(function_prototype),
-            None,
-        );
-        let hi = super::wks(WksId::HasInstance);
-        define_property_or_throw(
-            &obj,
-            hi,
-            PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(true),
-        )
-        .unwrap();
-        obj.into()
-    }
-
-    #[test_case(empty_object, undef => serr("TypeError: Right-hand side of 'instanceof' is not an object"); "class is not object")]
-    #[test_case(empty_object, dead_object => serr("TypeError: get called on DeadObject"); "GetMethod throws for class")]
-    #[test_case(empty_object, empty_object => serr("TypeError: Right-hand side of 'instanceof' is not callable"); "class is not callable")]
-    #[test_case(empty_object, bool_class => Ok(false.into()); "defer to ordinary")]
-    #[test_case(empty_object, faux_class => Ok(false.into()); "[Symbol.hasInstance] returns false")]
-    #[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
-    #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
-    fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
-        setup_test_agent();
-        let v = make_v();
-        let target = make_target();
-
-        super::instanceof_operator(v, target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
     }
 
     mod create_unmapped_arguments_object {
@@ -863,6 +773,96 @@ mod agent {
             super::attach_mapped_arg(index, &"bbo".into(), 12);
         }
     }
+}
+
+#[test]
+fn prepare_for_execution() {
+    setup_test_agent();
+    let chunk = Rc::new(Chunk::new("test sentinel"));
+
+    super::prepare_for_execution(0, Rc::clone(&chunk));
+
+    AGENT.with(|agent| {
+        assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
+        assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
+        assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
+    })
+}
+
+type ValueMaker = fn() -> ECMAScriptValue;
+fn empty_object() -> ECMAScriptValue {
+    let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+    ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+}
+fn bool_class() -> ECMAScriptValue {
+    let boolean = intrinsic(IntrinsicId::Boolean);
+    ECMAScriptValue::from(boolean)
+}
+fn undef() -> ECMAScriptValue {
+    ECMAScriptValue::Undefined
+}
+fn number() -> ECMAScriptValue {
+    ECMAScriptValue::from(10)
+}
+fn string() -> ECMAScriptValue {
+    ECMAScriptValue::from("Test Sentinel")
+}
+fn dead_object() -> ECMAScriptValue {
+    ECMAScriptValue::from(DeadObject::object())
+}
+fn test_has_instance(
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(arguments);
+    let thing_to_check = args.next_arg();
+    // Let's say: all numbers are instances of our "class"
+    // But that strings are a type error
+    match thing_to_check {
+        ECMAScriptValue::Number(_) => Ok(true.into()),
+        ECMAScriptValue::String(s) => Err(create_type_error(s)),
+        _ => Ok(false.into()),
+    }
+}
+fn faux_class() -> ECMAScriptValue {
+    let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let realm = current_realm_record();
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let has_instance = create_builtin_function(
+        test_has_instance,
+        false,
+        1_f64,
+        PropertyKey::from("[Symbol.hasInstance]"),
+        BUILTIN_FUNCTION_SLOTS,
+        realm,
+        Some(function_prototype),
+        None,
+    );
+    let hi = super::wks(WksId::HasInstance);
+    define_property_or_throw(
+        &obj,
+        hi,
+        PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(true),
+    )
+    .unwrap();
+    obj.into()
+}
+
+#[test_case(empty_object, undef => serr("TypeError: Right-hand side of 'instanceof' is not an object"); "class is not object")]
+#[test_case(empty_object, dead_object => serr("TypeError: get called on DeadObject"); "GetMethod throws for class")]
+#[test_case(empty_object, empty_object => serr("TypeError: Right-hand side of 'instanceof' is not callable"); "class is not callable")]
+#[test_case(empty_object, bool_class => Ok(false.into()); "defer to ordinary")]
+#[test_case(empty_object, faux_class => Ok(false.into()); "[Symbol.hasInstance] returns false")]
+#[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
+#[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
+fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let v = make_v();
+    let target = make_target();
+
+    super::instanceof_operator(v, target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
 }
 
 #[test]
@@ -1301,4 +1301,33 @@ fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
 #[test_case(BigInt::from(10), BigInt::from(-0xFFFFFFFFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
 fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
     super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
+}
+
+mod current_script_or_module {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        setup_test_agent();
+        let som = current_script_or_module();
+        // Without any code, that should be None.
+        assert!(som.is_none());
+    }
+    #[test]
+    fn script() {
+        setup_test_agent();
+        // Add a script record; make sure it comes back...
+        let realm_ref = current_realm_record().unwrap();
+        let sr = ScriptRecord {
+            realm: realm_ref.clone(),
+            ecmascript_code: Maker::new("").script(),
+            compiled: Rc::new(Chunk::new("test")),
+            text: String::new(),
+        };
+        let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
+        push_execution_context(test_ec);
+
+        let som = current_script_or_module();
+        assert!(matches!(som, Some(ScriptOrModule::Script(_))));
+    }
 }
