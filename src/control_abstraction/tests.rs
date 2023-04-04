@@ -1086,17 +1086,10 @@ mod iterator_record {
         _: Option<&Object>,
         args: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
-        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(objproto), &[]);
         let this_sentinel = getv(&this_value, &"sentinel".into()).unwrap();
         let arg = args[0].clone();
-        let value = JSString::from(format!("{this_sentinel}({arg})"));
-        let value_ppd =
-            PotentialPropertyDescriptor::new().value(value).writable(true).configurable(true).enumerable(true);
-        let done_ppd =
-            PotentialPropertyDescriptor::new().value(true).writable(true).configurable(true).enumerable(true);
-        define_property_or_throw(&obj, "value", value_ppd).unwrap();
-        define_property_or_throw(&obj, "done", done_ppd).unwrap();
+        let value = ECMAScriptValue::from(JSString::from(format!("{this_sentinel}({arg})")));
+        let obj = create_iter_result_object(value, true);
         Ok(obj.into())
     }
     fn iterator_ok_next(
@@ -1199,9 +1192,9 @@ mod iterator_record {
 }
 
 mod iterator_next {
+    use super::iterator_record::makes_good_ir;
     use super::*;
     use test_case::test_case;
-    use super::iterator_record::makes_good_ir;
 
     #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(true))); "next returns ir")]
     fn call(
