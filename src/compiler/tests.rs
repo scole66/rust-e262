@@ -5544,14 +5544,6 @@ mod array_literal {
     use super::*;
     use test_case::test_case;
 
-    fn invalid_elisions() -> String {
-        let mut commas = vec![b','; 0xffffffff + 2];
-        let len = commas.len();
-        commas[0] = b'[';
-        commas[len - 1] = b']';
-        unsafe { String::from_utf8_unchecked(commas) }
-    }
-
     #[test_case("[]", false, &[] => Ok((svec(&["ARRAY"]), false)); "empty array")]
     #[test_case("[,]", false, &[] => Ok((svec(&["ARRAY", "DUP", "STRING 0 (length)", "STRICT_REF", "FLOAT 0 (1)", "PUT_VALUE", "POP"]), false)); "elision only")]
     #[test_case("[,]", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "elision only; elison compile fails")]
