@@ -803,3 +803,419 @@ mod generator_start_from_closure {
         assert!(gc.gen_closure.is_some());
     }
 }
+
+mod get_iterator_from_method {
+    use super::*;
+    use test_case::test_case;
+
+    fn undefined() -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn number() -> ECMAScriptValue {
+        ECMAScriptValue::from(intrinsic(IntrinsicId::Number))
+    }
+    fn object() -> ECMAScriptValue {
+        ECMAScriptValue::from(intrinsic(IntrinsicId::Object))
+    }
+    fn create_dead_object(
+        _: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::from(DeadObject::object()))
+    }
+    fn dead_func() -> ECMAScriptValue {
+        ECMAScriptValue::from(create_builtin_function(
+            create_dead_object,
+            false,
+            0.0,
+            "makedead".into(),
+            &[],
+            None,
+            None,
+            None,
+        ))
+    }
+    fn silly_iterator(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let this_sentinel = to_string(getv(&this_value, &"sentinel".into()).unwrap()).unwrap();
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new()
+                .value(format!("Iterator({this_sentinel})"))
+                .writable(true)
+                .enumerable(true)
+                .configurable(true),
+        )
+        .unwrap();
+        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        define_property_or_throw(
+            &faux_next,
+            "sentinel",
+            PotentialPropertyDescriptor::new().value("Next").writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            &obj,
+            "next",
+            PotentialPropertyDescriptor::new().value(faux_next).writable(true).enumerable(true).configurable(true),
+        )
+        .unwrap();
+        Ok(obj.into())
+    }
+    fn silly_iterator_method_object() -> ECMAScriptValue {
+        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("Method"),
+        )
+        .unwrap();
+        ECMAScriptValue::from(obj)
+    }
+    fn silly_this() -> ECMAScriptValue {
+        let obj = ordinary_object_create(None, &[]);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("This"),
+        )
+        .unwrap();
+        ECMAScriptValue::from(obj)
+    }
+
+    #[test_case(undefined, undefined => serr("TypeError: Value not callable"); "uncallable")]
+    #[test_case(undefined, number => serr("TypeError: not an object"); "non-object came back from method")]
+    #[test_case(undefined, object => serr("TypeError: Only object values may be converted to true objects"); "no next method")]
+    #[test_case(undefined, dead_func => serr("TypeError: get called on DeadObject"); "getv fails")]
+    #[test_case(silly_this, silly_iterator_method_object => Ok(("Next".to_string(), "Iterator(This)".to_string(), false)); "something positive")]
+    fn call(
+        make_obj: impl FnOnce() -> ECMAScriptValue,
+        make_method: impl FnOnce() -> ECMAScriptValue,
+    ) -> Result<(String, String, bool), String> {
+        setup_test_agent();
+        let obj = make_obj();
+        let method = make_method();
+        let result = super::get_iterator_from_method(&obj, &method);
+        result
+            .map(|ir| {
+                (
+                    get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
+                    get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
+                    ir.done,
+                )
+            })
+            .map_err(unwind_any_error)
+    }
+}
+
+mod get_iterator {
+    use super::*;
+    use test_case::test_case;
+
+    fn undefined() -> ECMAScriptValue {
+        ECMAScriptValue::Undefined
+    }
+    fn empty_object() -> ECMAScriptValue {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+    }
+    fn silly_iterator(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let this_sentinel = to_string(getv(&this_value, &"sentinel".into()).unwrap()).unwrap();
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new()
+                .value(format!("Iterator({this_sentinel})"))
+                .writable(true)
+                .enumerable(true)
+                .configurable(true),
+        )
+        .unwrap();
+        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        define_property_or_throw(
+            &faux_next,
+            "sentinel",
+            PotentialPropertyDescriptor::new().value("Next").writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            &obj,
+            "next",
+            PotentialPropertyDescriptor::new().value(faux_next).writable(true).enumerable(true).configurable(true),
+        )
+        .unwrap();
+        Ok(obj.into())
+    }
+    fn silly_iterator_method_object() -> ECMAScriptValue {
+        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("Method"),
+        )
+        .unwrap();
+        ECMAScriptValue::from(obj)
+    }
+    fn silly_this() -> ECMAScriptValue {
+        let obj = ordinary_object_create(None, &[]);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("This"),
+        )
+        .unwrap();
+
+        let iter = silly_iterator_method_object();
+        define_property_or_throw(
+            &obj,
+            wks(WksId::Iterator),
+            PotentialPropertyDescriptor::new().value(iter).writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+
+        ECMAScriptValue::from(obj)
+    }
+
+    #[test_case(undefined, IteratorKind::Async => panics "not yet implemented"; "async iterators")]
+    #[test_case(undefined, IteratorKind::Sync => serr("TypeError: Undefined and null cannot be converted to objects"); "get_method fails")]
+    #[test_case(empty_object, IteratorKind::Sync => serr("TypeError: not an iterator"); "no next method")]
+    #[test_case(silly_this, IteratorKind::Sync => Ok(("Next".to_string(), "Iterator(This)".to_string(), false)); "happy path")]
+    fn call(make_obj: impl FnOnce() -> ECMAScriptValue, kind: IteratorKind) -> Result<(String, String, bool), String> {
+        setup_test_agent();
+        let obj = make_obj();
+        super::get_iterator(&obj, kind)
+            .map(|ir| {
+                (
+                    get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
+                    get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
+                    ir.done,
+                )
+            })
+            .map_err(unwind_any_error)
+    }
+}
+
+mod iterator_record {
+    use super::*;
+    use test_case::test_case;
+
+    fn silly_iterator(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let this_sentinel = to_string(getv(&this_value, &"sentinel".into()).unwrap()).unwrap();
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new()
+                .value(format!("Iterator({this_sentinel})"))
+                .writable(true)
+                .enumerable(true)
+                .configurable(true),
+        )
+        .unwrap();
+        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        define_property_or_throw(
+            &faux_next,
+            "sentinel",
+            PotentialPropertyDescriptor::new().value("FauxNext").writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            &obj,
+            "next",
+            PotentialPropertyDescriptor::new().value(faux_next).writable(true).enumerable(true).configurable(true),
+        )
+        .unwrap();
+        Ok(obj.into())
+    }
+    fn iterator_next(
+        this_value: ECMAScriptValue,
+        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    ) -> Completion<ECMAScriptValue> {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let this_sentinel = to_string(getv(&this_value, &"sentinel".into()).unwrap()).unwrap();
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new()
+                .value(format!("Iterator({this_sentinel})"))
+                .writable(true)
+                .enumerable(true)
+                .configurable(true),
+        )
+        .unwrap();
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+        let next = create_builtin_function(behavior, false, 1.0, "next".into(), &[], None, Some(function_proto), None);
+        define_property_or_throw(
+            &next,
+            "sentinel",
+            PotentialPropertyDescriptor::new().value("Next").writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            &obj,
+            "next",
+            PotentialPropertyDescriptor::new().value(next).writable(true).enumerable(true).configurable(true),
+        )
+        .unwrap();
+        Ok(obj.into())
+    }
+    fn ok_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        args: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(objproto), &[]);
+        let this_sentinel = getv(&this_value, &"sentinel".into()).unwrap();
+        let arg = args[0].clone();
+        let value = JSString::from(format!("{this_sentinel}({arg})"));
+        let value_ppd =
+            PotentialPropertyDescriptor::new().value(value).writable(true).configurable(true).enumerable(true);
+        let done_ppd =
+            PotentialPropertyDescriptor::new().value(true).writable(true).configurable(true).enumerable(true);
+        define_property_or_throw(&obj, "value", value_ppd).unwrap();
+        define_property_or_throw(&obj, "done", done_ppd).unwrap();
+        Ok(obj.into())
+    }
+    fn iterator_ok_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        iterator_next(this_value, ok_next)
+    }
+    fn bad_next(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Undefined)
+    }
+    fn iterator_bad_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        iterator_next(this_value, bad_next)
+    }
+    fn silly_iterator_method_object(kind: IRKind) -> ECMAScriptValue {
+        let func = match kind {
+            IRKind::NextNotFunction => silly_iterator,
+            IRKind::NextReturnsNonObject => iterator_bad_next,
+            IRKind::NextReturnsObject => iterator_ok_next,
+        };
+        let obj = create_builtin_function(func, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("Method"),
+        )
+        .unwrap();
+        ECMAScriptValue::from(obj)
+    }
+    enum IRKind {
+        NextNotFunction,
+        NextReturnsNonObject,
+        NextReturnsObject,
+    }
+    fn silly_this(kind: IRKind) -> ECMAScriptValue {
+        let obj = ordinary_object_create(None, &[]);
+        define_property_or_throw(
+            &obj,
+            "sentinel",
+            PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true).value("This"),
+        )
+        .unwrap();
+
+        let iter = silly_iterator_method_object(kind);
+        define_property_or_throw(
+            &obj,
+            wks(WksId::Iterator),
+            PotentialPropertyDescriptor::new().value(iter).writable(true).configurable(true).enumerable(true),
+        )
+        .unwrap();
+
+        ECMAScriptValue::from(obj)
+    }
+    fn silly_ir() -> IteratorRecord {
+        let obj = silly_this(IRKind::NextNotFunction);
+        super::get_iterator(&obj, IteratorKind::Sync).unwrap()
+    }
+    fn makes_bad_next() -> IteratorRecord {
+        let obj = silly_this(IRKind::NextReturnsNonObject);
+        super::get_iterator(&obj, IteratorKind::Sync).unwrap()
+    }
+    pub fn makes_good_ir() -> IteratorRecord {
+        let obj = silly_this(IRKind::NextReturnsObject);
+        super::get_iterator(&obj, IteratorKind::Sync).unwrap()
+    }
+    fn no_value() -> Option<ECMAScriptValue> {
+        None
+    }
+    fn undefined() -> Option<ECMAScriptValue> {
+        Some(ECMAScriptValue::Undefined)
+    }
+    fn argument() -> Option<ECMAScriptValue> {
+        Some(ECMAScriptValue::from("Argument"))
+    }
+
+    #[test_case(silly_ir, no_value => serr("TypeError: Value not callable"); "next not callable, no argument")]
+    #[test_case(silly_ir, undefined => serr("TypeError: Value not callable"); "next not callable, with argument")]
+    #[test_case(makes_bad_next, argument => serr("TypeError: not an iterator result"); "next returns non-object")]
+    #[test_case(makes_good_ir, argument => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(true))); "next returns ir")]
+    fn next(
+        make_ir: impl FnOnce() -> IteratorRecord,
+        make_value: impl FnOnce() -> Option<ECMAScriptValue>,
+    ) -> Result<(ECMAScriptValue, ECMAScriptValue), String> {
+        setup_test_agent();
+        let ir = make_ir();
+        let value = make_value();
+        ir.next(value)
+            .map(|val| {
+                let value = getv(&val, &"value".into()).unwrap();
+                let done = getv(&val, &"done".into()).unwrap();
+                (value, done)
+            })
+            .map_err(unwind_any_error)
+    }
+}
+
+mod iterator_next {
+    use super::*;
+    use test_case::test_case;
+    use super::iterator_record::makes_good_ir;
+
+    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(true))); "next returns ir")]
+    fn call(
+        make_ir: impl FnOnce() -> IteratorRecord,
+        value: Option<ECMAScriptValue>,
+    ) -> Result<(ECMAScriptValue, ECMAScriptValue), String> {
+        setup_test_agent();
+        let ir = make_ir();
+        super::iterator_next(&ir, value)
+            .map(|val| {
+                let value = getv(&val, &"value".into()).unwrap();
+                let done = getv(&val, &"done".into()).unwrap();
+                (value, done)
+            })
+            .map_err(unwind_any_error)
+    }
+}

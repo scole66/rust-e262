@@ -995,15 +995,32 @@ impl IteratorRecord {
     }
 
     fn close(&self, completion: Completion<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+        // IteratorClose ( iteratorRecord, completion )
+        // The abstract operation IteratorClose takes arguments iteratorRecord (an Iterator Record) and completion (a
+        // Completion Record) and returns a Completion Record. It is used to notify an iterator that it should perform
+        // any actions it would normally perform when it has reached its completed state. It performs the following
+        // steps when called:
+        //
+        //  1. Assert: iteratorRecord.[[Iterator]] is an Object.
+        //  2. Let iterator be iteratorRecord.[[Iterator]].
+        //  3. Let innerResult be Completion(GetMethod(iterator, "return")).
+        //  4. If innerResult.[[Type]] is normal, then
+        //      a. Let return be innerResult.[[Value]].
+        //      b. If return is undefined, return ? completion.
+        //      c. Set innerResult to Completion(Call(return, iterator)).
+        //  5. If completion.[[Type]] is throw, return ? completion.
+        //  6. If innerResult.[[Type]] is throw, return ? innerResult.
+        //  7. If innerResult.[[Value]] is not an Object, throw a TypeError exception.
+        //  8. Return ? completion.
         let iterator = &ECMAScriptValue::from(&self.iterator);
-        let inner_result = get_method(iterator, &"return".into());
-        let inner_result = if let Ok(return_v) = inner_result {
-            if return_v.is_undefined() {
-                return completion;
+        let inner_result = match get_method(iterator, &"return".into()) {
+            Ok(return_v) => {
+                if return_v.is_undefined() {
+                    return completion;
+                }
+                call(&return_v, iterator, &[])
             }
-            call(&return_v, iterator, &[])
-        } else {
-            inner_result
+            Err(e) => Err(e),
         };
         if matches!(completion, Err(AbruptCompletion::Throw { .. })) {
             return completion;
