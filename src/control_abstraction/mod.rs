@@ -943,7 +943,7 @@ fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Iterato
 }
 
 impl IteratorRecord {
-    fn next(&self, value: Option<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+    fn next(&self, value: Option<ECMAScriptValue>) -> Completion<Object> {
         // IteratorNext ( iteratorRecord [ , value ] )
         //
         // The abstract operation IteratorNext takes argument iteratorRecord (an
@@ -963,14 +963,10 @@ impl IteratorRecord {
             Some(value) => call(&next_method, &iterator, &[value])?,
             None => call(&next_method, &iterator, &[])?,
         };
-        if !result.is_object() {
-            Err(create_type_error("not an iterator result"))
-        } else {
-            Ok(result)
-        }
+        Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
     }
 
-    fn step(&self) -> Completion<ECMAScriptValue> {
+    fn step(&self) -> Completion<Option<Object>> {
         // IteratorStep ( iteratorRecord )
         //
         // The abstract operation IteratorStep takes argument iteratorRecord (an
@@ -986,11 +982,11 @@ impl IteratorRecord {
         //  2. Let done be ? IteratorComplete(result).
         //  3. If done is true, return false.
         //  4. Return result.
-        let result = Object::try_from(self.next(None)?).expect("next should return an iterator result object");
+        let result = self.next(None)?;
         let done = iterator_complete(&result)?;
         match done {
-            true => Ok(false.into()),
-            false => Ok(result.into()),
+            true => Ok(None),
+            false => Ok(Some(result)),
         }
     }
 
@@ -1040,7 +1036,7 @@ impl IteratorRecord {
     }
 }
 
-fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue>) -> Completion<Object> {
     iterator_record.next(value)
 }
 
@@ -1067,7 +1063,7 @@ fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     get(iter_result, &"value".into())
 }
 
-fn iterator_step(iterator_record: &IteratorRecord) -> Completion<ECMAScriptValue> {
+fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
     iterator_record.step()
 }
 

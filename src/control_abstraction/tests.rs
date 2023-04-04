@@ -1183,8 +1183,8 @@ mod iterator_record {
         let value = make_value();
         ir.next(value)
             .map(|val| {
-                let value = getv(&val, &"value".into()).unwrap();
-                let done = getv(&val, &"done".into()).unwrap();
+                let value = get(&val, &"value".into()).unwrap();
+                let done = get(&val, &"done".into()).unwrap();
                 (value, done)
             })
             .map_err(unwind_any_error)
@@ -1205,8 +1205,8 @@ mod iterator_next {
         let ir = make_ir();
         super::iterator_next(&ir, value)
             .map(|val| {
-                let value = getv(&val, &"value".into()).unwrap();
-                let done = getv(&val, &"done".into()).unwrap();
+                let value = get(&val, &"value".into()).unwrap();
+                let done = get(&val, &"done".into()).unwrap();
                 (value, done)
             })
             .map_err(unwind_any_error)
