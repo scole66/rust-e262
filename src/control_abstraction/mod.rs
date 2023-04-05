@@ -1021,14 +1021,10 @@ impl IteratorRecord {
         if matches!(completion, Err(AbruptCompletion::Throw { .. })) {
             return completion;
         }
-        let value = match &inner_result {
-            Ok(value)
-            | Err(AbruptCompletion::Break { value: NormalCompletion::Value(value), target: _ })
-            | Err(AbruptCompletion::Continue { value: NormalCompletion::Value(value), target: _ })
-            | Err(AbruptCompletion::Return { value }) => value,
-            Err(AbruptCompletion::Throw { .. }) => return inner_result,
-            _ => unreachable!(),
-        };
+        if matches!(inner_result, Err(AbruptCompletion::Throw { .. })) {
+            return inner_result;
+        }
+        let value = inner_result.expect("result from call should be throw or value");
         if !value.is_object() {
             return Err(create_type_error("iterator return method returned non object"));
         }

@@ -1,7 +1,8 @@
 use super::*;
+use crate::parser::testhelp::*;
 use crate::tests::*;
 use ahash::AHashMap;
-use test_case::test_case;
+use test_case::test_case; // todo move svec to top level test utils
 
 #[test]
 fn provision_iterator_prototype() {
@@ -1087,9 +1088,9 @@ mod iterator_record {
         args: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let this_sentinel = getv(&this_value, &"sentinel".into()).unwrap();
-        let arg = args[0].clone();
+        let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
         let value = ECMAScriptValue::from(JSString::from(format!("{this_sentinel}({arg})")));
-        let obj = create_iter_result_object(value, true);
+        let obj = create_iter_result_object(value, false);
         Ok(obj.into())
     }
     fn iterator_ok_next(
@@ -1173,7 +1174,7 @@ mod iterator_record {
     #[test_case(silly_ir, no_value => serr("TypeError: Value not callable"); "next not callable, no argument")]
     #[test_case(silly_ir, undefined => serr("TypeError: Value not callable"); "next not callable, with argument")]
     #[test_case(makes_bad_next, argument => serr("TypeError: not an iterator result"); "next returns non-object")]
-    #[test_case(makes_good_ir, argument => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(true))); "next returns ir")]
+    #[test_case(makes_good_ir, argument => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(false))); "next returns ir")]
     fn next(
         make_ir: impl FnOnce() -> IteratorRecord,
         make_value: impl FnOnce() -> Option<ECMAScriptValue>,
@@ -1189,6 +1190,131 @@ mod iterator_record {
             })
             .map_err(unwind_any_error)
     }
+
+    fn next_returns_broken_iter_result(
+        _: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        create_data_property_or_throw(&obj, "value", ECMAScriptValue::from("value"))?;
+        let done_getter = intrinsic(IntrinsicId::ThrowTypeError);
+        let done_ppd = PotentialPropertyDescriptor::new().get(done_getter).configurable(true).enumerable(true);
+        define_property_or_throw(&obj, "done", done_ppd)?;
+        Ok(obj.into())
+    }
+    fn create_iterator_object_with_throwing_next() -> Object {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let next_method =
+            create_builtin_function(next_returns_broken_iter_result, false, 0.0, "next".into(), &[], None, None, None);
+        create_data_property_or_throw(&obj, "next", next_method).unwrap();
+        obj
+    }
+    fn ir_with_throwing_done() -> IteratorRecord {
+        let iterator = create_iterator_object_with_throwing_next();
+        let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
+        IteratorRecord { iterator, next_method, done: false }
+    }
+    fn instantly_done() -> IteratorRecord {
+        create_list_iterator_record(vec![])
+    }
+
+    #[test_case(makes_good_ir => Ok(Some(("Iterator(This)(undefined)".into(), false))); "happy path")]
+    #[test_case(silly_ir => serr("TypeError: Value not callable"); "next fails")]
+    #[test_case(ir_with_throwing_done => serr("TypeError: Generic TypeError"); "iterator_complete fails")]
+    #[test_case(instantly_done => Ok(None); "happy, but done")]
+    fn step(make_ir: impl FnOnce() -> IteratorRecord) -> Result<Option<(ECMAScriptValue, bool)>, String> {
+        setup_test_agent();
+        let ir = make_ir();
+        ir.step()
+            .map(|result| {
+                result.map(|iter_result| {
+                    let value = get(&iter_result, &"value".into()).unwrap();
+                    let done = to_boolean(get(&iter_result, &"done".into()).unwrap());
+                    (value, done)
+                })
+            })
+            .map_err(unwind_any_error)
+    }
+
+    fn tracker(this_value: ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
+        let result = create_iter_result_object(ECMAScriptValue::from(""), true);
+        let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
+        let report = ECMAScriptValue::from(format!("{name}({arg})"));
+        let tracking_array = Object::try_from(getv(&this_value, &"tracker".into()).unwrap()).unwrap();
+        let tracking_array_length = get(&tracking_array, &"length".into()).unwrap();
+        create_data_property_or_throw(&tracking_array, to_string(tracking_array_length).unwrap(), report).unwrap();
+        Ok(result.into())
+    }
+    fn tracking_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        args: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        tracker(this_value, args, "next")
+    }
+    fn tracking_return(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        args: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        tracker(this_value, args, "return")
+    }
+    fn create_tracking_iterator_with_return() -> Object {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let iterator = ordinary_object_create(Some(iter_proto), &[]);
+        let tracking_array = array_create(0, None).unwrap();
+        create_data_property_or_throw(&iterator, "tracker", tracking_array).unwrap();
+        let next = create_builtin_function(tracking_next, false, 1.0, "next".into(), &[], None, None, None);
+        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        let ireturn = create_builtin_function(tracking_return, false, 1.0, "return".into(), &[], None, None, None);
+        create_data_property_or_throw(&iterator, "return", ireturn).unwrap();
+        iterator
+    }
+    fn create_tracking_iterator_record() -> IteratorRecord {
+        let iterator = create_tracking_iterator_with_return();
+        let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
+        IteratorRecord { iterator, next_method, done: false }
+    }
+    fn invalid_return(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Null)
+    }
+    fn create_iterator_with_broken_return() -> Object {
+        let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
+        let iterator = ordinary_object_create(Some(iter_proto), &[]);
+        let ireturn = create_builtin_function(invalid_return, false, 1.0, "return".into(), &[], None, None, None);
+        create_data_property_or_throw(&iterator, "return", ireturn).unwrap();
+        iterator
+    }
+
+    #[test_case(|| super::super::super::create_list_iterator_record(vec![]), || Ok(ECMAScriptValue::from("normal")) => Ok((ECMAScriptValue::from("normal"), vec![])); "happy, no return")]
+    #[test_case(create_tracking_iterator_record, || Ok(ECMAScriptValue::from("tracker")) => Ok((ECMAScriptValue::from("tracker"), svec(&["return(undefined)"]))); "happy, called return")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Ok(ECMAScriptValue::from("thshs")) => serr("TypeError: get called on DeadObject"); "get_method throws")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Err(create_type_error("goody")) => serr("TypeError: goody"); "get_method throws, but is overridden")]
+    #[test_case(|| IteratorRecord {iterator: create_iterator_with_broken_return(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Ok(ECMAScriptValue::Undefined) => serr("TypeError: iterator return method returned non object"); "iterator's return method is invalid")]
+    fn close(
+        make_ir: impl FnOnce() -> IteratorRecord,
+        make_completion: impl FnOnce() -> Completion<ECMAScriptValue>,
+    ) -> Result<(ECMAScriptValue, Vec<String>), String> {
+        setup_test_agent();
+        let ir = make_ir();
+        let completion = make_completion();
+        let r = ir.close(completion).map_err(unwind_any_error)?;
+        let tracker = Object::try_from(get(&ir.iterator, &"tracker".into()).unwrap());
+        if tracker.is_err() {
+            return Ok((r, vec![]));
+        }
+        let tracker = tracker.unwrap();
+        let tracker_len = to_number(get(&tracker, &"length".into()).unwrap()).unwrap() as u64;
+        let mut tracks = vec![];
+        for idx in 0..tracker_len {
+            let item = get(&tracker, &format!("{idx}").into()).unwrap();
+            tracks.push(format!("{item}"));
+        }
+        Ok((r, tracks))
+    }
 }
 
 mod iterator_next {
@@ -1196,7 +1322,7 @@ mod iterator_next {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(true))); "next returns ir")]
+    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(false))); "next returns ir")]
     fn call(
         make_ir: impl FnOnce() -> IteratorRecord,
         value: Option<ECMAScriptValue>,
@@ -1211,4 +1337,65 @@ mod iterator_next {
             })
             .map_err(unwind_any_error)
     }
+}
+
+mod iterator_step {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| create_list_iterator_record(vec![ECMAScriptValue::from(300)]) => Ok(Some((ECMAScriptValue::from(300), false))); "happy")]
+    fn call(make_ir: impl FnOnce() -> IteratorRecord) -> Result<Option<(ECMAScriptValue, bool)>, String> {
+        setup_test_agent();
+        let ir = make_ir();
+        super::iterator_step(&ir)
+            .map(|result| {
+                result.map(|iter_result| {
+                    let value = get(&iter_result, &"value".into()).unwrap();
+                    let done = to_boolean(get(&iter_result, &"done".into()).unwrap());
+                    (value, done)
+                })
+            })
+            .map_err(unwind_any_error)
+    }
+}
+
+mod iterator_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(IteratorKind::Sync, IteratorKind::Sync => true)]
+    #[test_case(IteratorKind::Sync, IteratorKind::Async => false)]
+    #[test_case(IteratorKind::Async, IteratorKind::Sync => false)]
+    #[test_case(IteratorKind::Async, IteratorKind::Async => true)]
+    fn eq(a: IteratorKind, b: IteratorKind) -> bool {
+        a.eq(&b)
+    }
+}
+
+#[test_case(|| super::super::create_iter_result_object(ECMAScriptValue::from("test"), true) => Ok(true); "normal, done")]
+#[test_case(|| super::super::create_iter_result_object(ECMAScriptValue::from("test"), false) => Ok(false); "normal, not done")]
+#[test_case(DeadObject::object => serr("TypeError: get called on DeadObject"); "get fails")]
+fn iterator_complete(make_iter_result: impl FnOnce() -> Object) -> Result<bool, String> {
+    setup_test_agent();
+    let iter_result = make_iter_result();
+    super::iterator_complete(&iter_result).map_err(unwind_any_error)
+}
+
+#[test_case(|| super::super::create_iter_result_object(ECMAScriptValue::from("sentinel"), false) => vok("sentinel"); "normal")]
+#[test_case(DeadObject::object => serr("TypeError: get called on DeadObject"); "get fails")]
+fn iterator_value(make_iter_result: impl FnOnce() -> Object) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let iter_result = make_iter_result();
+    super::iterator_value(&iter_result).map_err(unwind_any_error)
+}
+
+#[test_case(|| super::super::create_list_iterator_record(vec![ECMAScriptValue::from(true)]), || Ok(ECMAScriptValue::Null) => Ok(ECMAScriptValue::Null); "happy")]
+fn iterator_close(
+    make_ir: impl FnOnce() -> IteratorRecord,
+    make_completion: impl FnOnce() -> Completion<ECMAScriptValue>,
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let ir = make_ir();
+    let completion = make_completion();
+    super::iterator_close(&ir, completion).map_err(unwind_any_error)
 }
