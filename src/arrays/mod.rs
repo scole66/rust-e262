@@ -38,7 +38,7 @@ impl ObjectInterface for ArrayObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
     fn id(&self) -> usize {

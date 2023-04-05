@@ -34,7 +34,7 @@ impl ObjectInterface for SymbolObject {
         &self.common
     }
 
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
 

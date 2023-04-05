@@ -165,7 +165,7 @@ impl ObjectInterface for TestObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         !(self.get_prototype_of_throws || self.set_prototype_of_throws)
     }
     fn id(&self) -> usize {
@@ -382,7 +382,7 @@ impl ObjectInterface for AdaptableObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         self.get_prototype_of_override.is_none() && self.set_prototype_of_override.is_none()
     }
     fn id(&self) -> usize {
@@ -734,13 +734,13 @@ macro_rules! default_has_property_test {
     };
 }
 #[macro_export]
-macro_rules! default_is_ordinary_test {
+macro_rules! default_uses_ordinary_get_prototype_of_test {
     () => {
         #[test]
-        fn is_ordinary() {
+        fn uses_ordinary_get_prototype_of() {
             setup_test_agent();
             let obj = make();
-            assert!(obj.o.is_ordinary());
+            assert!(obj.o.uses_ordinary_get_prototype_of());
         }
     };
 }

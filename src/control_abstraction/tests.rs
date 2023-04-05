@@ -393,7 +393,7 @@ mod generator_object {
     default_delete_test!();
     default_id_test!();
     default_has_property_test!();
-    default_is_ordinary_test!();
+    default_uses_ordinary_get_prototype_of_test!();
     default_get_own_property_test!();
     default_define_own_property_test!();
     default_get_test!(|| wks(WksId::ToStringTag).into(), ECMAScriptValue::from("Generator"));

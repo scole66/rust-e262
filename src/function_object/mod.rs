@@ -400,7 +400,7 @@ impl ObjectInterface for FunctionObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
     fn id(&self) -> usize {
@@ -1092,7 +1092,7 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
     fn id(&self) -> usize {
