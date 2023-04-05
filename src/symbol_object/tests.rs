@@ -208,12 +208,12 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_ordinary() {
+    fn uses_ordinary_get_prototype_of() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
         let obj = create_symbol_object(sym);
 
-        assert!(obj.o.is_ordinary());
+        assert!(obj.o.uses_ordinary_get_prototype_of());
     }
 
     #[test]

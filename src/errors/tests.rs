@@ -222,11 +222,11 @@ fn error_object_common_object_data() {
     assert!(cod.borrow().slots.contains(&InternalSlotName::ErrorData));
 }
 #[test]
-fn error_object_is_ordinary() {
+fn error_object_uses_ordinary_get_prototype_of() {
     setup_test_agent();
     let no = create_error_object();
 
-    let result = no.o.is_ordinary();
+    let result = no.o.uses_ordinary_get_prototype_of();
 
     assert!(result);
 }

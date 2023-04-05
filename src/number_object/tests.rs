@@ -50,11 +50,11 @@ fn number_object_common_object_data() {
     assert!(cod.borrow().slots.contains(&InternalSlotName::NumberData));
 }
 #[test]
-fn number_object_is_ordinary() {
+fn number_object_uses_ordinary_get_prototype_of() {
     setup_test_agent();
     let no = create_number_object(100.0);
 
-    let result = no.o.is_ordinary();
+    let result = no.o.uses_ordinary_get_prototype_of();
 
     assert!(result);
 }
