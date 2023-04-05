@@ -351,7 +351,7 @@ type AsyncFnPtr = Box<
         Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     ) -> LocalBoxFuture<'static, Completion<ECMAScriptValue>>,
 >;
-fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
+pub fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
 where
     F: 'static,
     F: FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Fut,
@@ -361,7 +361,7 @@ where
     Box::new(|context| Box::pin(func(context)))
 }
 
-fn create_iterator_from_closure(
+pub fn create_iterator_from_closure(
     closure: AsyncFnPtr,
     generator_brand: &str,
     generator_prototype: Option<Object>,
@@ -824,7 +824,7 @@ pub fn generator_resume_abrupt(
     }
 }
 
-async fn generator_yield(
+pub async fn generator_yield(
     co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     iter_next_obj: ECMAScriptValue,
 ) -> Completion<ECMAScriptValue> {

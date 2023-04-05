@@ -1,4 +1,5 @@
 use super::*;
+use genawaiter::rc::Co;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -509,8 +510,19 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(array_prototype_to_string, "toString", 0.0); // ( )
     prototype_function!(array_prototype_unshift, "unshift", 0.0); // ( ...items )
     prototype_function!(array_prototype_values, "values", 0.0); // ( )
-                                                                //prototype_function!(array_prototype_[, "[", ); // @@iterator ] ( )
-                                                                //prototype_function!(array_prototype_[, "[", ); // @@unscopables ]
+
+    // Array.prototype [ @@iterator ] ( )
+    // The initial value of the @@iterator property is %Array.prototype.values%,
+    let array_prototype_values =
+        get(&array_prototype, &"values".into()).expect("a property just added should be gettable");
+    let values_ppd = PotentialPropertyDescriptor::new()
+        .value(array_prototype_values.clone())
+        .enumerable(false)
+        .writable(true)
+        .configurable(true);
+    define_property_or_throw(&array_prototype, wks(WksId::Iterator), values_ppd).expect("property should be ok to add");
+
+    //prototype_function!(array_prototype_[, "[", ); // @@unscopables ]
 
     // Array.prototype.constructor
     //
@@ -528,6 +540,57 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     realm.borrow_mut().intrinsics.array = array_constructor;
     realm.borrow_mut().intrinsics.array_prototype = array_prototype;
+    realm.borrow_mut().intrinsics.array_prototype_values =
+        Object::try_from(array_prototype_values).expect("values should be an object");
+}
+
+pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
+    // The %ArrayIteratorPrototype% Object
+    //
+    // * has properties that are inherited by all Array Iterator Objects.
+    // * is an ordinary object.
+    // * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
+    let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
+    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+
+    // %ArrayIteratorPrototype% [ @@toStringTag ]
+    // The initial value of the @@toStringTag property is the String value "Array Iterator".
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+    let tag_ppd =
+        PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(true).value("Array Iterator");
+    define_property_or_throw(&array_iterator_prototype, wks(WksId::ToStringTag), tag_ppd)
+        .expect("object setup should be fine");
+
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &array_iterator_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+    prototype_function!(array_iterator_prototype_next, "next", 0.0);
+
+    realm.borrow_mut().intrinsics.array_iterator_prototype = array_iterator_prototype;
 }
 
 fn array_constructor_function(
@@ -656,13 +719,52 @@ fn array_prototype_index_of(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+// Array.prototype.join ( separator )
+//
+// This method converts the elements of the array to Strings, and then concatenates these Strings, separated
+// by occurrences of the separator. If no separator is provided, a single comma is used as the separator.
+//
+// It performs the following steps when called:
+//
+//  1. Let O be ? ToObject(this value).
+//  2. Let len be ? LengthOfArrayLike(O).
+//  3. If separator is undefined, let sep be ",".
+//  4. Else, let sep be ? ToString(separator).
+//  5. Let R be the empty String.
+//  6. Let k be 0.
+//  7. Repeat, while k < len,
+//      a. If k > 0, set R to the string-concatenation of R and sep.
+//      b. Let element be ? Get(O, ! ToString(𝔽(k))).
+//      c. If element is either undefined or null, let next be the empty String; otherwise, let next be ? ToString(element).
+//      d. Set R to the string-concatenation of R and next.
+//      e. Set k to k + 1.
+//  8. Return R.
 fn array_prototype_join(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let separator = args.next_arg();
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)?;
+
+    let sep = if separator.is_undefined() { JSString::from(",") } else { to_string(separator)? };
+    let mut r = JSString::from("");
+    let mut k = 0;
+    while k < len {
+        if k > 0 {
+            r = r.concat(sep.clone());
+        }
+        let element = get(&o, &to_string(k).expect("numbers should be string-able").into())?;
+        let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
+        r = r.concat(next);
+        k += 1;
+    }
+    Ok(ECMAScriptValue::from(r))
 }
+
 fn array_prototype_keys(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -761,13 +863,28 @@ fn array_prototype_to_locale_string(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+// Array.prototype.toString ( )
+//
+// This method performs the following steps when called:
+//
+//  1. Let array be ? ToObject(this value).
+//  2. Let func be ? Get(array, "join").
+//  3. If IsCallable(func) is false, set func to the intrinsic function %Object.prototype.toString%.
+//  4. Return ? Call(func, array).
 fn array_prototype_to_string(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let array = to_object(this_value)?;
+    let mut func = get(&array, &"join".into())?;
+    if !is_callable(&func) {
+        func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
+    }
+    call(&func, &ECMAScriptValue::from(array), &[])
 }
+
 fn array_prototype_unshift(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -775,12 +892,131 @@ fn array_prototype_unshift(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+// Array.prototype.values ( )
+//
+// This method performs the following steps when called:
+//
+//  1. Let O be ? ToObject(this value).
+//  2. Return CreateArrayIterator(O, value).
 fn array_prototype_values(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let o = to_object(this_value)?;
+    Ok(ECMAScriptValue::from(create_array_iterator(o, KeyValueKind::Value)))
+}
+
+// Array Iterator Objects
+// An Array Iterator is an object, that represents a specific iteration over some specific Array instance
+// object. There is not a named constructor for Array Iterator objects. Instead, Array iterator objects are
+// created by calling certain methods of Array instance objects.
+
+fn array_iterator_prototype_next(
+    this_value: ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // %ArrayIteratorPrototype%.next ( )
+    //  1. Return ? GeneratorResume(this value, empty, "%ArrayIteratorPrototype%").
+    generator_resume(this_value, ECMAScriptValue::Undefined, "%ArrayIteratorPrototype%")
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum KeyValueKind {
+    Key,
+    Value,
+    KeyValue,
+}
+
+async fn array_iterator(
+    co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    array: Object,
+    kind: KeyValueKind,
+) -> Completion<ECMAScriptValue> {
+    // a. Let index be 0.
+    // b. Repeat,
+    //     i. If array has a [[TypedArrayName]] internal slot, then
+    //         1. If IsDetachedBuffer(array.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
+    //         2. Let len be array.[[ArrayLength]].
+    //    ii. Else,
+    //         1. Let len be ? LengthOfArrayLike(array).
+    //   iii. If index ≥ len, return NormalCompletion(undefined).
+    //    iv. If kind is key, perform ? GeneratorYield(CreateIterResultObject(𝔽(index), false)).
+    //     v. Else,
+    //         1. Let elementKey be ! ToString(𝔽(index)).
+    //         2. Let elementValue be ? Get(array, elementKey).
+    //         3. If kind is value, perform ? GeneratorYield(CreateIterResultObject(elementValue, false)).
+    //         4. Else,
+    //             a. Assert: kind is key+value.
+    //             b. Let result be CreateArrayFromList(« 𝔽(index), elementValue »).
+    //             c. Perform ? GeneratorYield(CreateIterResultObject(result, false)).
+    //    vi. Set index to index + 1.
+    let mut index = 0;
+    loop {
+        let len = if array.is_typed_array() {
+            todo!();
+        } else {
+            length_of_array_like(&array)?
+        };
+        if index >= len {
+            return Ok(ECMAScriptValue::Undefined);
+        }
+        if kind == KeyValueKind::Key {
+            let res = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(index), false));
+            generator_yield(&co, res).await?;
+        } else {
+            let element_key = to_string(index).expect("numbers should always have string representations");
+            let element_value = get(&array, &element_key.into())?;
+            if kind == KeyValueKind::Value {
+                let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
+                generator_yield(&co, res).await?;
+            } else {
+                let result =
+                    ECMAScriptValue::from(create_array_from_list(&[ECMAScriptValue::from(index), element_value]));
+                let res = ECMAScriptValue::from(create_iter_result_object(result, false));
+                generator_yield(&co, res).await?;
+            }
+        }
+        index += 1;
+    }
+}
+
+pub fn create_array_iterator(array: Object, kind: KeyValueKind) -> Object {
+    // CreateArrayIterator ( array, kind )
+    // The abstract operation CreateArrayIterator takes arguments array (an Object) and kind (key+value, key,
+    // or value) and returns a Generator. It is used to create iterator objects for Array methods that return
+    // such iterators. It performs the following steps when called:
+    //
+    //  1. Let closure be a new Abstract Closure with no parameters that captures kind and array and performs
+    //     the following steps when called:
+    //      a. Let index be 0.
+    //      b. Repeat,
+    //          i. If array has a [[TypedArrayName]] internal slot, then
+    //              1. If IsDetachedBuffer(array.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
+    //              2. Let len be array.[[ArrayLength]].
+    //         ii. Else,
+    //              1. Let len be ? LengthOfArrayLike(array).
+    //        iii. If index ≥ len, return NormalCompletion(undefined).
+    //         iv. If kind is key, perform ? GeneratorYield(CreateIterResultObject(𝔽(index), false)).
+    //          v. Else,
+    //              1. Let elementKey be ! ToString(𝔽(index)).
+    //              2. Let elementValue be ? Get(array, elementKey).
+    //              3. If kind is value, perform ? GeneratorYield(CreateIterResultObject(elementValue, false)).
+    //              4. Else,
+    //                  a. Assert: kind is key+value.
+    //                  b. Let result be CreateArrayFromList(« 𝔽(index), elementValue »).
+    //                  c. Perform ? GeneratorYield(CreateIterResultObject(result, false)).
+    //         vi. Set index to index + 1.
+    //  2. Return CreateIteratorFromClosure(closure, "%ArrayIteratorPrototype%", %ArrayIteratorPrototype%).
+    let closure = move |co| array_iterator(co, array, kind);
+
+    create_iterator_from_closure(
+        asyncfn_wrap(closure),
+        "%ArrayIteratorPrototype%",
+        Some(intrinsic(IntrinsicId::ArrayIteratorPrototype)),
+    )
 }
 
 #[cfg(test)]

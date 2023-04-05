@@ -232,6 +232,10 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
     .unwrap();
 
     realm.borrow_mut().intrinsics.object = object_constructor;
+
+    let tostring = Object::try_from(get(&object_prototype, &"toString".into()).expect("toString should exist"))
+        .expect("toString should be a function object");
+    realm.borrow_mut().intrinsics.object_prototype_to_string = tostring;
 }
 
 // Object ( [ value ] )
