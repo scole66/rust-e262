@@ -49,10 +49,10 @@ mod array_object {
     }
 
     #[test]
-    fn is_ordinary() {
+    fn uses_ordinary_get_prototype_of() {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
-        assert_eq!(a.o.is_ordinary(), true);
+        assert_eq!(a.o.uses_ordinary_get_prototype_of(), true);
     }
 
     #[test]

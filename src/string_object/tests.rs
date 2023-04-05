@@ -140,12 +140,12 @@ mod string_object {
     }
 
     #[test]
-    fn is_ordinary() {
+    fn uses_ordinary_get_prototype_of() {
         setup_test_agent();
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object("orange".into(), Some(prototype));
 
-        assert!(so.o.is_ordinary());
+        assert!(so.o.uses_ordinary_get_prototype_of());
     }
 
     #[test]

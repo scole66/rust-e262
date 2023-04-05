@@ -396,7 +396,7 @@ where
         if pp.o.id() == obj.id() {
             return false;
         }
-        if !pp.o.is_ordinary() {
+        if !pp.o.uses_ordinary_get_prototype_of() {
             break;
         }
         p = pp.o.common_object_data().borrow().prototype.clone();
@@ -978,7 +978,7 @@ pub fn array_index_key(item: &PropertyKey) -> u32 {
 
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
-    fn is_ordinary(&self) -> bool; // True if implements ordinary defintions of Get/SetPrototypeOf
+    fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
     fn id(&self) -> usize; // Unique object id. Used for object "is_same" detection.
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         None
@@ -1210,7 +1210,7 @@ impl ObjectInterface for OrdinaryObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.data
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
     fn is_plain_object(&self) -> bool {
@@ -2094,7 +2094,7 @@ impl ObjectInterface for DeadObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         unreachable!();
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         false
     }
     fn id(&self) -> usize {
@@ -2175,7 +2175,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.data
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         false
     }
     fn id(&self) -> usize {

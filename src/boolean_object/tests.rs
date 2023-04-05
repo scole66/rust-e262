@@ -180,10 +180,10 @@ fn own_keys_01() {
 }
 
 #[test]
-fn is_ordinary_01() {
+fn uses_ordinary_get_prototype_of_01() {
     setup_test_agent();
     let bool_obj = create_boolean_object(true);
-    assert_eq!(bool_obj.o.is_ordinary(), true);
+    assert_eq!(bool_obj.o.uses_ordinary_get_prototype_of(), true);
 }
 
 #[test]
