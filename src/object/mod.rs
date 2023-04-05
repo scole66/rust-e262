@@ -1891,16 +1891,19 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
     array
 }
 
-// LengthOfArrayLike ( obj )
-//
-// The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
-// completion containing a non-negative integer or a throw completion. It returns the value of the "length"
-// property of an array-like object. It performs the following steps when called:
-//
-//  1. Return ℝ(? ToLength(? Get(obj, "length"))).
-//
-// An array-like object is any object for which this operation returns a normal completion.
+/// Returns the value of the `"length"` property of an array-like object.
+///
+/// See [LengthOfArrayLike](https://tc39.es/ecma262/#sec-lengthofarraylike) from ECMA-262.
 pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
+    // LengthOfArrayLike ( obj )
+    //
+    // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
+    // completion containing a non-negative integer or a throw completion. It returns the value of the "length"
+    // property of an array-like object. It performs the following steps when called:
+    //
+    //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
+    //
+    // An array-like object is any object for which this operation returns a normal completion.
     to_length(get(obj, &"length".into())?)
 }
 

@@ -90,6 +90,7 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
     assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
+    assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
     assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
@@ -105,10 +106,15 @@ fn intrinsics_get() {
         intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototype),
         intrinsics.generator_function_prototype_prototype
     );
+    assert_eq!(
+        intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+        intrinsics.generator_function_prototype_prototype_next
+    );
     assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
     assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
     assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototypeToString), intrinsics.object_prototype_to_string);
     assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);
     assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
