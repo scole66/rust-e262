@@ -262,12 +262,6 @@ fn generator_prototype_throw(
     todo!()
 }
 
-pub struct IteratorRecord {
-    iterator: Object,
-    next_method: Object,
-    done: bool,
-}
-
 pub type ECMAClosure = Box<
     dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>>
         + Unpin,
@@ -866,5 +860,214 @@ async fn generator_yield(
     co.yield_(iter_next_obj).await
 }
 
+// Iterator Records
+//
+// An Iterator Record is a Record value used to encapsulate an Iterator or
+// AsyncIterator along with the next method.
+//
+// Iterator Records have the fields listed in Table 15.
+//
+// Table 15: Iterator Record Fields
+// +----------------+-------------------+---------------------------------------------------------------------+
+// | Field Name     | Value             | Meaning                                                             |
+// +----------------+-------------------+---------------------------------------------------------------------+
+// | [[Iterator]]   | an Object         | An object that conforms to the Iterator or AsyncIterator interface. |
+// | [[NextMethod]] | a function object | The next method of the [[Iterator]] object.                         |
+// | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
+// +----------------+-------------------+---------------------------------------------------------------------+
+pub struct IteratorRecord {
+    iterator: Object,
+    next_method: Object,
+    done: bool,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum IteratorKind {
+    Sync,
+    Async,
+}
+
+fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
+    // GetIteratorFromMethod ( obj, method )
+    //
+    // The abstract operation GetIteratorFromMethod takes arguments obj (an
+    // ECMAScript language value) and method (a function object) and returns
+    // either a normal completion containing an Iterator Record or a throw
+    // completion. It performs the following steps when called:
+    //
+    //  1. Let iterator be ? Call(method, obj).
+    //  2. If iterator is not an Object, throw a TypeError exception.
+    //  3. Let nextMethod be ? GetV(iterator, "next").
+    //  4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator,
+    //     [[NextMethod]]: nextMethod, [[Done]]: false }.
+    //  5. Return iteratorRecord.
+    let iterator = call(method, obj, &[])?;
+    if !iterator.is_object() {
+        return Err(create_type_error("not an object"));
+    }
+    let next_method = getv(&iterator, &"next".into())?;
+    let iterator = Object::try_from(iterator).expect("iterator previously proved");
+    let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
+    Ok(IteratorRecord { iterator, next_method, done: false })
+}
+
+fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
+    // GetIterator ( obj, kind )
+    //
+    // The abstract operation GetIterator takes arguments obj (an ECMAScript
+    // language value) and kind (sync or async) and returns either a normal
+    // completion containing an Iterator Record or a throw completion. It
+    // performs the following steps when called:
+    //
+    //  1. If kind is async, then
+    //      a. Let method be ? GetMethod(obj, @@asyncIterator).
+    //      b. If method is undefined, then
+    //          i. Let syncMethod be ? GetMethod(obj, @@iterator).
+    //          ii. If syncMethod is undefined, throw a TypeError exception.
+    //          iii. Let syncIteratorRecord be ? GetIteratorFromMethod(obj, syncMethod).
+    //          iv. Return CreateAsyncFromSyncIterator(syncIteratorRecord).
+    //  2. Otherwise, let method be ? GetMethod(obj, @@iterator).
+    //  3. If method is undefined, throw a TypeError exception.
+    //  4. Return ? GetIteratorFromMethod(obj, method).
+    let method = match kind {
+        IteratorKind::Async => todo!(),
+        IteratorKind::Sync => {
+            let iter_symbol = wks(WksId::Iterator);
+            get_method(obj, &iter_symbol.into())?
+        }
+    };
+    if method.is_undefined() {
+        return Err(create_type_error("not an iterator"));
+    }
+    get_iterator_from_method(obj, &method)
+}
+
+impl IteratorRecord {
+    fn next(&self, value: Option<ECMAScriptValue>) -> Completion<Object> {
+        // IteratorNext ( iteratorRecord [ , value ] )
+        //
+        // The abstract operation IteratorNext takes argument iteratorRecord (an
+        // Iterator Record) and optional argument value (an ECMAScript language
+        // value) and returns either a normal completion containing an Object or
+        // a throw completion. It performs the following steps when called:
+        //
+        //  1. If value is not present, then
+        //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        //  2. Else,
+        //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »).
+        //  3. If result is not an Object, throw a TypeError exception.
+        //  4. Return result.
+        let next_method = ECMAScriptValue::from(&self.next_method);
+        let iterator = ECMAScriptValue::from(&self.iterator);
+        let result = match value {
+            Some(value) => call(&next_method, &iterator, &[value])?,
+            None => call(&next_method, &iterator, &[])?,
+        };
+        Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
+    }
+
+    fn step(&self) -> Completion<Option<Object>> {
+        // IteratorStep ( iteratorRecord )
+        //
+        // The abstract operation IteratorStep takes argument iteratorRecord (an
+        // Iterator Record) and returns either a normal completion containing
+        // either an Object or false, or a throw completion. It requests the
+        // next value from iteratorRecord.[[Iterator]] by calling
+        // iteratorRecord.[[NextMethod]] and returns either false indicating
+        // that the iterator has reached its end or the IteratorResult object if
+        // a next value is available. It performs the following steps when
+        // called:
+        //
+        //  1. Let result be ? IteratorNext(iteratorRecord).
+        //  2. Let done be ? IteratorComplete(result).
+        //  3. If done is true, return false.
+        //  4. Return result.
+        let result = self.next(None)?;
+        let done = iterator_complete(&result)?;
+        match done {
+            true => Ok(None),
+            false => Ok(Some(result)),
+        }
+    }
+
+    fn close(&self, completion: Completion<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+        // IteratorClose ( iteratorRecord, completion )
+        // The abstract operation IteratorClose takes arguments iteratorRecord (an Iterator Record) and completion (a
+        // Completion Record) and returns a Completion Record. It is used to notify an iterator that it should perform
+        // any actions it would normally perform when it has reached its completed state. It performs the following
+        // steps when called:
+        //
+        //  1. Assert: iteratorRecord.[[Iterator]] is an Object.
+        //  2. Let iterator be iteratorRecord.[[Iterator]].
+        //  3. Let innerResult be Completion(GetMethod(iterator, "return")).
+        //  4. If innerResult.[[Type]] is normal, then
+        //      a. Let return be innerResult.[[Value]].
+        //      b. If return is undefined, return ? completion.
+        //      c. Set innerResult to Completion(Call(return, iterator)).
+        //  5. If completion.[[Type]] is throw, return ? completion.
+        //  6. If innerResult.[[Type]] is throw, return ? innerResult.
+        //  7. If innerResult.[[Value]] is not an Object, throw a TypeError exception.
+        //  8. Return ? completion.
+        let iterator = &ECMAScriptValue::from(&self.iterator);
+        let inner_result = match get_method(iterator, &"return".into()) {
+            Ok(return_v) => {
+                if return_v.is_undefined() {
+                    return completion;
+                }
+                call(&return_v, iterator, &[])
+            }
+            Err(e) => Err(e),
+        };
+        if matches!(completion, Err(AbruptCompletion::Throw { .. })) {
+            return completion;
+        }
+        if matches!(inner_result, Err(AbruptCompletion::Throw { .. })) {
+            return inner_result;
+        }
+        let value = inner_result.expect("result from call should be throw or value");
+        if !value.is_object() {
+            return Err(create_type_error("iterator return method returned non object"));
+        }
+        completion
+    }
+}
+
+fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue>) -> Completion<Object> {
+    iterator_record.next(value)
+}
+
+fn iterator_complete(iter_result: &Object) -> Completion<bool> {
+    // IteratorComplete ( iterResult )
+    //
+    // The abstract operation IteratorComplete takes argument iterResult (an
+    // Object) and returns either a normal completion containing a Boolean or a
+    // throw completion. It performs the following steps when called:
+    //
+    //  1. Return ToBoolean(? Get(iterResult, "done")).
+    Ok(to_boolean(get(iter_result, &"done".into())?))
+}
+
+fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
+    // IteratorValue ( iterResult )
+    //
+    // The abstract operation IteratorValue takes argument iterResult (an
+    // Object) and returns either a normal completion containing an ECMAScript
+    // language value or a throw completion. It performs the following steps
+    // when called:
+    //
+    //  1. Return ? Get(iterResult, "value").
+    get(iter_result, &"value".into())
+}
+
+fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
+    iterator_record.step()
+}
+
+fn iterator_close(
+    iterator_record: &IteratorRecord,
+    completion: Completion<ECMAScriptValue>,
+) -> Completion<ECMAScriptValue> {
+    iterator_record.close(completion)
+}
 #[cfg(test)]
 mod tests;

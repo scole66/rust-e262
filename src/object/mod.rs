@@ -1748,20 +1748,27 @@ pub fn call(
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    initiate_call(func, this_value, args);
-    complete_call(func)
+    if initiate_call(func, this_value, args) {
+        complete_call(func)
+    } else {
+        Err(ec_pop()
+            .expect("Failure to initiate should leave an err on the stack")
+            .expect_err("Failure to initiate should be an error"))
+    }
 }
 
-pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args: &[ECMAScriptValue]) {
+pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args: &[ECMAScriptValue]) -> bool {
     let maybe_callable = to_callable(func);
     match maybe_callable {
         None => {
             let err = Err(create_type_error("Value not callable"));
             ec_push(err);
+            false
         }
         Some(callable) => {
             let self_obj = to_object(func.clone()).unwrap();
             callable.call(&self_obj, this_value, args);
+            true
         }
     }
 }
