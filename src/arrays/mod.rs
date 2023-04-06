@@ -955,11 +955,8 @@ async fn array_iterator(
     //    vi. Set index to index + 1.
     let mut index = 0;
     loop {
-        let len = if array.is_typed_array() {
-            todo!();
-        } else {
-            length_of_array_like(&array)?
-        };
+        assert!(!array.is_typed_array()); // when typed arrays are added, this needs to be accounted for
+        let len = length_of_array_like(&array)?;
         if index >= len {
             return Ok(ECMAScriptValue::Undefined);
         }

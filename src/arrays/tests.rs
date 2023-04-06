@@ -885,50 +885,78 @@ fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Res
     super::array_prototype_to_string(this_value, None, &[]).map_err(unwind_any_error)
 }
 
-#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Key => Ok(vec![0.into(), 1.into()]); "keys")]
-#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Value => Ok(vec![1.into(), 2.into()]); "values")]
-#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::KeyValue => Ok(vec![0.into(), 1.into(), 1.into(), 2.into()]); "key values")]
-#[test_case(DeadObject::object, KeyValueKind::Key => serr("TypeError: get called on DeadObject"); "LengthOfArrayLike throws")]
-#[test_case(|| {
-                   let obj = super::super::array_create(10, None).unwrap();
-                   let thrower = intrinsic(IntrinsicId::ThrowTypeError);
-                   let ppd = PotentialPropertyDescriptor::new()
-                       .get(ECMAScriptValue::from(thrower.clone()))
-                       .set(ECMAScriptValue::from(thrower))
-                       .enumerable(false)
-                       .configurable(false);
-                   define_property_or_throw(&obj, "3", ppd).unwrap();
-                   obj
-               },
-            KeyValueKind::Value
-            => serr("TypeError: Generic TypeError")
-            ; "element 3 can't be gotten")]
-fn create_array_iterator(
-    make_array: impl FnOnce() -> Object,
-    kind: KeyValueKind,
-) -> Result<Vec<ECMAScriptValue>, String> {
-    setup_test_agent();
-    let array = make_array();
+mod array_iterator {
+    use super::super::array_create;
+    use super::super::create_array_from_list;
+    use super::*;
+    use test_case::test_case;
 
-    let iter_obj = super::create_array_iterator(array, kind);
-    let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
-    let mut result = vec![];
-    loop {
-        let item = ir.step().map_err(unwind_any_error)?;
-        match item {
-            Some(iter_result) => {
-                if kind != KeyValueKind::KeyValue {
-                    result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
-                } else {
-                    let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
-                    let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
-                    let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
-                    result.push(left);
-                    result.push(right);
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Key => Ok(vec![0.into(), 1.into()]); "keys")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Value => Ok(vec![1.into(), 2.into()]); "values")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::KeyValue => Ok(vec![0.into(), 1.into(), 1.into(), 2.into()]); "key values")]
+    #[test_case(DeadObject::object, KeyValueKind::Key => serr("TypeError: get called on DeadObject"); "LengthOfArrayLike throws")]
+    #[test_case(|| {
+                       let obj = array_create(10, None).unwrap();
+                       let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                       let ppd = PotentialPropertyDescriptor::new()
+                           .get(ECMAScriptValue::from(thrower.clone()))
+                           .set(ECMAScriptValue::from(thrower))
+                           .enumerable(false)
+                           .configurable(false);
+                       define_property_or_throw(&obj, "1", ppd).unwrap();
+                       obj
+                   },
+                KeyValueKind::Value
+                => serr("TypeError: Generic TypeError")
+                ; "element 1 can't be gotten")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::Key => serr("TypeError: thrown from generator"); "keys/throw")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::Value => serr("TypeError: thrown from generator"); "values/throw")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::KeyValue => serr("TypeError: thrown from generator"); "key values/throw")]
+    fn standard(make_array: impl FnOnce() -> Object, kind: KeyValueKind) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let array = make_array();
+
+        let iter_obj = super::create_array_iterator(array, kind);
+        let thrower =
+            create_builtin_function(throwing_next, false, 0.0, "next".into(), BUILTIN_FUNCTION_SLOTS, None, None, None);
+        set(&iter_obj, "next".into(), thrower.into(), true).map_err(unwind_any_error)?;
+        let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
+        let mut result = vec![];
+        loop {
+            let item = ir.step().map_err(unwind_any_error)?;
+            match item {
+                Some(iter_result) => {
+                    if kind != KeyValueKind::KeyValue {
+                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
+                    } else {
+                        let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
+                        let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
+                        let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
+                        result.push(left);
+                        result.push(right);
+                    }
                 }
+                None => break,
             }
-            None => break,
         }
+        Ok(result)
     }
-    Ok(result)
+
+    fn throwing_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let obj = to_object(this_value.clone())?;
+        let so_far = get(&obj, &"called_count".into())?;
+        let so_far = if so_far.is_undefined() { 0.0 } else { to_number(so_far)? };
+
+        let result = if so_far < 3.0 {
+            generator_resume(this_value, ECMAScriptValue::Undefined, "%ArrayIteratorPrototype%")?
+        } else {
+            generator_resume_abrupt(this_value, create_type_error("thrown from generator"), "%ArrayIteratorPrototype%")?
+        };
+        set(&obj, "called_count".into(), ECMAScriptValue::from(so_far + 1.0), true)?;
+        Ok(result)
+    }
 }

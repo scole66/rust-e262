@@ -449,8 +449,8 @@ test_defs[array_prototype_to_string]="array_prototype_to_string array_prototype_
 test_defs[array_prototype_values]="array_prototype_values array_prototype_values arrays"
 test_defs[array_iterator_prototype_next]="array_iterator_prototype_next array_iterator_prototype_next arrays"
 test_defs[KeyValueKind]="KeyValueKind key_value_kind arrays"
-test_defs[array_iterator]="array_iterator create_array_iterator arrays"
-test_defs[create_array_iterator]="create_array_iterator create_array_iterator arrays"
+test_defs[array_iterator]="array_iterator array_iterator arrays"
+test_defs[create_array_iterator]="create_array_iterator array_iterator::standard arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 
