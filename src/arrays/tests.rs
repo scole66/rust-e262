@@ -739,7 +739,6 @@ fn defaults() {
 #[test_case(super::array_prototype_for_each => panics; "array_prototype_for_each")]
 #[test_case(super::array_prototype_includes => panics; "array_prototype_includes")]
 #[test_case(super::array_prototype_index_of => panics; "array_prototype_index_of")]
-#[test_case(super::array_prototype_join => panics; "array_prototype_join")]
 #[test_case(super::array_prototype_keys => panics; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics; "array_prototype_last_index_of")]
 #[test_case(super::array_prototype_map => panics; "array_prototype_map")]
@@ -754,9 +753,7 @@ fn defaults() {
 #[test_case(super::array_prototype_sort => panics; "array_prototype_sort")]
 #[test_case(super::array_prototype_splice => panics; "array_prototype_splice")]
 #[test_case(super::array_prototype_to_locale_string => panics; "array_prototype_to_locale_string")]
-#[test_case(super::array_prototype_to_string => panics; "array_prototype_to_string")]
 #[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
-#[test_case(super::array_prototype_values => panics; "array_prototype_values")]
 fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
@@ -778,4 +775,94 @@ fn provision_array_iterator_intrinsic() {
 
     let next = aiproto.o.get_own_property(&"next".into()).unwrap().unwrap();
     func_validation(next, "next", 0);
+}
+
+mod key_value_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(KeyValueKind::Key => with |s| assert_ne!(s, ""))]
+    #[test_case(KeyValueKind::Value => with |s| assert_ne!(s, ""))]
+    #[test_case(KeyValueKind::KeyValue => with |s| assert_ne!(s, ""))]
+    fn fmt(item: KeyValueKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = KeyValueKind::Key;
+        let other = item.clone();
+
+        assert_eq!(item, other);
+    }
+
+    #[test_case(KeyValueKind::Key, KeyValueKind::Key => true)]
+    #[test_case(KeyValueKind::Value, KeyValueKind::Key => false)]
+    #[test_case(KeyValueKind::KeyValue, KeyValueKind::Key => false)]
+    fn eq(a: KeyValueKind, b: KeyValueKind) -> bool {
+        a.eq(&b)
+    }
+}
+
+#[test_case(|| ECMAScriptValue::Undefined,
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Undefined and null cannot be converted to objects")
+            ; "ToObject throws")]
+#[test_case(|| {
+                   let obj = ordinary_object_create(None, &[]);
+                   let sym = wks(WksId::Unscopables);
+                   create_data_property_or_throw(&obj, "length", sym).unwrap();
+                   ECMAScriptValue::from(obj)
+               },
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Symbol values cannot be converted to Number values")
+            ; "length_of_array_like throws")]
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+            || ECMAScriptValue::from(wks(WksId::Unscopables))
+            => serr("TypeError: Symbols may not be converted to strings")
+            ; "ToString fails")]
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+            || ECMAScriptValue::Undefined
+            => vok("")
+            ; "empty array")]
+#[test_case(|| ECMAScriptValue::from(
+                create_array_from_list(
+                    &[
+                        ECMAScriptValue::from("first"),
+                        ECMAScriptValue::Undefined,
+                        ECMAScriptValue::from("second"),
+                        ECMAScriptValue::Null,
+                        ECMAScriptValue::from("third"),
+                    ])),
+            || ECMAScriptValue::from("-=-")
+            => vok("first-=--=-second-=--=-third")
+            ; "array with 5 elems")]
+#[test_case(|| ECMAScriptValue::from(
+                create_array_from_list(&[ECMAScriptValue::from(wks(WksId::Unscopables))])),
+            || ECMAScriptValue::from("-=-")
+            => serr("TypeError: Symbols may not be converted to strings")
+            ; "symbol in elements")]
+#[test_case(|| {
+                    let obj = super::super::array_create(10, None).unwrap();
+                    let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                    let ppd = PotentialPropertyDescriptor::new()
+                        .get(ECMAScriptValue::from(thrower.clone()))
+                        .set(ECMAScriptValue::from(thrower))
+                        .enumerable(false)
+                        .configurable(false);
+                    define_property_or_throw(&obj, "3", ppd).unwrap();
+                    ECMAScriptValue::from(obj)
+               },
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Generic TypeError")
+            ; "bad element")]
+fn array_prototype_join(
+    make_this: impl FnOnce() -> ECMAScriptValue,
+    make_sep: impl FnOnce() -> ECMAScriptValue,
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    let sep = make_sep();
+    super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
 }

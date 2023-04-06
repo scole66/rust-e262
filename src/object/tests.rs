@@ -3254,3 +3254,15 @@ fn length_of_array_like(make_obj: impl FnOnce() -> Object) -> Result<i64, String
     let obj = make_obj();
     super::length_of_array_like(&obj).map_err(unwind_any_error)
 }
+
+mod object {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| ordinary_object_create(None, &[]) => false; "not")]
+    fn is_typed_array(make_obj: impl FnOnce() -> Object) -> bool {
+        setup_test_agent();
+        let obj = make_obj();
+        obj.is_typed_array()
+    }
+}
