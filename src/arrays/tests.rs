@@ -866,3 +866,67 @@ fn array_prototype_join(
     let sep = make_sep();
     super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
 }
+
+
+#[test_case(|| ECMAScriptValue::Undefined
+            => serr("TypeError: Undefined and null cannot be converted to objects")
+            ; "ToObject throws")]
+#[test_case(|| ECMAScriptValue::from(create_array_from_list(&[1.into(), 2.into(), 3.into()]))
+            => vok("1,2,3")
+            ; "std array")]
+#[test_case(|| ECMAScriptValue::from(DeadObject::object())
+            => serr("TypeError: get called on DeadObject")
+            ; "get throws")]
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[]))
+            => vok("[object Object]")
+            ; "lacking join")]
+fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    super::array_prototype_to_string(this_value, None, &[]).map_err(unwind_any_error)
+}
+
+#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Key => Ok(vec![0.into(), 1.into()]); "keys")]
+#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Value => Ok(vec![1.into(), 2.into()]); "values")]
+#[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::KeyValue => Ok(vec![0.into(), 1.into(), 1.into(), 2.into()]); "key values")]
+#[test_case(DeadObject::object, KeyValueKind::Key => serr("TypeError: get called on DeadObject"); "LengthOfArrayLike throws")]
+#[test_case(|| {
+                   let obj = super::super::array_create(10, None).unwrap();
+                   let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                   let ppd = PotentialPropertyDescriptor::new()
+                       .get(ECMAScriptValue::from(thrower.clone()))
+                       .set(ECMAScriptValue::from(thrower))
+                       .enumerable(false)
+                       .configurable(false);
+                   define_property_or_throw(&obj, "3", ppd).unwrap();
+                   obj
+               },
+            KeyValueKind::Value
+            => serr("TypeError: Generic TypeError")
+            ; "element 3 can't be gotten")]
+fn create_array_iterator(make_array: impl FnOnce() -> Object, kind: KeyValueKind) -> Result<Vec<ECMAScriptValue>, String> {
+    setup_test_agent();
+    let array = make_array();
+
+    let iter_obj = super::create_array_iterator(array, kind);
+    let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
+    let mut result = vec![];
+    loop {
+        let item = ir.step().map_err(unwind_any_error)?;
+        match item {
+            Some(iter_result) => {
+                if kind != KeyValueKind::KeyValue {
+                    result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
+                } else {
+                    let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
+                    let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
+                    let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
+                    result.push(left);
+                    result.push(right);
+                }
+            }
+            None => break,
+        }
+    }
+    Ok(result)
+}
