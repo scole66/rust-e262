@@ -734,6 +734,8 @@ fn defaults() {
 #[test_case(super::array_prototype_filter => panics; "array_prototype_filter")]
 #[test_case(super::array_prototype_find => panics; "array_prototype_find")]
 #[test_case(super::array_prototype_find_index => panics; "array_prototype_find_index")]
+#[test_case(super::array_prototype_find_last => panics; "array_prototype_find_last")]
+#[test_case(super::array_prototype_find_last_index => panics; "array_prototype_find_last_index")]
 #[test_case(super::array_prototype_flat => panics; "array_prototype_flat")]
 #[test_case(super::array_prototype_flat_map => panics; "array_prototype_flat_map")]
 #[test_case(super::array_prototype_for_each => panics; "array_prototype_for_each")]
@@ -757,6 +759,82 @@ fn defaults() {
 fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test]
+fn provision_array_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+
+    let array = intrinsic(IntrinsicId::Array);
+    let global = get_global_object().unwrap();
+    let global_array = global.o.get_own_property(&"Array".into()).unwrap().unwrap();
+    let arrayfcn = Object::try_from(func_validation(global_array, "Array", 1)).unwrap();
+    assert_eq!(arrayfcn, array);
+
+    let from = array.o.get_own_property(&"from".into()).unwrap().unwrap();
+    func_validation(from, "from", 1);
+
+    let is_array = array.o.get_own_property(&"isArray".into()).unwrap().unwrap();
+    func_validation(is_array, "isArray", 1);
+
+    let of = array.o.get_own_property(&"of".into()).unwrap().unwrap();
+    func_validation(of, "of", 0);
+
+    let species_sym = wks(WksId::Species);
+    let species = array.o.get_own_property(&species_sym.into()).unwrap().unwrap();
+    getter_validation(species, "get [Symbol.species]", 0);
+
+    let prototype_pd = array.o.get_own_property(&"prototype".into()).unwrap().unwrap();
+    let proto_intrinsic = intrinsic(IntrinsicId::ArrayPrototype);
+    let prototype = Object::try_from(data_validation(prototype_pd, false, false, false)).unwrap();
+    assert_eq!(proto_intrinsic, prototype);
+    assert!(prototype.o.is_array_object());
+    let proto_proto = prototype.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(proto_proto, intrinsic(IntrinsicId::ObjectPrototype));
+
+    let length_pd = prototype.o.get_own_property(&"length".into()).unwrap().unwrap();
+    let length = data_validation(length_pd, true, false, false);
+    assert_eq!(length, 0.0.into());
+
+    func_validation(prototype.o.get_own_property(&"at".into()).unwrap().unwrap(), "at", 1);
+    func_validation(prototype.o.get_own_property(&"concat".into()).unwrap().unwrap(), "concat", 1);
+    func_validation(prototype.o.get_own_property(&"copyWithin".into()).unwrap().unwrap(), "copyWithin", 2);
+    func_validation(prototype.o.get_own_property(&"entries".into()).unwrap().unwrap(), "entries", 0);
+    func_validation(prototype.o.get_own_property(&"every".into()).unwrap().unwrap(), "every", 1);
+    func_validation(prototype.o.get_own_property(&"fill".into()).unwrap().unwrap(), "fill", 1);
+    func_validation(prototype.o.get_own_property(&"filter".into()).unwrap().unwrap(), "filter", 1);
+    func_validation(prototype.o.get_own_property(&"find".into()).unwrap().unwrap(), "find", 1);
+    func_validation(prototype.o.get_own_property(&"findIndex".into()).unwrap().unwrap(), "findIndex", 1);
+    func_validation(prototype.o.get_own_property(&"findLast".into()).unwrap().unwrap(), "findLast", 1);
+    func_validation(prototype.o.get_own_property(&"findLastIndex".into()).unwrap().unwrap(), "findLastIndex", 1);
+    func_validation(prototype.o.get_own_property(&"flat".into()).unwrap().unwrap(), "flat", 0);
+    func_validation(prototype.o.get_own_property(&"flatMap".into()).unwrap().unwrap(), "flatMap", 1);
+    func_validation(prototype.o.get_own_property(&"forEach".into()).unwrap().unwrap(), "forEach", 1);
+    func_validation(prototype.o.get_own_property(&"includes".into()).unwrap().unwrap(), "includes", 1);
+    func_validation(prototype.o.get_own_property(&"indexOf".into()).unwrap().unwrap(), "indexOf", 1);
+    func_validation(prototype.o.get_own_property(&"join".into()).unwrap().unwrap(), "join", 1);
+    func_validation(prototype.o.get_own_property(&"keys".into()).unwrap().unwrap(), "keys", 0);
+    func_validation(prototype.o.get_own_property(&"lastIndexOf".into()).unwrap().unwrap(), "lastIndexOf", 1);
+    func_validation(prototype.o.get_own_property(&"map".into()).unwrap().unwrap(), "map", 1);
+    func_validation(prototype.o.get_own_property(&"pop".into()).unwrap().unwrap(), "pop", 0);
+    func_validation(prototype.o.get_own_property(&"push".into()).unwrap().unwrap(), "push", 1);
+    func_validation(prototype.o.get_own_property(&"reduce".into()).unwrap().unwrap(), "reduce", 1);
+    func_validation(prototype.o.get_own_property(&"reduceRight".into()).unwrap().unwrap(), "reduceRight", 1);
+    func_validation(prototype.o.get_own_property(&"reverse".into()).unwrap().unwrap(), "reverse", 0);
+    func_validation(prototype.o.get_own_property(&"shift".into()).unwrap().unwrap(), "shift", 0);
+    func_validation(prototype.o.get_own_property(&"slice".into()).unwrap().unwrap(), "slice", 2);
+    func_validation(prototype.o.get_own_property(&"some".into()).unwrap().unwrap(), "some", 1);
+    func_validation(prototype.o.get_own_property(&"sort".into()).unwrap().unwrap(), "sort", 1);
+    func_validation(prototype.o.get_own_property(&"splice".into()).unwrap().unwrap(), "splice", 2);
+    func_validation(prototype.o.get_own_property(&"toLocaleString".into()).unwrap().unwrap(), "toLocaleString", 0);
+    func_validation(prototype.o.get_own_property(&"toReversed".into()).unwrap().unwrap(), "toReversed", 0);
+    func_validation(prototype.o.get_own_property(&"toSorted".into()).unwrap().unwrap(), "toSorted", 1);
+    func_validation(prototype.o.get_own_property(&"toSpliced".into()).unwrap().unwrap(), "toSpliced", 2);
+    func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
+    func_validation(prototype.o.get_own_property(&"unshift".into()).unwrap().unwrap(), "unshift", 1);
+    func_validation(prototype.o.get_own_property(&"values".into()).unwrap().unwrap(), "values", 0);
+    func_validation(prototype.o.get_own_property(&"with".into()).unwrap().unwrap(), "with", 2);
 }
 
 #[test]

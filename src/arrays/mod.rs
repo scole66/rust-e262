@@ -419,7 +419,20 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     constructor_function!(array_from, "from", 1.0);
     constructor_function!(array_is_array, "isArray", 1.0);
     constructor_function!(array_of, "of", 0.0);
-    // todo!() get Array[@@species]
+    let species_sym = wks(WksId::Species);
+    let species_fcn = create_builtin_function(
+        array_species,
+        false,
+        0.0,
+        species_sym.clone().into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        Some("get".into()),
+    );
+    let species_ppd =
+        PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
+    define_property_or_throw(&array_constructor, species_sym, species_ppd).unwrap();
 
     // Properties of the Array Prototype Object
     //
@@ -479,7 +492,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     }
 
     prototype_function!(array_prototype_at, "at", 1.0); // ( index )
-    prototype_function!(array_prototype_concat, "concat", 0.0); // ( ...items )
+    prototype_function!(array_prototype_concat, "concat", 1.0); // ( ...items )
     prototype_function!(array_prototype_copy_within, "copyWithin", 2.0); // ( target, start [ , end ] )
     prototype_function!(array_prototype_entries, "entries", 0.0); // ( )
     prototype_function!(array_prototype_every, "every", 1.0); // ( callbackfn [ , thisArg ] )
@@ -487,6 +500,8 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(array_prototype_filter, "filter", 1.0); // ( callbackfn [ , thisArg ] )
     prototype_function!(array_prototype_find, "find", 1.0); // ( predicate [ , thisArg ] )
     prototype_function!(array_prototype_find_index, "findIndex", 1.0); // ( predicate [ , thisArg ] )
+    prototype_function!(array_prototype_find_last, "findLast", 1.0);
+    prototype_function!(array_prototype_find_last_index, "findLastIndex", 1.0);
     prototype_function!(array_prototype_flat, "flat", 0.0); // ( [ depth ] )
     prototype_function!(array_prototype_flat_map, "flatMap", 1.0); // ( mapperFunction [ , thisArg ] )
     prototype_function!(array_prototype_for_each, "forEach", 1.0); // ( callbackfn [ , thisArg ] )
@@ -508,7 +523,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(array_prototype_splice, "splice", 2.0); // ( start, deleteCount, ...items )
     prototype_function!(array_prototype_to_locale_string, "toLocaleString", 0.0); // ( [ reserved1 [ , reserved2 ] ] )
     prototype_function!(array_prototype_to_string, "toString", 0.0); // ( )
-    prototype_function!(array_prototype_unshift, "unshift", 0.0); // ( ...items )
+    prototype_function!(array_prototype_unshift, "unshift", 1.0); // ( ...items )
     prototype_function!(array_prototype_values, "values", 0.0); // ( )
 
     // Array.prototype [ @@iterator ] ( )
@@ -621,6 +636,13 @@ fn array_of(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+fn array_species(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
 fn array_prototype_at(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -678,6 +700,20 @@ fn array_prototype_find(
     todo!()
 }
 fn array_prototype_find_index(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn array_prototype_find_last(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn array_prototype_find_last_index(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],

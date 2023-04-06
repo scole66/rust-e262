@@ -422,6 +422,7 @@ pub fn set_default_global_bindings() {
     }
     // AggregateError ( . . . )
     // Array ( . . . )
+    constructor_property!(Array);
     // ArrayBuffer ( . . . )
     // BigInt ( . . . )
     // BigInt64Array ( . . . )

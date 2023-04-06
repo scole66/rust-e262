@@ -963,4 +963,22 @@ pub fn func_validation(
     func
 }
 
+pub fn getter_validation(
+    pd: PropertyDescriptor,
+    name: impl Into<ECMAScriptValue>,
+    length: impl Into<ECMAScriptValue>,
+
+) -> ECMAScriptValue {
+    assert!(!pd.enumerable);
+    assert!(pd.configurable);
+    if let PropertyKind::Accessor(AccessorProperty{ get, set }) = pd.property {
+        assert!(set.is_undefined());
+        assert_eq!(getv(&get, &"name".into()).unwrap(), name.into());
+        assert_eq!(getv(&get, &"length".into()).unwrap(), length.into());
+        return get;
+    } else {
+        panic!("Expected accessor property but found data property");
+    }
+}
+
 mod integration;
