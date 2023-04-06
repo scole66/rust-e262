@@ -867,7 +867,6 @@ fn array_prototype_join(
     super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
 }
 
-
 #[test_case(|| ECMAScriptValue::Undefined
             => serr("TypeError: Undefined and null cannot be converted to objects")
             ; "ToObject throws")]
@@ -904,7 +903,10 @@ fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Res
             KeyValueKind::Value
             => serr("TypeError: Generic TypeError")
             ; "element 3 can't be gotten")]
-fn create_array_iterator(make_array: impl FnOnce() -> Object, kind: KeyValueKind) -> Result<Vec<ECMAScriptValue>, String> {
+fn create_array_iterator(
+    make_array: impl FnOnce() -> Object,
+    kind: KeyValueKind,
+) -> Result<Vec<ECMAScriptValue>, String> {
     setup_test_agent();
     let array = make_array();
 
