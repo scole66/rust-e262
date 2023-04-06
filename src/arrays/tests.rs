@@ -761,3 +761,21 @@ fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completio
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
+
+#[test]
+fn provision_array_iterator_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+    let aiproto = intrinsic(IntrinsicId::ArrayIteratorPrototype);
+    let tostringtag_symbol = wks(WksId::ToStringTag);
+    let iterator_prototype = intrinsic(IntrinsicId::IteratorPrototype);
+
+    assert_eq!(aiproto.o.get_prototype_of().unwrap().unwrap(), iterator_prototype);
+
+    let tst = aiproto.o.get_own_property(&tostringtag_symbol.into()).unwrap().unwrap();
+    let value = data_validation(tst, false, false, true);
+    assert_eq!(value, "Array Iterator".into());
+
+    let next = aiproto.o.get_own_property(&"next".into()).unwrap().unwrap();
+    func_validation(next, "next", 0);
+}
