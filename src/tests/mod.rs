@@ -747,7 +747,7 @@ macro_rules! default_uses_ordinary_get_prototype_of_test {
 #[macro_export]
 macro_rules! default_get_own_property_test {
     () => {
-        #[test_case("test_sentinel" => Some(IdealizedPropertyDescriptor{configurable: true, enumerable: true, writable: Some(true), value: Some(ECMAScriptValue::from("present")), get: None, set: None}); "key present")]
+        #[test_case::test_case("test_sentinel" => Some(IdealizedPropertyDescriptor{configurable: true, enumerable: true, writable: Some(true), value: Some(ECMAScriptValue::from("present")), get: None, set: None}); "key present")]
         #[test_case("color" => None; "key not present")]
         fn get_own_property(key: &str) -> Option<IdealizedPropertyDescriptor> {
             setup_test_agent();
@@ -766,7 +766,7 @@ macro_rules! default_get_own_property_test {
 #[macro_export]
 macro_rules! default_define_own_property_test {
     () => {
-        #[test_case(
+        #[test_case::test_case(
                             PotentialPropertyDescriptor::new()
                                 .value(ECMAScriptValue::from(67))
                                 .writable(true)
@@ -813,9 +813,9 @@ macro_rules! default_define_own_property_test {
 #[macro_export]
 macro_rules! default_get_test {
     ( $key_on_proto:expr, $val_on_proto:expr ) => {
-        #[test_case(|| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
-        #[test_case(|| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
-        #[test_case($key_on_proto => $val_on_proto; "from prototype")]
+        #[test_case::test_case(|| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
+        #[test_case::test_case(|| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
+        #[test_case::test_case($key_on_proto => $val_on_proto; "from prototype")]
         fn get(make_key: impl FnOnce() -> PropertyKey) -> ECMAScriptValue {
             setup_test_agent();
             let obj = make();
@@ -839,7 +839,7 @@ macro_rules! default_get_test {
 #[macro_export]
 macro_rules! default_set_test {
     () => {
-        #[test_case(
+        #[test_case::test_case(
                             776, "numberly"
                             => (
                                 true,
