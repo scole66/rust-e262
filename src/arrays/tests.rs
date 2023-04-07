@@ -208,7 +208,7 @@ mod array_object {
         assert_eq!(a.o.get(&"length".into(), &receiver).unwrap(), 100.into());
     }
     default_delete_test!();
-   #[test]
+    #[test]
     fn own_property_keys() {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
