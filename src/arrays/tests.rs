@@ -48,55 +48,19 @@ mod array_object {
         assert_ne!(format!("{:?}", a), "");
     }
 
-    #[test]
-    fn uses_ordinary_get_prototype_of() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        assert_eq!(a.o.uses_ordinary_get_prototype_of(), true);
+    fn make() -> Object {
+        let o = ArrayObject::create(0, None).unwrap();
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        o
     }
 
-    #[test]
-    fn get_prototype_of() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        let a_proto = a.o.get_prototype_of().unwrap().unwrap();
-        assert_eq!(a_proto, intrinsic(IntrinsicId::ArrayPrototype));
-    }
-
-    #[test]
-    fn set_prototype_of() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let success = a.o.set_prototype_of(Some(obj_proto.clone())).unwrap();
-        assert!(success);
-        assert_eq!(obj_proto, a.o.get_prototype_of().unwrap().unwrap());
-    }
-
-    #[test]
-    fn is_extensible() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        assert!(a.o.is_extensible().unwrap());
-    }
-    #[test]
-    fn prevent_extensions() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        assert!(a.o.prevent_extensions().unwrap());
-        assert!(!a.o.is_extensible().unwrap());
-    }
-    #[test]
-    fn get_own_property() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        let desc: DataDescriptor = a.o.get_own_property(&"length".into()).unwrap().unwrap().try_into().unwrap();
-
-        assert_eq!(desc.configurable, false);
-        assert_eq!(desc.enumerable, false);
-        assert_eq!(desc.value, 0.0.into());
-        assert_eq!(desc.writable, true);
-    }
+    default_uses_ordinary_get_prototype_of_test!();
+    default_get_prototype_of_test!(ArrayPrototype);
+    default_set_prototype_of_test!();
+    default_is_extensible_test!();
+    default_prevent_extensions_test!();
+    default_get_own_property_test!();
 
     mod define_own_property {
         use super::*;
@@ -232,20 +196,8 @@ mod array_object {
         }
     }
 
-    #[test]
-    fn has_property() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        assert!(a.o.has_property(&"length".into()).unwrap());
-    }
-    #[test]
-    fn get() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        let receiver: ECMAScriptValue = a.clone().into();
-        let val = a.o.get(&"length".into(), &receiver).unwrap();
-        assert_eq!(val, 0.into());
-    }
+    default_has_property_test!();
+    default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
     #[test]
     fn set_() {
         setup_test_agent();
@@ -255,13 +207,7 @@ mod array_object {
         assert!(success);
         assert_eq!(a.o.get(&"length".into(), &receiver).unwrap(), 100.into());
     }
-    #[test]
-    fn delete() {
-        setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
-        let success = a.o.delete(&"length".into()).unwrap();
-        assert!(!success);
-    }
+    default_delete_test!();
     #[test]
     fn own_property_keys() {
         setup_test_agent();
@@ -275,6 +221,13 @@ mod array_object {
         let a = ArrayObject::create(0, None).unwrap();
         assert!(a.o.is_array_object());
     }
+    none_function!(to_symbol_obj);
+    false_function!(is_plain_object);
+    none_function!(to_string_obj);
+    none_function!(to_generator_object);
+    false_function!(is_generator_object);
+    none_function!(to_arguments_object);
+    false_function!(is_symbol_object);
 
     mod set_length {
         use super::*;
