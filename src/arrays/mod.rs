@@ -430,8 +430,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         Some(function_prototype.clone()),
         Some("get".into()),
     );
-    let species_ppd =
-        PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
+    let species_ppd = PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
     define_property_or_throw(&array_constructor, species_sym, species_ppd).unwrap();
 
     // Properties of the Array Prototype Object
@@ -512,7 +511,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(array_prototype_last_index_of, "lastIndexOf", 1.0); // ( searchElement [ , fromIndex ] )
     prototype_function!(array_prototype_map, "map", 1.0); // ( callbackfn [ , thisArg ] )
     prototype_function!(array_prototype_pop, "pop", 0.0); // ( )
-    prototype_function!(array_prototype_push, "push", 0.0); // ( ...items )
+    prototype_function!(array_prototype_push, "push", 1.0); // ( ...items )
     prototype_function!(array_prototype_reduce, "reduce", 1.0); // ( callbackfn [ , initialValue ] )
     prototype_function!(array_prototype_reduce_right, "reduceRight", 1.0); // ( callbackfn [ , initialValue ] )
     prototype_function!(array_prototype_reverse, "reverse", 0.0); // ( )
@@ -522,9 +521,13 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(array_prototype_sort, "sort", 1.0); // ( comparefn )
     prototype_function!(array_prototype_splice, "splice", 2.0); // ( start, deleteCount, ...items )
     prototype_function!(array_prototype_to_locale_string, "toLocaleString", 0.0); // ( [ reserved1 [ , reserved2 ] ] )
+    prototype_function!(array_prototype_to_reversed, "toReversed", 0.0); // ( )
+    prototype_function!(array_prototype_to_sorted, "toSorted", 1.0); // ( comparefn )
+    prototype_function!(array_prototype_to_spliced, "toSpliced", 2.0); // ( start, skipCount, ...items )
     prototype_function!(array_prototype_to_string, "toString", 0.0); // ( )
     prototype_function!(array_prototype_unshift, "unshift", 1.0); // ( ...items )
     prototype_function!(array_prototype_values, "values", 0.0); // ( )
+    prototype_function!(array_prototype_with, "with", 2.0); // ( index, value )
 
     // Array.prototype [ @@iterator ] ( )
     // The initial value of the @@iterator property is %Array.prototype.values%,
@@ -899,6 +902,27 @@ fn array_prototype_to_locale_string(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+fn array_prototype_to_reversed(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn array_prototype_to_sorted(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn array_prototype_to_spliced(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
 
 // Array.prototype.toString ( )
 //
@@ -942,6 +966,14 @@ fn array_prototype_values(
 ) -> Completion<ECMAScriptValue> {
     let o = to_object(this_value)?;
     Ok(ECMAScriptValue::from(create_array_iterator(o, KeyValueKind::Value)))
+}
+
+fn array_prototype_with(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
 }
 
 // Array Iterator Objects

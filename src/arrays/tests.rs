@@ -725,6 +725,7 @@ fn defaults() {
 #[test_case(super::array_from => panics; "array_from")]
 #[test_case(super::array_is_array => panics; "array_is_array")]
 #[test_case(super::array_of => panics; "array_of")]
+#[test_case(super::array_species => panics; "array_species")]
 #[test_case(super::array_prototype_at => panics; "array_prototype_at")]
 #[test_case(super::array_prototype_concat => panics; "array_prototype_concat")]
 #[test_case(super::array_prototype_copy_within => panics; "array_prototype_copy_within")]
@@ -755,7 +756,11 @@ fn defaults() {
 #[test_case(super::array_prototype_sort => panics; "array_prototype_sort")]
 #[test_case(super::array_prototype_splice => panics; "array_prototype_splice")]
 #[test_case(super::array_prototype_to_locale_string => panics; "array_prototype_to_locale_string")]
+#[test_case(super::array_prototype_to_reversed => panics; "array_prototype_to_reversed")]
+#[test_case(super::array_prototype_to_sorted => panics; "array_prototype_to_sorted")]
+#[test_case(super::array_prototype_to_spliced => panics; "array_prototype_to_spliced")]
 #[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
+#[test_case(super::array_prototype_with => panics; "array_prototype_with")]
 fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
@@ -833,8 +838,19 @@ fn provision_array_intrinsic() {
     func_validation(prototype.o.get_own_property(&"toSpliced".into()).unwrap().unwrap(), "toSpliced", 2);
     func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
     func_validation(prototype.o.get_own_property(&"unshift".into()).unwrap().unwrap(), "unshift", 1);
-    func_validation(prototype.o.get_own_property(&"values".into()).unwrap().unwrap(), "values", 0);
+    let values = func_validation(prototype.o.get_own_property(&"values".into()).unwrap().unwrap(), "values", 0);
     func_validation(prototype.o.get_own_property(&"with".into()).unwrap().unwrap(), "with", 2);
+
+    let constructor_pd = prototype.o.get_own_property(&"constructor".into()).unwrap().unwrap();
+    let constructor = data_validation(constructor_pd, true, false, true);
+    assert_eq!(constructor, array.into());
+
+    let iter =
+        func_validation(prototype.o.get_own_property(&wks(WksId::Iterator).into()).unwrap().unwrap(), "values", 0);
+    assert_eq!(iter, values);
+    assert_eq!(iter, ECMAScriptValue::from(intrinsic(IntrinsicId::ArrayPrototypeValues)));
+
+    // todo: unscopables
 }
 
 #[test]
@@ -1037,4 +1053,24 @@ mod array_iterator {
         set(&obj, "called_count".into(), ECMAScriptValue::from(so_far + 1.0), true)?;
         Ok(result)
     }
+}
+
+#[test_case(|| ECMAScriptValue::from(create_array_from_list(&[1.into(), 2.into()])) => Ok(vec![1.into(), 2.into()]); "normal")]
+#[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "not an object")]
+fn array_prototype_values(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    let iter = super::array_prototype_values(this_value, None, &[]).map_err(unwind_any_error)?;
+    let ir = get_iterator(&iter, IteratorKind::Sync).map_err(unwind_any_error)?;
+    let mut result = vec![];
+    loop {
+        let item = ir.step().map_err(unwind_any_error)?;
+        match item {
+            Some(iter_result) => {
+                result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
+            }
+            None => break,
+        }
+    }
+    Ok(result)
 }
