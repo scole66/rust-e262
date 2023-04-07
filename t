@@ -421,6 +421,8 @@ test_defs[is_compatible_property_descriptor]="is_compatible_property_descriptor 
 test_defs[ordinary_own_property_keys]="ordinary_own_property_keys ordinary_own_property_keys object"
 test_defs[OrdinaryObject_own_property_keys]="OrdinaryObject@ObjectInterface::own_property_keys ordinary_object::own_property_keys object"
 test_defs[ImmutablePrototypeExoticObject_own_property_keys]="ImmutablePrototypeExoticObject@ObjectInterface::own_property_keys immutable_prototype_exotic_object::own_property_keys object"
+test_defs[length_of_array_like]="length_of_array_like length_of_array_like object"
+test_defs[Object_is_typed_array]="Object::is_typed_array object::is_typed_array object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
@@ -440,6 +442,15 @@ test_defs[Intrinsics]="Intrinsics intrinsics realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
+test_defs[provision_array_intrinsic]="provision_array_intrinsic provision_array_intrinsic arrays"
+test_defs[provision_array_iterator_intrinsic]="provision_array_iterator_intrinsic provision_array_iterator_intrinsic arrays"
+test_defs[array_prototype_join]="array_prototype_join array_prototype_join arrays"
+test_defs[array_prototype_to_string]="array_prototype_to_string array_prototype_to_string arrays"
+test_defs[array_prototype_values]="array_prototype_values array_prototype_values arrays"
+test_defs[array_iterator_prototype_next]="array_iterator_prototype_next array_iterator_prototype_next arrays"
+test_defs[KeyValueKind]="KeyValueKind key_value_kind arrays"
+test_defs[array_iterator]="array_iterator array_iterator arrays"
+test_defs[create_array_iterator]="create_array_iterator array_iterator::standard arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 

@@ -936,4 +936,48 @@ macro_rules! default_own_property_keys_test {
     };
 }
 
+pub fn data_validation(
+    pd: PropertyDescriptor,
+    writable: bool,
+    enumerable: bool,
+    configurable: bool,
+) -> ECMAScriptValue {
+    assert_eq!(pd.enumerable, enumerable);
+    assert_eq!(pd.configurable, configurable);
+    if let PropertyKind::Data(DataProperty { value, writable: pd_writable }) = pd.property {
+        assert_eq!(pd_writable, writable);
+        value
+    } else {
+        panic!("Expected data property but found accessor property");
+    }
+}
+
+pub fn func_validation(
+    pd: PropertyDescriptor,
+    name: impl Into<ECMAScriptValue>,
+    length: impl Into<ECMAScriptValue>,
+) -> ECMAScriptValue {
+    let func = data_validation(pd, true, false, true);
+    assert_eq!(getv(&func, &"name".into()).unwrap(), name.into());
+    assert_eq!(getv(&func, &"length".into()).unwrap(), length.into());
+    func
+}
+
+pub fn getter_validation(
+    pd: PropertyDescriptor,
+    name: impl Into<ECMAScriptValue>,
+    length: impl Into<ECMAScriptValue>,
+) -> ECMAScriptValue {
+    assert!(!pd.enumerable);
+    assert!(pd.configurable);
+    if let PropertyKind::Accessor(AccessorProperty { get, set }) = pd.property {
+        assert!(set.is_undefined());
+        assert_eq!(getv(&get, &"name".into()).unwrap(), name.into());
+        assert_eq!(getv(&get, &"length".into()).unwrap(), length.into());
+        get
+    } else {
+        panic!("Expected accessor property but found data property");
+    }
+}
+
 mod integration;

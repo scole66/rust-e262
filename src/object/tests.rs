@@ -3240,3 +3240,29 @@ mod internal_slot_name {
         assert_ne!(hash_b, hash_c);
     }
 }
+
+#[test_case(DeadObject::object => serr("TypeError: get called on DeadObject"); "get throws")]
+#[test_case(|| {
+        let o = ordinary_object_create(None, &[]);
+        let sym = wks(WksId::Unscopables);
+        create_data_property_or_throw(&o, "length", sym).unwrap();
+        o
+    } => serr("TypeError: Symbol values cannot be converted to Number values"); "tolength throws")]
+#[test_case(|| array_create(0, None).unwrap() => Ok(0); "empty array")]
+fn length_of_array_like(make_obj: impl FnOnce() -> Object) -> Result<i64, String> {
+    setup_test_agent();
+    let obj = make_obj();
+    super::length_of_array_like(&obj).map_err(unwind_any_error)
+}
+
+mod object {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| ordinary_object_create(None, &[]) => false; "not")]
+    fn is_typed_array(make_obj: impl FnOnce() -> Object) -> bool {
+        setup_test_agent();
+        let obj = make_obj();
+        obj.is_typed_array()
+    }
+}

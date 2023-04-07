@@ -9,6 +9,7 @@ pub enum IntrinsicId {
     Array,
     ArrayPrototype,
     ArrayPrototypeValues,
+    ArrayIteratorPrototype,
     Boolean,
     BooleanPrototype,
     Error,
@@ -26,6 +27,7 @@ pub enum IntrinsicId {
     NumberPrototype,
     Object,
     ObjectPrototype,
+    ObjectPrototypeToString,
     RangeError,
     RangeErrorPrototype,
     ReferenceError,
@@ -95,6 +97,7 @@ pub struct Intrinsics {
     pub number_prototype: Object,   //
     pub object: Object,             // Object	The Object constructor (20.1.1)
     pub object_prototype: Object,   // The Object prototype object
+    pub object_prototype_to_string: Object, // The initial value of %ObjectPrototype%.toString
     pub parse_float: Object,        // parseFloat	The parseFloat function (19.2.4)
     pub parse_int: Object,          // parseInt	The parseInt function (19.2.5)
     pub promise: Object,            // Promise	The Promise constructor (27.2.3)
@@ -192,6 +195,7 @@ impl Intrinsics {
             number_prototype: dead.clone(),
             object: dead.clone(),
             object_prototype: dead.clone(),
+            object_prototype_to_string: dead.clone(),
             parse_float: dead.clone(),
             parse_int: dead.clone(),
             promise: dead.clone(),
@@ -233,6 +237,7 @@ impl Intrinsics {
             IntrinsicId::Array => &self.array,
             IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
+            IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
             IntrinsicId::Error => &self.error,
@@ -250,6 +255,7 @@ impl Intrinsics {
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
+            IntrinsicId::ObjectPrototypeToString => &self.object_prototype_to_string,
             IntrinsicId::RangeError => &self.range_error,
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
@@ -393,6 +399,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_string_intrinsic(&realm_rec);
     provision_iterator_prototype(&realm_rec);
     provision_generator_function_intrinsics(&realm_rec);
+    provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
 
     add_restricted_function_properties(&function_prototype, realm_rec);
 }

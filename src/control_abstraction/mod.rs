@@ -351,7 +351,7 @@ type AsyncFnPtr = Box<
         Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     ) -> LocalBoxFuture<'static, Completion<ECMAScriptValue>>,
 >;
-fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
+pub fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
 where
     F: 'static,
     F: FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Fut,
@@ -361,7 +361,7 @@ where
     Box::new(|context| Box::pin(func(context)))
 }
 
-fn create_iterator_from_closure(
+pub fn create_iterator_from_closure(
     closure: AsyncFnPtr,
     generator_brand: &str,
     generator_prototype: Option<Object>,
@@ -824,7 +824,7 @@ pub fn generator_resume_abrupt(
     }
 }
 
-async fn generator_yield(
+pub async fn generator_yield(
     co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     iter_next_obj: ECMAScriptValue,
 ) -> Completion<ECMAScriptValue> {
@@ -911,7 +911,7 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     Ok(IteratorRecord { iterator, next_method, done: false })
 }
 
-fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
+pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
     // GetIterator ( obj, kind )
     //
     // The abstract operation GetIterator takes arguments obj (an ECMAScript
@@ -966,7 +966,7 @@ impl IteratorRecord {
         Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
     }
 
-    fn step(&self) -> Completion<Option<Object>> {
+    pub fn step(&self) -> Completion<Option<Object>> {
         // IteratorStep ( iteratorRecord )
         //
         // The abstract operation IteratorStep takes argument iteratorRecord (an
@@ -1047,7 +1047,7 @@ fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     Ok(to_boolean(get(iter_result, &"done".into())?))
 }
 
-fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
+pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     // IteratorValue ( iterResult )
     //
     // The abstract operation IteratorValue takes argument iterResult (an
