@@ -145,6 +145,8 @@ impl Chunk {
                 (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind
+            | Insn::RotateUp
+            | Insn::RotateDown
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression => {
@@ -173,6 +175,7 @@ impl Chunk {
             | Insn::True
             | Insn::False
             | Insn::Empty
+            | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue
             | Insn::Call

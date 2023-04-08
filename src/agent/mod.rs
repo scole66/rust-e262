@@ -635,6 +635,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::True => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(true.into())),
                 Insn::False => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(false.into())),
+                Insn::Zero => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(0.into())),
                 Insn::Empty => {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty))
                 }
@@ -827,6 +828,28 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec.stack.push(bottom);
                     ec.stack.push(lower);
                     ec.stack.push(top);
+                }
+                Insn::RotateUp => {
+                    // a 1-arg instruction: take the n-th item in the stack and move it to the top, sliding the others
+                    // down. E.g.: with A, B, C, D on the stack (top on the left), "RotateUp 3" will produce C, A, B, D.
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let amt = chunk.opcodes[ec.pc] as usize;
+                    ec.pc += 1;
+                    let stack = &mut ec.stack;
+                    let len = stack.len();
+                    assert!(len >= amt);
+                    stack[len - amt..len].rotate_left(1);
+                }
+                Insn::RotateDown => {
+                    // a 1-arg instruction: take the top item of the stack and move it down until it becomes the n-th item in the stack, sliding the others
+                    // up. E.g.: with A, B, C, D on the stack (top on the left), "RotateDown 3" will produce B, C, A, D.
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let amt = chunk.opcodes[ec.pc] as usize;
+                    ec.pc += 1;
+                    let stack = &mut ec.stack;
+                    let len = stack.len();
+                    assert!(len >= amt);
+                    stack[len - amt..len].rotate_right(1);
                 }
                 Insn::Ref | Insn::StrictRef => {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
