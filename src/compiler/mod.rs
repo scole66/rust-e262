@@ -132,6 +132,7 @@ pub enum Insn {
     SwapList,
     RequireConstructor,
     Construct,
+    IteratorAccumulate,
 }
 
 impl fmt::Display for Insn {
@@ -255,6 +256,7 @@ impl fmt::Display for Insn {
             Insn::SwapList => "SWAP_LIST",
             Insn::RequireConstructor => "REQ_CSTR",
             Insn::Construct => "CONSTRUCT",
+            Insn::IteratorAccumulate => "ITERATOR_ACCUM",
         })
     }
 }
@@ -1067,7 +1069,30 @@ impl ElementList {
                 // Stack: (next_index array) or (err)
                 Ok(exit_status)
             }
-            ElementList::SpreadElement { elision: _, se: _ } => todo!(),
+            ElementList::SpreadElement { elision, se } => {
+                // elision_start:     next_index array
+                // <elision>          (next_index array) or (err)
+                // JUMP_IF_ABRUPT     exit
+                // no_elision_start:  next_index array
+                // <se>               (next_index array) or (err)
+                // exit:
+                // Stack: next_index array ...
+                let elision_exit = if let Some(elision) = elision {
+                    elision.array_accumulation(chunk)?;
+                    // Stack: (next_index array) or (err) ...
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    // Stack: next_index array
+                } else {
+                    None
+                };
+                // Stack: next_index array ...
+                se.array_accumulation(chunk, strict, text)?;
+                if let Some(exit) = elision_exit {
+                    chunk.fixup(exit)?;
+                }
+                // Stack: (next_index array) or (err)
+                Ok(AbruptResult::Maybe)
+            }
             ElementList::ElementListAssignmentExpression { el, elision, ae } => {
                 // start:               next_index array
                 // <el>                 (next_index array) or (err)
@@ -1138,8 +1163,77 @@ impl ElementList {
                 // Stack: (err) or (next_index array) ...
                 Ok(exit_status)
             }
-            ElementList::ElementListSpreadElement { el: _, elision: _, se: _ } => todo!(),
+            ElementList::ElementListSpreadElement { el, elision, se } => {
+                // start:               next_index array
+                // <el>                 (next_index array) or (err)
+                // JUMP_IF_ABRUPT exit
+                // ----- if elsision present ------
+                // <elision>            (next_index array) or (err)
+                // JUMP_IF_ABRUPT exit
+                // --------------------------------
+                //                    next_index array
+                // <se>               (next_index array) or (err)
+                // exit: (next_index array) or (err)
+                let mut exits = vec![];
+                let status = el.array_accumulation(chunk, strict, text)?;
+                if status.maybe_abrupt() {
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                if let Some(elision) = elision {
+                    elision.array_accumulation(chunk)?;
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                se.array_accumulation(chunk, strict, text)?;
+                for exit in exits {
+                    chunk.fixup(exit).expect("Jumps are too short to fail");
+                }
+                Ok(AbruptResult::Maybe)
+            }
         }
+    }
+}
+
+impl SpreadElement {
+    pub fn array_accumulation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // start:               next_index array
+        // <ae>                 ref/val/err next_index array
+        // GET_VALUE            val/err next_index array
+        // JUMP_IF_NORMAL fwd
+        // UNWIND 2             err
+        // JUMP exit
+        // fwd:                 val next_index array
+        // ITERATOR_ACCUMULATE  (next_index array) or err
+        // exit:
+
+        let mut exit = None;
+        // Stack: next_index array ...
+        let status = self.ae.compile(chunk, strict, text)?;
+        // Stack: val/ref/err next_index array ...
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: val/err next_index array ...
+        if status.maybe_abrupt() || status.maybe_ref() {
+            let mark = chunk.op_jump(Insn::JumpIfNormal);
+            // Stack: err next_index array ...
+            chunk.op_plus_arg(Insn::Unwind, 2);
+            // Stack: err ...
+            exit = Some(chunk.op_jump(Insn::Jump));
+            chunk.fixup(mark).expect("Jump is too short to overflow.");
+        }
+        // Stack: val next_index array ...
+        chunk.op(Insn::IteratorAccumulate);
+        // Stack: (next_index array) or (err) ...
+
+        if let Some(exit) = exit {
+            chunk.fixup(exit).expect("Jump too short to fail");
+        }
+        Ok(AlwaysAbruptResult)
     }
 }
 

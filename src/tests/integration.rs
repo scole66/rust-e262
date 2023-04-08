@@ -333,6 +333,19 @@ fn function_prototype_call(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("let a=[(() => { throw 'exception' })()];" => serr("Thrown: exception"); "exceptions in elements")]
 #[test_case("let a=[1,(() => { throw 'exception' })()];" => serr("Thrown: exception"); "exceptions in tail elements")]
 #[test_case("const x=10, y=20; const a=[x,y]; 'length: ' + a.length + ', 0: ' + a[0] + ', 1: ' + a[1]" => vok("length: 2, 0: 10, 1: 20"); "id refs")]
+#[test_case("[100].toString()" => vok("100"); "element")]
+#[test_case("[,100].toString()" => vok(",100"); "elision+element")]
+#[test_case("let a=100; [a].toString()" => vok("100"); "fallible element")]
+#[test_case("let a=[100]; [...a].toString()" => vok("100"); "spread")]
+#[test_case("let a=[100]; [,...a].toString()" => vok(",100"); "elision+spread")]
+#[test_case("[100,200].toString()" => vok("100,200"); "list+element")]
+#[test_case("let a=100; [a,200].toString()" => vok("100,200"); "list+element; list fallible")]
+#[test_case("let a=200; [100,a].toString()" => vok("100,200"); "list+element; element fallible")]
+#[test_case("[100,,200].toString()" => vok("100,,200"); "list+elision+element")]
+#[test_case("let a=[200]; [100,...a].toString()" => vok("100,200"); "list+spread")]
+#[test_case("let b=100, a=[200]; [b,...a].toString()" => vok("100,200"); "list+spread; list fallible")]
+#[test_case("let a=[200]; [100,,...a].toString()" => vok("100,,200"); "list+elision+spread")]
+#[test_case("[...0]" => serr("Thrown: TypeError: not an iterator"); "invalid spread target")]
 fn array_literal(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

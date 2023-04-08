@@ -30,6 +30,7 @@ mod insn {
     #[test_case(Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH"; "JumpIfNotNullish instruction")]
     #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty instruction")]
     #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
+    #[test_case(Insn::Zero => "ZERO"; "Zero instruction")]
     #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
     #[test_case(Insn::PutValue => "PUT_VALUE"; "PutValue instruction")]
     #[test_case(Insn::Jump => "JUMP"; "Jump instruction")]
@@ -39,6 +40,8 @@ mod insn {
     #[test_case(Insn::Pop => "POP"; "Pop instruction")]
     #[test_case(Insn::Pop2Push3 => "POP2_PUSH3"; "Pop2Push3 instruction")]
     #[test_case(Insn::Dup => "DUP"; "Dup instruction")]
+    #[test_case(Insn::RotateUp => "ROTATEUP"; "RotateUp instruction")]
+    #[test_case(Insn::RotateDown => "ROTATEDOWN"; "RotateDown instruction")]
     #[test_case(Insn::Unwind => "UNWIND"; "Unwind instruction")]
     #[test_case(Insn::Ref => "REF"; "Ref instruction")]
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
@@ -128,6 +131,7 @@ mod insn {
     #[test_case(Insn::RequireConstructor => "REQ_CSTR"; "RequireConstructor instruction")]
     #[test_case(Insn::Construct => "CONSTRUCT"; "Construct instruction")]
     #[test_case(Insn::JumpNotThrow => "JUMP_NOT_THROW"; "JumpNotThrow instruction")]
+    #[test_case(Insn::IteratorAccumulate => "ITERATOR_ACCUM"; "IteratorAccumulate instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -5504,7 +5508,11 @@ mod element_list {
     #[test_case("a", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT"]), true)); "one element, nonstrict ref")]
     #[test_case("a", true, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT"]), true)); "one element, strict ref")]
     #[test_case(",@@@", false, &[] => serr("out of range integral type conversion attempted"); "leading elision jump too far")]
-    #[test_case("...a", false, &[] => panics "not yet implemented"; "one spread element")]
+    #[test_case("...a", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "one spread element")]
+    #[test_case(",...a", false, &[] => Ok((svec(&["FLOAT 0 (1)", "ADD", "SWAP", "DUP", "STRING 0 (length)", "STRICT_REF", "ROTATEUP 3", "POP2_PUSH3", "PUT_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "POP", "JUMP_IF_ABRUPT 11", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "elision then spread")]
+    #[test_case(",...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "elision+spread; elision fails compilation")]
+    #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "spread; fails compilation")]
+    #[test_case(",...@@@", false, &[] => serr("out of range integral type conversion attempted"); "elision+spread: jump too large")]
     #[test_case("0,1", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "FLOAT 0 (0)", "CR_PROP", "SWAP", "INCREMENT", "POP2_PUSH3", "TO_KEY", "FLOAT 1 (1)", "CR_PROP", "SWAP", "INCREMENT"]), false)); "element list, simple")]
     #[test_case("a,1", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "element list, first fails")]
     #[test_case("a,1", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT", "JUMP_IF_ABRUPT 7", "POP2_PUSH3", "TO_KEY", "FLOAT 0 (1)", "CR_PROP", "SWAP", "INCREMENT"]), true)); "element list, first is fallible")]
@@ -5513,9 +5521,32 @@ mod element_list {
     #[test_case("0,a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list form; final index store fails")]
     #[test_case("0,a", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "FLOAT 0 (0)", "CR_PROP", "SWAP", "INCREMENT", "POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT"]), true)); "list form, final is reference")]
     #[test_case("a,@@@", false, &[] => serr("out of range integral type conversion attempted"); "can't jump over final expr")]
-    #[test_case("0,...a", false, &[] => panics "not yet implemented"; "list spread element")]
+    #[test_case("0,...a", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "FLOAT 0 (0)", "CR_PROP", "SWAP", "INCREMENT", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "list spread element")]
+    #[test_case("0,...a", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list+spread; list fails")]
+    #[test_case("b,...a", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "STRING 0 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT", "JUMP_IF_ABRUPT 11", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "list+spread; fallible list")]
+    #[test_case("0,,...a", false, &[] => Ok((svec(&["POP2_PUSH3", "TO_KEY", "FLOAT 0 (0)", "CR_PROP", "SWAP", "INCREMENT", "FLOAT 1 (1)", "ADD", "SWAP", "DUP", "STRING 0 (length)", "STRICT_REF", "ROTATEUP 3", "POP2_PUSH3", "PUT_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "POP", "JUMP_IF_ABRUPT 11", "STRING 1 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "list+elision+spread")]
+    #[test_case("0,,...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+elision+spread; elision fails")]
+    #[test_case("0,...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+spread; spread fails")]
     fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).element_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.array_accumulation(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod spread_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "ITERATOR_ACCUM"]), true)); "expression")]
+    #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expression; fails")]
+    #[test_case("...0", false, &[] => Ok((svec(&["FLOAT 0 (0)", "ITERATOR_ACCUM"]), true)); "expression; infallible")]
+    fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).spread_element();
         let mut c = complex_filled_chunk("x", what);
         node.array_accumulation(&mut c, strict, src)
             .map(|status| {
