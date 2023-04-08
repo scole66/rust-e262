@@ -117,6 +117,7 @@ test_defs[CompilerContinueStatement]="parser::continue_statement::ContinueStatem
 test_defs[CompilerBreakableStatement]="parser::statements_and_declarations::BreakableStatement breakable_statement compiler"
 test_defs[CompilerIterationStatement]="parser::iteration_statements::IterationStatement iteration_statement compiler"
 test_defs[CompilerDoWhileStatement]="parser::iteration_statements::DoWhileStatement do_while_statement compiler"
+test_defs[CompilerWhileStatement]="parser::iteration_statements::WhileStatement while_statement compiler"
 test_defs[CompilerSwitchStatement]="parser::switch_statement::SwitchStatement switch_statement compiler"
 test_defs[CompilerLabelledStatement]="parser::labelled_statements::LabelledStatement labelled_statement compiler"
 test_defs[CompilerLabelledItem]="parser::labelled_statements::LabelledItem labelled_item compiler"
