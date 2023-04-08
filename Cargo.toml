@@ -26,6 +26,8 @@ bimap = "0.6.2"
 non-empty-vec = "0.2.3"
 genawaiter = "0.99.1"
 futures = "0.3.28"
+yaml-rust = "0.4.5"
+color-eyre = "0.6.2"
 
 [dev-dependencies]
 test-case = "2.0"
