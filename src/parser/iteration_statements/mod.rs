@@ -324,8 +324,8 @@ impl DoWhileStatement {
 //      while ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct WhileStatement {
-    exp: Rc<Expression>,
-    stmt: Rc<Statement>,
+    pub exp: Rc<Expression>,
+    pub stmt: Rc<Statement>,
     location: Location,
 }
 

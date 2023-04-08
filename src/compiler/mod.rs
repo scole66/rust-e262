@@ -3096,10 +3096,81 @@ impl IterationStatement {
     ) -> anyhow::Result<AbruptResult> {
         match self {
             IterationStatement::DoWhile(dws) => dws.do_while_loop_compile(chunk, strict, text, label_set),
-            IterationStatement::While(_) => todo!(),
+            IterationStatement::While(ws) => ws.while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::For(_) => todo!(),
             IterationStatement::ForInOf(_) => todo!(),
         }
+    }
+}
+
+impl WhileStatement {
+    fn while_loop_compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        //  1. Let V be undefined.
+        //  2. Repeat,
+        //      a. Let exprRef be ? Evaluation of Expression.
+        //      b. Let exprValue be ? GetValue(exprRef).
+        //      c. If ToBoolean(exprValue) is false, return V.
+        //      d. Let stmtResult be Completion(Evaluation of Statement).
+        //      e. If LoopContinues(stmtResult, labelSet) is false, return ? UpdateEmpty(stmtResult, V).
+        //      f. If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
+
+        // start:
+        // UNDEFINED                v
+        // top:
+        // <expression>             ref/val/err v
+        // GET_VALUE                val/err v
+        // JUMP_IF_NORMAL fwd
+        // UNWIND 1                 err
+        // JUMP exit
+        // fwd:                     val v
+        // JUMPPOP_IF_FALSE exit    v
+        // <stmt>                   val/err v
+        // LOOP_CONTINUES lsid      should_continue val/err v
+        // JUMPPOP_IF_FALSE leaving val/err v
+        // COALESCE                 v
+        // JUMP top
+        // leaving:                 val/err v
+        // UPDATE_EMPTY             val/err
+        // exit:
+
+        chunk.op(Insn::Undefined);
+        let loop_top = chunk.pos();
+        let exp_status = self.exp.compile(chunk, strict, text)?;
+        if exp_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let mut exits = vec![];
+        if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
+            let mark = chunk.op_jump(Insn::JumpIfNormal);
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            exits.push(chunk.op_jump(Insn::Jump));
+            chunk.fixup(mark).expect("jump too short to fail");
+        }
+        exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
+        let stmt_status = self.stmt.compile(chunk, strict, text)?;
+        let leaving = if stmt_status.maybe_abrupt() {
+            let label_set_id = chunk.add_to_label_set_pool(label_set)?;
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
+            Some(chunk.op_jump(Insn::JumpPopIfFalse))
+        } else {
+            None
+        };
+        chunk.op(Insn::CoalesceValue);
+        chunk.op_jump_back(Insn::Jump, loop_top)?;
+        if let Some(mark) = leaving {
+            chunk.fixup(mark).expect("jump too short to fail");
+        }
+        chunk.op(Insn::UpdateEmpty);
+        for mark in exits {
+            chunk.fixup(mark).expect("these should always be smaller than the loop back, which already was successful");
+        }
+        Ok((exp_status.maybe_abrupt() || exp_status.maybe_ref() || stmt_status.maybe_abrupt()).into())
     }
 }
 

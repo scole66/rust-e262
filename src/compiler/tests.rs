@@ -3817,6 +3817,34 @@ mod do_while_statement {
     }
 }
 
+mod while_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("while(false);", &[], false, &[] => Ok((svec(&["UNDEFINED", "FALSE", "JUMPPOP_FALSE 5", "EMPTY", "COALESCE", "JUMP -7", "UPDATE_EMPTY"]), false)); "simplest")]
+    #[test_case("while(a);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expr error")]
+    #[test_case("while(a);", &[], false, &[] => Ok((svec(&["UNDEFINED", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 7", "JUMPPOP_FALSE 5", "EMPTY", "COALESCE", "JUMP -16", "UPDATE_EMPTY"]), true)); "expr reference")]
+    #[test_case("while(a)a=!a;", &[], false, &[] => Ok((svec(&["UNDEFINED", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 28", "JUMPPOP_FALSE 26", "STRING 0 (a)", "RESOLVE", "JUMP_IF_ABRUPT 13", "STRING 0 (a)", "RESOLVE", "UNARY_NOT", "JUMP_IF_NORMAL 4", "SWAP", "POP", "JUMP 3", "POP2_PUSH3", "PUT_VALUE", "UPDATE_EMPTY", "LOOP_CONT []", "JUMPPOP_FALSE 3", "COALESCE", "JUMP -37", "UPDATE_EMPTY"]), true)); "stmt fallible")]
+    #[test_case("while(false)a;", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "stmt error")]
+    #[test_case("while(true) break bob;", &["bob"], false, &[(Fillable::LabelSet, 0)] => serr("Out of room for label sets in this compilation unit"); "lblset error")]
+    #[test_case("while(false) @@@;", &[], false, &[] => serr("out of range integral type conversion attempted"); "loop body too big to jump over")]
+    fn while_loop_compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).while_statement();
+        let mut c = complex_filled_chunk("x", what);
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.while_loop_compile(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
 mod continue_statement {
     use super::*;
     use test_case::test_case;

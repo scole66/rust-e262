@@ -222,6 +222,16 @@ mod do_while {
     }
 }
 
+#[test_case("while(false); 1" => vok(1); "runs zero")]
+#[test_case("let i=0, result=[]; while(i<10){result[i]=i;i++;} result.toString()" => vok("0,1,2,3,4,5,6,7,8,9"); "proof of iteration")]
+#[test_case("let i=0, result=''; while(i<10){result=result+i++; if (i>=5) break;}" => vok("01234"); "break works")]
+#[test_case("let i=0, result=''; while(i<10){result=result+i++;if (i%2==0)continue; result = result+'-';}" => vok("0-12-34-56-78-9"); "continue works")]
+#[test_case("let i=0,result=''; outer: while(i<10){let j=0; i++; while(j<10) {result=result+j++; if (j>i-1) continue outer;}}" => vok("0010120123012340123450123456012345670123456780123456789"); "labelled continue works")]
+fn while_statement(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}
+
 mod labelled_statement {
     use super::*;
     use test_case::test_case;
