@@ -1580,6 +1580,67 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .stack
                         .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }));
                 }
+                Insn::IteratorAccumulate => {
+                    let iterable = ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .pop()
+                            .expect("insn has 3 stack args")
+                            .expect("should not be errors"),
+                    )
+                    .expect("arg should be a value");
+                    let starting_index = ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .pop()
+                            .expect("insn has 3 stack args")
+                            .expect("should not be errors"),
+                    )
+                    .expect("arg should be a value");
+                    let array = Object::try_from(
+                        ECMAScriptValue::try_from(
+                            agent.execution_context_stack.borrow_mut()[index]
+                                .stack
+                                .pop()
+                                .expect("insn has 3 stack args")
+                                .expect("should not be errs"),
+                        )
+                        .expect("arg should be value"),
+                    )
+                    .expect("arg should be obj");
+                    let mut next_index = to_index(starting_index).expect("should be in range");
+                    match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
+                        match ir.step() {
+                            Ok(next) => match next {
+                                None => break Ok((next_index, array)),
+                                Some(next) => {
+                                    let next_value = iterator_value(&next);
+                                    match next_value {
+                                        Err(e) => break Err(e),
+                                        Ok(next_value) => {
+                                            create_data_property_or_throw(
+                                                &array,
+                                                to_string(next_index).expect("numbers should be stringable"),
+                                                next_value,
+                                            )
+                                            .expect("props should store ok");
+                                            next_index += 1;
+                                        }
+                                    }
+                                }
+                            },
+                            Err(e) => break Err(e),
+                        }
+                    }) {
+                        Ok((next_index, array)) => {
+                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(array.into()));
+                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(next_index.into()));
+                        }
+                        Err(e) => {
+                            agent.execution_context_stack.borrow_mut()[index].stack.push(Err(e));
+                        }
+                    }
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;

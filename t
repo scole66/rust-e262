@@ -123,6 +123,7 @@ test_defs[CompilerLabelledItem]="parser::labelled_statements::LabelledItem label
 test_defs[CompilerFunctionDeclaration]="parser::function_definitions::FunctionDeclaration function_declaration compiler"
 test_defs[CompilerElisions]="parser::primary_expressions::Elisions elisions compiler"
 test_defs[CompilerElementList]="parser::primary_expressions::ElementList element_list compiler"
+test_defs[CompilerSpreadElement]="parser::primary_expressions::SpreadElement spread_element compiler"
 test_defs[CompilerArrayLiteral]="parser::primary_expressions::ArrayLiteral array_literal compiler"
 test_defs[RefResult]="RefResult ref_result compiler"
 test_defs[AbruptResult]="AbruptResult abrupt_result compiler"

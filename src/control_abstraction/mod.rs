@@ -1059,7 +1059,7 @@ pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     get(iter_result, &"value".into())
 }
 
-fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
+pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
     iterator_record.step()
 }
 
