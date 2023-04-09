@@ -3099,7 +3099,7 @@ impl IterationStatement {
         match self {
             IterationStatement::DoWhile(dws) => dws.do_while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::While(ws) => ws.while_loop_compile(chunk, strict, text, label_set),
-            IterationStatement::For(_) => todo!(),
+            IterationStatement::For(f) => f.compile_for_loop(chunk, strict, text, label_set),
             IterationStatement::ForInOf(_) => todo!(),
         }
     }
@@ -3241,6 +3241,324 @@ impl DoWhileStatement {
             chunk.fixup(mark).expect("Jump too short to fail");
         }
         Ok(AbruptResult::from(expr_status.maybe_abrupt() || expr_status.maybe_ref() || stmt_status.maybe_abrupt()))
+    }
+}
+
+impl ForStatement {
+    fn compile_for_body(
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        test: Option<Rc<Expression>>,
+        increment: Option<Rc<Expression>>,
+        stmt: Rc<Statement>,
+        per_iteration_bindings: &[JSString],
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        // ForBodyEvaluation ( test, increment, stmt, perIterationBindings, labelSet )
+        // The abstract operation ForBodyEvaluation takes arguments test (an Expression Parse Node or empty),
+        // increment (an Expression Parse Node or empty), stmt (a Statement Parse Node), perIterationBindings
+        // (a List of Strings), and labelSet (a List of Strings) and returns either a normal completion
+        // containing an ECMAScript language value or an abrupt completion. It performs the following steps
+        // when called:
+        //
+        //  1. Let V be undefined.
+        //  2. Perform ? CreatePerIterationEnvironment(perIterationBindings).
+        //  3. Repeat,
+        //      a. If test is not empty, then
+        //          i. Let testRef be ? Evaluation of test.
+        //          ii. Let testValue be ? GetValue(testRef).
+        //          iii. If ToBoolean(testValue) is false, return V.
+        //      b. Let result be Completion(Evaluation of stmt).
+        //      c. If LoopContinues(result, labelSet) is false, return ? UpdateEmpty(result, V).
+        //      d. If result.[[Value]] is not empty, set V to result.[[Value]].
+        //      e. Perform ? CreatePerIterationEnvironment(perIterationBindings).
+        //      f. If increment is not empty, then
+        //          i. Let incRef be ? Evaluation of increment.
+        //          ii. Perform ? GetValue(incRef).
+
+        //    UNDEFINED                        v
+        //  --- if pib not empty ---
+        //    CPIE pib                         [empty]/err v
+        //    JUMP_IF_ABRUPT unwind
+        //    POP                              v
+        //  -- end pib not empty
+        // loop_top:                           v
+        //  --- if test is present ---
+        //    <test>                           ref/val/err v
+        //    GET_VALUE                        val/err v
+        //    JUMP_IF_ABRUPT unwind
+        //    JUMPPOP_IF_FALSE exit            v
+        //  --- end test is present ---
+        //    <stmt>                           result v
+        //    LOOP_CONTINUES label_set         true/false result v
+        //    JUMPPOP_IF_FALSE update_exit     result v
+        //    COALESCE                         v
+        //  --- if pib not empty ---
+        //    CPIE pib                         [empty]/err v
+        //    JUMP_IF_ABRUPT unwind
+        //    POP                              v
+        //  --- end pib not empty
+        //  --- if increment is present ---
+        //    <increment>                      rev/val/err v
+        //    GET_VALUE                        val/err v
+        //    JUMP_IF_ABRUPT unwind
+        //    POP                              v
+        //  --- end increment is present ---
+        //    JUMP loop_top
+        //  --- if had any jumps to "unwind"
+        // unwind:                             err v
+        //    UNWIND 1                         err
+        //    JUMP exit
+        //  --- end had any "unwind" jumps
+        // update_exit:                        result v
+        //    UPDATE_EMPTY                     result
+        // exit:                               result/err
+
+        let label_set_id = chunk.add_to_string_set_pool(label_set)?;
+        let pib_id = if per_iteration_bindings.is_empty() {
+            None
+        } else {
+            Some(chunk.add_to_string_set_pool(per_iteration_bindings)?)
+        };
+        let mut unwinds = vec![];
+        let mut exits = vec![];
+        let mut maybe_abrupt = AbruptResult::from(pib_id.is_some());
+
+        chunk.op(Insn::Undefined);
+        if let Some(pib_id) = pib_id {
+            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id);
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+            chunk.op(Insn::Pop);
+        }
+        let loop_top = chunk.pos();
+        if let Some(test) = test {
+            let status = test.compile(chunk, strict, text)?;
+            if status.maybe_ref() {
+                chunk.op(Insn::GetValue);
+            }
+            if status.maybe_ref() || status.maybe_abrupt() {
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                maybe_abrupt = AbruptResult::Maybe;
+            }
+            exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
+        }
+        let status = stmt.compile(chunk, strict, text)?;
+        if status.maybe_abrupt() {
+            maybe_abrupt = AbruptResult::Maybe;
+        }
+        chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
+        let update_exit = chunk.op_jump(Insn::JumpPopIfFalse);
+        chunk.op(Insn::CoalesceValue);
+        if let Some(pib_id) = pib_id {
+            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id);
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+            chunk.op(Insn::Pop);
+        }
+        if let Some(increment) = increment {
+            let status = increment.compile(chunk, strict, text)?;
+            if status.maybe_ref() {
+                chunk.op(Insn::GetValue);
+            }
+            if status.maybe_ref() || status.maybe_abrupt() {
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                maybe_abrupt = AbruptResult::Maybe;
+            }
+            chunk.op(Insn::Pop);
+        }
+        chunk.op_jump_back(Insn::Jump, loop_top)?;
+        if !unwinds.is_empty() {
+            for exit in unwinds {
+                chunk.fixup(exit)?;
+            }
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            exits.push(chunk.op_jump(Insn::Jump));
+        }
+        chunk.fixup(update_exit)?;
+        chunk.op(Insn::UpdateEmpty);
+        for exit in exits {
+            chunk.fixup(exit)?;
+        }
+
+        Ok(maybe_abrupt)
+    }
+
+    fn compile_for_loop(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            ForStatement::For(init, test, incr, stmt, _) => {
+                // ForStatement : for ( Expressionopt ; Expressionopt ; Expressionopt ) Statement
+                //  1. If the first Expression is present, then
+                //      a. Let exprRef be ? Evaluation of the first Expression.
+                //      b. Perform ? GetValue(exprRef).
+                //  2. If the second Expression is present, let test be the second Expression; otherwise, let
+                //     test be empty.
+                //  3. If the third Expression is present, let increment be the third Expression; otherwise,
+                //     let increment be empty.
+                //  4. Return ? ForBodyEvaluation(test, increment, Statement, « », labelSet).
+
+                // --- if init is present ---
+                //   <init>            val/ref/err
+                //   GET_VALUE         val/err
+                //   JUMP_IF_ABRUPT exit
+                //   POP
+                // --- end init is present
+                //   <for body evaluation>
+                // exit:
+                let mut maybe_abrupt = AbruptResult::Never;
+                let mut exit = None;
+
+                if let Some(init) = init {
+                    let status = init.compile(chunk, strict, text)?;
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_ref() || status.maybe_abrupt() {
+                        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                        maybe_abrupt = AbruptResult::Maybe;
+                    }
+                    chunk.op(Insn::Pop);
+                }
+                let body_status = Self::compile_for_body(
+                    chunk,
+                    strict,
+                    text,
+                    test.clone(),
+                    incr.clone(),
+                    stmt.clone(),
+                    &[],
+                    label_set,
+                )?;
+                if body_status.maybe_abrupt() {
+                    maybe_abrupt = AbruptResult::Maybe;
+                }
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+
+                Ok(maybe_abrupt)
+            }
+            ForStatement::ForVar(vdl, test, incr, stmt, _) => {
+                // ForStatement : for ( var VariableDeclarationList ; Expressionopt ; Expressionopt ) Statement
+                //  1. Perform ? Evaluation of VariableDeclarationList.
+                //  2. If the first Expression is present, let test be the first Expression; otherwise, let
+                //     test be empty.
+                //  3. If the second Expression is present, let increment be the second Expression; otherwise,
+                //     let increment be empty.
+                //  4. Return ? ForBodyEvaluation(test, increment, Statement, « », labelSet).
+                let mut maybe_abrupt = AbruptResult::Never;
+                let mut exit = None;
+                let vdl_status = vdl.compile(chunk, strict, text)?;
+                if vdl_status.maybe_abrupt() {
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    maybe_abrupt = AbruptResult::Maybe;
+                    chunk.op(Insn::Pop);
+                }
+                let body_status = Self::compile_for_body(
+                    chunk,
+                    strict,
+                    text,
+                    test.clone(),
+                    incr.clone(),
+                    stmt.clone(),
+                    &[],
+                    label_set,
+                )?;
+                if body_status.maybe_abrupt() {
+                    maybe_abrupt = AbruptResult::Maybe;
+                }
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok(maybe_abrupt)
+            }
+            ForStatement::ForLex(lexdecl, test, incr, stmt, _) => {
+                // ForStatement : for ( LexicalDeclaration Expressionopt ; Expressionopt ) Statement
+                //  1. Let oldEnv be the running execution context's LexicalEnvironment.
+                //  2. Let loopEnv be NewDeclarativeEnvironment(oldEnv).
+                //  3. Let isConst be IsConstantDeclaration of LexicalDeclaration.
+                //  4. Let boundNames be the BoundNames of LexicalDeclaration.
+                //  5. For each element dn of boundNames, do
+                //      a. If isConst is true, then
+                //          i. Perform ! loopEnv.CreateImmutableBinding(dn, true).
+                //      b. Else,
+                //          i. Perform ! loopEnv.CreateMutableBinding(dn, false).
+                //  6. Set the running execution context's LexicalEnvironment to loopEnv.
+                //  7. Let forDcl be Completion(Evaluation of LexicalDeclaration).
+                //  8. If forDcl is an abrupt completion, then
+                //      a. Set the running execution context's LexicalEnvironment to oldEnv.
+                //      b. Return ? forDcl.
+                //  9. If isConst is false, let perIterationLets be boundNames; otherwise let perIterationLets
+                //     be a new empty List.
+                //  10. If the first Expression is present, let test be the first Expression; otherwise, let
+                //      test be empty.
+                //  11. If the second Expression is present, let increment be the second Expression;
+                //      otherwise, let increment be empty.
+                //  12. Let bodyResult be Completion(ForBodyEvaluation(test, increment, Statement,
+                //      perIterationLets, labelSet)).
+                //  13. Set the running execution context's LexicalEnvironment to oldEnv.
+                //  14. Return ? bodyResult.
+
+                //   PNLE
+                // --- if isConst, for each bn ---
+                //   CSILB bn
+                // ---
+                // --- if not isConst, for each bn ---
+                //   CPMLB bn
+                // ---
+                //   <lexdecl>                forDcl/err
+                //   JUMP_IF_ABRUPT popenv
+                //   POP
+                //   <forbody>                result/err
+                // popenv:                    result/err
+                //   PLE                      result/err
+                // exit:
+
+                chunk.op(Insn::PushNewLexEnv);
+                let bound_names = lexdecl.bound_names();
+                let is_const = lexdecl.is_constant_declaration();
+                for bn in bound_names.iter() {
+                    let idx = chunk.add_to_string_pool(bn.clone())?;
+                    chunk.op_plus_arg(
+                        if is_const {
+                            Insn::CreateStrictImmutableLexBinding
+                        } else {
+                            Insn::CreatePermanentMutableLexBinding
+                        },
+                        idx,
+                    );
+                }
+                let per_iteration_lets = if is_const {
+                    &[]
+                } else {
+                    bound_names.as_slice()
+                };
+                let status = lexdecl.compile(chunk, strict, text)?;
+                let mut exit_status = AbruptResult::Never;
+                let mut popenv = None;
+                if status.maybe_abrupt() {
+                    popenv = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exit_status = AbruptResult::Maybe;
+                }
+                chunk.op(Insn::Pop);
+                let status = Self::compile_for_body(chunk, strict, text, test.clone(),
+                     incr.clone(), stmt.clone(), per_iteration_lets, label_set)?;
+                if status.maybe_abrupt() {
+                    exit_status = AbruptResult::Maybe;
+                }
+                if let Some(exit) = popenv {
+                    chunk.fixup(exit)?;
+                }
+                chunk.op(Insn::PopLexEnv);
+
+                Ok(exit_status)
+            }
+        }
     }
 }
 

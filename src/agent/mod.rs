@@ -277,21 +277,15 @@ pub fn current_variable_environment() -> Option<Rc<dyn EnvironmentRecord>> {
 pub fn current_private_environment() -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
-        match execution_context_stack.len() {
-            0 => None,
-            n => execution_context_stack[n - 1].private_environment.clone(),
-        }
+        execution_context_stack.last().and_then(|context| context.private_environment.clone())
     })
 }
 
 pub fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-        match execution_context_stack.len() {
-            0 => (),
-            n => {
-                execution_context_stack[n - 1].lexical_environment = env;
-            }
+        if let Some(context) = execution_context_stack.last_mut() {
+            context.lexical_environment = env;
         }
     })
 }
@@ -299,11 +293,8 @@ pub fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
 pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-        match execution_context_stack.len() {
-            0 => (),
-            n => {
-                execution_context_stack[n - 1].variable_environment = env;
-            }
+        if let Some(context) = execution_context_stack.last_mut() {
+            context.variable_environment = env;
         }
     })
 }
@@ -1034,9 +1025,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::CreatePerIterationEnvironment => {
                     // A 1-operand instruction that takes nothing from the stack as input, and produces one
                     // stack item ([empty]/error) on exit.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let set_idx = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
+                    let set_idx = {
+                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                        let set_idx = chunk.opcodes[ec.pc] as usize;
+                        ec.pc += 1;
+                        set_idx
+                    };
                     let string_set = &chunk.string_sets[set_idx];
                     let res = create_per_iteration_environment(string_set).map(NormalCompletion::from);
                     ec_push(res);
@@ -1546,6 +1540,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }));
                 }
                 Insn::LoopContinues => {
+                    // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
+                    // true or false on the stack.
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let set_idx = chunk.opcodes[ec.pc] as usize;
                     ec.pc += 1;
@@ -1555,8 +1551,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // 3. If completion.[[Target]] is empty, return true.
                     // 4. If completion.[[Target]] is an element of labelSet, return true.
                     // 5. Return false.
-                    let idx = ec.stack.len() - 1;
-                    let completion = &ec.stack[idx];
+                    let completion = ec.stack.last().expect("stack must have at least one item");
                     let result = match completion {
                         Ok(_) => true,
                         Err(AbruptCompletion::Continue { value: _, target: None }) => true,
