@@ -70,6 +70,7 @@ pub enum Insn {
     GetLexBinding,
     InitializeVarBinding,
     SetMutableVarBinding,
+    CreatePerIterationEnvironment,
     Object,
     Array,
     CreateDataProperty,
@@ -194,6 +195,7 @@ impl fmt::Display for Insn {
             Insn::GetLexBinding => "GLB",
             Insn::InitializeVarBinding => "IVB",
             Insn::SetMutableVarBinding => "SMVB",
+            Insn::CreatePerIterationEnvironment => "CPIE",
             Insn::Object => "OBJECT",
             Insn::Array => "ARRAY",
             Insn::CreateDataProperty => "CR_PROP",
@@ -3155,7 +3157,7 @@ impl WhileStatement {
         exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
         let stmt_status = self.stmt.compile(chunk, strict, text)?;
         let leaving = if stmt_status.maybe_abrupt() {
-            let label_set_id = chunk.add_to_label_set_pool(label_set)?;
+            let label_set_id = chunk.add_to_string_set_pool(label_set)?;
             chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
             Some(chunk.op_jump(Insn::JumpPopIfFalse))
         } else {
@@ -3197,7 +3199,7 @@ impl DoWhileStatement {
         let stmt_status = self.stmt.compile(chunk, strict, text)?;
         // Stack: stmtResult V ...
         let loop_ends = if stmt_status.maybe_abrupt() {
-            let label_set_id = chunk.add_to_label_set_pool(label_set)?;
+            let label_set_id = chunk.add_to_string_set_pool(label_set)?;
             chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
             // Stack: LCResult stmtResult V ...
             Some(chunk.op_jump(Insn::JumpPopIfFalse))

@@ -1331,3 +1331,151 @@ mod current_script_or_module {
         assert!(matches!(som, Some(ScriptOrModule::Script(_))));
     }
 }
+
+#[allow(clippy::type_complexity)]
+mod create_per_iteration_environment {
+    use super::*;
+    use test_case::test_case;
+
+    // So this function takes an existing DER and a set of names, makes a new DER with those names and the
+    // values from the previous DER (which becomes the new DER's outer).
+    //
+    // Testing this means:
+    //  * Set up an environment with some set of bindings.
+    //  * Call the function with names
+    //  * Validate that the environment coming back (the new "current lexical environment")
+    //    * has the previous environment as its outer
+    //    * that none of that outer's bindings has changed
+    //    * has bindings according to the input names, with the same values as the outer
+    //    * has no other bindings
+
+    fn s(s: &str) -> String {
+        s.to_string()
+    }
+
+    #[test_case(AHashSet::new
+        => Ok((
+            s("prior_env"),
+            vec![(s("a"), s("alpha")), (s("b"), s("beta")), (s("c"), s("gamma")), (s("uninitialized"), s("error on get"))],
+            s("outer_env"),
+            vec![],
+            s("prior_env"),
+            vec![(s("a"), s("alpha")), (s("b"), s("beta")), (s("c"), s("gamma")), (s("uninitialized"), s("error on get"))],
+        ))
+        ; "empty")]
+    #[test_case(|| {
+            let mut set = AHashSet::new();
+            set.insert(JSString::from("a"));
+            set.insert(JSString::from("b"));
+            set
+        }
+        => Ok((
+            s("per-iter"),
+            vec![(s("a"), s("alpha")), (s("b"), s("beta"))],
+            s("outer_env"),
+            vec![],
+            s("prior_env"),
+            vec![(s("a"), s("alpha")), (s("b"), s("beta")), (s("c"), s("gamma")), (s("uninitialized"), s("error on get"))],
+        ))
+        ; "reasonable")]
+    #[test_case(|| {
+            let mut set = AHashSet::new();
+            set.insert(JSString::from("a"));
+            set.insert(JSString::from("uninitialized"));
+            set
+        }
+        => serr("ReferenceError: Binding not initialized")
+        ; "asking for unitialized binding")]
+    fn call(
+        make_strings: impl FnOnce() -> AHashSet<JSString>,
+    ) -> Result<(String, Vec<(String, String)>, String, Vec<(String, String)>, String, Vec<(String, String)>), String>
+    {
+        // value on output:
+        // (name-of-env, Vec of (name, value) for env, name-of-outer, Vec of (name, value) for outer, name-of-prior, Vec of (name, value) for prior)
+        // all vecs are sorted for test stability.
+        setup_test_agent();
+        let outer = DeclarativeEnvironmentRecord::new(None, "outer_env");
+        let prior = DeclarativeEnvironmentRecord::new(Some(Rc::new(outer)), "prior_env");
+        prior.create_mutable_binding("a".into(), true).unwrap();
+        prior.initialize_binding(&"a".into(), "alpha".into()).unwrap();
+        prior.create_mutable_binding("b".into(), true).unwrap();
+        prior.initialize_binding(&"b".into(), "beta".into()).unwrap();
+        prior.create_mutable_binding("c".into(), true).unwrap();
+        prior.initialize_binding(&"c".into(), "gamma".into()).unwrap();
+        prior.create_mutable_binding("uninitialized".into(), true).unwrap();
+        let prior: Rc<dyn EnvironmentRecord> = Rc::new(prior);
+        let prior_copy = prior.clone();
+        AGENT.with(|agent| {
+            let mut ec_stack = agent.execution_context_stack.borrow_mut();
+            let running_execution_context = ec_stack.last_mut().unwrap();
+            running_execution_context.lexical_environment = Some(prior_copy);
+        });
+        let strings = make_strings();
+
+        create_per_iteration_environment(&strings).map_err(unwind_any_error)?;
+
+        let current_lexical_env = AGENT.with(|agent| {
+            let ec_stack = agent.execution_context_stack.borrow();
+            let running_execution_context = ec_stack.last().unwrap();
+            running_execution_context.lexical_environment.as_ref().unwrap().clone()
+        });
+
+        // (name-of-env, Vec of (name, value) for env, name-of-outer, Vec of (name, value) for outer)
+        let name_of_env = current_lexical_env.name();
+        let mut bindings = current_lexical_env
+            .binding_names()
+            .into_iter()
+            .map(|name| {
+                let value = String::from(
+                    JSString::try_from(
+                        current_lexical_env
+                            .get_binding_value(&name, true)
+                            .unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
+                    )
+                    .unwrap(),
+                );
+                (String::from(name), value)
+            })
+            .collect::<Vec<_>>();
+        bindings.sort_unstable();
+
+        let outer = current_lexical_env.get_outer_env().as_ref().cloned();
+        let outer_name = outer.as_ref().map(|e| e.name()).unwrap_or_else(String::new);
+        let mut outer_bindings = outer
+            .map(|e| {
+                e.binding_names()
+                    .into_iter()
+                    .map(|name| {
+                        let value = String::from(
+                            JSString::try_from(
+                                e.get_binding_value(&name, true)
+                                    .unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
+                            )
+                            .unwrap(),
+                        );
+                        (String::from(name), value)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(Vec::new);
+        outer_bindings.sort_unstable();
+
+        let prior_name = prior.name();
+        let mut prior_bindings = prior
+            .binding_names()
+            .into_iter()
+            .map(|name| {
+                let value = String::from(
+                    JSString::try_from(
+                        prior.get_binding_value(&name, true).unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
+                    )
+                    .unwrap(),
+                );
+                (String::from(name), value)
+            })
+            .collect::<Vec<_>>();
+        prior_bindings.sort_unstable();
+
+        Ok((name_of_env, bindings, outer_name, outer_bindings, prior_name, prior_bindings))
+    }
+}

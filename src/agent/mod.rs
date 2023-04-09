@@ -1,4 +1,5 @@
 use super::*;
+use ahash::AHashSet;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
@@ -1030,6 +1031,16 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("SetMutableVarBinding's stack arg must be a value");
                     env.set_mutable_binding(name.clone(), value, false).expect("error free execution");
                 }
+                Insn::CreatePerIterationEnvironment => {
+                    // A 1-operand instruction that takes nothing from the stack as input, and produces one
+                    // stack item ([empty]/error) on exit.
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let set_idx = chunk.opcodes[ec.pc] as usize;
+                    ec.pc += 1;
+                    let string_set = &chunk.string_sets[set_idx];
+                    let res = create_per_iteration_environment(string_set).map(NormalCompletion::from);
+                    ec_push(res);
+                }
                 Insn::ExtractThrownValue => {
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                     let errval = {
@@ -1538,7 +1549,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let set_idx = chunk.opcodes[ec.pc] as usize;
                     ec.pc += 1;
-                    let label_set = &chunk.label_sets[set_idx];
+                    let label_set = &chunk.string_sets[set_idx];
                     // 1. If completion.[[Type]] is normal, return true.
                     // 2. If completion.[[Type]] is not continue, return false.
                     // 3. If completion.[[Target]] is empty, return true.
@@ -2751,6 +2762,57 @@ pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow
             Err(_) => BigInt::zero(),
         })
     }
+}
+
+/// Create a per-iteration environment for bindings in for loops
+///
+/// In `for (let ...)` loops, a new declarative environment is created for each iteration of the loop. This
+/// essentially gives any closures created during the loop body different copies of the loop index. This
+/// routine is the way that happens, copying any of the "control" variables from the prior environment over.
+///
+/// See [CreatePerIterationEnvironment](https://tc39.es/ecma262/#sec-createperiterationenvironment) in
+/// ECMA-262.
+pub fn create_per_iteration_environment(per_iteration_bindings: &AHashSet<JSString>) -> Completion<()> {
+    // CreatePerIterationEnvironment ( perIterationBindings )
+    // The abstract operation CreatePerIterationEnvironment takes argument perIterationBindings (a List of
+    // Strings) and returns either a normal completion containing unused or a throw completion. It performs
+    // the following steps when called:
+    //
+    //  1. If perIterationBindings has any elements, then
+    //      a. Let lastIterationEnv be the running execution context's LexicalEnvironment.
+    //      b. Let outer be lastIterationEnv.[[OuterEnv]].
+    //      c. Assert: outer is not null.
+    //      d. Let thisIterationEnv be NewDeclarativeEnvironment(outer).
+    //      e. For each element bn of perIterationBindings, do
+    //          i. Perform ! thisIterationEnv.CreateMutableBinding(bn, false).
+    //          ii. Let lastValue be ? lastIterationEnv.GetBindingValue(bn, true).
+    //          iii. Perform ! thisIterationEnv.InitializeBinding(bn, lastValue).
+    //      f. Set the running execution context's LexicalEnvironment to thisIterationEnv.
+    //  2. Return unused.
+    if !per_iteration_bindings.is_empty() {
+        let last_iteration_env = AGENT.with(|agent| {
+            let ec_stack = agent.execution_context_stack.borrow();
+            let running_execution_context = ec_stack.last().expect("There should be running code");
+            running_execution_context
+                .lexical_environment
+                .as_ref()
+                .expect("There should be a lexical environment")
+                .clone()
+        });
+        let outer = last_iteration_env.get_outer_env().as_ref().expect("There should be an outer environent").clone();
+        let this_iteration_env = DeclarativeEnvironmentRecord::new(Some(outer), "per-iter");
+        for bn in per_iteration_bindings {
+            this_iteration_env.create_mutable_binding(bn.clone(), false).expect("binding creation should succeed");
+            let last_value = last_iteration_env.get_binding_value(bn, true)?;
+            this_iteration_env.initialize_binding(bn, last_value).expect("binding initialization should succeed");
+        }
+        AGENT.with(|agent| {
+            let mut ec_stack = agent.execution_context_stack.borrow_mut();
+            let running_execution_context = ec_stack.last_mut().expect("There should be running code");
+            running_execution_context.lexical_environment = Some(Rc::new(this_iteration_env));
+        });
+    }
+    Ok(())
 }
 
 #[cfg(test)]
