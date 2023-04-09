@@ -23,7 +23,7 @@ pub struct Chunk {
     pub opcodes: Vec<Opcode>,
     pub floats: Vec<f64>,
     pub bigints: Vec<Rc<BigInt>>,
-    pub label_sets: Vec<AHashSet<JSString>>,
+    pub string_sets: Vec<AHashSet<JSString>>,
     pub function_object_data: Vec<StashedFunctionData>,
 }
 
@@ -44,9 +44,9 @@ impl Chunk {
         Self::add_to_pool(&mut self.bigints, n, "big ints")
     }
 
-    pub fn add_to_label_set_pool(&mut self, labels: &[JSString]) -> anyhow::Result<u16> {
-        let label_set = labels.iter().cloned().collect::<AHashSet<JSString>>();
-        Self::add_to_pool(&mut self.label_sets, label_set, "label sets")
+    pub fn add_to_string_set_pool(&mut self, strings: &[JSString]) -> anyhow::Result<u16> {
+        let label_set = strings.iter().cloned().collect::<AHashSet<JSString>>();
+        Self::add_to_pool(&mut self.string_sets, label_set, "string sets")
     }
 
     fn add_to_pool<Item>(collection: &mut Vec<Item>, item: Item, collection_name: &str) -> anyhow::Result<u16>
@@ -255,11 +255,11 @@ impl Chunk {
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))
             }
-            Insn::LoopContinues => {
-                let label_set_idx = self.opcodes[idx] as usize;
-                let mut label_set = self.label_sets[label_set_idx].iter().collect::<Vec<&JSString>>();
-                label_set.sort();
-                (2, format!("    {:<20}[{}]", insn, label_set.iter().join(", ")))
+            Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
+                let string_set_idx = self.opcodes[idx] as usize;
+                let mut string_set = self.string_sets[string_set_idx].iter().collect::<Vec<&JSString>>();
+                string_set.sort();
+                (2, format!("    {:<20}[{}]", insn, string_set.iter().join(", ")))
             }
         }
     }

@@ -71,16 +71,16 @@ mod chunk {
 
     #[test_case(&[&["bob"]] => (vec![0], vec![sset(&["bob"])]); "one item")]
     #[test_case(&[&["green", "red"], &["blue"], &["red", "green"]] => (vec![0, 1, 0], vec![sset(&["green", "red"]), sset(&["blue"])]); "with duplicate")]
-    fn add_to_label_set_pool(inputs: &[&[&str]]) -> (Vec<u16>, Vec<AHashSet<String>>) {
+    fn add_to_string_set_pool(inputs: &[&[&str]]) -> (Vec<u16>, Vec<AHashSet<String>>) {
         let mut c = Chunk::new("test");
         let mut results = vec![];
         for item in inputs {
             let labels = item.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-            results.push(c.add_to_label_set_pool(&labels).unwrap());
+            results.push(c.add_to_string_set_pool(&labels).unwrap());
         }
         (
             results,
-            c.label_sets
+            c.string_sets
                 .iter()
                 .cloned()
                 .map(|labelset| labelset.into_iter().map(String::from).collect::<AHashSet<String>>())
@@ -122,14 +122,14 @@ mod chunk {
         }
 
         #[test]
-        fn too_many_label_sets() {
+        fn too_many_string_sets() {
             let mut c = Chunk::new("too much");
-            c.label_sets = Vec::<AHashSet<JSString>>::with_capacity(65536);
+            c.string_sets = Vec::<AHashSet<JSString>>::with_capacity(65536);
             for _ in 0..65536 {
-                c.label_sets.push(AHashSet::<JSString>::new());
+                c.string_sets.push(AHashSet::<JSString>::new());
             }
-            let res = c.add_to_label_set_pool(&[JSString::from("bob")]).unwrap_err();
-            assert_eq!(res.to_string(), "Out of room for label sets in this compilation unit");
+            let res = c.add_to_string_set_pool(&[JSString::from("bob")]).unwrap_err();
+            assert_eq!(res.to_string(), "Out of room for string sets in this compilation unit");
         }
     }
 
@@ -349,7 +349,7 @@ mod chunk {
         let bigint_idx = c.add_to_bigint_pool(Rc::new(BigInt::from(93939))).unwrap();
         let float_idx = c.add_to_float_pool(78.2).unwrap();
         let ls_idx = c
-            .add_to_label_set_pool(&[JSString::from("beta"), JSString::from("zeta"), JSString::from("alpha")])
+            .add_to_string_set_pool(&[JSString::from("beta"), JSString::from("zeta"), JSString::from("alpha")])
             .unwrap();
         c.op_plus_arg(Insn::String, string_idx);
         c.op_plus_arg(Insn::Float, float_idx);

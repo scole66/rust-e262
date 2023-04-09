@@ -92,6 +92,7 @@ mod insn {
     #[test_case(Insn::CreateStrictImmutableLexBinding => "CSILB"; "CreateStrictImmutableLexBinding instruction")]
     #[test_case(Insn::CreatePermanentMutableLexBinding => "CPMLB"; "CreatePermanentMutableLexBinding instruction")]
     #[test_case(Insn::InitializeLexBinding => "ILB"; "InitializeLexBinding instruction")]
+    #[test_case(Insn::CreatePerIterationEnvironment => "CPIE"; "CreatePerIterationEnvironment instruction")]
     #[test_case(Insn::JumpPopIfTrue => "JUMPPOP_TRUE"; "JumpPopIfTrue instruction")]
     #[test_case(Insn::JumpPopIfFalse => "JUMPPOP_FALSE"; "JumpPopIfFalse instruction")]
     #[test_case(Insn::HandleEmptyBreak => "HEB"; "HandleEmptyBreak instruction")]
@@ -569,7 +570,7 @@ fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
-    c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
+    c.string_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
     c
 }
 
@@ -578,7 +579,7 @@ enum Fillable {
     Float,
     String,
     BigInt,
-    LabelSet,
+    StringSet,
     FunctionStash,
 }
 fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
@@ -589,9 +590,9 @@ fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
             Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0),
             Fillable::String => c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler")),
             Fillable::BigInt => c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783))),
-            Fillable::LabelSet => {
+            Fillable::StringSet => {
                 let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
-                c.label_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
+                c.string_sets.resize(LIMIT - slots_left.min(LIMIT), sample);
             }
             Fillable::FunctionStash => {
                 let src = "function (a, b) { return a + b; }";
@@ -3764,7 +3765,7 @@ mod do_while_statement {
         "JUMP 1",
         "UPDATE_EMPTY",
     ]), true, false)); "abrubt statement possible")]
-    #[test_case("do break; while(false);", &["a"], true, Some(0) => serr("Out of room for label sets in this compilation unit"); "label store fails")]
+    #[test_case("do break; while(false);", &["a"], true, Some(0) => serr("Out of room for string sets in this compilation unit"); "label store fails")]
     #[test_case("do ; while(a);", &[], true, Some(0) => serr("Out of room for strings in this compilation unit"); "expr compilation fails")]
     #[test_case("do p; while(a);", &[], false, None => Ok((svec(&[
         "UNDEFINED",
@@ -3834,7 +3835,7 @@ mod while_statement {
     #[test_case("while(a);", &[], false, &[] => Ok((svec(&["UNDEFINED", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 7", "JUMPPOP_FALSE 5", "EMPTY", "COALESCE", "JUMP -16", "UPDATE_EMPTY"]), true)); "expr reference")]
     #[test_case("while(a)a=!a;", &[], false, &[] => Ok((svec(&["UNDEFINED", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 28", "JUMPPOP_FALSE 26", "STRING 0 (a)", "RESOLVE", "JUMP_IF_ABRUPT 13", "STRING 0 (a)", "RESOLVE", "UNARY_NOT", "JUMP_IF_NORMAL 4", "SWAP", "POP", "JUMP 3", "POP2_PUSH3", "PUT_VALUE", "UPDATE_EMPTY", "LOOP_CONT []", "JUMPPOP_FALSE 3", "COALESCE", "JUMP -37", "UPDATE_EMPTY"]), true)); "stmt fallible")]
     #[test_case("while(false)a;", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "stmt error")]
-    #[test_case("while(true) break bob;", &["bob"], false, &[(Fillable::LabelSet, 0)] => serr("Out of room for label sets in this compilation unit"); "lblset error")]
+    #[test_case("while(true) break bob;", &["bob"], false, &[(Fillable::StringSet, 0)] => serr("Out of room for string sets in this compilation unit"); "lblset error")]
     #[test_case("while(false) @@@;", &[], false, &[] => serr("out of range integral type conversion attempted"); "loop body too big to jump over")]
     fn while_loop_compile(
         src: &str,
