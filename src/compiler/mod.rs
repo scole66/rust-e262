@@ -3244,6 +3244,7 @@ impl DoWhileStatement {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl ForStatement {
     fn compile_for_body(
         chunk: &mut Chunk,
@@ -3533,11 +3534,7 @@ impl ForStatement {
                         idx,
                     );
                 }
-                let per_iteration_lets = if is_const {
-                    &[]
-                } else {
-                    bound_names.as_slice()
-                };
+                let per_iteration_lets = if is_const { &[] } else { bound_names.as_slice() };
                 let status = lexdecl.compile(chunk, strict, text)?;
                 let mut exit_status = AbruptResult::Never;
                 let mut popenv = None;
@@ -3546,8 +3543,16 @@ impl ForStatement {
                     exit_status = AbruptResult::Maybe;
                 }
                 chunk.op(Insn::Pop);
-                let status = Self::compile_for_body(chunk, strict, text, test.clone(),
-                     incr.clone(), stmt.clone(), per_iteration_lets, label_set)?;
+                let status = Self::compile_for_body(
+                    chunk,
+                    strict,
+                    text,
+                    test.clone(),
+                    incr.clone(),
+                    stmt.clone(),
+                    per_iteration_lets,
+                    label_set,
+                )?;
                 if status.maybe_abrupt() {
                     exit_status = AbruptResult::Maybe;
                 }
