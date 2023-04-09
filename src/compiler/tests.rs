@@ -3877,138 +3877,304 @@ mod for_statement {
         "COALESCE",
         "JUMP -4"
     ]), false)); "for, infinite, infallible init")]
-    #[test_case("for(a;;);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for, init compile fail")]
-    #[test_case("for(a;;);", &[], false, &[] => Ok((svec(&[
-        "STRING 0 (a)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_ABRUPT 6",
-        "POP",
-        "UNDEFINED",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -4"
-    ]), true)); "for, init fallible")]
-    #[test_case("for(;;)a;", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for, stmt compile fail")]
-    #[test_case("for(;;)break;", &[], false, &[] => Ok((svec(&[
-        "UNDEFINED",
-        "BREAK",
-        "LOOP_CONT []",
-        "JUMPPOP_FALSE 3",
-        "COALESCE",
-        "JUMP -8",
-        "UPDATE_EMPTY"
-    ]), true)); "for, stmt fallible")]
-    #[test_case("for(a;;)@@4;", &[], false, &[] => serr("out of range integral type conversion attempted"); "for, abort from init too long")]
-    #[test_case("for(var a;;);", &[], false, &[] => Ok((svec(&[
-        "EMPTY",
-        "POP",
-        "UNDEFINED",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -4"
-    ]), false)); "for-var")]
-    #[test_case("for(var a=b;;);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for-var, vdl compile fails")]
-    #[test_case("for(var a=b;;);", &[], false, &[] => Ok((svec(&[
-        "STRING 0 (a)",
-        "RESOLVE",
-        "JUMP_IF_ABRUPT 11",
-        "STRING 1 (b)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
-        "PUT_VALUE",
-        "JUMP_IF_ABRUPT 6",
-        "POP",
-        "UNDEFINED",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -4"
-    ]), true)); "for-var, vdl fallible")]
-    #[test_case("for(var a;;)101;", &[], false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "for-var, loop body compile fails")]
-    #[test_case("for(var a;;)break;", &[], false, &[] => Ok((svec(&[
-        "EMPTY",
-        "POP",
-        "UNDEFINED",
-        "BREAK",
-        "LOOP_CONT []",
-        "JUMPPOP_FALSE 3",
-        "COALESCE",
-        "JUMP -8",
-        "UPDATE_EMPTY"
-    ]), true)); "for-var, fallible body")]
-    #[test_case("for(var a=b;;)@@4;", &[], false, &[] => serr("out of range integral type conversion attempted"); "for-var init escape too far")]
-    #[test_case("for(let i=0;;);", &[], false, &[] => Ok((svec(&[
-        "PNLE",
-        "CPMLB 0 (i)",
-        "STRING 0 (i)",
-        "RESOLVE",
-        "FLOAT 0 (0)",
-        "IRB",
-        "JUMP_IF_ABRUPT 2",
-        "POP",
-        "EMPTY",
-        "JUMP_IF_ABRUPT 18",
-        "POP",
-        "UNDEFINED",
-        "CPIE [i]",
-        "JUMP_IF_ABRUPT 10",
-        "POP",
-        "EMPTY",
-        "COALESCE",
-        "CPIE [i]",
-        "JUMP_IF_ABRUPT 3",
-        "POP",
-        "JUMP -9",
-        "UNWIND 1",
-        "PLE"
-    ]), true)); "for-let")]
-    #[test_case("for(let i=0;;);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for-let; initial string stash fails")]
-    #[test_case("for(const a=1;;);", &[], false, &[] => Ok((svec(&[
-        "PNLE",
-        "CSILB 0 (a)",
-        "STRING 0 (a)",
-        "RESOLVE",
-        "FLOAT 0 (1)",
-        "IRB",
-        "JUMP_IF_ABRUPT 2",
-        "POP",
-        "EMPTY",
-        "JUMP_IF_ABRUPT 6",
-        "POP",
-        "UNDEFINED",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -4",
-        "PLE"
-    ]), true)); "for-let const form")]
-    #[test_case("for(const a=1;;);", &[], false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "for-let init compile fails")]
-    #[test_case("for(let a=0;;)8n;", &[], false, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "for-let body compile fails")]
-    #[test_case("for(const a=0;;)@@4;", &[], false, &[] => serr("out of range integral type conversion attempted"); "for-let init error jump too big")]
-    #[test_case("for(let a=0;;);", &[], false, &[(Fillable::StringSet, 0)] => serr("Out of room for string sets in this compilation unit"); "body-set-pool filled")]
-    #[test_case("for(;true;);", &[], false, &[] => Ok((svec(&[
-        "UNDEFINED",
-        "TRUE",
-        "JUMPPOP_FALSE 4",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -7"
-    ]), false)); "body: infallible test")]
-    #[test_case("for(;a;);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "body test compilation fails")]
-    #[test_case("for(;a;);", &[], false, &[] => Ok((svec(&[
-        "UNDEFINED",
-        "STRING 0 (a)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_ABRUPT 6",
-        "JUMPPOP_FALSE 6",
-        "EMPTY",
-        "COALESCE",
-        "JUMP -12",
-        "UNWIND 1"
-    ]), true)); "body test is ref")]
+    #[test_case("for(a;;);", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "for, init compile fail")]
+    #[test_case("for(a;;);", &[], false, &[]
+                => Ok((svec(&[
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "GET_VALUE",
+                    "JUMP_IF_ABRUPT 6",
+                    "POP",
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -4"
+                ]), true))
+                ; "for, init fallible")]
+    #[test_case("for(;;)a;", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "for, stmt compile fail")]
+    #[test_case("for(;;)break;", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "BREAK",
+                    "LOOP_CONT []",
+                    "JUMPPOP_FALSE 3",
+                    "COALESCE",
+                    "JUMP -8",
+                    "UPDATE_EMPTY"
+                ]), true))
+                ; "for, stmt fallible")]
+    #[test_case("for(a;;)@@4;", &[], false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "for, abort from init too long")]
+    #[test_case("for(var a;;);", &[], false, &[]
+                => Ok((svec(&[
+                    "EMPTY",
+                    "POP",
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -4"
+                ]), false))
+                ; "for-var")]
+    #[test_case("for(var a=b;;);", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "for-var, vdl compile fails")]
+    #[test_case("for(var a=b;;);", &[], false, &[]
+                => Ok((svec(&[
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "JUMP_IF_ABRUPT 11",
+                    "STRING 1 (b)",
+                    "RESOLVE",
+                    "GET_VALUE",
+                    "JUMP_IF_NORMAL 4",
+                    "UNWIND 1",
+                    "JUMP 1",
+                    "PUT_VALUE",
+                    "JUMP_IF_ABRUPT 6",
+                    "POP",
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -4"
+                ]), true))
+                ; "for-var, vdl fallible")]
+    #[test_case("for(var a;;)101;", &[], false, &[(Fillable::Float, 0)]
+                => serr("Out of room for floats in this compilation unit")
+                ; "for-var, loop body compile fails")]
+    #[test_case("for(var a;;)break;", &[], false, &[]
+                => Ok((svec(&[
+                    "EMPTY",
+                    "POP",
+                    "UNDEFINED",
+                    "BREAK",
+                    "LOOP_CONT []",
+                    "JUMPPOP_FALSE 3",
+                    "COALESCE",
+                    "JUMP -8",
+                    "UPDATE_EMPTY"
+                ]), true))
+                ; "for-var, fallible body")]
+    #[test_case("for(var a=b;;)@@4;", &[], false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "for-var init escape too far")]
+    #[test_case("for(let i=0;;);", &[], false, &[]
+                => Ok((svec(&[
+                    "PNLE",
+                    "CPMLB 0 (i)",
+                    "STRING 0 (i)",
+                    "RESOLVE",
+                    "FLOAT 0 (0)",
+                    "IRB",
+                    "JUMP_IF_ABRUPT 2",
+                    "POP",
+                    "EMPTY",
+                    "JUMP_IF_ABRUPT 18",
+                    "POP",
+                    "UNDEFINED",
+                    "CPIE [i]",
+                    "JUMP_IF_ABRUPT 10",
+                    "POP",
+                    "EMPTY",
+                    "COALESCE",
+                    "CPIE [i]",
+                    "JUMP_IF_ABRUPT 3",
+                    "POP",
+                    "JUMP -9",
+                    "UNWIND 1",
+                    "PLE"
+                ]), true))
+                ; "for-let")]
+    #[test_case("for(let i=0;;);", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "for-let; initial string stash fails")]
+    #[test_case("for(const a=1;;);", &[], false, &[]
+                => Ok((svec(&[
+                    "PNLE",
+                    "CSILB 0 (a)",
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "FLOAT 0 (1)",
+                    "IRB",
+                    "JUMP_IF_ABRUPT 2",
+                    "POP",
+                    "EMPTY",
+                    "JUMP_IF_ABRUPT 6",
+                    "POP",
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -4",
+                    "PLE"
+                ]), true));
+                "for-let const form")]
+    #[test_case("for(const a=1;;);", &[], false, &[(Fillable::Float, 0)]
+                => serr("Out of room for floats in this compilation unit")
+                ; "for-let init compile fails")]
+    #[test_case("for(let a=0;;)8n;", &[], false, &[(Fillable::BigInt, 0)]
+                => serr("Out of room for big ints in this compilation unit")
+                ; "for-let body compile fails")]
+    #[test_case("for(const a=0;;)@@4;", &[], false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "for-let init error jump too big")]
+    #[test_case("for(let a=0;;);", &[], false, &[(Fillable::StringSet, 0)]
+                => serr("Out of room for string sets in this compilation unit")
+                ; "body-set-pool filled")]
+    #[test_case("for(;true;);", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "TRUE",
+                    "JUMPPOP_FALSE 4",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -7"
+                ]), false))
+                ; "body: infallible test")]
+    #[test_case("for(;a;);", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "body test compilation fails")]
+    #[test_case("for(;a;);", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "GET_VALUE",
+                    "JUMP_IF_ABRUPT 6",
+                    "JUMPPOP_FALSE 6",
+                    "EMPTY",
+                    "COALESCE",
+                    "JUMP -12",
+                    "UNWIND 1"
+                ]), true))
+                ; "body test is ref")]
+    #[test_case("for(;;)break;", &["lbl"], false, &[(Fillable::StringSet, 0)]
+                => serr("Out of room for string sets in this compilation unit")
+                ; "body no room for label sets")]
+    #[test_case("for(;;a);", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "GET_VALUE",
+                    "JUMP_IF_ABRUPT 3",
+                    "POP",
+                    "JUMP -11",
+                    "UNWIND 1"
+                ]), true))
+                ; "body - increment")]
+    #[test_case("for(;;a);", &[], false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "body - increment compilation fails")]
+    #[test_case("for(;;a++);", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "STRING 0 (a)",
+                    "RESOLVE",
+                    "DUP",
+                    "GET_VALUE",
+                    "JUMP_IF_NORMAL 4",
+                    "SWAP",
+                    "POP",
+                    "JUMP 11",
+                    "TO_NUMERIC",
+                    "JUMP_IF_NORMAL 4",
+                    "SWAP",
+                    "POP",
+                    "JUMP 4",
+                    "POP2_PUSH3",
+                    "INCREMENT",
+                    "PUT_VALUE",
+                    "UPDATE_EMPTY",
+                    "JUMP_IF_ABRUPT 3",
+                    "POP",
+                    "JUMP -29",
+                    "UNWIND 1"
+                ]), true))
+                ; "body - increment not a ref")]
+    #[test_case("for(;;true);", &[], false, &[]
+                => Ok((svec(&[
+                    "UNDEFINED",
+                    "EMPTY",
+                    "COALESCE",
+                    "TRUE",
+                    "POP",
+                    "JUMP -6"
+                ]), false))
+                ; "body - increment infallible")]
+    #[test_case("for(;;@@@);", &[], false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "body - loop back too large")]
+    #[test_case("for(let x=0; x<10; x++) { @@9; }", &[], false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "body - unwind jump too large")]
+    #[test_case("for(let x=0; x < 10; x++) { break able; }", &[], false, &[]
+                => Ok((svec(&[
+                    "PNLE",
+                    "CPMLB 0 (x)",
+                    "STRING 0 (x)",
+                    "RESOLVE",
+                    "FLOAT 0 (0)",
+                    "IRB",
+                    "JUMP_IF_ABRUPT 2",
+                    "POP",
+                    "EMPTY",
+                    "JUMP_IF_ABRUPT 66",
+                    "POP",
+                    "UNDEFINED",
+                    "CPIE [x]",
+                    "JUMP_IF_ABRUPT 55",
+                    "POP",
+                    "STRING 0 (x)",
+                    "RESOLVE",
+                    "GET_VALUE",
+                    "JUMP_IF_ABRUPT 3",
+                    "FLOAT 1 (10)",
+                    "LT",
+                    "JUMP_IF_ABRUPT 43",
+                    "JUMPPOP_FALSE 46",
+                    "PNLE",
+                    "BREAK_FROM 1 (able)",
+                    "PLE",
+                    "LOOP_CONT []",
+                    "JUMPPOP_FALSE 37",
+                    "COALESCE",
+                    "CPIE [x]",
+                    "JUMP_IF_ABRUPT 28",
+                    "POP",
+                    "STRING 0 (x)",
+                    "RESOLVE",
+                    "DUP",
+                    "GET_VALUE",
+                    "JUMP_IF_NORMAL 4",
+                    "SWAP",
+                    "POP",
+                    "JUMP 11",
+                    "TO_NUMERIC",
+                    "JUMP_IF_NORMAL 4",
+                    "SWAP",
+                    "POP",
+                    "JUMP 4",
+                    "POP2_PUSH3",
+                    "INCREMENT",
+                    "PUT_VALUE",
+                    "UPDATE_EMPTY",
+                    "JUMP_IF_ABRUPT 3",
+                    "POP",
+                    "JUMP -54",
+                    "UNWIND 1",
+                    "JUMP 1",
+                    "UPDATE_EMPTY",
+                    "PLE"
+                ]), true))
+                ; "body - all the exit types")]
     fn compile(
         src: &str,
         labels: &[&str],

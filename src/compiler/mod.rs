@@ -867,6 +867,13 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
             }
             chunk.op(Insn::False);
         }
+        '9' => {
+            // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
+            for _ in 0..32768 - 50 {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
         '!' => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
@@ -3386,11 +3393,11 @@ impl ForStatement {
             }
         }
         if let Some(exit) = update_exit {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).expect("This jump should always be shorter than the jump back");
             chunk.op(Insn::UpdateEmpty);
         }
         for exit in exits {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).expect("This jump should be shorter than the loop back or the unwind jump");
         }
 
         Ok(maybe_abrupt)
