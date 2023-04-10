@@ -1152,11 +1152,48 @@ mod call_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a()", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "call-expression; strict")]
-    #[test_case("a()", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "call-expression; non-strict")]
+    #[test_case("a()", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]), true, false)); "call-expression; strict")]
+    #[test_case("a()", false, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]), true, false)); "call-expression; non-strict")]
     #[test_case("super()", true, None => panics "not yet implemented"; "super call")]
     #[test_case("import(a)", true, None => panics "not yet implemented"; "import call")]
-    #[test_case("a()()", true, None => panics "not yet implemented"; "call-on-call")]
+    #[test_case("a()()", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "call-on-call")]
     #[test_case("a()[b]", true, None => panics "not yet implemented"; "expr-on-call")]
     #[test_case("a().b", true, None => panics "not yet implemented"; "property-on-call")]
     #[test_case("a()`${b}`", true, None => panics "not yet implemented"; "template-on-call")]

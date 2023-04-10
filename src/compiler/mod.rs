@@ -1813,7 +1813,35 @@ impl CallExpression {
             }
             CallExpression::SuperCall(_) => todo!(),
             CallExpression::ImportCall(_) => todo!(),
-            CallExpression::CallExpressionArguments(_, _) => todo!(),
+            CallExpression::CallExpressionArguments(ce, args) => {
+                // CallExpression : CallExpression Arguments
+                //  1. Let ref be ? Evaluation of CallExpression.
+                //  2. Let func be ? GetValue(ref).
+                //  3. Let thisCall be this CallExpression.
+                //  4. Let tailCall be IsInTailPosition(thisCall).
+                //  5. Return ? EvaluateCall(func, ref, Arguments, tailCall).
+
+                //    <callexpression>       ref/err
+                //    DUP                    ref/err ref/err
+                //    GET_VALUE              val/err ref/err
+                //    JUMP_IF_ABRUPT unwind
+                //    <compile_call>         val/err
+                //    JUMP exit
+                // unwind:
+                //    UNWIND 1               err
+                // exit:
+
+                ce.compile(chunk, strict, text)?;
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetValue);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                compile_call(chunk, strict, text, args)?;
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult.into())
+            }
             CallExpression::CallExpressionExpression(_, _, _) => todo!(),
             CallExpression::CallExpressionIdentifierName(_, _, _) => todo!(),
             CallExpression::CallExpressionTemplateLiteral(_, _) => todo!(),
@@ -1822,10 +1850,64 @@ impl CallExpression {
     }
 }
 
+pub fn compile_call(
+    chunk: &mut Chunk,
+    strict: bool,
+    text: &str,
+    arguments: &Rc<Arguments>,
+) -> anyhow::Result<AlwaysAbruptResult> {
+    // EvaluateCall ( func, ref, arguments, tailPosition )
+    // The abstract operation EvaluateCall takes arguments func (an ECMAScript language value), ref (an
+    // ECMAScript language value or a Reference Record), arguments (a Parse Node), and tailPosition (a
+    // Boolean) and returns either a normal completion containing an ECMAScript language value or an abrupt
+    // completion. It performs the following steps when called:
+    //
+    //  1. If ref is a Reference Record, then
+    //      a. If IsPropertyReference(ref) is true, then
+    //          i. Let thisValue be GetThisValue(ref).
+    //      b. Else,
+    //          i. Let refEnv be ref.[[Base]].
+    //          ii. Assert: refEnv is an Environment Record.
+    //          iii. Let thisValue be refEnv.WithBaseObject().
+    //  2. Else,
+    //      a. Let thisValue be undefined.
+    //  3. Let argList be ? ArgumentListEvaluation of arguments.
+    //  4. If func is not an Object, throw a TypeError exception.
+    //  5. If IsCallable(func) is false, throw a TypeError exception.
+    //  6. If tailPosition is true, perform PrepareForTailCall().
+    //  7. Return ? Call(func, thisValue, argList).
+
+    // On the top of the stack are "func" and "ref". We're ignoring tail calls for now. All the "this value"
+    // calculation, and the error checking are handled in the execution of the "CALL" instruction.
+
+    // start:                       func ref
+    //    <arguments>               (N arg(n-1) arg(n-2) ... arg0 func ref) or (err func ref)
+    //    JUMP_IF_NORMAL call
+    //    UNWIND 2                  err
+    //    JUMP exit
+    // call:                        N arg(n-1) ... arg0 func ref
+    //    CALL                      val/err
+    // exit:                        val/err
+
+    let status = arguments.argument_list_evaluation(chunk, strict, text)?;
+    let mut exit = None;
+    if status.maybe_abrupt() {
+        let call = chunk.op_jump(Insn::JumpIfNormal);
+        chunk.op_plus_arg(Insn::Unwind, 2);
+        exit = Some(chunk.op_jump(Insn::Jump));
+        chunk.fixup(call).expect("jump too short to fail");
+    }
+    chunk.op(Insn::Call);
+    if let Some(mark) = exit {
+        chunk.fixup(mark).expect("jump too short to fail");
+    }
+    Ok(AlwaysAbruptResult)
+}
+
 impl CallMemberExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
         // On return: top of stack might be an abrupt completion, but will never be a reference.
-        let mut exits = vec![];
+        let mut exit = None;
         // Stack: ...
         let status = self.member_expression.compile(chunk, strict, text)?;
         // Stack: ref/err ...
@@ -1838,21 +1920,12 @@ impl CallMemberExpression {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: err err ...
             chunk.op_plus_arg(Insn::Unwind, 1);
-            exits.push(chunk.op_jump(Insn::Jump));
+            exit = Some(chunk.op_jump(Insn::Jump));
             chunk.fixup(happy).expect("Jump is too short to overflow.");
         }
         // Stack: func ref ...
-        let arg_status = self.arguments.argument_list_evaluation(chunk, strict, text)?;
-        // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 func ref ...
-        // or: Stack: err func ref ...
-        if arg_status == AbruptResult::Maybe {
-            let happy = chunk.op_jump(Insn::JumpIfNormal);
-            chunk.op_plus_arg(Insn::Unwind, 2);
-            exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy).expect("Jump is too short to overflow.");
-        }
-        chunk.op(Insn::Call);
-        for mark in exits {
+        compile_call(chunk, strict, text, &self.arguments)?;
+        if let Some(mark) = exit {
             chunk.fixup(mark)?;
         }
         Ok(AlwaysAbruptResult)

@@ -165,6 +165,7 @@ test_defs[CompilerCatchParameter]="parser::try_statement::CatchParameter catch_p
 test_defs[CompilerTryStatement]="parser::try_statement::TryStatement try_statement compiler"
 test_defs[CompilerFinally]="parser::try_statement::Finally finally compiler"
 test_defs[CompilerCatch]="parser::try_statement::Catch catch:: compiler"
+test_defs[compile_call]="compile_call call_member_expression compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
