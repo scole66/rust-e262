@@ -3721,11 +3721,8 @@ mod iteration_statement {
     #[test_case("for(;;);", &[], true, None => Ok((svec(&[
         "UNDEFINED",
         "EMPTY",
-        "LOOP_CONT []",
-        "JUMPPOP_FALSE 3",
         "COALESCE",
-        "JUMP -8",
-        "UPDATE_EMPTY"
+        "JUMP -4"
     ]), false, false)); "for stmt")]
     #[test_case("for(a in b);", &[], true, None => panics "not yet implemented"; "for-in stmt")]
     fn loop_compile(
@@ -3862,6 +3859,63 @@ mod while_statement {
     }
 }
 
+mod for_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("for(;;);", &[], false, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "EMPTY",
+        "COALESCE",
+        "JUMP -4"
+    ]), false)); "for, no exprs")]
+    #[test_case("for(1;;);", &[], false, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "POP",
+        "UNDEFINED",
+        "EMPTY",
+        "COALESCE",
+        "JUMP -4"
+    ]), false)); "for, infinite, infallible init")]
+    #[test_case("for(a;;);", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for, init compile fail")]
+    #[test_case("for(a;;);", &[], false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "UNDEFINED",
+        "EMPTY",
+        "COALESCE",
+        "JUMP -4"
+    ]), true)); "for, init fallible")]
+    #[test_case("for(;;)a;", &[], false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "for, stmt compile fail")]
+    #[test_case("for(;;)break;", &[], false, &[] => Ok((svec(&[
+        "UNDEFINED",
+        "BREAK",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -8",
+        "UPDATE_EMPTY"
+    ]), true)); "for, stmt fallible")]
+    fn compile(
+        src: &str,
+        labels: &[&str],
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).for_statement();
+        let mut c = complex_filled_chunk("x", what);
+        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        node.compile_for_loop(&mut c, strict, src, &label_set)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+}
 mod continue_statement {
     use super::*;
     use test_case::test_case;

@@ -3316,7 +3316,6 @@ impl ForStatement {
         //    UPDATE_EMPTY                     result
         // exit:                               result/err
 
-        let label_set_id = chunk.add_to_string_set_pool(label_set)?;
         let pib_id = if per_iteration_bindings.is_empty() {
             None
         } else {
@@ -3344,12 +3343,14 @@ impl ForStatement {
             }
             exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
         }
+        let mut update_exit = None;
         let status = stmt.compile(chunk, strict, text)?;
         if status.maybe_abrupt() {
             maybe_abrupt = AbruptResult::Maybe;
+            let label_set_id = chunk.add_to_string_set_pool(label_set)?;
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
+            update_exit = Some(chunk.op_jump(Insn::JumpPopIfFalse));
         }
-        chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
-        let update_exit = chunk.op_jump(Insn::JumpPopIfFalse);
         chunk.op(Insn::CoalesceValue);
         if let Some(pib_id) = pib_id {
             chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id);
@@ -3373,10 +3374,14 @@ impl ForStatement {
                 chunk.fixup(exit)?;
             }
             chunk.op_plus_arg(Insn::Unwind, 1);
-            exits.push(chunk.op_jump(Insn::Jump));
+            if update_exit.is_some() {
+                exits.push(chunk.op_jump(Insn::Jump));
+            }
         }
-        chunk.fixup(update_exit)?;
-        chunk.op(Insn::UpdateEmpty);
+        if let Some(exit) = update_exit {
+            chunk.fixup(exit)?;
+            chunk.op(Insn::UpdateEmpty);
+        }
         for exit in exits {
             chunk.fixup(exit)?;
         }
