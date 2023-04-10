@@ -3899,6 +3899,15 @@ mod for_statement {
         "JUMP -8",
         "UPDATE_EMPTY"
     ]), true)); "for, stmt fallible")]
+    #[test_case("for(a;;)@@4;", &[], false, &[] => serr("out of range integral type conversion attempted"); "for, abort from init too long")]
+    #[test_case("for(var a;;);", &[], false, &[] => Ok((svec(&[
+        "EMPTY",
+        "POP",
+        "UNDEFINED",
+        "EMPTY",
+        "COALESCE",
+        "JUMP -4"
+    ]), false)); "for-var")]
     fn compile(
         src: &str,
         labels: &[&str],
@@ -3914,7 +3923,6 @@ mod for_statement {
             })
             .map_err(|e| e.to_string())
     }
-
 }
 mod continue_statement {
     use super::*;

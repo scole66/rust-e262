@@ -860,6 +860,13 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
             }
             chunk.op(Insn::False);
         }
+        '4' => {
+            // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
+            for _ in 0..32768 - 4 {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
         '!' => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
@@ -3463,8 +3470,8 @@ impl ForStatement {
                 if vdl_status.maybe_abrupt() {
                     exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     maybe_abrupt = AbruptResult::Maybe;
-                    chunk.op(Insn::Pop);
                 }
+                chunk.op(Insn::Pop);
                 let body_status = Self::compile_for_body(
                     chunk,
                     strict,
