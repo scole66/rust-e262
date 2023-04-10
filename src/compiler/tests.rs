@@ -3718,7 +3718,15 @@ mod iteration_statement {
         "JUMP -7",
         "UPDATE_EMPTY"
     ]), false, false)); "while stmt")]
-    #[test_case("for(;;);", &[], true, None => panics "not yet implemented"; "for stmt")]
+    #[test_case("for(;;);", &[], true, None => Ok((svec(&[
+        "UNDEFINED",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -8",
+        "UPDATE_EMPTY"
+    ]), false, false)); "for stmt")]
     #[test_case("for(a in b);", &[], true, None => panics "not yet implemented"; "for-in stmt")]
     fn loop_compile(
         src: &str,
