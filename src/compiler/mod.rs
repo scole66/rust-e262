@@ -3547,15 +3547,10 @@ impl ForStatement {
                     );
                 }
                 let per_iteration_lets = if is_const { &[] } else { bound_names.as_slice() };
-                let status = lexdecl.compile(chunk, strict, text)?;
-                let mut exit_status = AbruptResult::Never;
-                let mut popenv = None;
-                if status.maybe_abrupt() {
-                    popenv = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                    exit_status = AbruptResult::Maybe;
-                }
+                lexdecl.compile(chunk, strict, text)?;
+                let popenv = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
-                let status = Self::compile_for_body(
+                Self::compile_for_body(
                     chunk,
                     strict,
                     text,
@@ -3565,15 +3560,10 @@ impl ForStatement {
                     per_iteration_lets,
                     label_set,
                 )?;
-                if status.maybe_abrupt() {
-                    exit_status = AbruptResult::Maybe;
-                }
-                if let Some(exit) = popenv {
-                    chunk.fixup(exit)?;
-                }
+                chunk.fixup(popenv)?;
                 chunk.op(Insn::PopLexEnv);
 
-                Ok(exit_status)
+                Ok(AbruptResult::Maybe)
             }
         }
     }
