@@ -360,3 +360,11 @@ fn array_literal(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }
+
+#[test_case("Number(0)" => vok(0); "CallExpression: MemberExpression Arguments")]
+#[test_case("let a=(b)=>''+b; a()" => vok("undefined"); "empty arguments")]
+#[test_case("(()=>()=>3)()()" => vok(3); "CallExpression: CallExpression Arguments")]
+fn call_expression(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}
