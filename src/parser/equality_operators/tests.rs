@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // EQUALITY EXPRESSION
@@ -21,51 +21,77 @@ mod equality_expression {
     }
     #[test]
     fn parse_02() {
-        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a==b"), Scanner::new(), true, false, false));
+        let (se, scanner) =
+            check(EqualityExpression::parse(&mut newparser("a==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::Equal(_, _)));
         pretty_check(&*se, "EqualityExpression: a == b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
-        concise_check(&*se, "EqualityExpression: a == b", vec!["IdentifierName: a", "Punctuator: ==", "IdentifierName: b"]);
+        concise_check(
+            &*se,
+            "EqualityExpression: a == b",
+            vec!["IdentifierName: a", "Punctuator: ==", "IdentifierName: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
-        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a!=b"), Scanner::new(), true, false, false));
+        let (se, scanner) =
+            check(EqualityExpression::parse(&mut newparser("a!=b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::NotEqual(_, _)));
         pretty_check(&*se, "EqualityExpression: a != b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
-        concise_check(&*se, "EqualityExpression: a != b", vec!["IdentifierName: a", "Punctuator: !=", "IdentifierName: b"]);
+        concise_check(
+            &*se,
+            "EqualityExpression: a != b",
+            vec!["IdentifierName: a", "Punctuator: !=", "IdentifierName: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
-        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a===b"), Scanner::new(), true, false, false));
+        let (se, scanner) =
+            check(EqualityExpression::parse(&mut newparser("a===b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::StrictEqual(_, _)));
         pretty_check(&*se, "EqualityExpression: a === b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
-        concise_check(&*se, "EqualityExpression: a === b", vec!["IdentifierName: a", "Punctuator: ===", "IdentifierName: b"]);
+        concise_check(
+            &*se,
+            "EqualityExpression: a === b",
+            vec!["IdentifierName: a", "Punctuator: ===", "IdentifierName: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_05() {
-        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a!==b"), Scanner::new(), true, false, false));
+        let (se, scanner) =
+            check(EqualityExpression::parse(&mut newparser("a!==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::NotStrictEqual(_, _)));
         pretty_check(&*se, "EqualityExpression: a !== b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
-        concise_check(&*se, "EqualityExpression: a !== b", vec!["IdentifierName: a", "Punctuator: !==", "IdentifierName: b"]);
+        concise_check(
+            &*se,
+            "EqualityExpression: a !== b",
+            vec!["IdentifierName: a", "Punctuator: !==", "IdentifierName: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_06() {
-        check_err(EqualityExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+        check_err(
+            EqualityExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+            "RelationalExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn parse_08() {
-        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a != @"), Scanner::new(), true, false, false));
+        let (se, scanner) =
+            check(EqualityExpression::parse(&mut newparser("a != @"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
         pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
@@ -125,62 +151,74 @@ mod equality_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("this == 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("this == 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 == this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 == this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 == 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 == 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test]
     fn contains_06() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("this != 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("this != 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_07() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 != this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 != this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_08() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 != 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 != 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test]
     fn contains_09() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("this === 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("this === 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_10() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 === this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 === this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_11() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 === 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 === 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test]
     fn contains_12() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("this !== 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("this !== 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_13() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 !== this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 !== this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_14() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("0 !== 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            EqualityExpression::parse(&mut newparser("0 !== 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
@@ -212,27 +250,33 @@ mod equality_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package==3", true => set(&[PACKAGE_NOT_ALLOWED]); "left eq right; left bad")]
-    #[test_case("3==package", true => set(&[PACKAGE_NOT_ALLOWED]); "left eq right; right bad")]
-    #[test_case("package!=3", true => set(&[PACKAGE_NOT_ALLOWED]); "left ne right; left bad")]
-    #[test_case("3!=package", true => set(&[PACKAGE_NOT_ALLOWED]); "left ne right; right bad")]
-    #[test_case("package===3", true => set(&[PACKAGE_NOT_ALLOWED]); "left se right; left bad")]
-    #[test_case("3===package", true => set(&[PACKAGE_NOT_ALLOWED]); "left se right; right bad")]
-    #[test_case("package!==3", true => set(&[PACKAGE_NOT_ALLOWED]); "left nse right; left bad")]
-    #[test_case("3!==package", true => set(&[PACKAGE_NOT_ALLOWED]); "left nse right; right bad")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package==3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left eq right; left bad")]
+    #[test_case("3==package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left eq right; right bad")]
+    #[test_case("package!=3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ne right; left bad")]
+    #[test_case("3!=package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ne right; right bad")]
+    #[test_case("package===3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left se right; left bad")]
+    #[test_case("3===package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left se right; right bad")]
+    #[test_case("package!==3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left nse right; left bad")]
+    #[test_case("3!==package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left nse right; right bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
     #[test_case("1" => true; "literal")]
     #[test_case("a == 0" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -261,5 +305,21 @@ mod equality_expression {
     #[test_case("a!==b", false => ATTKind::Invalid; "sne")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).equality_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a==b" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).equality_expression().is_named_function()
+    }
+
+    #[test_case("  a==b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "eq")]
+    #[test_case("  a===b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "seq")]
+    #[test_case("  a!=b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "ne")]
+    #[test_case("  a!==b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "sne")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).equality_expression().location()
     }
 }

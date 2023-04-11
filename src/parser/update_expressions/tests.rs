@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // UPDATE EXPRESSION
@@ -26,7 +26,11 @@ mod update_expression {
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", vec!["LeftHandSideExpression: ( x => x * 2 )"]);
-        concise_check(&*ue, "ParenthesizedExpression: ( x => x * 2 )", vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"]);
+        concise_check(
+            &*ue,
+            "ParenthesizedExpression: ( x => x * 2 )",
+            vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"],
+        );
         assert!(ue.is_function_definition());
     }
     #[test]
@@ -43,7 +47,7 @@ mod update_expression {
     fn preinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
@@ -53,7 +57,7 @@ mod update_expression {
     fn predec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
@@ -63,7 +67,7 @@ mod update_expression {
     fn postinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
@@ -73,7 +77,7 @@ mod update_expression {
     fn postdec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);
@@ -87,15 +91,30 @@ mod update_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false), "UpdateExpression expected", 1, 1);
+        check_err(
+            UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false),
+            "UpdateExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn syntax_error_01() {
-        check_err(UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false), "UnaryExpression expected", 1, 6);
+        check_err(
+            UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
     #[test]
     fn syntax_error_02() {
-        check_err(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false), "UnaryExpression expected", 1, 6);
+        check_err(
+            UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
     #[test]
     fn update_expression_prettycheck_1() {
@@ -218,20 +237,23 @@ mod update_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
-    #[test_case("package++", true => set(&[PACKAGE_NOT_ALLOWED]); "post-inc, simple")]
-    #[test_case("a(b)++", true => set(&["Invalid target for update"]); "post-inc, complex")]
-    #[test_case("package--", true => set(&[PACKAGE_NOT_ALLOWED]); "post-dec, simple")]
-    #[test_case("a(b)--", true => set(&["Invalid target for update"]); "post-dec, complex")]
-    #[test_case("++package", true => set(&[PACKAGE_NOT_ALLOWED]); "pre-inc, simple")]
-    #[test_case("++a(b)", true => set(&["Invalid target for update"]); "pre-inc, complex")]
-    #[test_case("--package", true => set(&[PACKAGE_NOT_ALLOWED]); "pre-dec, simple")]
-    #[test_case("--a(b)", true => set(&["Invalid target for update"]); "pre-dec, complex")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
+    #[test_case("package++", true => sset(&[PACKAGE_NOT_ALLOWED]); "post-inc, simple")]
+    #[test_case("a(b)++", true => sset(&["Invalid target for update"]); "post-inc, complex")]
+    #[test_case("package--", true => sset(&[PACKAGE_NOT_ALLOWED]); "post-dec, simple")]
+    #[test_case("a(b)--", true => sset(&["Invalid target for update"]); "post-dec, complex")]
+    #[test_case("++package", true => sset(&[PACKAGE_NOT_ALLOWED]); "pre-inc, simple")]
+    #[test_case("++a(b)", true => sset(&["Invalid target for update"]); "pre-inc, complex")]
+    #[test_case("--package", true => sset(&[PACKAGE_NOT_ALLOWED]); "pre-dec, simple")]
+    #[test_case("--a(b)", true => sset(&["Invalid target for update"]); "pre-dec, complex")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -266,5 +288,21 @@ mod update_expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).update_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("--a" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).update_expression().is_named_function()
+    }
+
+    #[test_case("  a++" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postinc")]
+    #[test_case("  a--" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postdec")]
+    #[test_case("  ++a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "preinc")]
+    #[test_case("  --a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "predec")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).update_expression().location()
     }
 }

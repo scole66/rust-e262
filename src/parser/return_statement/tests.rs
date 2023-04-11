@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -44,11 +44,16 @@ fn return_statement_test_err_01() {
 }
 #[test]
 fn return_statement_test_err_02() {
-    check_err(ReturnStatement::parse(&mut newparser("return ="), Scanner::new(), false, false), "‘;’ expected", 1, 7);
+    check_err(ReturnStatement::parse(&mut newparser("return ="), Scanner::new(), false, false), "‘;’ expected", 1, 8);
 }
 #[test]
 fn return_statement_test_err_03() {
-    check_err(ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
+    check_err(
+        ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false),
+        "‘;’ expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn return_statement_test_prettyerrors_1() {
@@ -96,13 +101,13 @@ mod return_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("return;", true => set(&[]); "return ;")]
-    #[test_case("return package;", true => set(&[PACKAGE_NOT_ALLOWED]); "return Expression ;")]
+    #[test_case("return;", true => sset(&[]); "return ;")]
+    #[test_case("return package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "return Expression ;")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).return_statement().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).return_statement().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("return;" => false; "no exp")]
@@ -110,5 +115,11 @@ mod return_statement {
     #[test_case("return a;" => false; "Exp (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).return_statement().contains_arguments()
+    }
+
+    #[test_case("  return;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "bare")]
+    #[test_case("  return  9;" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "value")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).return_statement().location()
     }
 }

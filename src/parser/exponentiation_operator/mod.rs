@@ -1,12 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::unary_operators::UnaryExpression;
-use super::update_expressions::UpdateExpression;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ExponentiationExpression[Yield, Await] :
 //      UnaryExpression[?Yield, ?Await]
@@ -20,8 +15,12 @@ pub enum ExponentiationExpression {
 impl fmt::Display for ExponentiationExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            ExponentiationExpression::UnaryExpression(boxed) => write!(f, "{}", boxed),
-            ExponentiationExpression::Exponentiation(ue, ee) => write!(f, "{} ** {}", ue, ee),
+            ExponentiationExpression::UnaryExpression(boxed) => {
+                write!(f, "{}", boxed)
+            }
+            ExponentiationExpression::Exponentiation(ue, ee) => {
+                write!(f, "{} ** {}", ue, ee)
+            }
         }
     }
 }
@@ -34,7 +33,9 @@ impl PrettyPrint for ExponentiationExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
         match &self {
-            ExponentiationExpression::UnaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ExponentiationExpression::UnaryExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ExponentiationExpression::Exponentiation(ue, ee) => {
                 ue.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ee.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -73,7 +74,8 @@ impl ExponentiationExpression {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_op = scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;
+                let (_, after_op) =
+                    scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;
                 let (ee, after_ee) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::Exponentiation(ue, ee)), after_ee))
             })
@@ -81,6 +83,13 @@ impl ExponentiationExpression {
                 let (unary, after_unary) = UnaryExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::UnaryExpression(unary)), after_unary))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ExponentiationExpression::UnaryExpression(exp) => exp.location(),
+            ExponentiationExpression::Exponentiation(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -106,7 +115,9 @@ impl ExponentiationExpression {
         //  2. Return true.
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.all_private_identifiers_valid(names),
-            ExponentiationExpression::Exponentiation(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            ExponentiationExpression::Exponentiation(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -127,12 +138,12 @@ impl ExponentiationExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ExponentiationExpression::UnaryExpression(n) => n.early_errors(agent, errs, strict),
+            ExponentiationExpression::UnaryExpression(n) => n.early_errors(errs, strict),
             ExponentiationExpression::Exponentiation(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }
@@ -151,6 +162,13 @@ impl ExponentiationExpression {
         match self {
             ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
             ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

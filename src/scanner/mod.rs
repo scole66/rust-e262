@@ -1,14 +1,16 @@
 pub mod ranges;
-use crate::strings::JSString;
-use crate::values::number_to_string;
+use super::*;
 use lazy_static::lazy_static;
 use num::bigint::BigInt;
 use regex::Regex;
+use std::char;
+use std::cmp::max;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
+use std::str;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ScanGoal {
     InputElementRegExpOrTemplateTail,
     InputElementRegExp,
@@ -136,12 +138,10 @@ impl fmt::Display for Keyword {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct IdentifierData {
     pub string_value: JSString,
     pub keyword_id: Option<Keyword>,
-    pub line: u32,
-    pub column: u32,
 }
 
 impl fmt::Display for IdentifierData {
@@ -217,12 +217,12 @@ pub enum Punctuator {
     QQEq,         // ??=
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum StringDelimiter {
     Single,
     Double,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StringToken {
     pub value: JSString,
     pub delimiter: StringDelimiter,
@@ -265,6 +265,7 @@ pub enum Token {
     RegularExpression(RegularExpressionData),
     PrivateIdentifier(IdentifierData),
     Error(String),
+    Debug(char),
 }
 
 impl fmt::Display for Punctuator {
@@ -351,6 +352,7 @@ impl fmt::Display for Token {
             Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
+            Token::Debug(c) => write!(f, "@@{c}"),
         }
     }
 }
@@ -373,6 +375,11 @@ pub struct Scanner {
 impl Scanner {
     pub fn new() -> Scanner {
         Scanner { line: 1, column: 1, start_idx: 0 }
+    }
+}
+impl Default for Scanner {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl PartialOrd for Scanner {
@@ -414,7 +421,29 @@ fn is_single_escape_char(ch: char) -> bool {
 }
 
 fn is_escape_char(ch: char) -> bool {
-    matches!(ch, '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9')
+    matches!(
+        ch,
+        '\'' | '"'
+            | '\\'
+            | 'b'
+            | 'f'
+            | 'n'
+            | 'r'
+            | 't'
+            | 'v'
+            | 'u'
+            | 'x'
+            | '0'
+            | '1'
+            | '2'
+            | '3'
+            | '4'
+            | '5'
+            | '6'
+            | '7'
+            | '8'
+            | '9'
+    )
 }
 
 // Given a scanner context, return a new context (over the same source string) which begins at the first
@@ -511,7 +540,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 
                     match iter.next() {
                         // If None comes back, this is actually a syntax error.
-                        None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
+                        None => {
+                            return Err(format!(
+                                "Unterminated /*-style comment. Started on line {}, column {}.",
+                                comment_start_line, comment_start_column
+                            ))
+                        }
                         Some(c) => {
                             ch = c;
                             pending_idx = idx + ch.len_utf8();
@@ -524,7 +558,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             idx = pending_idx;
                             match iter.next() {
                                 // If None comes back, this is actually a syntax error.
-                                None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
+                                None => {
+                                    return Err(format!(
+                                        "Unterminated /*-style comment. Started on line {}, column {}.",
+                                        comment_start_line, comment_start_column
+                                    ))
+                                }
                                 Some(c) => {
                                     ch = c;
                                     pending_idx = idx + ch.len_utf8();
@@ -550,7 +589,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             idx = pending_idx;
                             let previous = ch;
                             match iter.next() {
-                                None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
+                                None => {
+                                    return Err(format!(
+                                        "Unterminated /*-style comment. Started on line {}, column {}.",
+                                        comment_start_line, comment_start_column
+                                    ))
+                                }
                                 Some(c) => {
                                     ch = c;
                                     pending_idx = idx + ch.len_utf8();
@@ -559,7 +603,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             if previous == '\r' && ch == '\n' {
                                 idx = pending_idx;
                                 match iter.next() {
-                                    None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
+                                    None => {
+                                        return Err(format!(
+                                            "Unterminated /*-style comment. Started on line {}, column {}.",
+                                            comment_start_line, comment_start_column
+                                        ))
+                                    }
                                     Some(c) => {
                                         ch = c;
                                         pending_idx = idx + ch.len_utf8();
@@ -572,7 +621,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         column += 1;
                         idx = pending_idx;
                         match iter.next() {
-                            None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
+                            None => {
+                                return Err(format!(
+                                    "Unterminated /*-style comment. Started on line {}, column {}.",
+                                    comment_start_line, comment_start_column
+                                ))
+                            }
                             Some(c) => {
                                 ch = c;
                                 pending_idx = idx + ch.len_utf8();
@@ -590,11 +644,11 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 }
 
 fn is_digit(ch: char) -> bool {
-    ('0'..='9').contains(&ch)
+    ch.is_ascii_digit()
 }
 
 fn is_hex_digit(ch: char) -> bool {
-    ('0'..='9').contains(&ch) || ('a'..='f').contains(&ch) || ('A'..='F').contains(&ch)
+    ch.is_ascii_hexdigit()
 }
 
 fn hex_four_digits(scanner: &Scanner, source: &str) -> Option<Scanner> {
@@ -604,7 +658,11 @@ fn hex_four_digits(scanner: &Scanner, source: &str) -> Option<Scanner> {
     let third = iter.next()?;
     let fourth = iter.next()?;
     if is_hex_digit(first) && is_hex_digit(second) && is_hex_digit(third) && is_hex_digit(fourth) {
-        Some(Scanner { line: scanner.line, column: scanner.column + 4, start_idx: scanner.start_idx + first.len_utf8() + second.len_utf8() + third.len_utf8() + fourth.len_utf8() })
+        Some(Scanner {
+            line: scanner.line,
+            column: scanner.column + 4,
+            start_idx: scanner.start_idx + first.len_utf8() + second.len_utf8() + third.len_utf8() + fourth.len_utf8(),
+        })
     } else {
         None
     }
@@ -628,7 +686,11 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
         let parse_result = u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
         if let Ok(mv) = parse_result {
             if mv <= 0x10FFFF {
-                return Some(Scanner { line: scanner.line, column: scanner.column + count as u32, start_idx: scanner.start_idx + count });
+                return Some(Scanner {
+                    line: scanner.line,
+                    column: scanner.column + count as u32,
+                    start_idx: scanner.start_idx + count,
+                });
             }
         }
     }
@@ -648,11 +710,16 @@ fn unicode_escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
                 let second_ch = iter.next()?;
                 let third_char_idx = second_char_idx + second_ch.len_utf8();
                 if second_ch == '{' {
-                    let cp_scanner = Scanner { line: scanner.line, column: scanner.column + 2, start_idx: third_char_idx };
+                    let cp_scanner =
+                        Scanner { line: scanner.line, column: scanner.column + 2, start_idx: third_char_idx };
                     let after_cp = code_point(&cp_scanner, source)?;
                     let last_char = source[after_cp.start_idx..].chars().next()?;
                     match last_char {
-                        '}' => Some(Scanner { line: scanner.line, column: after_cp.column + 1, start_idx: after_cp.start_idx + last_char.len_utf8() }),
+                        '}' => Some(Scanner {
+                            line: scanner.line,
+                            column: after_cp.column + 1,
+                            start_idx: after_cp.start_idx + last_char.len_utf8(),
+                        }),
                         _ => None,
                     }
                 } else {
@@ -664,9 +731,6 @@ fn unicode_escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
         None
     }
 }
-
-use std::char;
-use std::str;
 
 fn ues_char_value(source: &str) -> char {
     // We already know this is a valid Unicode Escape Sequence, so there's a lot of checking we don't do.
@@ -717,7 +781,10 @@ where
         };
         let ch_value = ues_char_value(&source[ues_scanner.start_idx..after_scanner.start_idx]);
         if !validate(ch_value) {
-            return Err(format!("{}:{}: Invalid Identifier {} Character {:?}", scanner.line, scanner.column, style, ch_value));
+            return Err(format!(
+                "{}:{}: Invalid Identifier {} Character {:?}",
+                scanner.line, scanner.column, style, ch_value
+            ));
         }
         Ok(Some(after_scanner))
     } else {
@@ -750,7 +817,7 @@ fn code_point_to_utf16_code_units(ch: char) -> Vec<u16> {
     utf16_encode_code_point(CharVal::from(ch))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HexChar(char);
 impl TryFrom<char> for HexChar {
     type Error = &'static str;
@@ -774,7 +841,7 @@ impl From<HexChar> for char {
 fn mv_of_hex_digit(digit: HexChar) -> u32 {
     let ch: char = digit.into();
     let code = ch as u32;
-    if ('0'..='9').contains(&ch) {
+    if ch.is_ascii_digit() {
         code - '0' as u32
     } else if ('A'..='F').contains(&ch) {
         code - 'A' as u32 + 10
@@ -814,8 +881,13 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 let second = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let third = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let fourth = HexChar::try_from(iter.next().unwrap()).unwrap();
-                cp = char::from_u32(mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12 | mv_of_hex_digit(second) << 8 | mv_of_hex_digit(third) << 4 | mv_of_hex_digit(fourth))
-                    .unwrap();
+                cp = char::from_u32(
+                    mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12
+                        | mv_of_hex_digit(second) << 8
+                        | mv_of_hex_digit(third) << 4
+                        | mv_of_hex_digit(fourth),
+                )
+                .unwrap();
             }
             result.append(&mut code_point_to_utf16_code_units(cp))
         }
@@ -964,7 +1036,10 @@ fn identifier_name_keyword(source: &str) -> Option<Keyword> {
     }
 }
 
-fn identifier_internal(scanner: &Scanner, source: &str) -> Result<Option<(IdentifierData, Scanner)>, (String, Scanner)> {
+fn identifier_internal(
+    scanner: &Scanner,
+    source: &str,
+) -> Result<Option<(IdentifierData, Scanner)>, (String, Scanner)> {
     // IdentifierName ::
     //    IdentifierStart
     //    IdentifierName IdentifierPart
@@ -994,8 +1069,6 @@ fn identifier_internal(scanner: &Scanner, source: &str) -> Result<Option<(Identi
         IdentifierData {
             string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
-            line: scanner.line,
-            column: scanner.column,
         },
         scanner_1,
     )))
@@ -1015,7 +1088,10 @@ fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Toke
         Some('?') => match iter.next() {
             Some('.') => match iter.next() {
                 Some('0'..='9') => None,
-                _ => Some((Token::Punctuator(Punctuator::QDot), Scanner { line: scanner.line, column: scanner.column + 2, start_idx: scanner.start_idx + 2 })),
+                _ => Some((
+                    Token::Punctuator(Punctuator::QDot),
+                    Scanner { line: scanner.line, column: scanner.column + 2, start_idx: scanner.start_idx + 2 },
+                )),
             },
             _ => None,
         },
@@ -1025,7 +1101,16 @@ fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Toke
 
 fn other_punctuator(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     let mut iter = source[scanner.start_idx..].chars();
-    let mt = |tk, delta| Some((tk, Scanner { line: scanner.line, column: scanner.column + delta, start_idx: scanner.start_idx + delta as usize }));
+    let mt = |tk, delta| {
+        Some((
+            tk,
+            Scanner {
+                line: scanner.line,
+                column: scanner.column + delta,
+                start_idx: scanner.start_idx + delta as usize,
+            },
+        ))
+    };
     match iter.next() {
         Some('{') => mt(Token::Punctuator(Punctuator::LeftBrace), 1),
         Some('(') => mt(Token::Punctuator(Punctuator::LeftParen), 1),
@@ -1163,12 +1248,14 @@ fn decimal_integer_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
 
 fn match_char(scanner: &Scanner, source: &str, ch: char) -> Option<Scanner> {
     match source[scanner.start_idx..].chars().next() {
-        Some(c) if c == ch => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + c.len_utf8() }),
+        Some(c) if c == ch => Some(Scanner {
+            line: scanner.line,
+            column: scanner.column + 1,
+            start_idx: scanner.start_idx + c.len_utf8(),
+        }),
         _ => None,
     }
 }
-
-use std::cmp::max;
 
 fn radix_digits<F>(scanner: &Scanner, source: &str, sep: bool, validator: F) -> Option<Scanner>
 where
@@ -1278,7 +1365,9 @@ fn decimal_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
 
 fn non_zero_digit(scanner: &Scanner, source: &str) -> Option<Scanner> {
     match source[scanner.start_idx..].chars().next() {
-        Some(ch) if ('1'..='9').contains(&ch) => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
+        Some(ch) if ('1'..='9').contains(&ch) => {
+            Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 })
+        }
         _ => None,
     }
 }
@@ -1286,8 +1375,17 @@ fn non_zero_digit(scanner: &Scanner, source: &str) -> Option<Scanner> {
 fn decimal_big_integer_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
     match_char(scanner, source, '0')
         .and_then(|r| match_char(&r, source, 'n'))
-        .or_else(|| non_zero_digit(scanner, source).and_then(|r| decimal_digits(&r, source, true).or(Some(r))).and_then(|r| match_char(&r, source, 'n')))
-        .or_else(|| non_zero_digit(scanner, source).and_then(|r| match_char(&r, source, '_')).and_then(|r| decimal_digits(&r, source, true)).and_then(|r| match_char(&r, source, 'n')))
+        .or_else(|| {
+            non_zero_digit(scanner, source)
+                .and_then(|r| decimal_digits(&r, source, true).or(Some(r)))
+                .and_then(|r| match_char(&r, source, 'n'))
+        })
+        .or_else(|| {
+            non_zero_digit(scanner, source)
+                .and_then(|r| match_char(&r, source, '_'))
+                .and_then(|r| decimal_digits(&r, source, true))
+                .and_then(|r| match_char(&r, source, 'n'))
+        })
 }
 
 fn is_binary_digit(ch: char) -> bool {
@@ -1299,7 +1397,9 @@ fn binary_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> 
 }
 
 fn binary_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
-    match_char(scanner, source, '0').and_then(|r| match_char(&r, source, 'b').or_else(|| match_char(&r, source, 'B'))).and_then(|r| binary_digits(&r, source, sep))
+    match_char(scanner, source, '0')
+        .and_then(|r| match_char(&r, source, 'b').or_else(|| match_char(&r, source, 'B')))
+        .and_then(|r| binary_digits(&r, source, sep))
 }
 
 fn is_octal_digit(ch: char) -> bool {
@@ -1311,7 +1411,9 @@ fn octal_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
 }
 
 fn octal_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
-    match_char(scanner, source, '0').and_then(|r| match_char(&r, source, 'o').or_else(|| match_char(&r, source, 'O'))).and_then(|r| octal_digits(&r, source, sep))
+    match_char(scanner, source, '0')
+        .and_then(|r| match_char(&r, source, 'o').or_else(|| match_char(&r, source, 'O')))
+        .and_then(|r| octal_digits(&r, source, sep))
 }
 
 fn hex_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
@@ -1319,17 +1421,24 @@ fn hex_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
 }
 
 fn hex_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
-    match_char(scanner, source, '0').and_then(|r| match_char(&r, source, 'x').or_else(|| match_char(&r, source, 'X'))).and_then(|r| hex_digits(&r, source, sep))
+    match_char(scanner, source, '0')
+        .and_then(|r| match_char(&r, source, 'x').or_else(|| match_char(&r, source, 'X')))
+        .and_then(|r| hex_digits(&r, source, sep))
 }
 
 fn non_decimal_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<(NumberStyle, Scanner)> {
     binary_integer_literal(scanner, source, sep).map_or_else(
-        || octal_integer_literal(scanner, source, sep).map_or_else(|| hex_integer_literal(scanner, source, sep).map(|r| (NumberStyle::Hex, r)), |r| Some((NumberStyle::Octal, r))),
+        || {
+            octal_integer_literal(scanner, source, sep).map_or_else(
+                || hex_integer_literal(scanner, source, sep).map(|r| (NumberStyle::Hex, r)),
+                |r| Some((NumberStyle::Octal, r)),
+            )
+        },
         |r| Some((NumberStyle::Binary, r)),
     )
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum NumberStyle {
     BigDecimal,
     BigBinary,
@@ -1371,29 +1480,65 @@ fn strip_sep(src: &str) -> String {
 }
 
 fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    let (number_style, after) = non_decimal_integer_literal(scanner, source, true).and_then(|(style, scan)| match_char(&scan, source, 'n').map(|r| (bigify(style), r))).or_else(|| {
-        decimal_big_integer_literal(scanner, source).map_or_else(
-            || non_decimal_integer_literal(scanner, source, true).or_else(|| decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r))),
-            |r| Some((NumberStyle::BigDecimal, r)),
-        )
-    })?;
+    let (number_style, after) = non_decimal_integer_literal(scanner, source, true)
+        .and_then(|(style, scan)| match_char(&scan, source, 'n').map(|r| (bigify(style), r)))
+        .or_else(|| {
+            decimal_big_integer_literal(scanner, source).map_or_else(
+                || {
+                    non_decimal_integer_literal(scanner, source, true)
+                        .or_else(|| decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r)))
+                },
+                |r| Some((NumberStyle::BigDecimal, r)),
+            )
+        })?;
 
     // Numbers can't be followed immediately by digits or identifiers. "3in" is a syntax error.
     if let Some(ch) = source[after.start_idx..].chars().next() {
-        if ('0'..='9').contains(&ch) || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
+        if ch.is_ascii_digit() || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
             return None;
         }
     }
 
     match number_style {
-        NumberStyle::BigDecimal => Some((Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx..after.start_idx - 1]).as_bytes(), 10).unwrap()), after)),
-        NumberStyle::BigBinary => Some((Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 2).unwrap()), after)),
-        NumberStyle::BigOctal => Some((Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 8).unwrap()), after)),
-        NumberStyle::BigHex => Some((Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 16).unwrap()), after)),
-        NumberStyle::Binary => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 2)), after)),
-        NumberStyle::Octal => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 8)), after)),
-        NumberStyle::Hex => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 16)), after)),
-        NumberStyle::Decimal => Some((Token::Number(strip_sep(&source[scanner.start_idx..after.start_idx]).parse::<f64>().unwrap()), after)),
+        NumberStyle::BigDecimal => Some((
+            Token::BigInt(
+                BigInt::parse_bytes(strip_sep(&source[scanner.start_idx..after.start_idx - 1]).as_bytes(), 10).unwrap(),
+            ),
+            after,
+        )),
+        NumberStyle::BigBinary => Some((
+            Token::BigInt(
+                BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 2)
+                    .unwrap(),
+            ),
+            after,
+        )),
+        NumberStyle::BigOctal => Some((
+            Token::BigInt(
+                BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 8)
+                    .unwrap(),
+            ),
+            after,
+        )),
+        NumberStyle::BigHex => Some((
+            Token::BigInt(
+                BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 16)
+                    .unwrap(),
+            ),
+            after,
+        )),
+        NumberStyle::Binary => {
+            Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 2)), after))
+        }
+        NumberStyle::Octal => {
+            Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 8)), after))
+        }
+        NumberStyle::Hex => {
+            Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 16)), after))
+        }
+        NumberStyle::Decimal => {
+            Some((Token::Number(strip_sep(&source[scanner.start_idx..after.start_idx]).parse::<f64>().unwrap()), after))
+        }
     }
 }
 
@@ -1401,14 +1546,16 @@ fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
     let mut iter = source[scanner.start_idx..].chars();
     match iter.next() {
         // CharacterEscapeSequence
-        Some(ch) if is_single_escape_char(ch) || !(is_escape_char(ch) || is_lineterm(ch)) => {
-            Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + ch.len_utf8() })
-        }
+        Some(ch) if is_single_escape_char(ch) || !(is_escape_char(ch) || is_lineterm(ch)) => Some(Scanner {
+            line: scanner.line,
+            column: scanner.column + 1,
+            start_idx: scanner.start_idx + ch.len_utf8(),
+        }),
         // 0 [lookahead ∉ DecimalDigit]
         Some('0') => {
             let lookahead = iter.next();
             match lookahead {
-                Some(ch) if ('0'..='9').contains(&ch) => None,
+                Some(ch) if ch.is_ascii_digit() => None,
                 _ => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
             }
         }
@@ -1419,7 +1566,11 @@ fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
                 Some(digit_1) if is_hex_digit(digit_1) => {
                     let ch2 = iter.next();
                     match ch2 {
-                        Some(digit_2) if is_hex_digit(digit_2) => Some(Scanner { line: scanner.line, column: scanner.column + 3, start_idx: scanner.start_idx + 3 }),
+                        Some(digit_2) if is_hex_digit(digit_2) => Some(Scanner {
+                            line: scanner.line,
+                            column: scanner.column + 3,
+                            start_idx: scanner.start_idx + 3,
+                        }),
                         _ => None,
                     }
                 }
@@ -1439,7 +1590,9 @@ fn line_terminator_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> 
             Some('\n') => Some(Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + 2 }),
             _ => Some(Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + 1 }),
         },
-        Some(ch) if ch == '\n' || ch == '\u{2028}' || ch == '\u{2029}' => Some(Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + ch.len_utf8() }),
+        Some(ch) if ch == '\n' || ch == '\u{2028}' || ch == '\u{2029}' => {
+            Some(Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + ch.len_utf8() })
+        }
         _ => None,
     }
 }
@@ -1457,7 +1610,8 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
                 after.column += 1;
                 after.start_idx += 1;
                 // This can come back poorly. If it does, this is a broken string, and we should return None.
-                let after_escape = escape_sequence(&after, source).or_else(|| line_terminator_sequence(&after, source))?;
+                let after_escape =
+                    escape_sequence(&after, source).or_else(|| line_terminator_sequence(&after, source))?;
                 // That probably consumed characters, but our iterator doesn't know that it should have been advanced.
                 // So consume some chars here to get us back in sync.
                 let mut idx = after.start_idx;
@@ -1573,17 +1727,19 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     assert!(after_idx >= start_idx);
     let (value, contains_escapes_or_continuations) = literal_string_value(&source[start_idx..after_idx]);
 
-    let st = StringToken { value, delimiter, raw: if contains_escapes_or_continuations { Some(String::from(&source[start_idx..after_idx])) } else { None } };
+    let st = StringToken {
+        value,
+        delimiter,
+        raw: if contains_escapes_or_continuations { Some(String::from(&source[start_idx..after_idx])) } else { None },
+    };
 
     Some((Token::String(st), after))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TemplateData {
     pub tv: Option<JSString>,
     pub trv: JSString,
-    pub starting_index: usize,
-    pub byte_length: usize,
 }
 
 impl fmt::Display for TemplateData {
@@ -1597,7 +1753,7 @@ fn push_utf16(buf: &mut Vec<u16>, ch: char) {
     buf.extend_from_slice(ch.encode_utf16(&mut b));
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 struct THDCount(usize);
 impl TryFrom<usize> for THDCount {
     type Error = &'static str;
@@ -1618,7 +1774,12 @@ impl From<THDCount> for usize {
     }
 }
 
-fn template_hex_digits(iter: &mut std::iter::Peekable<std::str::Chars>, identifier: u16, count: THDCount, scanner: &Scanner) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
+fn template_hex_digits(
+    iter: &mut std::iter::Peekable<std::str::Chars>,
+    identifier: u16,
+    count: THDCount,
+    scanner: &Scanner,
+) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
     let mut accumulator = 0;
     let mut successful = true;
     let mut consumed = 1;
@@ -1636,12 +1797,16 @@ fn template_hex_digits(iter: &mut std::iter::Peekable<std::str::Chars>, identifi
     (
         if successful { Some(vec![accumulator as u16]) } else { None },
         raw_chars[..consumed].to_vec(),
-        Scanner { line: scanner.line, column: scanner.column + consumed as u32, start_idx: scanner.start_idx + consumed },
+        Scanner {
+            line: scanner.line,
+            column: scanner.column + consumed as u32,
+            start_idx: scanner.start_idx + consumed,
+        },
         consumed,
     )
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CharVal(u32);
 impl TryFrom<u32> for CharVal {
     type Error = &'static str;
@@ -1683,7 +1848,10 @@ fn utf16_encode_code_point(cv: CharVal) -> Vec<u16> {
     }
 }
 
-fn template_hex_digits_by_value(iter: &mut std::iter::Peekable<std::str::Chars>, scanner: &Scanner) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
+fn template_hex_digits_by_value(
+    iter: &mut std::iter::Peekable<std::str::Chars>,
+    scanner: &Scanner,
+) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
     let mut accumulator = 0;
     let mut consumed = 2;
     let mut raw_chars = vec!['u' as u16, '{' as u16];
@@ -1702,7 +1870,16 @@ fn template_hex_digits_by_value(iter: &mut std::iter::Peekable<std::str::Chars>,
                     }
                 }
             };
-            return (tv, raw_chars, Scanner { line: scanner.line, column: scanner.column + consumed as u32, start_idx: scanner.start_idx + consumed }, consumed);
+            return (
+                tv,
+                raw_chars,
+                Scanner {
+                    line: scanner.line,
+                    column: scanner.column + consumed as u32,
+                    start_idx: scanner.start_idx + consumed,
+                },
+                consumed,
+            );
         } else {
             consumed += 1;
             let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
@@ -1725,7 +1902,12 @@ fn template_hex_digits_by_value(iter: &mut std::iter::Peekable<std::str::Chars>,
 fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
     let mut chars = source[scanner.start_idx..].chars().peekable();
     let single_char = |ch: char, val: u16, scanner: &Scanner| {
-        (Some(vec![val]), utf16_encode_code_point(CharVal::from(ch)), Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + ch.len_utf8() }, 1)
+        (
+            Some(vec![val]),
+            utf16_encode_code_point(CharVal::from(ch)),
+            Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + ch.len_utf8() },
+            1,
+        )
     };
     match chars.next() {
         None =>
@@ -1743,10 +1925,13 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('"') => single_char('"', 0x22, &scanner),
         Some('\'') => single_char('\'', 0x27, &scanner),
         Some('\\') => single_char('\\', 0x5c, &scanner),
-        Some('0') if !chars.peek().map_or(false, |c| c.is_digit(10)) => single_char('0', 0, &scanner),
-        Some(c) if c.is_digit(10) => {
-            (None, utf16_encode_code_point(CharVal::from(c)), Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + c.len_utf8() }, 1)
-        }
+        Some('0') if !chars.peek().map_or(false, |c| c.is_ascii_digit()) => single_char('0', 0, &scanner),
+        Some(c) if c.is_ascii_digit() => (
+            None,
+            utf16_encode_code_point(CharVal::from(c)),
+            Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + c.len_utf8() },
+            1,
+        ),
         Some('x') => template_hex_digits(&mut chars, 'x' as u16, THDCount::try_from(2).unwrap(), &scanner),
         Some('u') => {
             let pot_brace_or_digit = chars.peek();
@@ -1758,12 +1943,20 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
                 template_hex_digits(&mut chars, 'u' as u16, THDCount::try_from(4).unwrap(), &scanner)
             }
         }
-        Some(c) if ['\n', '\u{2028}', '\u{2029}'].contains(&c) => {
-            (Some(vec![]), utf16_encode_code_point(CharVal::from(c)), Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + c.len_utf8() }, 1)
-        }
+        Some(c) if ['\n', '\u{2028}', '\u{2029}'].contains(&c) => (
+            Some(vec![]),
+            utf16_encode_code_point(CharVal::from(c)),
+            Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + c.len_utf8() },
+            1,
+        ),
         Some('\r') => {
             let consumed = if chars.peek() == Some(&'\n') { 2 } else { 1 };
-            (Some(vec![]), vec!['\n' as u16], Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + consumed }, consumed)
+            (
+                Some(vec![]),
+                vec!['\n' as u16],
+                Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + consumed },
+                consumed,
+            )
         }
         Some(c) => (
             Some(utf16_encode_code_point(CharVal::from(c))),
@@ -1840,7 +2033,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                 TemplateStyle::NoSubOrHead => Token::NoSubstitutionTemplate,
                 TemplateStyle::MiddleOrTail => Token::TemplateTail,
             };
-            Some((make_token(TemplateData { tv, trv, starting_index: scanner.start_idx, byte_length: after_trailing_quote.start_idx - scanner.start_idx }), after_trailing_quote))
+            Some((make_token(TemplateData { tv, trv }), after_trailing_quote))
         }
         None => {
             let pot_template_head = match_char(&after_chars, source, '$').and_then(|r| match_char(&r, source, '{'));
@@ -1850,7 +2043,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                         TemplateStyle::NoSubOrHead => Token::TemplateHead,
                         TemplateStyle::MiddleOrTail => Token::TemplateMiddle,
                     };
-                    Some((make_token(TemplateData { tv, trv, starting_index: scanner.start_idx, byte_length: after_template_head.start_idx - scanner.start_idx }), after_template_head))
+                    Some((make_token(TemplateData { tv, trv }), after_template_head))
                 }
                 None => None,
             }
@@ -1870,16 +2063,47 @@ fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner
             let mut new_id = Vec::<u16>::with_capacity(data.string_value.len() + 1);
             new_id.push('#' as u16);
             new_id.extend(Vec::<u16>::from(data.string_value));
-            Some((Token::PrivateIdentifier(IdentifierData { keyword_id: data.keyword_id, line: data.line, column: data.column - 1, string_value: new_id.into() }), scan))
+            Some((
+                Token::PrivateIdentifier(IdentifierData { keyword_id: data.keyword_id, string_value: new_id.into() }),
+                scan,
+            ))
         }
         Ok(None) => None,
     })
 }
 
+fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+    if cfg!(test) {
+        match_char(scanner, source, '@').and_then(|s| match_char(&s, source, '@')).and_then(|s| {
+            let c = source[s.start_idx..].chars().next();
+            if let Some(c) = c {
+                if !is_whitespace(c) {
+                    Some((
+                        Token::Debug(c),
+                        Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    }
+}
+
 fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    private_identifier(scanner, source).or_else(|| {
-        identifier_name(scanner, source)
-            .or_else(|| numeric_literal(scanner, source).or_else(|| punctuator(scanner, source).or_else(|| string_literal(scanner, source).or_else(|| template(scanner, source)))))
+    debug_token(scanner, source).or_else(|| {
+        private_identifier(scanner, source).or_else(|| {
+            identifier_name(scanner, source).or_else(|| {
+                numeric_literal(scanner, source).or_else(|| {
+                    punctuator(scanner, source)
+                        .or_else(|| string_literal(scanner, source).or_else(|| template(scanner, source)))
+                })
+            })
+        })
     })
 }
 
@@ -1888,8 +2112,14 @@ fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(To
         let mut iter = source[scanner.start_idx..].chars();
         match iter.next() {
             Some('/') => match iter.next() {
-                Some('=') => Some((Token::Punctuator(Punctuator::SlashEq), Scanner { line: scanner.line, column: scanner.column + 2, start_idx: scanner.start_idx + 2 })),
-                _ => Some((Token::Punctuator(Punctuator::Slash), Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 })),
+                Some('=') => Some((
+                    Token::Punctuator(Punctuator::SlashEq),
+                    Scanner { line: scanner.line, column: scanner.column + 2, start_idx: scanner.start_idx + 2 },
+                )),
+                _ => Some((
+                    Token::Punctuator(Punctuator::Slash),
+                    Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 },
+                )),
             },
             _ => None,
         }
@@ -1902,7 +2132,10 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
     if goal == ScanGoal::InputElementDiv || goal == ScanGoal::InputElementRegExp {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('}') {
-            Some((Token::Punctuator(Punctuator::RightBrace), Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }))
+            Some((
+                Token::Punctuator(Punctuator::RightBrace),
+                Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 },
+            ))
         } else {
             None
         }
@@ -1915,17 +2148,27 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
     if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
         lazy_static! {
             static ref ESREGEX: Regex = {
-                let regular_expression_flags = r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
+                let regular_expression_flags =
+                    r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
                 let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
                 let regular_expression_backslash_sequence = format!(r"(?:\\{})", regular_expression_non_terminator);
-                let regular_expression_class_char = format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{})", regular_expression_backslash_sequence);
+                let regular_expression_class_char =
+                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{})", regular_expression_backslash_sequence);
                 let regular_expression_class_chars = format!("(?:{}*)", regular_expression_class_char);
                 let regular_expression_class = format!(r"(?:\[{}\])", regular_expression_class_chars);
-                let regular_expression_char = format!(r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
-                let regular_expression_first_char = format!(r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
+                let regular_expression_char = format!(
+                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})",
+                    regular_expression_backslash_sequence, regular_expression_class
+                );
+                let regular_expression_first_char = format!(
+                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{}|{})",
+                    regular_expression_backslash_sequence, regular_expression_class
+                );
                 let regular_expression_chars = format!("(?:{}*)", regular_expression_char);
-                let regular_expression_body = format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
-                let regular_expression_literal = format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
+                let regular_expression_body =
+                    format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
+                let regular_expression_literal =
+                    format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
                 Regex::new(&regular_expression_literal).unwrap()
             };
         }
@@ -1937,7 +2180,11 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let flag_end = flag_cap.end();
                 let flags = String::from(flag_cap.as_str());
                 let chars_in_match = source[scanner.start_idx..scanner.start_idx + flag_end].chars().count();
-                let after_scanner = Scanner { line: scanner.line, column: scanner.column + chars_in_match as u32, start_idx: scanner.start_idx + flag_end };
+                let after_scanner = Scanner {
+                    line: scanner.line,
+                    column: scanner.column + chars_in_match as u32,
+                    start_idx: scanner.start_idx + flag_end,
+                };
                 let token = Token::RegularExpression(RegularExpressionData { body, flags });
                 Some((token, after_scanner))
             }
@@ -1955,7 +2202,7 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RegularExpressionData {
     body: String,
     flags: String,
@@ -2022,31 +2269,27 @@ impl RegularExpressionData {
     }
 }
 
-pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
+pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Location, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {
-        Err(msg) => (Token::Error(msg), *scanner),
+        Err(msg) => (Token::Error(msg), Location::from(scanner), *scanner),
         Ok(after_skippable) => {
             if after_skippable.start_idx >= source.len() {
-                (Token::Eof, after_skippable)
+                (Token::Eof, Location::from(&after_skippable), after_skippable)
             } else {
-                let mut r = common_token(&after_skippable, source);
-                if r.is_none() {
-                    r = div_punctuator(&after_skippable, source, goal);
-                    if r.is_none() {
-                        r = right_brace_punctuator(&after_skippable, source, goal);
-                        if r.is_none() {
-                            r = regular_expression_literal(&after_skippable, source, goal);
-                            if r.is_none() {
-                                r = template_substitution_tail(&after_skippable, source, goal);
-                                if r.is_none() {
-                                    r = Some((Token::Error(String::from("Unrecognized Token")), after_skippable));
-                                }
-                            }
-                        }
-                    }
-                }
-                r.unwrap()
+                common_token(&after_skippable, source)
+                    .or_else(|| div_punctuator(&after_skippable, source, goal))
+                    .or_else(|| right_brace_punctuator(&after_skippable, source, goal))
+                    .or_else(|| regular_expression_literal(&after_skippable, source, goal))
+                    .or_else(|| template_substitution_tail(&after_skippable, source, goal))
+                    .map(|(token, after)| (token, Location::from((&after_skippable, &after)), after))
+                    .unwrap_or_else(|| {
+                        (
+                            Token::Error(String::from("Unrecognized Token")),
+                            Location::from(&after_skippable),
+                            after_skippable,
+                        )
+                    })
             }
         }
     }

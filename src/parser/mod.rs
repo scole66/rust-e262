@@ -1,48 +1,18 @@
-use super::scanner;
-use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
-use super::strings::JSString;
+use super::*;
+use ahash::AHashMap;
 use ahash::RandomState;
-use arrow_function_definitions::{ArrowFormalParameters, ExpressionBody};
-use assignment_operators::AssignmentExpression;
-use async_arrow_function_definitions::CoverCallExpressionAndAsyncArrowHead;
-use async_function_definitions::AsyncFunctionBody;
-use async_generator_function_definitions::AsyncGeneratorBody;
-use binary_bitwise_operators::BitwiseORExpression;
-use binary_logical_operators::CoalesceExpression;
-use block::{Block, StatementList};
-use class_definitions::ClassTail;
-use comma_operator::Expression;
 use counter::Counter;
-use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
-use function_definitions::{FunctionBody, FunctionDeclaration};
-use generator_function_definitions::GeneratorBody;
-use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
-use iteration_statements::ForBinding;
-use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
-use method_definitions::MethodDefinition;
-use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
-use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
-use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
-use try_statement::CatchParameter;
-use unary_operators::UnaryExpression;
-use update_expressions::UpdateExpression;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 pub enum ParseGoal {
+    #[default]
     Script,
     Module,
-}
-
-impl Default for ParseGoal {
-    fn default() -> Self {
-        ParseGoal::Script
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -264,52 +234,54 @@ pub struct Parser<'a> {
     pub source: &'a str,
     pub direct: bool,
     pub goal: ParseGoal,
-    pub arguments_cache: HashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
-    pub arrow_formal_parameters_cache: HashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
-    pub assignment_expression_cache: HashMap<InYieldAwaitKey, ParseResult<AssignmentExpression>, RandomState>,
-    pub async_function_body_cache: HashMap<Scanner, (Rc<AsyncFunctionBody>, Scanner), RandomState>,
-    pub async_generator_body_cache: HashMap<Scanner, (Rc<AsyncGeneratorBody>, Scanner), RandomState>,
-    pub binding_element_cache: HashMap<YieldAwaitKey, ParseResult<BindingElement>, RandomState>,
-    pub binding_identifier_cache: HashMap<YieldAwaitKey, ParseResult<BindingIdentifier>, RandomState>,
-    pub binding_pattern_cache: HashMap<YieldAwaitKey, ParseResult<BindingPattern>, RandomState>,
-    pub binding_rest_element_cache: HashMap<YieldAwaitKey, ParseResult<BindingRestElement>, RandomState>,
-    pub binding_rest_property_cache: HashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
-    pub bitwise_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
-    pub block_cache: HashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
-    pub call_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
-    pub catch_parameter_cache: HashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
-    pub class_tail_cache: HashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
-    pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
-    pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
-    pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
-    pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
-    pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
-    pub expression_cache: HashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
-    pub for_binding_cache: HashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
-    pub formal_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
-    pub formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
-    pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
-    pub function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
-    pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
-    pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
-    pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
-    pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
-    pub label_identifier_cache: HashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
-    pub lexical_declaration_cache: HashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
-    pub lhs_cache: HashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
-    pub lpn_cache: HashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
-    pub member_expression_cache: HashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
-    pub meta_property_cache: HashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
-    pub method_definition_cache: HashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
-    pub property_name_cache: HashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
-    pub single_name_binding_cache: HashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
-    pub statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
-    pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
-    pub template_literal_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
-    pub unary_expression_cache: HashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
-    pub unique_formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
-    pub update_expression_cache: HashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
-    pub variable_declaration_list_cache: HashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
+    pub arguments_cache: AHashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
+    pub arrow_formal_parameters_cache: AHashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
+    pub assignment_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<AssignmentExpression>, RandomState>,
+    pub async_function_body_cache: AHashMap<Scanner, (Rc<AsyncFunctionBody>, Scanner), RandomState>,
+    pub async_generator_body_cache: AHashMap<Scanner, (Rc<AsyncGeneratorBody>, Scanner), RandomState>,
+    pub binding_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingElement>, RandomState>,
+    pub binding_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<BindingIdentifier>, RandomState>,
+    pub binding_pattern_cache: AHashMap<YieldAwaitKey, ParseResult<BindingPattern>, RandomState>,
+    pub binding_rest_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestElement>, RandomState>,
+    pub binding_rest_property_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
+    pub bitwise_or_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
+    pub block_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
+    pub call_expression_cache: AHashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
+    pub catch_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
+    pub class_tail_cache: AHashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
+    pub coalesce_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
+    pub cover_call_expression_and_async_arrow_head_cache:
+        AHashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
+    pub cpeaapl_cache:
+        AHashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
+    pub elision_cache: AHashMap<Scanner, ParseResult<Elisions>, RandomState>,
+    pub expression_body_cache: AHashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
+    pub expression_cache: AHashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
+    pub for_binding_cache: AHashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
+    pub formal_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
+    pub formal_parameters_cache: AHashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
+    pub function_body_cache: AHashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
+    pub function_declaration_cache: AHashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
+    pub generator_body_cache: AHashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
+    pub identifier_cache: AHashMap<Scanner, ParseResult<Identifier>, RandomState>,
+    pub identifier_reference_cache: AHashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
+    pub initializer_cache: AHashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
+    pub label_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
+    pub lexical_declaration_cache: AHashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
+    pub lhs_cache: AHashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
+    pub lpn_cache: AHashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
+    pub member_expression_cache: AHashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
+    pub meta_property_cache: AHashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
+    pub method_definition_cache: AHashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
+    pub property_name_cache: AHashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
+    pub single_name_binding_cache: AHashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
+    pub statement_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
+    pub statement_list_cache: AHashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
+    pub template_literal_cache: AHashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
+    pub unary_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
+    pub unique_formal_parameters_cache: AHashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
+    pub update_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
+    pub variable_declaration_list_cache: AHashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
 }
 
 impl<'a> Parser<'a> {
@@ -343,33 +315,30 @@ impl From<&Scanner> for Location {
     }
 }
 
-#[cfg(test)]
-impl From<u32> for Location {
-    fn from(src: u32) -> Self {
-        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
-    }
-}
-#[cfg(test)]
-impl From<(u32, u32)> for Location {
-    fn from(src: (u32, u32)) -> Self {
-        let (line, column) = src;
-        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
-        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
-        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
-        // do we know? Making lines really long helps that intuition make better tests.)
-        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
+impl From<Scanner> for Location {
+    fn from(src: Scanner) -> Location {
+        Location {
+            starting_line: src.line,
+            starting_column: src.column,
+            span: Span { starting_index: src.start_idx, length: 0 },
+        }
     }
 }
 
-impl From<Scanner> for Location {
-    fn from(src: Scanner) -> Location {
-        Location { starting_line: src.line, starting_column: src.column, span: Span { starting_index: src.start_idx, length: 0 } }
+impl From<(&Scanner, &Scanner)> for Location {
+    fn from(start_end_pair: (&Scanner, &Scanner)) -> Self {
+        let (start, end) = start_end_pair;
+        Location {
+            starting_line: start.line,
+            starting_column: start.column,
+            span: Span { starting_index: start.start_idx, length: end.start_idx - start.start_idx },
+        }
     }
 }
 
 impl PartialOrd for Location {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.span.starting_index.cmp(&other.span.starting_index))
+        Some(self.cmp(other))
     }
 }
 impl Ord for Location {
@@ -378,8 +347,23 @@ impl Ord for Location {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+impl Location {
+    pub fn merge(&self, other: &Self) -> Self {
+        assert!(self.span.starting_index <= other.span.starting_index + other.span.length);
+        Location {
+            starting_line: self.starting_line,
+            starting_column: self.starting_column,
+            span: Span {
+                starting_index: self.span.starting_index,
+                length: other.span.starting_index + other.span.length - self.span.starting_index,
+            },
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
 pub enum PECode {
+    #[default]
     Generic,
     EoFExpected,
     ImproperNewline,
@@ -419,19 +403,35 @@ impl fmt::Display for PECode {
             PECode::ImproperNewline => f.write_str("newline not allowed here"),
             PECode::InvalidIdentifier => f.write_str("not an identifier"),
             PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
-            PECode::KeywordUsedAsIdentifier(kwd) => write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd),
-            PECode::OneOfKeywordExpected(kwd_set) => write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")),
-            PECode::OneOfPunctuatorExpected(punct_set) => write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")),
+            PECode::KeywordUsedAsIdentifier(kwd) => {
+                write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd)
+            }
+            PECode::OneOfKeywordExpected(kwd_set) => write!(
+                f,
+                "one of [{}] expected",
+                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")
+            ),
+            PECode::OneOfPunctuatorExpected(punct_set) => {
+                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", "))
+            }
             PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
-            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str("AssignmentExpression or SpreadElement expected"),
+            PECode::AssignmentExpressionOrSpreadElementExpected => {
+                f.write_str("AssignmentExpression or SpreadElement expected")
+            }
             PECode::CommaLeftBracketElementListExpected => f.write_str("‘,’, ‘]’, or an ElementList expected"),
             PECode::IdentifierStringNumberExpected => f.write_str("Identifier, String, or Number expected"),
-            PECode::ExpressionSpreadOrRPExpected => f.write_str("Expression, spread pattern, or closing paren expected"),
+            PECode::ExpressionSpreadOrRPExpected => {
+                f.write_str("Expression, spread pattern, or closing paren expected")
+            }
             PECode::BindingIdOrPatternExpected => f.write_str("BindingIdentifier or BindingPattern expected"),
             PECode::NewOrMEExpected => f.write_str("‘new’ or MemberExpression expected"),
-            PECode::ChainFailed => f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"),
+            PECode::ChainFailed => {
+                f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)")
+            }
             PECode::IdOrFormalsExpected => f.write_str("Identifier or Formal Parameters expected"),
-            PECode::ObjectAssignmentPatternEndFailure => f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"),
+            PECode::ObjectAssignmentPatternEndFailure => {
+                f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected")
+            }
             PECode::ArrayAssignmentPatternEndFailure => f.write_str("‘,’, ‘]’, or an AssignmentElementList expected"),
             PECode::IdRefOrPropertyNameExpected => f.write_str("IdentifierReference or PropertyName expected"),
             PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
@@ -446,13 +446,8 @@ impl fmt::Display for PECode {
         }
     }
 }
-impl Default for PECode {
-    fn default() -> Self {
-        PECode::Generic
-    }
-}
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseError {
     code: PECode,
     location: Location,
@@ -475,12 +470,6 @@ impl ParseError {
         let location_right = right.as_ref().map(|pe| &pe.location);
 
         location_left.cmp(&location_right)
-    }
-    #[cfg(test)]
-    pub fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
-        let expected_loc = loc.into();
-        let spot = self.location.starting_column as i32 - expected_loc.starting_column as i32;
-        (self.code.clone(), spot)
     }
 }
 
@@ -513,108 +502,124 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait HasName {
-    fn has_name(&self) -> bool;
-}
-
 pub trait IsFunctionDefinition {
     fn is_function_definition(&self) -> bool;
 }
 
-pub trait IsIdentifierReference {
-    fn is_identifier_reference(&self) -> bool;
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ATTKind {
     Invalid,
     Simple,
 }
 
-pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_punct(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    punct: Punctuator,
+) -> Result<(Location, Scanner), ParseError> {
+    let (tok, token_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(punct) {
-        Ok(after_tok)
+        Ok((token_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::PunctuatorExpected(punct), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(punct), token_loc))
     }
 }
 
-pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_punct_set(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    punct_set: &[Punctuator],
+) -> Result<(Punctuator, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
-        Ok((p, after_tok))
+        Ok((p, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), tok_loc))
     }
 }
 
-pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(Punctuator::Semicolon) {
-        Ok(after_tok)
-    } else if tok.matches_punct(Punctuator::RightBrace) || tok == Token::Eof || after_tok.line > scanner.line {
-        // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
-        Ok(scanner)
+        Ok((tok_loc, after_tok))
+    } else if tok.matches_punct(Punctuator::RightBrace) || tok == Token::Eof || tok_loc.starting_line > scanner.line {
+        Ok((Location::from(&scanner), scanner))
     } else {
-        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), tok_loc))
     }
 }
 
-pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_keyword(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    kwd: Keyword,
+) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_keyword(kwd) {
-        Ok(after_tok)
+        Ok((tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::KeywordExpected(kwd), scanner))
+        Err(ParseError::new(PECode::KeywordExpected(kwd), tok_loc))
     }
 }
 
-pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_keywords(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    kwds: &[Keyword],
+) -> Result<(Keyword, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
-        Ok((k, after_tok))
+        Ok((k, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), tok_loc))
     }
 }
 
-pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_identifiername(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+) -> Result<(IdentifierData, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
-        Ok((id, after_tok))
+        Ok((id, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), tok_loc))
     }
 }
 
-pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_private_identifier(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+) -> Result<(IdentifierData, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
-        Ok((id, after_tok))
+        Ok((id, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), tok_loc))
     }
 }
 
-pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok == Token::Eof {
-        Ok(after_tok)
+        Ok((tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::EoFExpected, scanner))
+        Err(ParseError::new(PECode::EoFExpected, tok_loc))
     }
 }
 
 //no_line_terminator(after_cont, parser.source)?;
-// If there is no newline sequence between the scanner's spot and the _end_ of the next token, return Ok
+// If there is no newline sequence between the scanner's spot and the start of the next token, return Ok
 // else return Err.
-//
-// (Note that this is really supposed to be between the current spot and the _start_ of the next token,
-// but the scanner doesn't support that yet. Some tokens span more than one line.)
 pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
-    let (_, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
-    if after_tok.line == scanner.line {
+    let (_, tok_loc, _) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+    if tok_loc.starting_line == scanner.line {
         Ok(())
     } else {
         Err(ParseError::new(PECode::ImproperNewline, scanner))
@@ -633,10 +638,6 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 // 3. Otherwise, return a List of one or more SyntaxError objects representing the parsing errors and/or early errors.
 //    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
 //    implementation-defined, but at least one must be present.
-use super::agent::Agent;
-use super::errors::create_syntax_error_object;
-use super::object::Object;
-use scripts::Script;
 
 pub enum ParsedText {
     Errors(Vec<Object>),
@@ -644,19 +645,22 @@ pub enum ParsedText {
     // ... more to come
 }
 
-pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
+pub fn parse_text(src: &str, goal_symbol: ParseGoal) -> ParsedText {
     let mut parser = Parser::new(src, false, goal_symbol);
     match goal_symbol {
         ParseGoal::Script => {
             let potential_script = Script::parse(&mut parser, Scanner::new());
             match potential_script {
                 Err(pe) => {
-                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str());
+                    let syntax_error = create_syntax_error_object(
+                        format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
+                        Some(pe.location),
+                    );
                     ParsedText::Errors(vec![syntax_error])
                 }
                 Ok((node, _)) => {
                     let mut errs = vec![];
-                    node.early_errors(agent, &mut errs);
+                    node.early_errors(&mut errs);
                     if errs.is_empty() {
                         ParsedText::Script(node)
                     } else {
@@ -680,7 +684,13 @@ pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
         iter.next();
         iter.next().map(|(n, _)| n)
     }
-    let mut duplicates = idents.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| (s, second_spot(s, idents).unwrap())).collect::<Vec<_>>();
+    let mut duplicates = idents
+        .iter()
+        .collect::<Counter<_>>()
+        .into_iter()
+        .filter(|&(_, n)| n > 1)
+        .map(|(s, _)| (s, second_spot(s, idents).unwrap()))
+        .collect::<Vec<_>>();
 
     duplicates.sort_unstable_by_key(|&(_, n)| n);
 
@@ -729,6 +739,49 @@ pub mod try_statement;
 pub mod unary_operators;
 pub mod update_expressions;
 pub mod with_statement;
+
+pub use additive_operators::*;
+pub use arrow_function_definitions::*;
+pub use assignment_operators::*;
+pub use async_arrow_function_definitions::*;
+pub use async_function_definitions::*;
+pub use async_generator_function_definitions::*;
+pub use binary_bitwise_operators::*;
+pub use binary_logical_operators::*;
+pub use bitwise_shift_operators::*;
+pub use block::*;
+pub use break_statement::*;
+pub use class_definitions::*;
+pub use comma_operator::*;
+pub use conditional_operator::*;
+pub use continue_statement::*;
+pub use debugger_statement::*;
+pub use declarations_and_variables::*;
+pub use empty_statement::*;
+pub use equality_operators::*;
+pub use exponentiation_operator::*;
+pub use expression_statement::*;
+pub use function_definitions::*;
+pub use generator_function_definitions::*;
+pub use identifiers::*;
+pub use if_statement::*;
+pub use iteration_statements::*;
+pub use labelled_statements::*;
+pub use left_hand_side_expressions::*;
+pub use method_definitions::*;
+pub use multiplicative_operators::*;
+pub use parameter_lists::*;
+pub use primary_expressions::*;
+pub use relational_operators::*;
+pub use return_statement::*;
+pub use scripts::*;
+pub use statements_and_declarations::*;
+pub use switch_statement::*;
+pub use throw_statement::*;
+pub use try_statement::*;
+pub use unary_operators::*;
+pub use update_expressions::*;
+pub use with_statement::*;
 
 #[cfg(test)]
 pub mod testhelp;

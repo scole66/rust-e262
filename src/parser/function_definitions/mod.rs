@@ -1,29 +1,26 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::block::StatementList;
-use super::identifiers::BindingIdentifier;
-use super::parameter_lists::FormalParameters;
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner, StringToken};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // FunctionDeclaration[Yield, Await, Default] :
 //      function BindingIdentifier[?Yield, ?Await] ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 //      [+Default] function ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for FunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }
@@ -62,9 +59,16 @@ impl PrettyPrint for FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (ident, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
             Ok((node, scan)) => Ok((Some(node), scan)),
             Err(e) => {
                 if default_flag {
@@ -74,16 +78,24 @@ impl FunctionDeclaration {
                 }
             }
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
-        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (params, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = func_loc.merge(&rb_loc);
+        Ok((Rc::new(FunctionDeclaration { ident, params, body, location }), after_rb))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
         match parser.function_declaration_cache.get(&key) {
             Some(result) => result.clone(),
@@ -95,10 +107,18 @@ impl FunctionDeclaration {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         match &self.ident {
-            None => vec![JSString::from("*default*")],
-            Some(node) => node.bound_names(),
+            None => JSString::from("*default*"),
+            Some(node) => node.bound_name(),
         }
     }
 
@@ -116,17 +136,22 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body);
-        if let Some(ident) = &self.ident {
-            ident.early_errors(agent, errs, strict_function);
-        }
-        self.params.early_errors(agent, errs, strict_function, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
+    }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
     }
 }
 
-pub fn common_function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) -> bool {
+pub fn function_early_errors(
+    errs: &mut Vec<Object>,
+    strict: bool,
+    ident: Option<&Rc<BindingIdentifier>>,
+    params: &Rc<FormalParameters>,
+    body: &Rc<FunctionBody>,
+) -> bool {
     // Static Semantics: Early Errors
     //  FunctionDeclaration :
     //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
@@ -154,24 +179,37 @@ pub fn common_function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, s
 
     if strict_function {
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(params.location())));
         }
     }
 
     if body.function_body_contains_use_strict() && !params.is_simple_parameter_list() {
-        errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        errs.push(create_syntax_error_object(
+            "Illegal 'use strict' directive in function with non-simple parameter list",
+            Some(body.location()),
+        ));
     }
 
     let lexnames = body.lexically_declared_names();
     for lexname in lexnames {
         if bn.contains(&lexname) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", lexname)));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", lexname), Some(body.location())));
         }
     }
 
-    if params.contains(ParseNodeKind::SuperProperty) || params.contains(ParseNodeKind::SuperCall) || body.contains(ParseNodeKind::SuperProperty) || body.contains(ParseNodeKind::SuperCall) {
-        errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
+    if params.contains(ParseNodeKind::SuperProperty)
+        || params.contains(ParseNodeKind::SuperCall)
+        || body.contains(ParseNodeKind::SuperProperty)
+        || body.contains(ParseNodeKind::SuperCall)
+    {
+        errs.push(create_syntax_error_object("‘super’ not allowed here", Some(params.location())));
     }
+
+    if let Some(ident) = ident {
+        ident.early_errors(errs, strict_function);
+    }
+    params.early_errors(errs, strict_function, strict_function);
+    body.early_errors(errs, strict_function);
 
     strict_function
 }
@@ -180,16 +218,19 @@ pub fn common_function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, s
 //      function BindingIdentifier[~Yield, ~Await]opt ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<FunctionBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<FunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }
@@ -235,18 +276,27 @@ impl IsFunctionDefinition for FunctionExpression {
 
 impl FunctionExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, false, false) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_func),
         };
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
-        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((
+            Rc::new(FunctionExpression { ident: bi, params: fp, body: fb, location: func_loc.merge(&rb_loc) }),
+            after_rb,
+        ))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
@@ -263,13 +313,12 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body);
-        if let Some(ident) = &self.ident {
-            ident.early_errors(agent, errs, strict_function);
-        }
-        self.params.early_errors(agent, errs, strict_function, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
     }
 }
 
@@ -277,7 +326,7 @@ impl FunctionExpression {
 //      FunctionStatementList[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionBody {
-    statements: Rc<FunctionStatementList>,
+    pub statements: Rc<FunctionStatementList>,
 }
 
 impl fmt::Display for FunctionBody {
@@ -321,6 +370,10 @@ impl FunctionBody {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.statements.location()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -371,7 +424,7 @@ impl FunctionBody {
         self.statements.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // FunctionBody : FunctionStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of FunctionStatementList contains any duplicate
         //    entries.
@@ -383,40 +436,71 @@ impl FunctionBody {
         //    « » is true.
         let ldn = self.statements.lexically_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                format!("‘{}’ already defined", name),
+                Some(self.statements.location()),
+            ));
         }
         let vdn = self.statements.var_declared_names();
         for name in vdn {
             if ldn.contains(&name) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name)));
+                errs.push(create_syntax_error_object(
+                    format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name),
+                    Some(self.statements.location()),
+                ));
             }
         }
         if self.statements.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+            errs.push(create_syntax_error_object("duplicate labels detected", Some(self.statements.location())));
         }
         if self.statements.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
+            errs.push(create_syntax_error_object("undefined break target detected", Some(self.statements.location())));
         }
         if self.statements.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+            errs.push(create_syntax_error_object(
+                "undefined continue target detected",
+                Some(self.statements.location()),
+            ));
         }
 
-        self.statements.early_errors(agent, errs, strict);
+        self.statements.early_errors(errs, strict);
+    }
+
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        self.statements.var_declared_names()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.statements.var_scoped_declarations()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.statements.lexically_scoped_declarations()
     }
 }
 
 // FunctionStatementList[Yield, Await] :
 //      StatementList[?Yield, ?Await, +Return]opt
 #[derive(Debug)]
-pub struct FunctionStatementList {
-    statements: Option<Rc<StatementList>>,
+pub enum FunctionStatementList {
+    Statements(Rc<StatementList>),
+    Empty(Location),
 }
 
 impl fmt::Display for FunctionStatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.fmt(f),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.fmt(f),
         }
     }
 }
@@ -428,9 +512,9 @@ impl PrettyPrint for FunctionStatementList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionStatementList: {}", first, self)?;
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.pprint_with_leftpad(writer, &successive, Spot::Final),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -438,9 +522,9 @@ impl PrettyPrint for FunctionStatementList {
     where
         T: Write,
     {
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.concise_with_leftpad(writer, pad, state),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -449,14 +533,24 @@ impl FunctionStatementList {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         // Can never return an error.
         let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
-            Err(_) => (None, scanner),
-            Ok((st, s)) => (Some(st), s),
+            Err(_) => (FunctionStatementList::Empty(Location::from(scanner)), scanner),
+            Ok((st, s)) => (FunctionStatementList::Statements(st), s),
         };
-        (Rc::new(FunctionStatementList { statements: stmts }), after_stmts)
+        (Rc::new(stmts), after_stmts)
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            FunctionStatementList::Statements(s) => s.location(),
+            FunctionStatementList::Empty(loc) => *loc,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.statements.as_ref().map_or(false, |n| n.contains(kind))
+        match self {
+            FunctionStatementList::Statements(n) => n.contains(kind),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -466,7 +560,10 @@ impl FunctionStatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+        match self {
+            FunctionStatementList::Statements(n) => n.all_private_identifiers_valid(names),
+            FunctionStatementList::Empty(_) => true,
+        }
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -480,25 +577,28 @@ impl FunctionStatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_arguments(),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {
-        match &self.statements {
-            Some(statement_list) => statement_list.initial_string_tokens(),
-            None => vec![],
+        match self {
+            FunctionStatementList::Statements(statement_list) => statement_list.initial_string_tokens(),
+            FunctionStatementList::Empty(_) => vec![],
         }
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
-        match &self.statements {
-            Some(statement_list) => {
+        match self {
+            FunctionStatementList::Statements(statement_list) => {
                 // FunctionStatementList : StatementList
                 //  1. Return TopLevelLexicallyDeclaredNames of StatementList.
                 statement_list.top_level_lexically_declared_names()
             }
-            None => {
+            FunctionStatementList::Empty(_) => {
                 // FunctionStatementList : [empty]
                 //  1. Return a new empty List.
                 vec![]
@@ -508,13 +608,13 @@ impl FunctionStatementList {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: VarDeclaredNames
-        match &self.statements {
-            Some(statement_list) => {
+        match self {
+            FunctionStatementList::Statements(statement_list) => {
                 // FunctionStatementList : StatementList
                 //  1. Return TopLevelVarDeclaredNames of StatementList.
                 statement_list.top_level_var_declared_names()
             }
-            None => {
+            FunctionStatementList::Empty(_) => {
                 // FunctionStatementList : [empty]
                 //  1. Return a new empty List.
                 vec![]
@@ -523,20 +623,46 @@ impl FunctionStatementList {
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_duplicate_labels(label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_duplicate_labels(label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_break_target(label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_undefined_break_target(label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_continue_target(iteration_set, label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_undefined_continue_target(iteration_set, label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        if let Some(sl) = &self.statements {
-            sl.early_errors(agent, errs, strict, false, false);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        if let FunctionStatementList::Statements(sl) = self {
+            sl.early_errors(errs, strict, false, false);
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            FunctionStatementList::Statements(s) => s.top_level_var_scoped_declarations(),
+            FunctionStatementList::Empty(_) => vec![],
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
+            FunctionStatementList::Empty(_) => vec![],
         }
     }
 }

@@ -1,17 +1,16 @@
-#![feature(ptr_metadata)]
 #![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 
-use std::env;
-use std::fs;
-use std::io::{self, Write};
-
 mod agent;
+mod arguments_object;
 mod arrays;
 mod bigint_object;
 mod boolean_object;
+mod chunk;
 mod comparison;
+mod compiler;
+mod control_abstraction;
 mod cr;
 mod dtoa_r;
 mod environment_record;
@@ -31,22 +30,54 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use agent::Agent;
-use parser::{parse_text, ParseGoal, ParsedText};
-use prettyprint::PrettyPrint;
-use values::to_string;
+pub use crate::agent::*;
+pub use crate::arguments_object::*;
+pub use crate::arrays::*;
+pub use crate::bigint_object::*;
+pub use crate::boolean_object::*;
+pub use crate::chunk::*;
+pub use crate::comparison::*;
+pub use crate::compiler::*;
+pub use crate::control_abstraction::*;
+pub use crate::cr::*;
+pub use crate::dtoa_r::*;
+pub use crate::environment_record::*;
+pub use crate::errors::*;
+pub use crate::execution_context::*;
+pub use crate::function_object::*;
+pub use crate::number_object::*;
+pub use crate::object::*;
+pub use crate::object_object::*;
+pub use crate::parser::*;
+pub use crate::prettyprint::*;
+pub use crate::realm::*;
+pub use crate::reference::*;
+pub use crate::scanner::*;
+pub use crate::string_object::*;
+pub use crate::strings::*;
+pub use crate::symbol_object::*;
+pub use crate::values::*;
+
+use std::cell::RefCell;
+use std::env;
+use std::fs;
+use std::io::{self, Write};
+use std::rc::Rc;
 
 #[derive(Debug)]
 struct VM {
-    // Holds the state for the virtual machine. Anything shared between execution contexts winds up here.
-    pub agent: Agent,
+    // Holds the state for the virtual machine. Anything shared between agents winds up here.
+    symbols: Rc<RefCell<SymbolRegistry>>,
 }
 
 impl VM {
-    fn new() -> VM {
-        let mut agent = Agent::new();
-        agent.initialize_host_defined_realm();
-        VM { agent }
+    fn new() -> Self {
+        let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
+        AGENT.with(|agent| {
+            agent.set_global_symbol_registry(sym_registry.clone());
+            initialize_host_defined_realm(false);
+        });
+        VM { symbols: sym_registry }
     }
 
     //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
@@ -58,12 +89,12 @@ impl VM {
     }
 }
 
-fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
-    let parsed = parse_text(&mut vm.agent, source, ParseGoal::Script);
+fn interpret(source: &str) -> Result<i32, String> {
+    let parsed = parse_text(source, ParseGoal::Script);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
-                println!("{}", to_string(&mut vm.agent, err).unwrap());
+                println!("{}", to_string(err).unwrap());
             }
             Err("See above".to_string())
         }
@@ -74,7 +105,7 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     }
 }
 
-fn repl(vm: &mut VM) {
+fn repl() {
     loop {
         print!("> ");
         io::stdout().flush().unwrap();
@@ -88,34 +119,50 @@ fn repl(vm: &mut VM) {
         }
 
         println!("You entered the string {:?}", line);
-        match interpret(vm, &line) {
+        match interpret(&line) {
             Ok(value) => println!("{}", value),
             Err(err) => println!("{}", err),
         }
     }
 }
 
-fn run_file(vm: &mut VM, fname: &str) {
+fn run_file(fname: &str) {
     println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
     match potential_file_content {
         Err(e) => println!("{}", e),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
-            match interpret(vm, &script_source) {
-                Ok(value) => println!("{}", value),
-                Err(err) => println!("{}", err),
+            match process_ecmascript(&script_source) {
+                Ok(value) => println!("{:#?}", value),
+                Err(err) => {
+                    println!("{}", err);
+                    if let ProcessError::RuntimeError { error } = err {
+                        let repr = to_string(error);
+                        if let Ok(err) = repr {
+                            println!("{}", err);
+                        }
+                    }
+                }
             }
+            //match interpret(vm, &script_source) {
+            //    Ok(value) => println!("{}", value),
+            //    Err(err) => println!("{}", err),
+            //}
         }
     }
 }
 
 fn run_app() -> Result<(), i32> {
-    let mut vm: VM = VM::new();
+    println!("sizeof(FullCompletion): {}", std::mem::size_of::<FullCompletion>());
+    println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
+    println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
+
+    VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        1 => repl(&mut vm),
-        2 => run_file(&mut vm, &args[1]),
+        1 => repl(),
+        2 => run_file(&args[1]),
         _ => {
             eprintln!("Usage: {} [path]", &args[0]);
             return Err(2);
@@ -130,6 +177,15 @@ fn main() {
         Ok(_) => 0,
         Err(err) => err,
     });
+}
+
+use itertools::Itertools;
+fn example() {
+    let mydigits = "012345";
+
+    for z in mydigits.chars().chunks(2).into_iter().map(|chunk| format!("{:?}", chunk.collect::<Vec<_>>())) {
+        println!("{:?}", z);
+    }
 }
 
 #[cfg(test)]

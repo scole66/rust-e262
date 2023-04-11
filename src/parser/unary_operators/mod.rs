@@ -1,12 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::async_function_definitions::AwaitExpression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
-use super::update_expressions::UpdateExpression;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // UnaryExpression[Yield, Await] :
 //      UpdateExpression[?Yield, ?Await]
@@ -21,13 +16,13 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 #[derive(Debug)]
 pub enum UnaryExpression {
     UpdateExpression(Rc<UpdateExpression>),
-    Delete(Rc<UnaryExpression>),
-    Void(Rc<UnaryExpression>),
-    Typeof(Rc<UnaryExpression>),
-    NoOp(Rc<UnaryExpression>),
-    Negate(Rc<UnaryExpression>),
-    Complement(Rc<UnaryExpression>),
-    Not(Rc<UnaryExpression>),
+    Delete { ue: Rc<UnaryExpression>, location: Location },
+    Void { ue: Rc<UnaryExpression>, location: Location },
+    Typeof { ue: Rc<UnaryExpression>, location: Location },
+    NoOp { ue: Rc<UnaryExpression>, location: Location },
+    Negate { ue: Rc<UnaryExpression>, location: Location },
+    Complement { ue: Rc<UnaryExpression>, location: Location },
+    Not { ue: Rc<UnaryExpression>, location: Location },
     Await(Rc<AwaitExpression>),
 }
 
@@ -35,13 +30,13 @@ impl fmt::Display for UnaryExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             UnaryExpression::UpdateExpression(boxed) => write!(f, "{}", boxed),
-            UnaryExpression::Delete(boxed) => write!(f, "delete {}", boxed),
-            UnaryExpression::Void(boxed) => write!(f, "void {}", boxed),
-            UnaryExpression::Typeof(boxed) => write!(f, "typeof {}", boxed),
-            UnaryExpression::NoOp(boxed) => write!(f, "+ {}", boxed),
-            UnaryExpression::Negate(boxed) => write!(f, "- {}", boxed),
-            UnaryExpression::Complement(boxed) => write!(f, "~ {}", boxed),
-            UnaryExpression::Not(boxed) => write!(f, "! {}", boxed),
+            UnaryExpression::Delete { ue: boxed, .. } => write!(f, "delete {}", boxed),
+            UnaryExpression::Void { ue: boxed, .. } => write!(f, "void {}", boxed),
+            UnaryExpression::Typeof { ue: boxed, .. } => write!(f, "typeof {}", boxed),
+            UnaryExpression::NoOp { ue: boxed, .. } => write!(f, "+ {}", boxed),
+            UnaryExpression::Negate { ue: boxed, .. } => write!(f, "- {}", boxed),
+            UnaryExpression::Complement { ue: boxed, .. } => write!(f, "~ {}", boxed),
+            UnaryExpression::Not { ue: boxed, .. } => write!(f, "! {}", boxed),
             UnaryExpression::Await(boxed) => write!(f, "{}", boxed),
         }
     }
@@ -56,13 +51,13 @@ impl PrettyPrint for UnaryExpression {
         writeln!(writer, "{}UnaryExpression: {}", first, self)?;
         match &self {
             UnaryExpression::UpdateExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            UnaryExpression::Delete(boxed)
-            | UnaryExpression::Void(boxed)
-            | UnaryExpression::Typeof(boxed)
-            | UnaryExpression::NoOp(boxed)
-            | UnaryExpression::Negate(boxed)
-            | UnaryExpression::Complement(boxed)
-            | UnaryExpression::Not(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            UnaryExpression::Delete { ue: boxed, .. }
+            | UnaryExpression::Void { ue: boxed, .. }
+            | UnaryExpression::Typeof { ue: boxed, .. }
+            | UnaryExpression::NoOp { ue: boxed, .. }
+            | UnaryExpression::Negate { ue: boxed, .. }
+            | UnaryExpression::Complement { ue: boxed, .. }
+            | UnaryExpression::Not { ue: boxed, .. } => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             UnaryExpression::Await(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
@@ -80,13 +75,13 @@ impl PrettyPrint for UnaryExpression {
         match self {
             UnaryExpression::UpdateExpression(node) => node.concise_with_leftpad(writer, pad, state),
             UnaryExpression::Await(node) => node.concise_with_leftpad(writer, pad, state),
-            UnaryExpression::Delete(node) => work(node, "delete", TokenType::Keyword),
-            UnaryExpression::Void(node) => work(node, "void", TokenType::Keyword),
-            UnaryExpression::Typeof(node) => work(node, "typeof", TokenType::Keyword),
-            UnaryExpression::NoOp(node) => work(node, "+", TokenType::Punctuator),
-            UnaryExpression::Negate(node) => work(node, "-", TokenType::Punctuator),
-            UnaryExpression::Complement(node) => work(node, "~", TokenType::Punctuator),
-            UnaryExpression::Not(node) => work(node, "!", TokenType::Punctuator),
+            UnaryExpression::Delete { ue: node, .. } => work(node, "delete", TokenType::Keyword),
+            UnaryExpression::Void { ue: node, .. } => work(node, "void", TokenType::Keyword),
+            UnaryExpression::Typeof { ue: node, .. } => work(node, "typeof", TokenType::Keyword),
+            UnaryExpression::NoOp { ue: node, .. } => work(node, "+", TokenType::Punctuator),
+            UnaryExpression::Negate { ue: node, .. } => work(node, "-", TokenType::Punctuator),
+            UnaryExpression::Complement { ue: node, .. } => work(node, "~", TokenType::Punctuator),
+            UnaryExpression::Not { ue: node, .. } => work(node, "!", TokenType::Punctuator),
         }
     }
 }
@@ -95,39 +90,76 @@ impl IsFunctionDefinition for UnaryExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             UnaryExpression::UpdateExpression(boxed) => boxed.is_function_definition(),
-            UnaryExpression::Delete(_)
-            | UnaryExpression::Void(_)
-            | UnaryExpression::Typeof(_)
-            | UnaryExpression::NoOp(_)
-            | UnaryExpression::Negate(_)
-            | UnaryExpression::Complement(_)
-            | UnaryExpression::Not(_)
+            UnaryExpression::Delete { .. }
+            | UnaryExpression::Void { .. }
+            | UnaryExpression::Typeof { .. }
+            | UnaryExpression::NoOp { .. }
+            | UnaryExpression::Negate { .. }
+            | UnaryExpression::Complement { .. }
+            | UnaryExpression::Not { .. }
             | UnaryExpression::Await(_) => false,
+        }
+    }
+}
+
+enum UETokenType {
+    Delete,
+    Void,
+    Typeof,
+    Noop,
+    Negate,
+    Complement,
+    Not,
+}
+impl TryFrom<Token> for UETokenType {
+    type Error = ();
+    fn try_from(src: Token) -> Result<Self, Self::Error> {
+        match src {
+            Token::Identifier(id) if id.matches(Keyword::Delete) => Ok(Self::Delete),
+            Token::Identifier(id) if id.matches(Keyword::Void) => Ok(Self::Void),
+            Token::Identifier(id) if id.matches(Keyword::Typeof) => Ok(Self::Typeof),
+            Token::Punctuator(Punctuator::Plus) => Ok(Self::Noop),
+            Token::Punctuator(Punctuator::Minus) => Ok(Self::Negate),
+            Token::Punctuator(Punctuator::Tilde) => Ok(Self::Complement),
+            Token::Punctuator(Punctuator::Bang) => Ok(Self::Not),
+            _ => Err(()),
         }
     }
 }
 
 impl UnaryExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        let mut unary_helper = |f: fn(Rc<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Rc::new(f(boxed)), after));
-        match token {
-            Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(UnaryExpression::Delete),
-            Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(UnaryExpression::Void),
-            Token::Identifier(id) if id.matches(Keyword::Typeof) => unary_helper(UnaryExpression::Typeof),
-            Token::Punctuator(Punctuator::Plus) => unary_helper(UnaryExpression::NoOp),
-            Token::Punctuator(Punctuator::Minus) => unary_helper(UnaryExpression::Negate),
-            Token::Punctuator(Punctuator::Tilde) => unary_helper(UnaryExpression::Complement),
-            Token::Punctuator(Punctuator::Bang) => unary_helper(UnaryExpression::Not),
-            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UnaryExpression), scanner))
+        let (token, tok_loc, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+
+        if let Ok(prod_marker) = UETokenType::try_from(token) {
+            let (ue, after_ue) = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
+            let location = tok_loc.merge(&ue.location());
+            Ok((
+                Rc::new(match prod_marker {
+                    UETokenType::Delete => UnaryExpression::Delete { ue, location },
+                    UETokenType::Void => UnaryExpression::Void { ue, location },
+                    UETokenType::Typeof => UnaryExpression::Typeof { ue, location },
+                    UETokenType::Noop => UnaryExpression::NoOp { ue, location },
+                    UETokenType::Negate => UnaryExpression::Negate { ue, location },
+                    UETokenType::Complement => UnaryExpression::Complement { ue, location },
+                    UETokenType::Not => UnaryExpression::Not { ue, location },
+                }),
+                after_ue,
+            ))
+        } else {
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UnaryExpression), scanner))
                 .otherwise(|| {
                     if await_flag {
-                        AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
+                        AwaitExpression::parse(parser, scanner, yield_flag)
+                            .map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
                     } else {
                         Err(ParseError::default())
                     }
                 })
-                .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))),
+                .otherwise(|| {
+                    UpdateExpression::parse(parser, scanner, yield_flag, await_flag)
+                        .map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))
+                })
         }
     }
 
@@ -143,16 +175,30 @@ impl UnaryExpression {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            UnaryExpression::UpdateExpression(ue) => ue.location(),
+            UnaryExpression::Delete { location, .. }
+            | UnaryExpression::Void { location, .. }
+            | UnaryExpression::Typeof { location, .. }
+            | UnaryExpression::NoOp { location, .. }
+            | UnaryExpression::Negate { location, .. }
+            | UnaryExpression::Complement { location, .. }
+            | UnaryExpression::Not { location, .. } => *location,
+            UnaryExpression::Await(ae) => ae.location(),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             UnaryExpression::UpdateExpression(n) => n.contains(kind),
-            UnaryExpression::Delete(n) => n.contains(kind),
-            UnaryExpression::Void(n) => n.contains(kind),
-            UnaryExpression::Typeof(n) => n.contains(kind),
-            UnaryExpression::NoOp(n) => n.contains(kind),
-            UnaryExpression::Negate(n) => n.contains(kind),
-            UnaryExpression::Complement(n) => n.contains(kind),
-            UnaryExpression::Not(n) => n.contains(kind),
+            UnaryExpression::Delete { ue, .. }
+            | UnaryExpression::Void { ue, .. }
+            | UnaryExpression::Typeof { ue, .. }
+            | UnaryExpression::NoOp { ue, .. }
+            | UnaryExpression::Negate { ue, .. }
+            | UnaryExpression::Complement { ue, .. }
+            | UnaryExpression::Not { ue, .. } => ue.contains(kind),
             UnaryExpression::Await(n) => kind == ParseNodeKind::AwaitExpression || n.contains(kind),
         }
     }
@@ -173,13 +219,13 @@ impl UnaryExpression {
         //  2. Return true.
         match self {
             UnaryExpression::UpdateExpression(n) => n.all_private_identifiers_valid(names),
-            UnaryExpression::Delete(n)
-            | UnaryExpression::Void(n)
-            | UnaryExpression::Typeof(n)
-            | UnaryExpression::NoOp(n)
-            | UnaryExpression::Negate(n)
-            | UnaryExpression::Complement(n)
-            | UnaryExpression::Not(n) => n.all_private_identifiers_valid(names),
+            UnaryExpression::Delete { ue, .. }
+            | UnaryExpression::Void { ue, .. }
+            | UnaryExpression::Typeof { ue, .. }
+            | UnaryExpression::NoOp { ue, .. }
+            | UnaryExpression::Negate { ue, .. }
+            | UnaryExpression::Complement { ue, .. }
+            | UnaryExpression::Not { ue, .. } => ue.all_private_identifiers_valid(names),
             UnaryExpression::Await(n) => n.all_private_identifiers_valid(names),
         }
     }
@@ -197,13 +243,13 @@ impl UnaryExpression {
         //  2. Return false.
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.contains_arguments(),
-            UnaryExpression::Delete(ue)
-            | UnaryExpression::Void(ue)
-            | UnaryExpression::Typeof(ue)
-            | UnaryExpression::NoOp(ue)
-            | UnaryExpression::Negate(ue)
-            | UnaryExpression::Complement(ue)
-            | UnaryExpression::Not(ue) => ue.contains_arguments(),
+            UnaryExpression::Delete { ue, .. }
+            | UnaryExpression::Void { ue, .. }
+            | UnaryExpression::Typeof { ue, .. }
+            | UnaryExpression::NoOp { ue, .. }
+            | UnaryExpression::Negate { ue, .. }
+            | UnaryExpression::Complement { ue, .. }
+            | UnaryExpression::Not { ue, .. } => ue.contains_arguments(),
             UnaryExpression::Await(ae) => ae.contains_arguments(),
         }
     }
@@ -215,10 +261,10 @@ impl UnaryExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            UnaryExpression::UpdateExpression(n) => n.early_errors(agent, errs, strict),
-            UnaryExpression::Delete(n) => {
+            UnaryExpression::UpdateExpression(n) => n.early_errors(errs, strict),
+            UnaryExpression::Delete { ue: n, .. } => {
                 // Static Semantics: Early Errors
                 //      UnaryExpression : delete UnaryExpression
                 //
@@ -241,14 +287,17 @@ impl UnaryExpression {
                     // node.js errors for these cases:
                     //  * "Private fields can not be deleted"
                     //  * "Delete of an unqualified identifier in strict mode."
-                    errs.push(create_syntax_error_object(agent, "Item is not deletable"));
+                    errs.push(create_syntax_error_object("Item is not deletable", Some(n.location())));
                 }
-                n.early_errors(agent, errs, strict);
+                n.early_errors(errs, strict);
             }
-            UnaryExpression::Void(n) | UnaryExpression::Typeof(n) | UnaryExpression::NoOp(n) | UnaryExpression::Negate(n) | UnaryExpression::Complement(n) | UnaryExpression::Not(n) => {
-                n.early_errors(agent, errs, strict)
-            }
-            UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
+            UnaryExpression::Void { ue, .. }
+            | UnaryExpression::Typeof { ue, .. }
+            | UnaryExpression::NoOp { ue, .. }
+            | UnaryExpression::Negate { ue, .. }
+            | UnaryExpression::Complement { ue, .. }
+            | UnaryExpression::Not { ue, .. } => ue.early_errors(errs, strict),
+            UnaryExpression::Await(n) => n.early_errors(errs, strict),
         }
     }
 
@@ -258,14 +307,21 @@ impl UnaryExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(strict),
-            UnaryExpression::Delete(_)
-            | UnaryExpression::Void(_)
-            | UnaryExpression::Typeof(_)
-            | UnaryExpression::NoOp(_)
-            | UnaryExpression::Negate(_)
-            | UnaryExpression::Complement(_)
-            | UnaryExpression::Not(_)
+            UnaryExpression::Delete { .. }
+            | UnaryExpression::Void { .. }
+            | UnaryExpression::Typeof { .. }
+            | UnaryExpression::NoOp { .. }
+            | UnaryExpression::Negate { .. }
+            | UnaryExpression::Complement { .. }
+            | UnaryExpression::Not { .. }
             | UnaryExpression::Await(_) => ATTKind::Invalid,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            UnaryExpression::UpdateExpression(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

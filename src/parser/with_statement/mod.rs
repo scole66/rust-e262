@@ -1,12 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::comma_operator::Expression;
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
-use super::statements_and_declarations::Statement;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // WithStatement[Yield, Await, Return] :
 //      with ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
@@ -14,6 +9,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 pub struct WithStatement {
     expression: Rc<Expression>,
     statement: Rc<Statement>,
+    location: Location,
 }
 
 impl fmt::Display for WithStatement {
@@ -48,13 +44,32 @@ impl PrettyPrint for WithStatement {
 }
 
 impl WithStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let after_with = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
-        let after_open = scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        Ok((Rc::new(WithStatement { expression: exp, statement: stmt }), after_stmt))
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
+        let (with_loc, after_with) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
+        let (_, after_open) =
+            scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (expression, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
+        let (_, after_close) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (statement, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+        Ok((
+            Rc::new({
+                let location = with_loc.merge(&statement.location());
+                WithStatement { expression, statement, location }
+            }),
+            after_stmt,
+        ))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -101,15 +116,25 @@ impl WithStatement {
         self.expression.contains_arguments() || self.statement.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  WithStatement : with ( Expression ) Statement
         //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.
         if strict {
-            errs.push(create_syntax_error_object(agent, "'with' statements not allowed in strict mode"));
+            errs.push(create_syntax_error_object(
+                "'with' statements not allowed in strict mode",
+                Some(self.location()),
+            ));
         }
-        self.expression.early_errors(agent, errs, strict);
-        self.statement.early_errors(agent, errs, strict, within_iteration, within_switch);
+        self.expression.early_errors(errs, strict);
+        self.statement.early_errors(errs, strict, within_iteration, within_switch);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.statement.var_scoped_declarations()
     }
 }
 

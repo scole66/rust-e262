@@ -1,22 +1,14 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::assignment_operators::AssignmentExpression;
-use super::function_definitions::FunctionBody;
-use super::identifiers::BindingIdentifier;
-use super::parameter_lists::UniqueFormalParameters;
-use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterList;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ArrowFunction[In, Yield, Await] :
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
 #[derive(Debug)]
 pub struct ArrowFunction {
-    parameters: Rc<ArrowParameters>,
-    body: Rc<ConciseBody>,
+    pub parameters: Rc<ArrowParameters>,
+    pub body: Rc<ConciseBody>,
 }
 
 impl fmt::Display for ArrowFunction {
@@ -50,16 +42,31 @@ impl PrettyPrint for ArrowFunction {
 
 impl ArrowFunction {
     // ArrowFunction's only parent is AssignmentExpression. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         no_line_terminator(after_params, parser.source)?;
-        let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
+        let (_, after_arrow) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((Rc::new(ArrowFunction { parameters, body }), after_body))
     }
 
+    pub fn location(&self) -> Location {
+        self.parameters.location().merge(&self.body.location())
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        (kind == ParseNodeKind::Super || kind == ParseNodeKind::This || kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall)
+        (kind == ParseNodeKind::Super
+            || kind == ParseNodeKind::This
+            || kind == ParseNodeKind::NewTarget
+            || kind == ParseNodeKind::SuperProperty
+            || kind == ParseNodeKind::SuperCall)
             && (self.parameters.contains(kind) || self.body.contains(kind))
     }
 
@@ -87,7 +94,7 @@ impl ArrowFunction {
         self.parameters.contains_arguments() || self.body.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ArrowFunction : ArrowParameters => ConciseBody
         //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
@@ -97,23 +104,32 @@ impl ArrowFunction {
         //  * It is a Syntax Error if any element of the BoundNames of ArrowParameters also occurs in the
         //    LexicallyDeclaredNames of ConciseBody.
         if self.parameters.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Illegal yield expression in arrow function parameters"));
+            errs.push(create_syntax_error_object(
+                "Illegal yield expression in arrow function parameters",
+                Some(self.parameters.location()),
+            ));
         }
         if self.parameters.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(agent, "Illegal await expression in arrow function parameters"));
+            errs.push(create_syntax_error_object(
+                "Illegal await expression in arrow function parameters",
+                Some(self.parameters.location()),
+            ));
         }
         if self.body.concise_body_contains_use_strict() && !self.parameters.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+            errs.push(create_syntax_error_object(
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+                Some(self.parameters.location()),
+            ));
         }
         let bn = self.parameters.bound_names();
         let ldn = self.body.lexically_declared_names();
         for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.body.location())));
         }
 
         let strict_function = strict || self.body.concise_body_contains_use_strict();
-        self.parameters.early_errors(agent, errs, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+        self.parameters.early_errors(errs, strict_function);
+        self.body.early_errors(errs, strict_function);
     }
 }
 
@@ -163,9 +179,13 @@ impl ArrowParameters {
     // ArrowParameters's only direct parent is ArrowFunction. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::IdOrFormalsExpected, scanner))
-            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
-                let (_covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
+                BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi))
+            })
+            .otherwise(|| {
+                let (_covered_formals, after_formals) =
+                    CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
 
                 // This is only a successful cover if the parsed production and its cover end at the same place. But
@@ -182,6 +202,13 @@ impl ArrowParameters {
                 debug_assert!(after_formals == after_reparse);
                 Ok((Rc::new(ArrowParameters::Formals(formals)), after_formals))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ArrowParameters::Identifier(id) => id.location(),
+            ArrowParameters::Formals(formals) => formals.location(),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -242,10 +269,27 @@ impl ArrowParameters {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
-            ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
+            ArrowParameters::Identifier(id) => id.early_errors(errs, strict),
+            ArrowParameters::Formals(afp) => afp.early_errors(errs, strict),
+        }
+    }
+
+    pub fn expected_argument_count(&self) -> f64 {
+        match self {
+            ArrowParameters::Identifier(_) => 1.0,
+            ArrowParameters::Formals(formals) => formals.expected_argument_count(),
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        match self {
+            ArrowParameters::Identifier(_) => false,
+            ArrowParameters::Formals(f) => f.contains_expression(),
         }
     }
 }
@@ -253,11 +297,14 @@ impl ArrowParameters {
 // ArrowFormalParameters[Yield, Await] :
 //      ( UniqueFormalParameters[?Yield, ?Await] )
 #[derive(Debug)]
-pub struct ArrowFormalParameters(Rc<UniqueFormalParameters>);
+pub struct ArrowFormalParameters {
+    pub params: Rc<UniqueFormalParameters>,
+    location: Location,
+}
 
 impl fmt::Display for ArrowFormalParameters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "( {} )", self.0)
+        write!(f, "( {} )", self.params)
     }
 }
 
@@ -268,7 +315,7 @@ impl PrettyPrint for ArrowFormalParameters {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.params.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -278,7 +325,7 @@ impl PrettyPrint for ArrowFormalParameters {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        self.0.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.params.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
@@ -286,10 +333,13 @@ impl PrettyPrint for ArrowFormalParameters {
 impl ArrowFormalParameters {
     // I _think_ this needs to be cached.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        Ok((Rc::new(ArrowFormalParameters(params)), after_rp))
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let location = lp_loc.merge(&rp_loc);
+        Ok((Rc::new(ArrowFormalParameters { params, location }), after_rp))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -304,8 +354,12 @@ impl ArrowFormalParameters {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        self.params.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -315,7 +369,7 @@ impl ArrowFormalParameters {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        self.params.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -329,11 +383,11 @@ impl ArrowFormalParameters {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.contains_arguments()
+        self.params.contains_arguments()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
-        self.0.bound_names()
+        self.params.bound_names()
     }
 
     pub fn is_simple_parameter_list(&self) -> bool {
@@ -341,11 +395,22 @@ impl ArrowFormalParameters {
         // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
         //  ArrowFormalParameters : ( UniqueFormalParameters )
         //      1. Return IsSimpleParameterList of UniqueFormalParameters.
-        self.0.is_simple_parameter_list()
+        self.params.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.params.early_errors(errs, strict);
+    }
+
+    pub fn expected_argument_count(&self) -> f64 {
+        self.params.expected_argument_count()
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.params.contains_expression()
     }
 }
 
@@ -355,14 +420,14 @@ impl ArrowFormalParameters {
 #[derive(Debug)]
 pub enum ConciseBody {
     Expression(Rc<ExpressionBody>),
-    Function(Rc<FunctionBody>),
+    Function { body: Rc<FunctionBody>, location: Location },
 }
 
 impl fmt::Display for ConciseBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ConciseBody::Expression(node) => node.fmt(f),
-            ConciseBody::Function(node) => write!(f, "{{ {} }}", node),
+            ConciseBody::Function { body, .. } => write!(f, "{{ {} }}", body),
         }
     }
 }
@@ -376,7 +441,7 @@ impl PrettyPrint for ConciseBody {
         writeln!(writer, "{}ConciseBody: {}", first, self)?;
         match self {
             ConciseBody::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ConciseBody::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ConciseBody::Function { body, .. } => body.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -386,11 +451,11 @@ impl PrettyPrint for ConciseBody {
     {
         match self {
             ConciseBody::Expression(node) => node.concise_with_leftpad(writer, pad, state),
-            ConciseBody::Function(node) => {
+            ConciseBody::Function { body, .. } => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}ConciseBody: {}", first, self)?;
                 pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                body.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
             }
         }
@@ -402,10 +467,13 @@ impl ConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ConciseBody), scanner))
             .otherwise(|| {
-                let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
-                let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
-                let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Rc::new(ConciseBody::Function(fb)), after_rb))
+                let (lb_loc, after_curly) =
+                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+                let (body, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
+                let (rb_loc, after_rb) =
+                    scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let location = lb_loc.merge(&rb_loc);
+                Ok((Rc::new(ConciseBody::Function { body, location }), after_rb))
             })
             .otherwise(|| {
                 let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
@@ -419,10 +487,17 @@ impl ConciseBody {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ConciseBody::Expression(exp) => exp.location(),
+            ConciseBody::Function { location, .. } => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ConciseBody::Expression(node) => node.contains(kind),
-            ConciseBody::Function(node) => node.contains(kind),
+            ConciseBody::Function { body, .. } => body.contains(kind),
         }
     }
 
@@ -435,7 +510,7 @@ impl ConciseBody {
         //  2. Return true.
         match self {
             ConciseBody::Expression(node) => node.all_private_identifiers_valid(names),
-            ConciseBody::Function(node) => node.all_private_identifiers_valid(names),
+            ConciseBody::Function { body, .. } => body.all_private_identifiers_valid(names),
         }
     }
 
@@ -452,7 +527,7 @@ impl ConciseBody {
         //  2. Return false.
         match self {
             ConciseBody::Expression(eb) => eb.contains_arguments(),
-            ConciseBody::Function(fb) => fb.contains_arguments(),
+            ConciseBody::Function { body, .. } => body.contains_arguments(),
         }
     }
 
@@ -465,7 +540,7 @@ impl ConciseBody {
         //      1. Return LexicallyDeclaredNames of FunctionBody.
         match self {
             ConciseBody::Expression(_) => vec![],
-            ConciseBody::Function(fb) => fb.lexically_declared_names(),
+            ConciseBody::Function { body, .. } => body.lexically_declared_names(),
         }
     }
 
@@ -480,14 +555,44 @@ impl ConciseBody {
         //      1. Return FunctionBodyContainsUseStrict of FunctionBody.
         match self {
             ConciseBody::Expression(_) => false,
-            ConciseBody::Function(fb) => fb.function_body_contains_use_strict(),
+            ConciseBody::Function { body, .. } => body.function_body_contains_use_strict(),
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
-            ConciseBody::Function(fb) => fb.early_errors(agent, errs, strict),
+            ConciseBody::Expression(exp) => exp.early_errors(errs, strict),
+            ConciseBody::Function { body, .. } => body.early_errors(errs, strict),
+        }
+    }
+
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.var_declared_names(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.var_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
         }
     }
 }
@@ -496,7 +601,7 @@ impl ConciseBody {
 //      AssignmentExpression[?In, ~Yield, ?Await]
 #[derive(Debug)]
 pub struct ExpressionBody {
-    expression: Rc<AssignmentExpression>,
+    pub expression: Rc<AssignmentExpression>,
 }
 
 impl fmt::Display for ExpressionBody {
@@ -542,6 +647,10 @@ impl ExpressionBody {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.expression.location()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind)
     }
@@ -570,8 +679,8 @@ impl ExpressionBody {
         self.expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.expression.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.expression.early_errors(errs, strict);
     }
 }
 

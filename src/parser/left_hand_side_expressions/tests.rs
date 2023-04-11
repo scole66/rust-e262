@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -10,7 +10,7 @@ use test_case::test_case;
 fn member_expression_test_primary_expression() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(me.kind, MemberExpressionKind::PrimaryExpression(_)));
+    assert!(matches!(&*me, MemberExpression::PrimaryExpression(_)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: a", vec!["PrimaryExpression: a"]);
@@ -21,7 +21,7 @@ fn member_expression_test_primary_expression() {
 fn member_expression_test_meta_property() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("new.target"), Scanner::new(), false, false));
     chk_scan(&scanner, 10);
-    assert!(matches!(me.kind, MemberExpressionKind::MetaProperty(_)));
+    assert!(matches!(&*me, MemberExpression::MetaProperty(_)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: new . target", vec!["MetaProperty: new . target"]);
@@ -32,7 +32,7 @@ fn member_expression_test_meta_property() {
 fn member_expression_test_super_property() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("super.ior"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(me.kind, MemberExpressionKind::SuperProperty(_)));
+    assert!(matches!(&*me, MemberExpression::SuperProperty(_)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: super . ior", vec!["SuperProperty: super . ior"]);
@@ -41,66 +41,105 @@ fn member_expression_test_super_property() {
 }
 #[test]
 fn member_expression_test_new_me_args() {
-    let (me, scanner) = check(MemberExpression::parse(&mut newparser("new shoes('red', 'leather')"), Scanner::new(), false, false));
+    let (me, scanner) =
+        check(MemberExpression::parse(&mut newparser("new shoes('red', 'leather')"), Scanner::new(), false, false));
     chk_scan(&scanner, 27);
-    assert!(matches!(me.kind, MemberExpressionKind::NewArguments(..)));
+    assert!(matches!(&*me, MemberExpression::NewArguments(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"]);
-    concise_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"]);
+    pretty_check(
+        &*me,
+        "MemberExpression: new shoes ( 'red' , 'leather' )",
+        vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"],
+    );
+    concise_check(
+        &*me,
+        "MemberExpression: new shoes ( 'red' , 'leather' )",
+        vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_expression() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("bill[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(me.kind, MemberExpressionKind::Expression(..)));
+    assert!(matches!(&*me, MemberExpression::Expression(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
-    concise_check(&*me, "MemberExpression: bill [ a ]", vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    concise_check(
+        &*me,
+        "MemberExpression: bill [ a ]",
+        vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_ident() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("alice.name"), Scanner::new(), false, false));
     chk_scan(&scanner, 10);
-    assert!(matches!(me.kind, MemberExpressionKind::IdentifierName(..)));
+    assert!(matches!(&*me, MemberExpression::IdentifierName(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
-    concise_check(&*me, "MemberExpression: alice . name", vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"]);
+    concise_check(
+        &*me,
+        "MemberExpression: alice . name",
+        vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_private() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("alice.#name"), Scanner::new(), false, false));
     chk_scan(&scanner, 11);
-    assert!(matches!(me.kind, MemberExpressionKind::PrivateId(..)));
+    assert!(matches!(&*me, MemberExpression::PrivateId(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: alice . #name", vec!["MemberExpression: alice"]);
-    concise_check(&*me, "MemberExpression: alice . #name", vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"]);
+    concise_check(
+        &*me,
+        "MemberExpression: alice . #name",
+        vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_template() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("alice`${a}`"), Scanner::new(), false, false));
     chk_scan(&scanner, 11);
-    assert!(matches!(me.kind, MemberExpressionKind::TemplateLiteral(..)));
+    assert!(matches!(&*me, MemberExpression::TemplateLiteral(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: alice `${ a }`", vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"]);
-    concise_check(&*me, "MemberExpression: alice `${ a }`", vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"]);
+    pretty_check(
+        &*me,
+        "MemberExpression: alice `${ a }`",
+        vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"],
+    );
+    concise_check(
+        &*me,
+        "MemberExpression: alice `${ a }`",
+        vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_errs_01() {
-    check_err(MemberExpression::parse(&mut newparser(""), Scanner::new(), false, false), "MemberExpression expected", 1, 1);
+    check_err(
+        MemberExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+        "MemberExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn member_expression_test_errs_02() {
-    check_err(MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
+    check_err(
+        MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false),
+        "one of [‘.’, ‘[’] expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn member_expression_test_errs_04() {
@@ -340,22 +379,25 @@ mod member_expression {
 
     const IMPORT_META_ERR: &str = "import.meta allowed only in Module code";
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
-    #[test_case("package[0]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (id bad)")]
-    #[test_case("a[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (exp bad)")]
-    #[test_case("package.a", true => set(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
-    #[test_case("package``", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
-    #[test_case("a`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (templ bad)")]
-    #[test_case("super.package", true => set(&[]); "super property")]
-    #[test_case("import.meta", true => set(&[IMPORT_META_ERR]); "meta property")]
-    #[test_case("new package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
-    #[test_case("new a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
-    #[test_case("package.#a", true => set(&[PACKAGE_NOT_ALLOWED]); "private id")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
+    #[test_case("package[0]", true => sset(&[PACKAGE_NOT_ALLOWED]); "array syntax (id bad)")]
+    #[test_case("a[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "array syntax (exp bad)")]
+    #[test_case("package.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
+    #[test_case("package``", true => sset(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
+    #[test_case("a`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "templ syntax (templ bad)")]
+    #[test_case("super.package", true => sset(&[]); "super property")]
+    #[test_case("import.meta", true => sset(&[IMPORT_META_ERR]); "meta property")]
+    #[test_case("new package(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
+    #[test_case("new a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
+    #[test_case("package.#a", true => sset(&[PACKAGE_NOT_ALLOWED]); "private id")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -405,6 +447,57 @@ mod member_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).member_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a[b]" => false; "brackets")]
+    #[test_case("a.b" => false; "property id")]
+    #[test_case("a`${b}`" => false; "template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta")]
+    #[test_case("new a(b)" => false; "new me")]
+    #[test_case("a.#b" => false; "private id")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).member_expression().is_named_function()
+    }
+
+    #[test_case("a[b]" => false; "brackets")]
+    #[test_case("a.b" => false; "property id")]
+    #[test_case("a`${b}`" => false; "template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta")]
+    #[test_case("new a(b)" => false; "new me")]
+    #[test_case("a.#b" => false; "private id")]
+    #[test_case("beetle" => true; "id")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).member_expression().is_identifier_ref()
+    }
+
+    #[test_case("a[b]" => None; "brackets")]
+    #[test_case("a.b" => None; "property id")]
+    #[test_case("a`${b}`" => None; "template")]
+    #[test_case("super.a" => None; "super prop")]
+    #[test_case("new.target" => None; "meta")]
+    #[test_case("new a(b)" => None; "new me")]
+    #[test_case("a.#b" => None; "private id")]
+    #[test_case("beetle" => ssome("beetle"); "id")]
+    #[test_case("1" => None; "literal fallthru")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).member_expression().identifier_ref().map(|node| node.to_string())
+    }
+
+    #[test_case("  a[b]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "brackets")]
+    #[test_case("  a.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "property id")]
+    #[test_case("  a`${b}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "template")]
+    #[test_case("  super.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "super prop")]
+    #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "meta")]
+    #[test_case("  new a(b)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "new me")]
+    #[test_case("  a.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "private id")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).member_expression().location()
+    }
 }
 
 // SUPER PROPERTY
@@ -412,17 +505,21 @@ mod member_expression {
 fn super_property_test_expression() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(sp.kind, SuperPropertyKind::Expression(_)));
+    assert!(matches!(*sp, SuperProperty::Expression { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
-    concise_check(&*sp, "SuperProperty: super [ a ]", vec!["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    concise_check(
+        &*sp,
+        "SuperProperty: super [ a ]",
+        vec!["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+    );
 }
 #[test]
 fn super_property_test_ident() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super.bob"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(sp.kind, SuperPropertyKind::IdentifierName(_)));
+    assert!(matches!(*sp, SuperProperty::IdentifierName { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super . bob", vec![]);
@@ -449,7 +546,12 @@ fn super_property_test_incomplete_expression() {
 }
 #[test]
 fn super_property_test_bad_following_token() {
-    check_err(SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
+    check_err(
+        SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false),
+        "one of [‘.’, ‘[’] expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn super_property_test_prettyerrors_1() {
@@ -501,13 +603,16 @@ mod super_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("super.package", true => set(&[]); "super.member")]
-    #[test_case("super[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
+    #[test_case("super.package", true => sset(&[]); "super.member")]
+    #[test_case("super[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("super[arguments]" => true; "Expression (yes)")]
@@ -516,6 +621,12 @@ mod super_property {
     fn contains_arguments(src: &str) -> bool {
         SuperProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  super.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "ident")]
+    #[test_case("  super[a]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "expression")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).super_property().location()
+    }
 }
 
 // META PROPERTY
@@ -523,7 +634,7 @@ mod super_property {
 fn meta_property_test_newtarget() {
     let (mp, scanner) = check(MetaProperty::parse(&mut newparser("new.target"), Scanner::new()));
     chk_scan(&scanner, 10);
-    assert!(matches!(mp.kind, MetaPropertyKind::NewTarget));
+    assert!(matches!(*mp, MetaProperty::NewTarget { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: new . target", vec![]);
     concise_check(&*mp, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
@@ -533,13 +644,13 @@ fn meta_property_test_newtarget() {
 fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
     let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
-    assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta(_)));
+    assert!(matches!(*mp, MetaProperty::ImportMeta { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
     concise_check(&*mp, "MetaProperty: import . meta", vec!["Keyword: import", "Punctuator: .", "Keyword: meta"]);
-    match mp.kind {
-        MetaPropertyKind::NewTarget => None,
-        MetaPropertyKind::ImportMeta(goal) => Some(goal),
+    match *mp {
+        MetaProperty::NewTarget { .. } => None,
+        MetaProperty::ImportMeta { goal, .. } => Some(goal),
     }
 }
 #[test]
@@ -548,7 +659,7 @@ fn meta_property_test_nomatch_01() {
 }
 #[test]
 fn meta_property_test_nomatch_02() {
-    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 4);
+    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 5);
 }
 #[test]
 fn meta_property_test_nomatch_03() {
@@ -556,7 +667,7 @@ fn meta_property_test_nomatch_03() {
 }
 #[test]
 fn meta_property_test_nomatch_04() {
-    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 7);
+    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 8);
 }
 #[test]
 fn meta_property_test_nomatch_05() {
@@ -599,13 +710,19 @@ mod meta_property {
     use test_case::test_case;
 
     #[test_case("new.target", ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
-    #[test_case("import.meta", ParseGoal::Script => set(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
+    #[test_case("import.meta", ParseGoal::Script => sset(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
     #[test_case("import.meta", ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
     fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "new.target")]
+    #[test_case("  import.meta" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "import.meta")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).meta_property().location()
     }
 }
 
@@ -614,7 +731,7 @@ mod meta_property {
 fn arguments_test_onlyparens() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("()"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(args.kind, ArgumentsKind::Empty));
+    assert!(matches!(*args, Arguments::Empty { .. }));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( )", vec![]);
     concise_check(&*args, "Arguments: ( )", vec!["Punctuator: (", "Punctuator: )"]);
@@ -623,16 +740,20 @@ fn arguments_test_onlyparens() {
 fn arguments_test_trailing_comma() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,)"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(args.kind, ArgumentsKind::ArgumentListComma(_)));
+    assert!(matches!(*args, Arguments::ArgumentListComma(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
-    concise_check(&*args, "Arguments: ( a , )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"]);
+    concise_check(
+        &*args,
+        "Arguments: ( a , )",
+        vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"],
+    );
 }
 #[test]
 fn arguments_test_arglist() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(args.kind, ArgumentsKind::ArgumentList(_)));
+    assert!(matches!(*args, Arguments::ArgumentList(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , b )", vec!["ArgumentList: a , b"]);
     concise_check(&*args, "Arguments: ( a , b )", vec!["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
@@ -647,7 +768,12 @@ fn arguments_test_unclosed_01() {
 }
 #[test]
 fn arguments_test_unclosed_02() {
-    check_err(Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false), "one of [‘,’, ‘)’] expected", 1, 4);
+    check_err(
+        Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false),
+        "one of [‘,’, ‘)’] expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn arguments_test_unclosed_03() {
@@ -724,13 +850,13 @@ mod arguments {
     }
 
     #[test_case("()", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list")]
-    #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list")]
+    #[test_case("(package,)", true => sset(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("()" => false; "empty")]
@@ -741,6 +867,13 @@ mod arguments {
     fn contains_arguments(src: &str) -> bool {
         Arguments::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  ()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "empty")]
+    #[test_case("  (a,b)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "list")]
+    #[test_case("  (a,b,)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "list+comma")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arguments().location()
+    }
 }
 
 // ARGUMENT LIST
@@ -748,7 +881,7 @@ mod arguments {
 fn argument_list_test_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
+    assert!(matches!(*al, ArgumentList::FallThru(_)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: aba", vec!["AssignmentExpression: aba"]);
     concise_check(&*al, "IdentifierName: aba", vec![]);
@@ -757,7 +890,7 @@ fn argument_list_test_ae() {
 fn argument_list_test_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(al.kind, ArgumentListKind::Dots(_)));
+    assert!(matches!(*al, ArgumentList::Dots(_)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ... aba", vec!["AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ... aba", vec!["Punctuator: ...", "IdentifierName: aba"]);
@@ -766,7 +899,7 @@ fn argument_list_test_dots_ae() {
 fn argument_list_test_al_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(al.kind, ArgumentListKind::ArgumentList(..)));
+    assert!(matches!(*al, ArgumentList::ArgumentList(..)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ab , aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ab , aba", vec!["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
@@ -775,30 +908,44 @@ fn argument_list_test_al_ae() {
 fn argument_list_test_al_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(al.kind, ArgumentListKind::ArgumentListDots(..)));
+    assert!(matches!(*al, ArgumentList::ArgumentListDots(..)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ab , ... aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
-    concise_check(&*al, "ArgumentList: ab , ... aba", vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"]);
+    concise_check(
+        &*al,
+        "ArgumentList: ab , ... aba",
+        vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"],
+    );
 }
 #[test]
 fn argument_list_test_nomatch() {
-    check_err(ArgumentList::parse(&mut newparser("*"), Scanner::new(), false, false), "AssignmentExpression expected", 1, 1);
+    check_err(
+        ArgumentList::parse(&mut newparser("*"), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn argument_list_test_dotsonly() {
-    check_err(ArgumentList::parse(&mut newparser("..."), Scanner::new(), false, false), "AssignmentExpression expected", 1, 4);
+    check_err(
+        ArgumentList::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn argument_list_test_dots_term() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,..."), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
+    assert!(matches!(*al, ArgumentList::FallThru(_)));
 }
 #[test]
 fn argument_list_test_commas() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,,10"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
+    assert!(matches!(*al, ArgumentList::FallThru(_)));
 }
 #[test]
 fn argument_list_test_prettyerrors_1() {
@@ -912,17 +1059,20 @@ mod argument_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "one expression")]
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread expression")]
-    #[test_case("package,0", true => set(&[PACKAGE_NOT_ALLOWED]); "list; head bad")]
-    #[test_case("0,package", true => set(&[PACKAGE_NOT_ALLOWED]); "list; tail bad")]
-    #[test_case("package,...a", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
-    #[test_case("0,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "one expression")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "spread expression")]
+    #[test_case("package,0", true => sset(&[PACKAGE_NOT_ALLOWED]); "list; head bad")]
+    #[test_case("0,package", true => sset(&[PACKAGE_NOT_ALLOWED]); "list; tail bad")]
+    #[test_case("package,...a", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
+    #[test_case("0,...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "AssignmentExpression (yes)")]
@@ -949,7 +1099,7 @@ mod new_expression {
     fn me() {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("true"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
+        assert!(matches!(*ne, NewExpression::MemberExpression(_)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: true", vec!["MemberExpression: true"]);
         concise_check(&*ne, "Keyword: true", vec![]);
@@ -959,7 +1109,7 @@ mod new_expression {
     fn new() {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(ne.kind, NewExpressionKind::NewExpression(_)));
+        assert!(matches!(*ne, NewExpression::NewExpression(..)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", vec!["Keyword: new", "IdentifierName: bob"]);
@@ -969,15 +1119,24 @@ mod new_expression {
     fn new_me() {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob()"), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
-        assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
+        assert!(matches!(*ne, NewExpression::MemberExpression(_)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob ( )", vec!["MemberExpression: new bob ( )"]);
-        concise_check(&*ne, "MemberExpression: new bob ( )", vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"]);
+        concise_check(
+            &*ne,
+            "MemberExpression: new bob ( )",
+            vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"],
+        );
         assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
     fn nomatch() {
-        check_err(NewExpression::parse(&mut newparser("*"), Scanner::new(), false, false), "‘new’ or MemberExpression expected", 1, 1);
+        check_err(
+            NewExpression::parse(&mut newparser("*"), Scanner::new(), false, false),
+            "‘new’ or MemberExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn chopped() {
@@ -1044,13 +1203,16 @@ mod new_expression {
     fn is_object_or_array_literal(src: &str) -> bool {
         NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
     }
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "exp")]
-    #[test_case("new package", true => set(&[PACKAGE_NOT_ALLOWED]); "new exp")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp")]
+    #[test_case("new package", true => sset(&[PACKAGE_NOT_ALLOWED]); "new exp")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        NewExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        NewExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -1074,6 +1236,33 @@ mod new_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).new_expression().assignment_target_type(strict)
     }
+
+    #[test_case("  new x" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "new exp")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).new_expression().location()
+    }
+
+    #[test_case("new a" => false; "new exp")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).new_expression().is_named_function()
+    }
+
+    #[test_case("idref" => true; "Id Ref")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("new a" => false; "other new expr")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).new_expression().is_identifier_ref()
+    }
+
+    #[test_case("idref" => ssome("idref"); "Id Ref")]
+    #[test_case("10" => None; "literal")]
+    #[test_case("new a" => None; "other new expr")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).new_expression().identifier_ref().map(|id| id.to_string())
+    }
 }
 
 // CALL MEMBER EXPRESSION
@@ -1091,11 +1280,21 @@ mod call_member_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(CallMemberExpression::parse(&mut newparser("++"), Scanner::new(), false, false), "MemberExpression expected", 1, 1);
+        check_err(
+            CallMemberExpression::parse(&mut newparser("++"), Scanner::new(), false, false),
+            "MemberExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete() {
-        check_err(CallMemberExpression::parse(&mut newparser("pop"), Scanner::new(), false, false), "‘(’ expected", 1, 4);
+        check_err(
+            CallMemberExpression::parse(&mut newparser("pop"), Scanner::new(), false, false),
+            "‘(’ expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -1109,17 +1308,20 @@ mod call_member_expression {
     }
     #[test]
     fn contains_01() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("this.fcn()"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("this.fcn()"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_02() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("Math.sin(this.angle)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("Math.sin(this.angle)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_03() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("Math.sin(angle)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("Math.sin(angle)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("a.#valid()" => true; "MemberExpression valid")]
@@ -1131,13 +1333,16 @@ mod call_member_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
-    #[test_case("a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args bad")]
+    #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
+    #[test_case("a(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "args bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments()" => true; "Exp Args (left)")]
@@ -1145,6 +1350,11 @@ mod call_member_expression {
     #[test_case("bob(xyzzy)" => false; "Exp Args (no)")]
     fn contains_arguments(src: &str) -> bool {
         CallMemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  abcd(xyz)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).call_member_expression().location()
     }
 }
 
@@ -1157,7 +1367,7 @@ mod super_call {
     fn args() {
         let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(sc.arguments.kind, ArgumentsKind::Empty));
+        assert!(matches!(*sc.arguments, Arguments::Empty { .. }));
         format!("{:?}", sc);
         pretty_check(&*sc, "SuperCall: super ( )", vec!["Arguments: ( )"]);
         concise_check(&*sc, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
@@ -1199,18 +1409,23 @@ mod super_call {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("super(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("super(arguments)" => true; "yes")]
     #[test_case("super()" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         SuperCall::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  super()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).super_call().location()
     }
 }
 
@@ -1225,7 +1440,11 @@ mod import_call {
         chk_scan(&scanner, 11);
         format!("{:?}", ic);
         pretty_check(&*ic, "ImportCall: import ( bob )", vec!["AssignmentExpression: bob"]);
-        concise_check(&*ic, "ImportCall: import ( bob )", vec!["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"]);
+        concise_check(
+            &*ic,
+            "ImportCall: import ( bob )",
+            vec!["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"],
+        );
     }
     #[test]
     fn nomatch() {
@@ -1237,7 +1456,12 @@ mod import_call {
     }
     #[test]
     fn incomplete2() {
-        check_err(ImportCall::parse(&mut newparser("import("), Scanner::new(), false, false), "AssignmentExpression expected", 1, 8);
+        check_err(
+            ImportCall::parse(&mut newparser("import("), Scanner::new(), false, false),
+            "AssignmentExpression expected",
+            1,
+            8,
+        );
     }
     #[test]
     fn incomplete3() {
@@ -1270,18 +1494,23 @@ mod import_call {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    #[test_case("import(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("import(arguments)" => true; "yes")]
     #[test_case("import(xyzzy)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         ImportCall::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  import(foo)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).import_call().location()
     }
 }
 
@@ -1294,7 +1523,7 @@ mod call_expression {
     fn me_args() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+        assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: a ( )", vec!["CallMemberExpression: a ( )"]);
         concise_check(&*ce, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
@@ -1303,7 +1532,7 @@ mod call_expression {
     fn super_x() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(ce.kind, CallExpressionKind::SuperCall(_)));
+        assert!(matches!(*ce, CallExpression::SuperCall(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"]);
         concise_check(&*ce, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
@@ -1312,84 +1541,131 @@ mod call_expression {
     fn import() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("import(pop)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
-        assert!(matches!(ce.kind, CallExpressionKind::ImportCall(_)));
+        assert!(matches!(*ce, CallExpression::ImportCall(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
-        concise_check(&*ce, "ImportCall: import ( pop )", vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"]);
+        concise_check(
+            &*ce,
+            "ImportCall: import ( pop )",
+            vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"],
+        );
     }
     #[test]
     fn ce_args() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+        );
     }
     #[test]
     fn ce_args2() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
         format!("{:?}", ce);
     }
     #[test]
     fn ce_exp() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionExpression(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionExpression(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallExpression: blue ( pop )", "Expression: snap"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) [ snap ]",
+            vec!["CallExpression: blue ( pop )", "Expression: snap"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) [ snap ]",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"],
+        );
     }
     #[test]
     fn ce_ident() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionIdentifierName(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionIdentifierName(..)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"]);
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) . snap",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"],
+        );
     }
     #[test]
     fn ce_pid() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionPrivateId(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionPrivateId(..)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallExpression: blue ( pop )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"]);
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) . #snap",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"],
+        );
     }
     #[test]
     fn ce_template() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionTemplateLiteral(..)));
+        assert!(matches!(*ce, CallExpression::CallExpressionTemplateLiteral(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) `snap`",
+            vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) `snap`",
+            vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"],
+        );
     }
     #[test]
     fn nomatch() {
-        check_err(CallExpression::parse(&mut newparser(""), Scanner::new(), false, false), "CallExpression expected", 1, 1);
+        check_err(
+            CallExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "CallExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete_01() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)["), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
-        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+        assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
     }
     #[test]
     fn incomplete_02() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)[99"), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
-        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+        assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
     }
     #[test]
     fn incomplete_03() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)."), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
-        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+        assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
     }
     #[test]
     fn prettyerrors_1() {
@@ -1591,22 +1867,25 @@ mod call_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
     }
 
-    #[test_case("package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "cover exp")]
-    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "super call")]
-    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "import call")]
-    #[test_case("package(0)(1)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
-    #[test_case("a(0)(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
-    #[test_case("package(0)[a]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; id bad")]
-    #[test_case("a(0)[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; exp bad")]
-    #[test_case("package(0).id", true => set(&[PACKAGE_NOT_ALLOWED]); "call id")]
-    #[test_case("package(0).#id", true => set(&[PACKAGE_NOT_ALLOWED]); "call private")]
-    #[test_case("package(0)`${0}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
-    #[test_case("a(0)`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
+    #[test_case("package(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "cover exp")]
+    #[test_case("super(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "super call")]
+    #[test_case("import(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "import call")]
+    #[test_case("package(0)(1)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
+    #[test_case("a(0)(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
+    #[test_case("package(0)[a]", true => sset(&[PACKAGE_NOT_ALLOWED]); "call array; id bad")]
+    #[test_case("a(0)[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "call array; exp bad")]
+    #[test_case("package(0).id", true => sset(&[PACKAGE_NOT_ALLOWED]); "call id")]
+    #[test_case("package(0).#id", true => sset(&[PACKAGE_NOT_ALLOWED]); "call private")]
+    #[test_case("package(0)`${0}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
+    #[test_case("a(0)`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        CallExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        CallExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a()" => true; "standard")]
@@ -1655,6 +1934,18 @@ mod call_expression {
     fn assignment_target_type(src: &str) -> ATTKind {
         Maker::new(src).call_expression().assignment_target_type()
     }
+
+    #[test_case("  a()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "CallMemberExpression")]
+    #[test_case("  super()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "SuperCall")]
+    #[test_case("  import(a)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "ImportCall")]
+    #[test_case("  a()()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "CallExpression Arguments")]
+    #[test_case("  a()[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "CallExpression [ Expression ]")]
+    #[test_case("  a().a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "CallExpression . IdentifierName")]
+    #[test_case("  a()`${b}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "CallExpression TemplateLiteral")]
+    #[test_case("  a().#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "CallExpression . PrivateIdentifier")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).call_expression().location()
+    }
 }
 
 // OPTIONAL EXPRESSION
@@ -1677,7 +1968,11 @@ mod optional_expression {
         assert!(matches!(*lhs, OptionalExpression::Call(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallExpression: a ( )", "OptionalChain: ?. b"]);
-        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ( ) ?. b",
+            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
+        );
     }
     #[test]
     fn parse_03() {
@@ -1685,12 +1980,25 @@ mod optional_expression {
         chk_scan(&scanner, 7);
         assert!(matches!(*lhs, OptionalExpression::Opt(..)));
         format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalExpression: a ?. b ?. c", vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
-        concise_check(&*lhs, "OptionalExpression: a ?. b ?. c", vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
+        pretty_check(
+            &*lhs,
+            "OptionalExpression: a ?. b ?. c",
+            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
+        );
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ?. b ?. c",
+            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
+        );
     }
     #[test]
     fn parse_04() {
-        check_err(OptionalExpression::parse(&mut newparser(""), Scanner::new(), false, false), "OptionalExpression expected", 1, 1);
+        check_err(
+            OptionalExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "OptionalExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn parse_05() {
@@ -1698,7 +2006,12 @@ mod optional_expression {
     }
     #[test]
     fn parse_06() {
-        check_err(OptionalExpression::parse(&mut newparser("u()"), Scanner::new(), false, false), "‘?.’ expected", 1, 4);
+        check_err(
+            OptionalExpression::parse(&mut newparser("u()"), Scanner::new(), false, false),
+            "‘?.’ expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -1747,12 +2060,14 @@ mod optional_expression {
     }
     #[test]
     fn contains_04() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(this)?.(b)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(this)?.(b)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(this)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(this)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
@@ -1762,17 +2077,20 @@ mod optional_expression {
     }
     #[test]
     fn contains_07() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(this)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(this)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_08() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(this)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(this)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_09() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("a.#valid?.(b)" => true; "MemberExpression OptionalChain me valid")]
@@ -1792,17 +2110,20 @@ mod optional_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
     }
 
-    #[test_case("package?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; exp bad")]
-    #[test_case("a?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; opt bad")]
-    #[test_case("package()?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; call bad")]
-    #[test_case("a()?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; opt bad")]
-    #[test_case("package?.a?.(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
-    #[test_case("a?.b?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
+    #[test_case("package?.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp opt; exp bad")]
+    #[test_case("a?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp opt; opt bad")]
+    #[test_case("package()?.a", true => sset(&[PACKAGE_NOT_ALLOWED]); "call opt; call bad")]
+    #[test_case("a()?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "call opt; opt bad")]
+    #[test_case("package?.a?.(0)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
+    #[test_case("a?.b?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a?.b" => true; "member exp")]
@@ -1827,6 +2148,16 @@ mod optional_expression {
     fn contains_arguments(src: &str) -> bool {
         OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  a?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "member exp")]
+    #[test_case("  a?.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "private member exp")]
+    #[test_case("  a()?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "call exp")]
+    #[test_case("  a()?.#b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "private call exp")]
+    #[test_case("  a?.b?.c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "optional exp")]
+    #[test_case("  a?.b?.#c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "private optional exp")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).optional_expression().location()
+    }
 }
 
 // OPTIONAL CHAIN
@@ -1850,7 +2181,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::Exp(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", vec!["Expression: 1 in a"]);
-        concise_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", vec!["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. [ 1 in a ]",
+            vec!["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"],
+        );
     }
     #[test]
     fn parse_03() {
@@ -1886,7 +2221,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusExp(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", vec!["OptionalChain: ?. a", "Expression: 0 in b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", vec!["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a [ 0 in b ]",
+            vec!["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"],
+        );
     }
     #[test]
     fn parse_07() {
@@ -1895,7 +2234,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusIdent(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a . b", vec!["OptionalChain: ?. a", "IdentifierName: b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a . b", vec!["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a . b",
+            vec!["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"],
+        );
     }
     #[test]
     fn parse_08() {
@@ -1922,7 +2265,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusPrivateId(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a . #b",
+            vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"],
+        );
     }
     #[test]
     fn err_1() {
@@ -1930,7 +2277,12 @@ mod optional_chain {
     }
     #[test]
     fn err_2() {
-        check_err(OptionalChain::parse(&mut newparser("?."), Scanner::new(), false, false), "‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)", 1, 3);
+        check_err(
+            OptionalChain::parse(&mut newparser("?."), Scanner::new(), false, false),
+            "‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)",
+            1,
+            3,
+        );
     }
     #[test]
     fn err_3() {
@@ -1952,7 +2304,12 @@ mod optional_chain {
     }
     #[test]
     fn err_6() {
-        check_err(OptionalChain::parse(&mut newparser("?.["), Scanner::new(), false, false), "Expression expected", 1, 4);
+        check_err(
+            OptionalChain::parse(&mut newparser("?.["), Scanner::new(), false, false),
+            "Expression expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn err_7() {
@@ -2196,21 +2553,24 @@ mod optional_chain {
 
     const TEMPLATE_NOT_ALLOWED: &str = "Template literal not allowed here";
 
-    #[test_case("?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args")]
-    #[test_case("?.[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "expression")]
+    #[test_case("?.(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "args")]
+    #[test_case("?.[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "expression")]
     #[test_case("?.package", true => AHashSet::<String>::new(); "ident")]
-    #[test_case("?.`${package}`", true => set(&[PACKAGE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "template lit")]
+    #[test_case("?.`${package}`", true => sset(&[PACKAGE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "template lit")]
     #[test_case("?.#package", true => AHashSet::<String>::new(); "private")]
-    #[test_case("?.(package)(interface)", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
-    #[test_case("?.(package)[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain expression")]
-    #[test_case("?.(package).interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
-    #[test_case("?.(package)`${interface}`", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
-    #[test_case("?.(package).#interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain private")]
+    #[test_case("?.(package)(interface)", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
+    #[test_case("?.(package)[interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain expression")]
+    #[test_case("?.(package).interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
+    #[test_case("?.(package)`${interface}`", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
+    #[test_case("?.(package).#interface", true => sset(&[PACKAGE_NOT_ALLOWED]); "chain private")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("?.()" => true; "args")]
@@ -2251,6 +2611,20 @@ mod optional_chain {
     fn contains_arguments(src: &str) -> bool {
         OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  ?.()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "args")]
+    #[test_case("  ?.[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "expression")]
+    #[test_case("  ?.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "member")]
+    #[test_case("  ?.`${0}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "template")]
+    #[test_case("  ?.#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "private")]
+    #[test_case("  ?.z()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "chain args")]
+    #[test_case("  ?.z[0]" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "chain expression")]
+    #[test_case("  ?.z.a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "chain member")]
+    #[test_case("  ?.z`${0}`" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 9 }}; "chain template")]
+    #[test_case("  ?.z.#a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "chain private")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).optional_chain().location()
+    }
 }
 
 // LEFT-HAND-SIDE EXPRESSION
@@ -2278,11 +2652,16 @@ mod left_hand_side_expression {
     }
     #[test]
     fn parse_03() {
-        let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
+        let (lhs, scanner) =
+            check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, LeftHandSideExpression::Optional(_)));
         pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", vec!["OptionalExpression: a ( ) ?. b"]);
-        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ( ) ?. b",
+            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
+        );
         assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
@@ -2367,17 +2746,23 @@ mod left_hand_side_expression {
     #[test_case("a()" => false; "CallExpression")]
     #[test_case("blue?.green" => false; "OptionalExpression")]
     fn is_object_or_array_literal(src: &str) -> bool {
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_object_or_array_literal()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "new expression")]
-    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "call expression")]
-    #[test_case("package?.()", true => set(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "new expression")]
+    #[test_case("package()", true => sset(&[PACKAGE_NOT_ALLOWED]); "call expression")]
+    #[test_case("package?.()", true => sset(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -2387,7 +2772,10 @@ mod left_hand_side_expression {
     #[test_case("a?.b" => true; "optional expression")]
     #[test_case("a?.#u" => false; "optional with private id")]
     fn is_strictly_deletable(src: &str) -> bool {
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "new exp (yes)")]
@@ -2407,5 +2795,72 @@ mod left_hand_side_expression {
     #[test_case("a?.b", false => ATTKind::Invalid; "optional expression")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).left_hand_side_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("idref" => true; "Id Ref")]
+    #[test_case("this" => false; "this kwd")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("[10, 11, 12]" => false; "array literal")]
+    #[test_case("{ a: 12 }" => false; "object literal")]
+    #[test_case("function a(){}" => false; "function expression")]
+    #[test_case("function *a(){}" => false; "generator expression")]
+    #[test_case("async function () {}" => false; "async func expr")]
+    #[test_case("async function *(){}" => false; "async gen expr")]
+    #[test_case("/abcd/" => false; "regex literal")]
+    #[test_case("`template`" => false; "template literal")]
+    #[test_case("(id)" => false; "parentheszied expr")]
+    #[test_case("a[0]" => false; "expression member access")]
+    #[test_case("a.a" => false; "name member access")]
+    #[test_case("a`${b}`" => false; "tagged template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta prop")]
+    #[test_case("new a()" => false; "new expr")]
+    #[test_case("a.#b" => false; "private member access")]
+    #[test_case("new a" => false; "other new expr")]
+    #[test_case("a()" => false; "call")]
+    #[test_case("a?.b" => false; "optional")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).left_hand_side_expression().is_identifier_ref()
+    }
+
+    #[test_case("idref" => ssome("idref"); "Id Ref")]
+    #[test_case("this" => None; "this kwd")]
+    #[test_case("10" => None; "literal")]
+    #[test_case("[10, 11, 12]" => None; "array literal")]
+    #[test_case("{ a: 12 }" => None; "object literal")]
+    #[test_case("function a(){}" => None; "function expression")]
+    #[test_case("function *a(){}" => None; "generator expression")]
+    #[test_case("async function () {}" => None; "async func expr")]
+    #[test_case("async function *(){}" => None; "async gen expr")]
+    #[test_case("/abcd/" => None; "regex literal")]
+    #[test_case("`template`" => None; "template literal")]
+    #[test_case("(id)" => None; "parentheszied expr")]
+    #[test_case("a[0]" => None; "expression member access")]
+    #[test_case("a.a" => None; "name member access")]
+    #[test_case("a`${b}`" => None; "tagged template")]
+    #[test_case("super.a" => None; "super prop")]
+    #[test_case("new.target" => None; "meta prop")]
+    #[test_case("new a()" => None; "new expr")]
+    #[test_case("a.#b" => None; "private member access")]
+    #[test_case("new a" => None; "other new expr")]
+    #[test_case("a()" => None; "call")]
+    #[test_case("a?.b" => None; "optional")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        Maker::new(src).left_hand_side_expression().identifier_ref().map(|id| id.to_string())
+    }
+
+    #[test_case("  1" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "literal")]
+    #[test_case("  a()" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "call expression")]
+    #[test_case("  a?.b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "optional expression")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).left_hand_side_expression().location()
+    }
+
+    #[test_case("1" => false; "literal")]
+    #[test_case("a()" => false; "call expression")]
+    #[test_case("a?.b" => false; "optional expression")]
+    #[test_case("function bob(){}" => true; "function")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).left_hand_side_expression().is_named_function()
     }
 }

@@ -1,8 +1,4 @@
-use crate::agent::Agent;
-use crate::cr::AltCompletion;
-use crate::errors::create_type_error;
-use crate::object::ObjectInterface;
-use crate::values::ECMAScriptValue;
+use super::*;
 
 // RequireObjectCoercible ( argument )
 //
@@ -30,9 +26,11 @@ use crate::values::ECMAScriptValue;
 // +---------------+------------------------------+
 //
 // https://tc39.es/ecma262/#sec-requireobjectcoercible
-pub fn require_object_coercible(agent: &mut Agent, argument: &ECMAScriptValue) -> AltCompletion<()> {
+pub fn require_object_coercible(argument: &ECMAScriptValue) -> Completion<()> {
     match argument {
-        ECMAScriptValue::Undefined | ECMAScriptValue::Null => Err(create_type_error(agent, "Undefined and null are not allowed in this context")),
+        ECMAScriptValue::Undefined | ECMAScriptValue::Null => {
+            Err(create_type_error("Undefined and null are not allowed in this context"))
+        }
         _ => Ok(()),
     }
 }
@@ -45,11 +43,11 @@ pub fn require_object_coercible(agent: &mut Agent, argument: &ECMAScriptValue) -
 //
 //  1. Assert: Type(O) is Object.
 //  2. Return ? O.[[IsExtensible]]().
-pub fn is_extensible<'a, T>(agent: &mut Agent, obj: T) -> AltCompletion<bool>
+pub fn is_extensible<'a, T>(obj: T) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    obj.into().is_extensible(agent)
+    obj.into().is_extensible()
 }
 
 // IsIntegralNumber ( argument )

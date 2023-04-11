@@ -1,7 +1,4 @@
-use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -9,14 +6,14 @@ use std::io::Write;
 // ExpressionStatement[Yield, Await] :
 //      [lookahead ∉ { {, function, async [no LineTerminator here] function, class, let [ }] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum ExpressionStatement {
-    Expression(Rc<Expression>),
+pub struct ExpressionStatement {
+    pub exp: Rc<Expression>,
+    location: Location,
 }
 
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ExpressionStatement::Expression(node) = self;
-        write!(f, "{} ;", node)
+        write!(f, "{} ;", self.exp)
     }
 }
 
@@ -27,8 +24,7 @@ impl PrettyPrint for ExpressionStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ExpressionStatement: {}", first, self)?;
-        let ExpressionStatement::Expression(node) = self;
-        node.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -36,27 +32,26 @@ impl PrettyPrint for ExpressionStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ExpressionStatement: {}", first, self)?;
-        let ExpressionStatement::Expression(node) = self;
-        node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
 impl ExpressionStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (first_token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (first_token, _, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let invalid = match first_token {
             Token::Punctuator(Punctuator::LeftBrace) => true,
             Token::Identifier(id) if id.matches(Keyword::Function) => true,
             Token::Identifier(id) if id.matches(Keyword::Class) => true,
             Token::Identifier(id) if id.matches(Keyword::Let) => {
-                let (second_token, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                let (second_token, _, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
                 second_token.matches_punct(Punctuator::LeftBracket)
             }
             Token::Identifier(id) if id.matches(Keyword::Async) => {
-                let (second_token, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
-                if let Token::Identifier(id2) = second_token {
-                    id2.matches(Keyword::Function) && id.line == id2.line
+                if no_line_terminator(after_token, parser.source).is_ok() {
+                    let (second_token, _, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                    matches!(second_token, Token::Identifier(xx) if xx.matches(Keyword::Function))
                 } else {
                     false
                 }
@@ -68,19 +63,22 @@ impl ExpressionStatement {
             Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExpressionStatement), scanner))
         } else {
             let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
-            let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
-            Ok((Rc::new(ExpressionStatement::Expression(exp)), after_semi))
+            let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
+            let location = exp.location().merge(&semi_loc);
+            Ok((Rc::new(ExpressionStatement { exp, location }), after_semi))
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ExpressionStatement::Expression(node) = self;
-        kind == ParseNodeKind::Expression || node.contains(kind)
+        kind == ParseNodeKind::Expression || self.exp.contains(kind)
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        let ExpressionStatement::Expression(node) = self;
-        node.as_string_literal()
+        self.exp.as_string_literal()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -90,8 +88,7 @@ impl ExpressionStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let ExpressionStatement::Expression(node) = self;
-        node.all_private_identifiers_valid(names)
+        self.exp.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -105,13 +102,11 @@ impl ExpressionStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let ExpressionStatement::Expression(e) = self;
-        e.contains_arguments()
+        self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let ExpressionStatement::Expression(node) = self;
-        node.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.exp.early_errors(errs, strict);
     }
 }
 

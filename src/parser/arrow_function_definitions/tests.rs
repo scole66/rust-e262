@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -16,7 +16,12 @@ fn arrow_function_test_01() {
 }
 #[test]
 fn arrow_function_test_02() {
-    check_err(ArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false), "Identifier or Formal Parameters expected", 1, 1);
+    check_err(
+        ArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "Identifier or Formal Parameters expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn arrow_function_test_03() {
@@ -24,11 +29,21 @@ fn arrow_function_test_03() {
 }
 #[test]
 fn arrow_function_test_04() {
-    check_err(ArrowFunction::parse(&mut newparser("a=>"), Scanner::new(), true, false, false), "ConciseBody expected", 1, 4);
+    check_err(
+        ArrowFunction::parse(&mut newparser("a=>"), Scanner::new(), true, false, false),
+        "ConciseBody expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn arrow_function_test_05() {
-    check_err(ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false), "newline not allowed here", 1, 2);
+    check_err(
+        ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false),
+        "newline not allowed here",
+        1,
+        2,
+    );
 }
 #[test]
 fn arrow_function_test_prettyerrors_1() {
@@ -103,17 +118,17 @@ mod arrow_function {
     const ILLEGAL_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
     const A_DUPLICATED: &str = "‘a’ already defined";
 
-    #[test_case("package => implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
-    #[test_case("(a=yield b) => a", false => set(&[ILLEGAL_YIELD]); "Yield in params")]
-    #[test_case("(a=await b) => a", false => set(&[ILLEGAL_AWAIT]); "Await in params")]
-    #[test_case("(...a) => { 'use strict'; }", false => set(&[ILLEGAL_USE_STRICT]); "complex params")]
-    #[test_case("a => { let a; }", false => set(&[A_DUPLICATED]); "param/lex clash")]
-    #[test_case("package => { 'use strict'; implements; }", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "strict mode trigger")]
+    #[test_case("package => implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
+    #[test_case("(a=yield b) => a", false => sset(&[ILLEGAL_YIELD]); "Yield in params")]
+    #[test_case("(a=await b) => a", false => sset(&[ILLEGAL_AWAIT]); "Await in params")]
+    #[test_case("(...a) => { 'use strict'; }", false => sset(&[ILLEGAL_USE_STRICT]); "complex params")]
+    #[test_case("a => { let a; }", false => sset(&[A_DUPLICATED]); "param/lex clash")]
+    #[test_case("package => { 'use strict'; implements; }", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "strict mode trigger")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_function().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).arrow_function().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("(a=arguments) => a" => true; "left")]
@@ -121,6 +136,11 @@ mod arrow_function {
     #[test_case("a => a" => false; "none")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_function().contains_arguments()
+    }
+
+    #[test_case("   (x,y) => { return x(y); }" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 25} }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_function().location()
     }
 }
 
@@ -146,11 +166,21 @@ fn arrow_parameters_test_02() {
 }
 #[test]
 fn arrow_parameters_test_err_01() {
-    check_err(ArrowParameters::parse(&mut newparser(""), Scanner::new(), false, false), "Identifier or Formal Parameters expected", 1, 1);
+    check_err(
+        ArrowParameters::parse(&mut newparser(""), Scanner::new(), false, false),
+        "Identifier or Formal Parameters expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn arrow_parameters_test_err_02() {
-    check_err(ArrowParameters::parse(&mut newparser("("), Scanner::new(), false, false), "Expression, spread pattern, or closing paren expected", 1, 2);
+    check_err(
+        ArrowParameters::parse(&mut newparser("("), Scanner::new(), false, false),
+        "Expression, spread pattern, or closing paren expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn arrow_parameters_test_err_03() {
@@ -220,13 +250,13 @@ mod arrow_parameters {
         Maker::new(src).arrow_parameters().is_simple_parameter_list()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrowFormalParameters")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrowFormalParameters")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_parameters().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).arrow_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]
@@ -234,6 +264,25 @@ mod arrow_parameters {
     #[test_case("(a)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_parameters().contains_arguments()
+    }
+
+    #[test_case(" x" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 1 } }; "id")]
+    #[test_case(" (x, y)" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 6 } }; "formals")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_parameters().location()
+    }
+
+    #[test_case("a" => 1.0; "identifier")]
+    #[test_case("(a, b, c)" => 3.0; "formals")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).arrow_parameters().expected_argument_count()
+    }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("(a)" => false; "formals; missing")]
+    #[test_case("(a=0)" => true; "formals; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).arrow_parameters().contains_expression()
     }
 }
 
@@ -252,7 +301,7 @@ fn concise_body_test_02() {
     let (node, scanner) = check(ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true));
     println!("node = {:?}", node);
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ConciseBody::Function(..)));
+    assert!(matches!(&*node, ConciseBody::Function { .. }));
     pretty_check(&*node, "ConciseBody: { q ; }", vec!["FunctionBody: q ;"]);
     concise_check(&*node, "ConciseBody: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
     format!("{:?}", node);
@@ -331,13 +380,13 @@ mod concise_body {
         Maker::new(src).concise_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionBody")]
-    #[test_case("{ package; }", true => set(&[PACKAGE_NOT_ALLOWED]); "{ FunctionBody }")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "ExpressionBody")]
+    #[test_case("{ package; }", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ FunctionBody }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).concise_body().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).concise_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -346,6 +395,30 @@ mod concise_body {
     #[test_case("{;}" => false; "body (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).concise_body().contains_arguments()
+    }
+
+    #[test_case("  p+3" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 } }; "exp")]
+    #[test_case("  { return p+3; }" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 15 } }; "body")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).concise_body().location()
+    }
+
+    #[test_case("x + 3" => svec(&[]); "expression body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().var_declared_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case("x + 3" => svec(&[]); "expression body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("x + 3" => svec(&[]); "expression body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["let a ;", "const b = 0 ;"]); "function body")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }
 
@@ -368,7 +441,12 @@ fn expression_body_test_cache_01() {
 }
 #[test]
 fn expression_body_test_err_01() {
-    check_err(ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false), "AssignmentExpression expected", 1, 1);
+    check_err(
+        ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false),
+        "AssignmentExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_body_test_prettyerrors_1() {
@@ -400,18 +478,23 @@ mod expression_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).expression_body().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).expression_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "yes")]
     #[test_case("a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).expression_body().contains_arguments()
+    }
+
+    #[test_case(" x+y" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 3 } }; "expr")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).expression_body().location()
     }
 }
 
@@ -421,7 +504,11 @@ fn arrow_formal_parameters_test_01() {
     let (node, scanner) = check(ArrowFormalParameters::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["UniqueFormalParameters: a , b"]);
-    concise_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "ArrowFormalParameters: ( a , b )",
+        vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -482,17 +569,33 @@ mod arrow_formal_parameters {
         Maker::new(src).arrow_formal_parameters().is_simple_parameter_list()
     }
 
-    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( UniqueFormalParameters )")]
+    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "( UniqueFormalParameters )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).arrow_formal_parameters().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).arrow_formal_parameters().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("(a=arguments)" => true; "yes")]
     #[test_case("(a)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).arrow_formal_parameters().contains_arguments()
+    }
+
+    #[test_case("  ( a = arguments) " => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 16 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).arrow_formal_parameters().location()
+    }
+
+    #[test_case("(a,b,...c)" => 2.0; "typical")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).arrow_formal_parameters().expected_argument_count()
+    }
+
+    #[test_case("(a)" => false; "missing")]
+    #[test_case("(a=0)" => true; "present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).arrow_formal_parameters().contains_expression()
     }
 }

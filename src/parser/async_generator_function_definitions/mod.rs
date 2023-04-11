@@ -1,14 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::class_definitions::ClassElementName;
-use super::function_definitions::{common_function_early_errors, FunctionBody};
-use super::identifiers::BindingIdentifier;
-use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
-use super::scanner::Scanner;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // AsyncGeneratorMethod[Yield, Await] :
 //      async [no LineTerminator here] * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
@@ -17,6 +10,7 @@ pub struct AsyncGeneratorMethod {
     name: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorMethod {
@@ -58,16 +52,25 @@ impl PrettyPrint for AsyncGeneratorMethod {
 impl AsyncGeneratorMethod {
     // AsyncGeneratorMethod: No caching needed. Parent: MethodDefinition
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
-        let after_star = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (_, after_star) = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) =
+            scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorMethod { name, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorMethod { name, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -92,7 +95,9 @@ impl AsyncGeneratorMethod {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.name.all_private_identifiers_valid(names)
+            && self.params.all_private_identifiers_valid(names)
+            && self.body.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -125,7 +130,7 @@ impl AsyncGeneratorMethod {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
         //  * It is a Syntax Error if HasDirectSuper of AsyncGeneratorMethod is true.
@@ -137,24 +142,30 @@ impl AsyncGeneratorMethod {
         //    LexicallyDeclaredNames of AsyncGeneratorBody.
         let cus = self.body.function_body_contains_use_strict();
         if self.has_direct_super() {
-            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+            errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(self.location)));
         }
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
         }
         if cus && !self.params.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+            errs.push(create_syntax_error_object(
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+                Some(self.params.location()),
+            ));
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
-            errs.push(create_syntax_error_object(agent, format!("‘{name}’ already defined")));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.body.0.location())));
         }
 
         let strict_func = strict || cus;
 
-        self.name.early_errors(agent, errs, strict_func);
-        self.params.early_errors(agent, errs, strict_func);
-        self.body.early_errors(agent, errs, strict_func);
+        self.name.early_errors(errs, strict_func);
+        self.params.early_errors(errs, strict_func);
+        self.body.early_errors(errs, strict_func);
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -174,12 +185,15 @@ pub struct AsyncGeneratorDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }
@@ -228,11 +242,19 @@ impl IsFunctionDefinition for AsyncGeneratorDeclaration {
 
 impl AsyncGeneratorDeclaration {
     // No caching needed. Parent: HoistableDeclaration
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_func) =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {
@@ -243,19 +265,29 @@ impl AsyncGeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
+        vec![self.bound_name()]
+    }
+
+    pub fn bound_name(&self) -> JSString {
         match &self.ident {
-            None => vec![JSString::from("*default*")],
-            Some(node) => node.bound_names(),
+            None => JSString::from("*default*"),
+            Some(node) => node.bound_name(),
         }
     }
 
@@ -283,7 +315,7 @@ impl AsyncGeneratorDeclaration {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorDeclaration :
         //      async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
@@ -302,19 +334,29 @@ impl AsyncGeneratorDeclaration {
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
-        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body.0);
+        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(agent, "Await expressions can't be parameter initializers in async functions"));
+            errs.push(create_syntax_error_object(
+                "Await expressions can't be parameter initializers in async functions",
+                Some(self.params.location()),
+            ));
         }
 
         if let Some(bi) = &self.ident {
-            bi.early_errors(agent, errs, strict_function);
+            bi.early_errors(errs, strict_function);
         }
-        self.params.early_errors(agent, errs, strict_function, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+        self.params.early_errors(errs, strict_function, strict_function);
+        self.body.early_errors(errs, strict_function);
+    }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        false
     }
 }
 
@@ -322,16 +364,19 @@ impl AsyncGeneratorDeclaration {
 //      async [no LineTerminator here] function * BindingIdentifier[+Yield, +Await]opt ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncGeneratorBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<AsyncGeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncGeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
-            None => write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
+            }
         }
     }
 }
@@ -380,21 +425,31 @@ impl IsFunctionDefinition for AsyncGeneratorExpression {
 impl AsyncGeneratorExpression {
     // No caching needed. Parent: PrimaryExpression.
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_func) =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_ident) = match BindingIdentifier::parse(parser, after_star, true, true) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_lp = scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) =
+            scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, true, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncGeneratorExpression { ident, params, body }), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncGeneratorExpression { ident, params, body, location }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, _: ParseNodeKind) -> bool {
@@ -421,7 +476,7 @@ impl AsyncGeneratorExpression {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorExpression :
         //      async function * BindingIdentifier[opt] ( FormalParameters ) { AsyncGeneratorBody }
@@ -439,26 +494,36 @@ impl AsyncGeneratorExpression {
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
-        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body.0);
+        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(agent, "Await expressions can't be parameter initializers in async functions"));
+            errs.push(create_syntax_error_object(
+                "Await expressions can't be parameter initializers in async functions",
+                Some(self.params.location()),
+            ));
         }
 
         if let Some(bi) = &self.ident {
-            bi.early_errors(agent, errs, strict_function);
+            bi.early_errors(errs, strict_function);
         }
-        self.params.early_errors(agent, errs, strict_function, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+        self.params.early_errors(errs, strict_function, strict_function);
+        self.body.early_errors(errs, strict_function);
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
     }
 }
 
 // AsyncGeneratorBody :
 //      FunctionBody[+Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncGeneratorBody(Rc<FunctionBody>);
+pub struct AsyncGeneratorBody(pub Rc<FunctionBody>);
 
 impl fmt::Display for AsyncGeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -525,16 +590,37 @@ impl AsyncGeneratorBody {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(errs, strict);
     }
 
-    pub fn function_body_contains_use_strict(&self) -> bool {
-        self.0.function_body_contains_use_strict()
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that function bodies are treated like top-level code in that top-level function identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        self.0.var_declared_names()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.0.var_scoped_declarations()
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         self.0.lexically_declared_names()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.0.lexically_scoped_declarations()
+    }
+
+    pub fn function_body_contains_use_strict(&self) -> bool {
+        self.0.function_body_contains_use_strict()
     }
 }
 

@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -27,72 +27,144 @@ fn method_definition_test_01() {
     let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*pn, MethodDefinition::NamedFunction(..)));
-    pretty_check(&*pn, "MethodDefinition: a ( b ) { c ; }", vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: a ( b ) { c ; }",
+        vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: a ( b ) { c ; }",
-        vec!["IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
+        vec![
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: b",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: c ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_02() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 21);
     assert!(matches!(&*pn, MethodDefinition::Getter(..)));
-    pretty_check(&*pn, "MethodDefinition: get a ( ) { return 1 ; }", vec!["ClassElementName: a", "FunctionBody: return 1 ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: get a ( ) { return 1 ; }",
+        vec!["ClassElementName: a", "FunctionBody: return 1 ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: get a ( ) { return 1 ; }",
-        vec!["Keyword: get", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "ReturnStatement: return 1 ;", "Punctuator: }"],
+        vec![
+            "Keyword: get",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ReturnStatement: return 1 ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_03() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 28);
     assert!(matches!(&*pn, MethodDefinition::Setter(..)));
-    pretty_check(&*pn, "MethodDefinition: set a ( blue ) { this . a = blue ; }", vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: set a ( blue ) { this . a = blue ; }",
+        vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: set a ( blue ) { this . a = blue ; }",
-        vec!["Keyword: set", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Keyword: set",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_04() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 26);
     assert!(matches!(&*pn, MethodDefinition::Generator(..)));
-    pretty_check(&*pn, "MethodDefinition: * a ( blue ) { this . a = blue ; }", vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: * a ( blue ) { this . a = blue ; }",
+        vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "GeneratorMethod: * a ( blue ) { this . a = blue ; }",
-        vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_05() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 30);
     assert!(matches!(&*pn, MethodDefinition::Async(..)));
-    pretty_check(&*pn, "MethodDefinition: async a ( blue ) { this . a = blue ; }", vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: async a ( blue ) { this . a = blue ; }",
+        vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "AsyncMethod: async a ( blue ) { this . a = blue ; }",
-        vec!["Keyword: async", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_06() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 31);
     assert!(matches!(&*pn, MethodDefinition::AsyncGenerator(..)));
-    pretty_check(&*pn, "MethodDefinition: async * a ( blue ) { this . a = blue ; }", vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: async * a ( blue ) { this . a = blue ; }",
+        vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }",
@@ -112,7 +184,12 @@ fn method_definition_test_06() {
 }
 #[test]
 fn method_definition_test_errs_01() {
-    check_err(MethodDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "MethodDefinition expected", 1, 1);
+    check_err(
+        MethodDefinition::parse(&mut newparser(""), Scanner::new(), false, false),
+        "MethodDefinition expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn method_definition_test_errs_02() {
@@ -136,7 +213,12 @@ fn method_definition_test_errs_06() {
 }
 #[test]
 fn method_definition_test_errs_07() {
-    check_err(MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
+    check_err(
+        MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn method_definition_test_errs_08() {
@@ -156,7 +238,12 @@ fn method_definition_test_errs_11() {
 }
 #[test]
 fn method_definition_test_errs_12() {
-    check_err(MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn method_definition_test_errs_13() {
@@ -164,11 +251,21 @@ fn method_definition_test_errs_13() {
 }
 #[test]
 fn method_definition_test_errs_14() {
-    check_err(MethodDefinition::parse(&mut newparser("set a("), Scanner::new(), false, false), "BindingElement expected", 1, 7);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a("), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn method_definition_test_errs_15() {
-    check_err(MethodDefinition::parse(&mut newparser("set a()"), Scanner::new(), false, false), "BindingElement expected", 1, 7);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a()"), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn method_definition_test_errs_16() {
@@ -176,7 +273,12 @@ fn method_definition_test_errs_16() {
 }
 #[test]
 fn method_definition_test_errs_17() {
-    check_err(MethodDefinition::parse(&mut newparser("set a(h){"), Scanner::new(), false, false), "‘}’ expected", 1, 10);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a(h){"), Scanner::new(), false, false),
+        "‘}’ expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn method_definition_test_errs_18() {
@@ -189,27 +291,34 @@ fn method_definition_test_prettyerrors_1() {
 }
 #[test]
 fn method_definition_test_prettyerrors_2() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_3() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_4() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_5() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_6() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -219,27 +328,34 @@ fn method_definition_test_conciseerrors_1() {
 }
 #[test]
 fn method_definition_test_conciseerrors_2() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_3() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_4() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_5() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_6() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -434,25 +550,25 @@ mod method_definition {
         Maker::new(src).method_definition().has_direct_super()
     }
 
-    #[test_case("[package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
-    #[test_case("*[package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "GeneratorMethod")]
-    #[test_case("async [package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncMethod")]
-    #[test_case("async *[package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncGeneratorMethod")]
-    #[test_case("get [package](){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
-    #[test_case("set [package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
-    #[test_case("[package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; ordinary")]
-    #[test_case("get [package](){'use strict'; implements;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "contains strict; getter")]
-    #[test_case("set [package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; setter")]
-    #[test_case("a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "ordinary; bad use-strict")]
-    #[test_case("set a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "setter; bad use-strict")]
-    #[test_case("foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "ordinary; duped lexical")]
-    #[test_case("set foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "setter; duped lexical")]
-    #[test_case("set foo([a, a]){}", false => set(&[A_ALREADY_DEFN]); "setter; duped params")]
+    #[test_case("[package](implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
+    #[test_case("*[package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "GeneratorMethod")]
+    #[test_case("async [package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncMethod")]
+    #[test_case("async *[package](){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
+    #[test_case("get [package](){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
+    #[test_case("set [package](implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
+    #[test_case("[package](implements){'use strict'; interface;}", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; ordinary")]
+    #[test_case("get [package](){'use strict'; implements;}", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "contains strict; getter")]
+    #[test_case("set [package](implements){'use strict'; interface;}", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; setter")]
+    #[test_case("a([b]){'use strict';}", false => sset(&[BAD_USE_STRICT]); "ordinary; bad use-strict")]
+    #[test_case("set a([b]){'use strict';}", false => sset(&[BAD_USE_STRICT]); "setter; bad use-strict")]
+    #[test_case("foo(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "ordinary; duped lexical")]
+    #[test_case("set foo(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "setter; duped lexical")]
+    #[test_case("set foo([a, a]){}", false => sset(&[A_ALREADY_DEFN]); "setter; duped params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).method_definition().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).method_definition().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
@@ -506,6 +622,16 @@ mod method_definition {
     fn special_method(src: &str) -> bool {
         Maker::new(src).method_definition().special_method()
     }
+
+    #[test_case("  a(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "standard method")]
+    #[test_case("  *a(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "generator")]
+    #[test_case("  async m(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "async fcn")]
+    #[test_case("  async *m(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 12 }}; "async gen")]
+    #[test_case("  get foo(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "getter")]
+    #[test_case("  set foo(val){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 14 }}; "setter")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).method_definition().location()
+    }
 }
 
 mod property_set_parameter_list {
@@ -547,22 +673,33 @@ mod property_set_parameter_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => vec!["a"]; "FormalParameter")]
     fn bound_names(src: &str) -> Vec<String> {
-        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new())
+            .unwrap()
+            .0
+            .bound_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a" => true; "simple")]
     #[test_case("[a]" => false; "complex")]
     fn is_simple_parameter_list(src: &str) -> bool {
         PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.is_simple_parameter_list()
+    }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "setter")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).property_set_parameter_list().location()
     }
 }

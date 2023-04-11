@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -48,7 +48,12 @@ fn shift_expression_test_04() {
 }
 #[test]
 fn shift_expression_test_05() {
-    check_err(ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(
+        ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ExponentiationExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn shift_expression_test_06() {
@@ -180,18 +185,21 @@ mod shift_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package<<3", true => set(&[PACKAGE_NOT_ALLOWED]); "left shl right; left bad")]
-    #[test_case("3<<package", true => set(&[PACKAGE_NOT_ALLOWED]); "left shl right; right bad")]
-    #[test_case("package>>3", true => set(&[PACKAGE_NOT_ALLOWED]); "left shr right; left bad")]
-    #[test_case("3>>package", true => set(&[PACKAGE_NOT_ALLOWED]); "left shr right; right bad")]
-    #[test_case("package>>>3", true => set(&[PACKAGE_NOT_ALLOWED]); "left ushr right; left bad")]
-    #[test_case("3>>>package", true => set(&[PACKAGE_NOT_ALLOWED]); "left ushr right; right bad")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package<<3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left shl right; left bad")]
+    #[test_case("3<<package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left shl right; right bad")]
+    #[test_case("package>>3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left shr right; left bad")]
+    #[test_case("3>>package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left shr right; right bad")]
+    #[test_case("package>>>3", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ushr right; left bad")]
+    #[test_case("3>>>package", true => sset(&[PACKAGE_NOT_ALLOWED]); "left ushr right; right bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ShiftExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -223,5 +231,20 @@ mod shift_expression {
     #[test_case("a>>>b", false => ATTKind::Invalid; "ushr")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).shift_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a<<b" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).shift_expression().is_named_function()
+    }
+
+    #[test_case("  a<<b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "shl")]
+    #[test_case("  a>>b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "sshr")]
+    #[test_case("  a>>>b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "ushr")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).shift_expression().location()
     }
 }

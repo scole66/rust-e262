@@ -1,12 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::assignment_operators::AssignmentExpression;
-use super::binary_logical_operators::ShortCircuitExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ConditionalExpression[In, Yield, Await] :
 //      ShortCircuitExpression[?In, ?Yield, ?Await]
@@ -74,24 +69,43 @@ impl IsFunctionDefinition for ConditionalExpression {
 
 impl ConditionalExpression {
     // no need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
-            .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
+            .and_then(|(_, after_q)| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
             .and_then(|(ae1, after_ae1)| {
                 scan_for_punct(after_ae1, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)
-                    .and_then(|after_colon| AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag))
+                    .and_then(|(_, after_colon)| {
+                        AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag)
+                    })
                     .map(|(ae2, after_ae2)| (ae1, ae2, after_ae2))
             }) {
-            Ok((thenish, elseish, after)) => Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
+            Ok((thenish, elseish, after)) => {
+                Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after))
+            }
             Err(_) => Ok((Rc::new(ConditionalExpression::FallThru(left)), after_left)),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ConditionalExpression::FallThru(exp) => exp.location(),
+            ConditionalExpression::Conditional(left, _, right) => left.location().merge(&right.location()),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ConditionalExpression::FallThru(node) => node.contains(kind),
-            ConditionalExpression::Conditional(cond, truthy, falsey) => cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind),
+            ConditionalExpression::Conditional(cond, truthy, falsey) => {
+                cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind)
+            }
         }
     }
 
@@ -112,7 +126,9 @@ impl ConditionalExpression {
         match self {
             ConditionalExpression::FallThru(node) => node.all_private_identifiers_valid(names),
             ConditionalExpression::Conditional(cond, truthy, falsey) => {
-                cond.all_private_identifiers_valid(names) && truthy.all_private_identifiers_valid(names) && falsey.all_private_identifiers_valid(names)
+                cond.all_private_identifiers_valid(names)
+                    && truthy.all_private_identifiers_valid(names)
+                    && falsey.all_private_identifiers_valid(names)
             }
         }
     }
@@ -130,17 +146,19 @@ impl ConditionalExpression {
         //  2. Return false.
         match self {
             ConditionalExpression::FallThru(sce) => sce.contains_arguments(),
-            ConditionalExpression::Conditional(sce, ae1, ae2) => sce.contains_arguments() || ae1.contains_arguments() || ae2.contains_arguments(),
+            ConditionalExpression::Conditional(sce, ae1, ae2) => {
+                sce.contains_arguments() || ae1.contains_arguments() || ae2.contains_arguments()
+            }
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ConditionalExpression::FallThru(node) => node.early_errors(agent, errs, strict),
+            ConditionalExpression::FallThru(node) => node.early_errors(errs, strict),
             ConditionalExpression::Conditional(a, b, c) => {
-                a.early_errors(agent, errs, strict);
-                b.early_errors(agent, errs, strict);
-                c.early_errors(agent, errs, strict);
+                a.early_errors(errs, strict);
+                b.early_errors(errs, strict);
+                c.early_errors(errs, strict);
             }
         }
     }
@@ -159,6 +177,13 @@ impl ConditionalExpression {
         match &self {
             ConditionalExpression::Conditional(_, _, _) => ATTKind::Invalid,
             ConditionalExpression::FallThru(node) => node.assignment_target_type(strict),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            ConditionalExpression::Conditional(..) => false,
+            ConditionalExpression::FallThru(node) => node.is_named_function(),
         }
     }
 }

@@ -1,17 +1,20 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, ILLEGAL_ASYNC_AWAIT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
-    UNEXPECTED_SUPER,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
 // ASYNC FUNCTION DECLARATION
 #[test]
 fn async_function_declaration_test_01() {
-    let (node, scanner) = check(AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a,b) { return await foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 50);
     pretty_check(
         &*node,
@@ -37,7 +40,13 @@ fn async_function_declaration_test_01() {
 }
 #[test]
 fn async_function_declaration_test_02() {
-    let (node, scanner) = check(AsyncFunctionDeclaration::parse(&mut newparser("async function (a,b) { return await foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 47);
     pretty_check(
         &*node,
@@ -62,74 +71,170 @@ fn async_function_declaration_test_02() {
 }
 #[test]
 fn async_function_declaration_test_err_01() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘async’ expected", 1, 1);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘async’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_02() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_03() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true), "‘function’ expected", 1, 6);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_04() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false), "not an identifier", 1, 15);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        15,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_05() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true), "‘(’ expected", 1, 15);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_06() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob("), Scanner::new(), false, false, true), "‘)’ expected", 1, 20);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        20,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_07() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob()"), Scanner::new(), false, false, true), "‘{’ expected", 1, 21);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob()"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_08() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob() {"), Scanner::new(), false, false, true), "‘}’ expected", 1, 23);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob() {"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        23,
+    );
 }
 #[test]
 fn async_function_declaration_test_prettyerrors_1() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_prettyerrors_2() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_conciseerrors_1() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_conciseerrors_2() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_contains_01() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob() { return 11; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_declaration_test_contains_02() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function () { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function () { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_declaration_test_bound_names_01() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function a() { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function a() { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["a"]);
 }
 #[test]
 fn async_function_declaration_test_bound_names_02() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function () { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function () { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["*default*"]);
 }
 mod async_function_declaration {
@@ -141,32 +246,57 @@ mod async_function_declaration {
     #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
     #[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
-        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.all_private_identifiers_valid(&[JSString::from("#valid")])
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
-    #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
-    #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
-    #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
-    #[test_case("async function(a=super.prop){}", false => set(&["Parameters may not include super properties"]); "superprop params")]
-    #[test_case("async function(){return super.prop;}", false => set(&["Body may not contain super properties"]); "superprop body")]
-    #[test_case("async function(a=super()){}", false => set(&["Parameters may not include super calls"]); "supercall params")]
-    #[test_case("async function(){return super();}", false => set(&["Body may not contain super calls"]); "supercall body")]
-    #[test_case("async function package(interface){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
-    #[test_case("async function(package){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
+    #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
+    #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
+    #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
+    #[test_case("async function(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicate; strict context")]
+    #[test_case("async function(lex) { const lex=10; return lex; }", false => sset(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
+    #[test_case("async function(a=super.prop){}", false => sset(&["Parameters may not include super properties"]); "superprop params")]
+    #[test_case("async function(){return super.prop;}", false => sset(&["Body may not contain super properties"]); "superprop body")]
+    #[test_case("async function(a=super()){}", false => sset(&["Parameters may not include super calls"]); "supercall params")]
+    #[test_case("async function(){return super();}", false => sset(&["Body may not contain super calls"]); "supercall body")]
+    #[test_case("async function package(interface){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
+    #[test_case("async function(package){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("   async function abc() {}" => Location{ starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 23 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_declaration().location()
+    }
+
+    #[test_case("async function named() {}" => "named"; "named")]
+    #[test_case("async function (){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).async_function_declaration().bound_name().into()
+    }
+
+    #[test_case("async function foo () {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).async_function_declaration().is_constant_declaration()
     }
 }
 
 // ASYNC FUNCTION EXPRESSION
 #[test]
 fn async_function_expression_test_01() {
-    let (node, scanner) = check(AsyncFunctionExpression::parse(&mut newparser("async function bob(a,b) { return await foo(a+b); }"), Scanner::new()));
+    let (node, scanner) = check(AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+    ));
     chk_scan(&scanner, 50);
     pretty_check(
         &*node,
@@ -193,7 +323,10 @@ fn async_function_expression_test_01() {
 }
 #[test]
 fn async_function_expression_test_02() {
-    let (node, scanner) = check(AsyncFunctionExpression::parse(&mut newparser("async function (a,b) { return await foo(a+b); }"), Scanner::new()));
+    let (node, scanner) = check(AsyncFunctionExpression::parse(
+        &mut newparser("async function (a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+    ));
     chk_scan(&scanner, 47);
     pretty_check(
         &*node,
@@ -223,11 +356,16 @@ fn async_function_expression_test_err_01() {
 }
 #[test]
 fn async_function_expression_test_err_02() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_function_expression_test_err_03() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 6);
+    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 7);
 }
 #[test]
 fn async_function_expression_test_err_05() {
@@ -235,44 +373,77 @@ fn async_function_expression_test_err_05() {
 }
 #[test]
 fn async_function_expression_test_err_06() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob("), Scanner::new()), "‘)’ expected", 1, 20);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob("), Scanner::new()),
+        "‘)’ expected",
+        1,
+        20,
+    );
 }
 #[test]
 fn async_function_expression_test_err_07() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob()"), Scanner::new()), "‘{’ expected", 1, 21);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob()"), Scanner::new()),
+        "‘{’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn async_function_expression_test_err_08() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob() {"), Scanner::new()), "‘}’ expected", 1, 23);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob() {"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        23,
+    );
 }
 #[test]
 fn async_function_expression_test_prettyerrors_1() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_prettyerrors_2() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_conciseerrors_1() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_conciseerrors_2() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_contains_01() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncFunctionExpression::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_expression_test_contains_02() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function () { return 10; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncFunctionExpression::parse(&mut newparser("async function () { return 10; }"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async function x(arg=item.#valid){}" => true; "Params valid")]
@@ -288,34 +459,54 @@ mod async_function_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
-    #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
-    #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
-    #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
-    #[test_case("async function(a=super.prop){}", false => set(&["Parameters may not include super properties"]); "superprop params")]
-    #[test_case("async function(){return super.prop;}", false => set(&["Body may not contain super properties"]); "superprop body")]
-    #[test_case("async function(a=super()){}", false => set(&["Parameters may not include super calls"]); "supercall params")]
-    #[test_case("async function(){return super();}", false => set(&["Body may not contain super calls"]); "supercall body")]
-    #[test_case("async function package(interface){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
-    #[test_case("async function(package){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
+    #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
+    #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
+    #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
+    #[test_case("async function(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicate; strict context")]
+    #[test_case("async function(lex) { const lex=10; return lex; }", false => sset(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
+    #[test_case("async function(a=super.prop){}", false => sset(&["Parameters may not include super properties"]); "superprop params")]
+    #[test_case("async function(){return super.prop;}", false => sset(&["Body may not contain super properties"]); "superprop body")]
+    #[test_case("async function(a=super()){}", false => sset(&["Parameters may not include super calls"]); "supercall params")]
+    #[test_case("async function(){return super();}", false => sset(&["Body may not contain super calls"]); "supercall body")]
+    #[test_case("async function package(interface){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
+    #[test_case("async function(package){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).async_function_expression().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).async_function_expression().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("async function a(){}" => true; "named")]
+    #[test_case("async function () {}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).async_function_expression().is_named_function()
+    }
+
+    #[test_case("    async function  elephant(a, b, c) { return a + b + c; }" => Location{ starting_line: 1, starting_column: 5, span: Span{ starting_index: 4, length: 55 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_expression().location()
     }
 }
 
 // ASYNC METHOD
 #[test]
 fn async_method_test_01() {
-    let (node, scanner) = check(AsyncMethod::parse(&mut newparser("async bob(a,b) { return await foo(a+b); }"), Scanner::new(), false, false));
+    let (node, scanner) = check(AsyncMethod::parse(
+        &mut newparser("async bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 41);
     pretty_check(
         &*node,
         "AsyncMethod: async bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["ClassElementName: bob", "UniqueFormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        vec![
+            "ClassElementName: bob",
+            "UniqueFormalParameters: a , b",
+            "AsyncFunctionBody: return await foo ( a + b ) ;",
+        ],
     );
     concise_check(
         &*node,
@@ -339,11 +530,21 @@ fn async_method_test_err_01() {
 }
 #[test]
 fn async_method_test_err_02() {
-    check_err(AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_method_test_err_03() {
-    check_err(AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false), "ClassElementName expected", 1, 6);
+    check_err(
+        AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_method_test_err_04() {
@@ -363,12 +564,16 @@ fn async_method_test_err_08() {
 }
 #[test]
 fn async_method_test_prettyerrors_1() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_method_test_conciseerrors_1() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -435,18 +640,18 @@ mod async_method {
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
     }
 
-    #[test_case("async [package](interface) { implements; }", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
-    #[test_case("async a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params; directive")]
-    #[test_case("async a([b]){}", true => set(&[]); "complex params; no directive")]
-    #[test_case("async a(){super();}", false => set(&[UNEXPECTED_SUPER]); "supercall")]
-    #[test_case("async a(x=await j){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await in params")]
-    #[test_case("async w(a){let a; const bb=0;}", false => set(&[A_ALREADY_DEFN]); "duplicate lex")]
-    #[test_case("async f(a){'use strict'; package;}", false => set(&[PACKAGE_NOT_ALLOWED]); "directive works")]
+    #[test_case("async [package](interface) { implements; }", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
+    #[test_case("async a([b]){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params; directive")]
+    #[test_case("async a([b]){}", true => sset(&[]); "complex params; no directive")]
+    #[test_case("async a(){super();}", false => sset(&[UNEXPECTED_SUPER]); "supercall")]
+    #[test_case("async a(x=await j){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await in params")]
+    #[test_case("async w(a){let a; const bb=0;}", false => sset(&[A_ALREADY_DEFN]); "duplicate lex")]
+    #[test_case("async f(a){'use strict'; package;}", false => sset(&[PACKAGE_NOT_ALLOWED]); "directive works")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("async [arguments](){}" => true; "yes")]
@@ -522,18 +727,39 @@ mod async_function_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionBody")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionBody")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]
     #[test_case("" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_function_body().contains_arguments()
+    }
+
+    #[test_case("    " => Location{ starting_line: 1, starting_column: 1, span: Span{ starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("   return q;" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length:  9} }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_function_body().location()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).async_function_body().var_declared_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).async_function_body().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d(){}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).async_function_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }
 
@@ -589,17 +815,22 @@ mod await_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("await package", true => set(&[PACKAGE_NOT_ALLOWED]); "await UnaryExpression")]
+    #[test_case("await package", true => sset(&[PACKAGE_NOT_ALLOWED]); "await UnaryExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("await arguments" => true; "yes")]
     #[test_case("await a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).await_expression().contains_arguments()
+    }
+
+    #[test_case("   await forlorn_hope" => Location{ starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 18 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).await_expression().location()
     }
 }

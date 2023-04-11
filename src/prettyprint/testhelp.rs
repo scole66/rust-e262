@@ -1,5 +1,5 @@
 use super::*;
-use crate::tests::printer_validate;
+use crate::tests::*;
 use std::str;
 
 fn split_message(msg: &str) -> Vec<String> {

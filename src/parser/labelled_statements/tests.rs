@@ -1,22 +1,32 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
 // LABELLED STATEMENT
 #[test]
 fn labelled_statement_test_01() {
-    let (node, scanner) = check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 13);
     pretty_check(&*node, "LabelledStatement: blue : orange ;", vec!["LabelIdentifier: blue", "LabelledItem: orange ;"]);
-    concise_check(&*node, "LabelledStatement: blue : orange ;", vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"]);
+    concise_check(
+        &*node,
+        "LabelledStatement: blue : orange ;",
+        vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn labelled_statement_test_err_01() {
-    check_err(LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "not an identifier", 1, 1);
+    check_err(
+        LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "not an identifier",
+        1,
+        1,
+    );
 }
 #[test]
 fn labelled_statement_test_err_02() {
@@ -24,7 +34,12 @@ fn labelled_statement_test_err_02() {
 }
 #[test]
 fn labelled_statement_test_err_03() {
-    check_err(LabelledStatement::parse(&mut newparser("a:"), Scanner::new(), false, false, true), "LabelledItem expected", 1, 3);
+    check_err(
+        LabelledStatement::parse(&mut newparser("a:"), Scanner::new(), false, false, true),
+        "LabelledItem expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn labelled_statement_test_prettyerrors_1() {
@@ -43,7 +58,8 @@ fn labelled_statement_test_top_level_var_declared_names_01() {
 }
 #[test]
 fn labelled_statement_test_top_level_var_declared_names_02() {
-    let (item, _) = LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.top_level_var_declared_names(), &["a"]);
 }
 #[test]
@@ -53,7 +69,8 @@ fn labelled_statement_test_var_declared_names_01() {
 }
 #[test]
 fn labelled_statement_test_var_declared_names_02() {
-    let (item, _) = LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &[] as &[JSString]);
 }
 #[test]
@@ -122,12 +139,12 @@ mod labelled_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package:implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelIdentifier : LabelledItem")]
+    #[test_case("package:implements;", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelIdentifier : LabelledItem")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_statement().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).labelled_statement().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -142,6 +159,34 @@ mod labelled_statement {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).labelled_statement().contains_arguments()
     }
+
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:{ function b(){} }" => svec(&[]); "too deep")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src)
+            .labelled_statement()
+            .top_level_var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+    }
+
+    #[test_case("a:function b(){}" => svec(&[]); "function")]
+    #[test_case("a:var u;" => svec(&["u"]); "not a function")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:var u;" => svec(&[]); "not a function")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_statement().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("   a:b();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).labelled_statement().location()
+    }
 }
 
 // LABELLED ITEM
@@ -155,15 +200,32 @@ fn labelled_item_test_01() {
 }
 #[test]
 fn labelled_item_test_02() {
-    let (node, scanner) = check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "LabelledItem: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
-    concise_check(&*node, "FunctionDeclaration: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionDeclaration: function a (  ) {  }",
+        vec![
+            "Keyword: function",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn labelled_item_test_err_01() {
-    check_err(LabelledItem::parse(&mut newparser(""), Scanner::new(), false, false, true), "LabelledItem expected", 1, 1);
+    check_err(
+        LabelledItem::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "LabelledItem expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn labelled_item_test_prettyerrors_1() {
@@ -296,14 +358,14 @@ mod labelled_item {
 
     const LBL_FUNC_NOT_ALLOWED: &str = "Labelled functions not allowed in modern ECMAScript code";
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
-    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (strict)")]
-    #[test_case("function a(){}", false => set(&[LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (non-strict)")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Statement")]
+    #[test_case("function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (strict)")]
+    #[test_case("function a(){}", false => sset(&[LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (non-strict)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).labelled_item().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).labelled_item().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("function alice(){}" => true; "direct labelled function")]
@@ -318,5 +380,29 @@ mod labelled_item {
     #[test_case("function a(){}" => false; "func")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).labelled_item().contains_arguments()
+    }
+
+    #[test_case("function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "labelled function")]
+    #[test_case("var a;" => svec(&["a"]); "statement")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("function a(){}" => svec(&[]); "function")]
+    #[test_case("var a;" => svec(&["a"]); "statement")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   b();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).labelled_item().location()
+    }
+
+    #[test_case("10;" => svec(&[]); "statement")]
+    #[test_case("function blue(){}" => svec(&["function blue (  ) {  }"]); "function")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }

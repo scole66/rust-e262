@@ -1,33 +1,57 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
 // TRY STATEMENT
 #[test]
 fn try_statement_test_01() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } catch {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(TryStatement::parse(&mut newparser("try { a; } catch {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 19);
     pretty_check(&*node, "TryStatement: try { a ; } catch { }", vec!["Block: { a ; }", "Catch: catch { }"]);
-    concise_check(&*node, "TryStatement: try { a ; } catch { }", vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"]);
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } catch { }",
+        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn try_statement_test_02() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } finally {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(TryStatement::parse(&mut newparser("try { a; } finally {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 21);
     pretty_check(&*node, "TryStatement: try { a ; } finally { }", vec!["Block: { a ; }", "Finally: finally { }"]);
-    concise_check(&*node, "TryStatement: try { a ; } finally { }", vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"]);
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } finally { }",
+        vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn try_statement_test_03() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } catch { b; } finally { c; }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(TryStatement::parse(
+        &mut newparser("try { a; } catch { b; } finally { c; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 38);
-    pretty_check(&*node, "TryStatement: try { a ; } catch { b ; } finally { c ; }", vec!["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"]);
-    concise_check(&*node, "TryStatement: try { a ; } catch { b ; } finally { c ; }", vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"]);
+    pretty_check(
+        &*node,
+        "TryStatement: try { a ; } catch { b ; } finally { c ; }",
+        vec!["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+    );
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } catch { b ; } finally { c ; }",
+        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -40,36 +64,73 @@ fn try_statement_test_err_02() {
 }
 #[test]
 fn try_statement_test_err_03() {
-    check_err(TryStatement::parse(&mut newparser("try {}"), Scanner::new(), false, false, true), "Catch or Finally block expected", 1, 7);
+    check_err(
+        TryStatement::parse(&mut newparser("try {}"), Scanner::new(), false, false, true),
+        "Catch or Finally block expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn try_statement_test_prettyerrors_1() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_prettyerrors_2() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_prettyerrors_3() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_1() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_2() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_3() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 fn try_vdn_check(src: &str, expected: &[&str]) {
@@ -138,7 +199,10 @@ fn try_statement_test_contains_duplicate_labels() {
 #[test_case("try { } catch { } finally { continue x; }" => (false, true); "try { } catch { } finally { continue x; }")]
 fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("try {a.#valid;} catch{}" => true; "tc: block valid")]
 #[test_case("try {} catch{a.#valid;}" => true; "tc: catch valid")]
@@ -162,14 +226,14 @@ mod try_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("try{package;}catch(implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch")]
-    #[test_case("try{package;}finally{implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
-    #[test_case("try{package;}catch(implements){}finally{interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
+    #[test_case("try{package;}catch(implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch")]
+    #[test_case("try{package;}finally{implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
+    #[test_case("try{package;}catch(implements){}finally{interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).try_statement().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).try_statement().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("try { arguments; } catch {}" => true; "try-catch (left)")]
@@ -184,6 +248,20 @@ mod try_statement {
     #[test_case("try{}catch{}finally{}" => false; "try-catch-finally (none)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).try_statement().contains_arguments()
+    }
+
+    #[test_case("try {var one;} catch {var two;}" => svec(&["one", "two"]); "catch only")]
+    #[test_case("try {var one;} finally {var two;}" => svec(&["one", "two"]); "finally only")]
+    #[test_case("try {var one;} catch {var two;} finally {var three;}" => svec(&["one", "two", "three"]); "catch/finally")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).try_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   try {} catch {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "catch only")]
+    #[test_case("   try {} finally {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 17 } }; "finally only")]
+    #[test_case("   try {} catch {} finally {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 26 } }; "catch/finally")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).try_statement().location()
     }
 }
 
@@ -201,7 +279,11 @@ fn catch_test_02() {
     let (node, scanner) = check(Catch::parse(&mut newparser("catch (e) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "Catch: catch ( e ) { }", vec!["CatchParameter: e", "Block: { }"]);
-    concise_check(&*node, "Catch: catch ( e ) { }", vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"]);
+    concise_check(
+        &*node,
+        "Catch: catch ( e ) { }",
+        vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -210,11 +292,21 @@ fn catch_test_err_01() {
 }
 #[test]
 fn catch_test_err_02() {
-    check_err(Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true), "one of [‘(’, ‘{’] expected", 1, 6);
+    check_err(
+        Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true),
+        "one of [‘(’, ‘{’] expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn catch_test_err_03() {
-    check_err(Catch::parse(&mut newparser("catch("), Scanner::new(), false, false, true), "CatchParameter expected", 1, 7);
+    check_err(
+        Catch::parse(&mut newparser("catch("), Scanner::new(), false, false, true),
+        "CatchParameter expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn catch_test_err_04() {
@@ -277,7 +369,10 @@ fn catch_test_contains_duplicate_labels() {
 #[test_case("catch (e) { continue x; }" => (false, true); "catch (e) { continue x; }")]
 fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("catch([a=b.#valid]){}" => true; "cpb: param valid")]
 #[test_case("catch([a=b]){c.#valid;}" => true; "cpb: block valid")]
@@ -295,16 +390,16 @@ mod catch {
 
     const A_ALREADY_DEFINED: &str = "‘a’ already defined";
 
-    #[test_case("catch(package){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "catch ( CatchParameter ) Block")]
-    #[test_case("catch{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "catch Block")]
-    #[test_case("catch({a,b,a}){}", true => set(&[A_ALREADY_DEFINED]); "duplicates in parameter")]
-    #[test_case("catch({a,b}){let a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
-    #[test_case("catch({a,b}){var a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in var")]
+    #[test_case("catch(package){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "catch ( CatchParameter ) Block")]
+    #[test_case("catch{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "catch Block")]
+    #[test_case("catch({a,b,a}){}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in parameter")]
+    #[test_case("catch({a,b}){let a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
+    #[test_case("catch({a,b}){var a, c;}", true => sset(&[A_ALREADY_DEFINED]); "duplicates in var")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).catch().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).catch().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("catch({a=arguments}){}" => true; "param (left)")]
@@ -314,6 +409,17 @@ mod catch {
     #[test_case("catch{}" => false; "block (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).catch().contains_arguments()
+    }
+
+    #[test_case("catch (a) { var slug; }" => svec(&["slug"]); "with param")]
+    #[test_case("catch { var worm; }" => svec(&["worm"]); "without param")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).catch().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   catch(a){b(a);}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).catch().location()
     }
 }
 
@@ -373,7 +479,10 @@ fn finally_test_contains_duplicate_labels() {
 #[test_case("finally { continue x; }" => (false, true); "finally { continue x; }")]
 fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("finally {a.#valid;}" => true; "valid")]
 #[test_case("finally {a.#invalid;}" => false; "invalid")]
@@ -385,18 +494,28 @@ mod finally {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("finally{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
+    #[test_case("finally{package;}", true => sset(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).finally().early_errors(&mut agent, &mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).finally().early_errors(&mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("finally{arguments;}" => true; "yes")]
     #[test_case("finally{}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).finally().contains_arguments()
+    }
+
+    #[test_case("finally { var baloon; }" => svec(&["baloon"]); "finally")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).finally().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   finally{b(a);}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).finally().location()
     }
 }
 
@@ -476,13 +595,13 @@ mod catch_parameter {
         Maker::new(src).catch_parameter().bound_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).catch_parameter().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).catch_parameter().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]

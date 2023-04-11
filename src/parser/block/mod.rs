@@ -1,8 +1,6 @@
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashSet;
+use non_empty_vec::{ne_vec, NonEmpty};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -43,9 +41,20 @@ impl PrettyPrint for BlockStatement {
 
 impl BlockStatement {
     // no caching needed
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (block, after_block) = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(BlockStatement::Block(block)), after_block))
+    }
+
+    pub fn location(&self) -> Location {
+        let BlockStatement::Block(node) = self;
+        node.location()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -84,9 +93,9 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let BlockStatement::Block(node) = self;
-        node.early_errors(agent, errs, strict, within_iteration, within_switch);
+        node.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -103,18 +112,27 @@ impl BlockStatement {
         let BlockStatement::Block(block) = self;
         block.contains_arguments()
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let BlockStatement::Block(block) = self;
+        block.var_scoped_declarations()
+    }
 }
 
 // Block[Yield, Await, Return] :
 //      { StatementList[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
-pub enum Block {
-    Statements(Option<Rc<StatementList>>),
+pub struct Block {
+    pub statements: Option<Rc<StatementList>>,
+    location: Location,
 }
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => write!(f, "{{ }}"),
             Some(node) => write!(f, "{{ {} }}", node),
@@ -129,7 +147,7 @@ impl PrettyPrint for Block {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Block: {}", first, self)?;
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => Ok(()),
             Some(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -143,9 +161,9 @@ impl PrettyPrint for Block {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Block: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        match self {
-            Block::Statements(None) => {}
-            Block::Statements(Some(node)) => {
+        match &self.statements {
+            None => {}
+            Some(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
         }
@@ -154,17 +172,31 @@ impl PrettyPrint for Block {
 }
 
 impl Block {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let after_lb = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
+        let (lb_loc, after_lb) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_lb, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_lb),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_rb = scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(Block::Statements(sl)), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Rc::new(Block { statements: sl, location: lb_loc.merge(&rb_loc) }), after_rb))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.block_cache.get(&key) {
             Some(result) => result.clone(),
@@ -176,8 +208,12 @@ impl Block {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => vec![],
             Some(node) => node.var_declared_names(),
@@ -185,7 +221,7 @@ impl Block {
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => vec![],
             Some(node) => node.lexically_declared_names(),
@@ -193,7 +229,7 @@ impl Block {
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => false,
             Some(node) => node.contains_undefined_break_target(label_set),
@@ -201,23 +237,21 @@ impl Block {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let Block::Statements(node) = self;
-        match node {
+        match &self.statements {
             None => false,
             Some(n) => n.contains(kind),
         }
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let Block::Statements(node) = self;
-        match node {
+        match &self.statements {
             None => false,
             Some(n) => n.contains_duplicate_labels(label_set),
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         opt_sl.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set, label_set))
     }
 
@@ -228,7 +262,7 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        if let Block::Statements(Some(node)) = self {
+        if let Some(node) = &self.statements {
             node.all_private_identifiers_valid(names)
         } else {
             true
@@ -246,12 +280,11 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let Block::Statements(sl) = self;
-        sl.as_ref().map_or(false, |sl| sl.contains_arguments())
+        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
-        if let Block::Statements(Some(sl)) = self {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        if let Some(sl) = &self.statements {
             // Static Semantics: Early Errors
             // Block : { StatementList }
             //  * It is a Syntax Error if the LexicallyDeclaredNames of StatementList contains any duplicate entries.
@@ -262,14 +295,24 @@ impl Block {
             let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
             let unique_lexname_count = lex_names_set.len();
             if lexname_count != unique_lexname_count {
-                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names"));
+                errs.push(create_syntax_error_object("Duplicate lexically declared names", Some(sl.location())));
             }
             let vdn = sl.var_declared_names();
             let var_names_set: AHashSet<JSString> = vdn.into_iter().collect();
             if !lex_names_set.is_disjoint(&var_names_set) {
-                errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
+                errs.push(create_syntax_error_object("Name defined both lexically and var-style", Some(sl.location())));
             }
-            sl.early_errors(agent, errs, strict, within_iteration, within_switch);
+            sl.early_errors(errs, strict, within_iteration, within_switch);
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match &self.statements {
+            None => vec![],
+            Some(sl) => sl.var_scoped_declarations(),
         }
     }
 }
@@ -278,17 +321,17 @@ impl Block {
 //      StatementListItem[?Yield, ?Await, ?Return]
 //      StatementList[?Yield, ?Await, ?Return] StatementListItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum StatementList {
-    Item(Rc<StatementListItem>),
-    List(Rc<StatementList>, Rc<StatementListItem>),
+pub struct StatementList {
+    pub list: NonEmpty<Rc<StatementListItem>>,
 }
 
 impl fmt::Display for StatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            StatementList::Item(node) => node.fmt(f),
-            StatementList::List(lst, item) => write!(f, "{} {}", lst, item),
+        self.list[0].fmt(f)?;
+        for item in self.list[1..].iter() {
+            write!(f, " {}", item)?;
         }
+        Ok(())
     }
 }
 
@@ -299,43 +342,57 @@ impl PrettyPrint for StatementList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}StatementList: {}", first, self)?;
-        match self {
-            StatementList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            StatementList::List(lst, item) => {
-                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                item.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
+        let not_final_length = usize::from(self.list.len()) - 1;
+        for item in self.list[0..not_final_length].iter() {
+            item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
+        self.list[not_final_length].pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        match self {
-            StatementList::Item(node) => node.concise_with_leftpad(writer, pad, state),
-            StatementList::List(lst, item) => {
-                writeln!(writer, "{}StatementList: {}", first, self)?;
-                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                item.concise_with_leftpad(writer, &successive, Spot::Final)
+        if usize::from(self.list.len()) == 1 {
+            self.list[0].concise_with_leftpad(writer, pad, state)
+        } else {
+            writeln!(writer, "{}StatementList: {}", first, self)?;
+            let not_final_length = usize::from(self.list.len()) - 1;
+            for item in self.list[0..not_final_length].iter() {
+                item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
+            self.list[not_final_length].concise_with_leftpad(writer, &successive, Spot::Final)
         }
     }
 }
 
 impl StatementList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (item, after_item) = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        let mut current = Rc::new(StatementList::Item(item));
+        let mut items = ne_vec![item];
         let mut current_scanner = after_item;
-        while let Ok((next, after_next)) = StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
-            current = Rc::new(StatementList::List(current, next));
+        while let Ok((next, after_next)) =
+            StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag)
+        {
+            items.push(next);
             current_scanner = after_next;
         }
-        Ok((current, current_scanner))
+        Ok((Rc::new(StatementList { list: items }), current_scanner))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.statement_list_cache.get(&key) {
             Some(result) => result.clone(),
@@ -347,111 +404,66 @@ impl StatementList {
         }
     }
 
-    pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.top_level_lexically_declared_names(),
-            StatementList::List(list, item) => {
-                let mut result = list.top_level_lexically_declared_names();
-                result.extend(item.top_level_lexically_declared_names());
-                result
-            }
+    pub fn location(&self) -> Location {
+        match usize::from(self.list.len()) {
+            1 => self.list[0].location(),
+            n => self.list[0].location().merge(&self.list[n - 1].location()),
         }
+    }
+
+    pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
+        let mut result = vec![];
+        for item in self.list.iter() {
+            result.extend(item.top_level_lexically_declared_names());
+        }
+        result
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
-        match self {
-            StatementList::Item(node) => {
-                // StatementList : StatementListItem
-                //  1. Return LexicallyDeclaredNames of StatementListItem
-                node.lexically_declared_names()
-            }
-            StatementList::List(list, item) => {
-                // StatementList : StatementList StatementListItem
-                //  1. Let names1 be LexicallyDeclaredNames of StatementList.
-                //  2. Let names2 be LexicallyDeclaredNames of StatementListItem.
-                //  3. Return the list-concatenation of names1 and names2.
-                let mut result = list.lexically_declared_names();
-                result.extend(item.lexically_declared_names());
-                result
-            }
-        }
+        //
+        // StatementList : StatementListItem
+        //  1. Return LexicallyDeclaredNames of StatementListItem
+        //
+        // StatementList : StatementList StatementListItem
+        //  1. Let names1 be LexicallyDeclaredNames of StatementList.
+        //  2. Let names2 be LexicallyDeclaredNames of StatementListItem.
+        //  3. Return the list-concatenation of names1 and names2.
+        self.list.iter().flat_map(|item| item.lexically_declared_names()).collect()
     }
 
     pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.top_level_var_declared_names(),
-            StatementList::List(lst, item) => {
-                let mut names = lst.top_level_var_declared_names();
-                names.extend(item.top_level_var_declared_names());
-                names
-            }
-        }
+        self.list.iter().flat_map(|item| item.top_level_var_declared_names()).collect()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            StatementList::Item(node) => node.var_declared_names(),
-            StatementList::List(lst, item) => {
-                let mut names = lst.var_declared_names();
-                names.extend(item.var_declared_names());
-                names
-            }
-        }
+        self.list.iter().flat_map(|item| item.var_declared_names()).collect()
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_undefined_break_target(label_set),
-            StatementList::List(lst, item) => lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set),
-        }
+        self.list.iter().any(|item| item.contains_undefined_break_target(label_set))
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            StatementList::Item(node) => kind == ParseNodeKind::StatementListItem || node.contains(kind),
-            StatementList::List(lst, item) => kind == ParseNodeKind::StatementList || kind == ParseNodeKind::StatementListItem || lst.contains(kind) || item.contains(kind),
-        }
+        kind == ParseNodeKind::StatementListItem
+            || (usize::from(self.list.len()) > 1 && kind == ParseNodeKind::StatementList)
+            || self.list.iter().any(|item| item.contains(kind))
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_duplicate_labels(label_set),
-            StatementList::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
-        }
+        self.list.iter().any(|item| item.contains_duplicate_labels(label_set))
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        match self {
-            StatementList::Item(node) => node.contains_undefined_continue_target(iteration_set, label_set),
-            StatementList::List(lst, item) => lst.contains_undefined_continue_target(iteration_set, &[]) || item.contains_undefined_continue_target(iteration_set, &[]),
+        match usize::from(self.list.len()) {
+            1 => self.list[0].contains_undefined_continue_target(iteration_set, label_set),
+            _ => self.list.iter().any(|item| item.contains_undefined_continue_target(iteration_set, &[])),
         }
     }
 
-    // Returns the list of string tokens which comprise the first expression statements of a statement list, along with
-    // a boolean value which is true if all of the items in the statement list were string literal expressions.
-    fn initial_string_tokens_internal(&self) -> (Vec<StringToken>, bool) {
-        match self {
-            StatementList::Item(node) => node.as_string_literal().map_or((Vec::new(), false), |token| (vec![token], true)),
-            StatementList::List(lst, item) => {
-                let (mut head, all) = lst.initial_string_tokens_internal();
-                if all {
-                    let next = item.as_string_literal();
-                    match next {
-                        None => (head, false),
-                        Some(token) => {
-                            head.push(token);
-                            (head, true)
-                        }
-                    }
-                } else {
-                    (head, false)
-                }
-            }
-        }
-    }
+    // Returns the list of string tokens which comprise the first expression statements of a statement list.
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {
-        self.initial_string_tokens_internal().0
+        self.list.iter().map_while(|item| item.as_string_literal()).collect()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -461,19 +473,12 @@ impl StatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match self {
-            StatementList::Item(node) => node.all_private_identifiers_valid(names),
-            StatementList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
-        }
+        self.list.iter().all(|item| item.all_private_identifiers_valid(names))
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
-        match self {
-            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            StatementList::List(lst, item) => {
-                lst.early_errors(agent, errs, strict, within_iteration, within_switch);
-                item.early_errors(agent, errs, strict, within_iteration, within_switch);
-            }
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        for item in self.list.iter() {
+            item.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
 
@@ -488,10 +493,35 @@ impl StatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match self {
-            StatementList::Item(sli) => sli.contains_arguments(),
-            StatementList::List(sl, sli) => sl.contains_arguments() || sli.contains_arguments(),
-        }
+        self.list.iter().any(|item| item.contains_arguments())
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.list.iter().flat_map(|item| item.top_level_var_scoped_declarations()).collect()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.list.iter().flat_map(|item| item.var_scoped_declarations()).collect()
+    }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.list.iter().flat_map(|item| item.top_level_lexically_scoped_declarations()).collect()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.list.iter().flat_map(|item| item.lexically_scoped_declarations()).collect()
     }
 }
 
@@ -538,12 +568,30 @@ impl PrettyPrint for StatementListItem {
 
 impl StatementListItem {
     // no caching needed
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::DeclarationOrStatementExpected, scanner))
             .otherwise(|| {
-                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(|(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement))
+                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(
+                    |(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement),
+                )
             })
-            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl)))
+            .otherwise(|| {
+                Declaration::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl))
+            })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            StatementListItem::Statement(stmt) => stmt.location(),
+            StatementListItem::Declaration(decl) => decl.location(),
+        }
     }
 
     pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
@@ -644,10 +692,10 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
+            StatementListItem::Statement(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            StatementListItem::Declaration(node) => node.early_errors(errs, strict),
         }
     }
 
@@ -665,6 +713,55 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(stmt) => stmt.contains_arguments(),
             StatementListItem::Declaration(decl) => decl.contains_arguments(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementListItem::Statement(node) => match &**node {
+                Statement::Labelled(stmt) => stmt.top_level_var_scoped_declarations(),
+                _ => node.var_scoped_declarations(),
+            },
+            StatementListItem::Declaration(node) => match &**node {
+                Declaration::Hoistable(decl) => vec![decl.declaration_part().into()],
+                _ => vec![],
+            },
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementListItem::Declaration(_) => vec![],
+            StatementListItem::Statement(stmt) => stmt.var_scoped_declarations(),
+        }
+    }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementListItem::Statement(_) => vec![],
+            StatementListItem::Declaration(d) => d.top_level_lexically_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementListItem::Statement(stmt) => match &**stmt {
+                Statement::Labelled(l) => l.lexically_scoped_declarations(),
+                _ => vec![],
+            },
+            StatementListItem::Declaration(d) => vec![d.declaration_part()],
         }
     }
 }

@@ -4,3 +4,4 @@
 *.profdata
 *.lst
 .cargo
+*.js

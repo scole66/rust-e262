@@ -1,10 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER,
-    UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -13,8 +10,16 @@ use test_case::test_case;
 fn generator_method_test_01() {
     let (node, scanner) = check(GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    pretty_check(
+        &*node,
+        "GeneratorMethod: * a (  ) {  }",
+        vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "],
+    );
+    concise_check(
+        &*node,
+        "GeneratorMethod: * a (  ) {  }",
+        vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -23,7 +28,12 @@ fn generator_method_test_02() {
 }
 #[test]
 fn generator_method_test_03() {
-    check_err(GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false), "ClassElementName expected", 1, 2);
+    check_err(
+        GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn generator_method_test_04() {
@@ -43,12 +53,24 @@ fn generator_method_test_07() {
 }
 #[test]
 fn generator_method_test_prettyerrors_1() {
-    let (item, _) = GeneratorMethod::parse(&mut newparser("* bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = GeneratorMethod::parse(
+        &mut newparser("* bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_method_test_conciseerrors_1() {
-    let (item, _) = GeneratorMethod::parse(&mut newparser("* bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = GeneratorMethod::parse(
+        &mut newparser("* bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -102,18 +124,18 @@ mod generator_method {
         Maker::new(src).generator_method().has_direct_super()
     }
 
-    #[test_case("*[package](implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("*a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("*a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("*a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("*a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("*a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
-    #[test_case("*a(b){super(b);}", false => set(&[UNEXPECTED_SUPER]); "direct super")]
+    #[test_case("*[package](implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("*a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("*a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("*a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("*a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("*a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("*a(b){super(b);}", false => sset(&[UNEXPECTED_SUPER]); "direct super")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).generator_method().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).generator_method().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test]
@@ -133,106 +155,216 @@ mod generator_method {
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).generator_method().private_bound_identifier().map(String::from)
     }
+
+    #[test_case("   *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_method().location()
+    }
 }
 
 // GENERATOR DECLARATION
 #[test]
 fn generator_declaration_test_01() {
-    let (node, scanner) = check(GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "GeneratorDeclaration: function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "GeneratorDeclaration: function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+    );
     concise_check(
         &*node,
         "GeneratorDeclaration: function * a (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn generator_declaration_test_02() {
-    let (node, scanner) = check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "GeneratorDeclaration: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorDeclaration: function * (  ) {  }", vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "GeneratorDeclaration: function * (  ) {  }",
+        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn generator_declaration_test_03() {
-    check_err(GeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘function’ expected", 1, 1);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn generator_declaration_test_04() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true), "‘*’ expected", 1, 9);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true),
+        "‘*’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn generator_declaration_test_05() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function *"), Scanner::new(), false, false, true), "‘(’ expected", 1, 11);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function *"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        11,
+    );
 }
 #[test]
 fn generator_declaration_test_06() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h"), Scanner::new(), false, false, true), "‘(’ expected", 1, 13);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn generator_declaration_test_07() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 15);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn generator_declaration_test_075() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 13);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn generator_declaration_test_076() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        12,
+    );
 }
 #[test]
 fn generator_declaration_test_08() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u"), Scanner::new(), false, false, true), "‘)’ expected", 1, 17);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u"), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        17,
+    );
 }
 #[test]
 fn generator_declaration_test_09() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u )"), Scanner::new(), false, false, true), "‘{’ expected", 1, 19);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u )"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        19,
+    );
 }
 #[test]
 fn generator_declaration_test_10() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u ) {"), Scanner::new(), false, false, true), "‘}’ expected", 1, 21);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u ) {"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn generator_declaration_test_11() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new(), false, false, true), "‘}’ expected", 1, 24);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        24,
+    );
 }
 #[test]
 fn generator_declaration_test_prettyerrors_1() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_prettyerrors_2() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_conciseerrors_1() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_conciseerrors_2() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_bound_names_01() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob() {}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * bob() {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["bob"]);
 }
 #[test]
 fn generator_declaration_test_bound_names_02() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * () {}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * () {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["*default*"]);
 }
 #[test]
 fn generator_declaration_test_contains_01() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("function *a(b=c.#valid){}" => true; "params valid")]
@@ -247,24 +379,40 @@ mod generator_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
-    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
-    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
-    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
-    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
-    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).generator_declaration().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).generator_declaration().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_declaration().location()
+    }
+
+    #[test_case("function *named() {}" => "named"; "named")]
+    #[test_case("function *(){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).generator_declaration().bound_name().into()
+    }
+
+    #[test_case("function *x() {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).generator_declaration().is_constant_declaration()
     }
 }
 
@@ -273,11 +421,23 @@ mod generator_declaration {
 fn generator_expression_test_01() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "GeneratorExpression: function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "GeneratorExpression: function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+    );
     concise_check(
         &*node,
         "GeneratorExpression: function * a (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
@@ -287,7 +447,11 @@ fn generator_expression_test_02() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *(){}"), Scanner::new()));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "GeneratorExpression: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorExpression: function * (  ) {  }", vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "GeneratorExpression: function * (  ) {  }",
+        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -321,30 +485,56 @@ fn generator_expression_test_09() {
 }
 #[test]
 fn generator_expression_test_10() {
-    check_err(GeneratorExpression::parse(&mut newparser("function * h ( u ) {"), Scanner::new()), "‘}’ expected", 1, 21);
+    check_err(
+        GeneratorExpression::parse(&mut newparser("function * h ( u ) {"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn generator_expression_test_11() {
-    check_err(GeneratorExpression::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new()), "‘}’ expected", 1, 24);
+    check_err(
+        GeneratorExpression::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        24,
+    );
 }
 #[test]
 fn generator_expression_test_prettyerrors_1() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_prettyerrors_2() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_conciseerrors_1() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_conciseerrors_2() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -364,24 +554,35 @@ mod generator_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
-    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
-    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
-    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
-    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
-    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
-    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
-    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => sset(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => sset(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => sset(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in generator params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).generator_expression().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).generator_expression().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("function *a(){}" => true; "named")]
+    #[test_case("function *(){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).generator_expression().is_named_function()
+    }
+
+    #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_expression().location()
     }
 }
 
@@ -432,12 +633,45 @@ mod generator_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "statements")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).generator_body().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).generator_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("'one'; 3;" => false; "directive no strict")]
+    #[test_case("12;" => false; "no prologue")]
+    #[test_case("'a'; 'use strict';" => true; "good strict")]
+    #[test_case("'use\\x20strict';" => false; "bad strict")]
+    fn function_body_contains_use_strict(src: &str) -> bool {
+        Maker::new(src).generator_body().function_body_contains_use_strict()
+    }
+
+    #[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => svec(&["alpha", "BETA"]); "normal")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("let a; var b; const c; function d() {}" => svec(&["let a ;", "const c ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("   yield 1;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).generator_body().location()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().var_declared_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).generator_body().var_scoped_declarations().iter().map(String::from).collect()
     }
 }
 
@@ -446,7 +680,7 @@ mod generator_body {
 fn yield_expression_test_01() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -455,7 +689,7 @@ fn yield_expression_test_01() {
 fn yield_expression_test_02() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield 5"), Scanner::new(), true, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*pn, YieldExpression::Expression(..)));
+    assert!(matches!(&*pn, YieldExpression::Expression { .. }));
     pretty_check(&*pn, "YieldExpression: yield 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield 5", vec!["Keyword: yield", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -464,7 +698,7 @@ fn yield_expression_test_02() {
 fn yield_expression_test_03() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *5"), Scanner::new(), true, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*pn, YieldExpression::From(..)));
+    assert!(matches!(&*pn, YieldExpression::From { .. }));
     pretty_check(&*pn, "YieldExpression: yield * 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield * 5", vec!["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -473,7 +707,7 @@ fn yield_expression_test_03() {
 fn yield_expression_test_04() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield \n*5"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -482,7 +716,7 @@ fn yield_expression_test_04() {
 fn yield_expression_test_05() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield @"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -491,7 +725,7 @@ fn yield_expression_test_05() {
 fn yield_expression_test_06() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *@"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -573,14 +807,14 @@ mod yield_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield exp")]
-    #[test_case("yield", true => set(&[]); "no expresion")]
-    #[test_case("yield *package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield from")]
+    #[test_case("yield package", true => sset(&[PACKAGE_NOT_ALLOWED]); "yield exp")]
+    #[test_case("yield", true => sset(&[]); "no expresion")]
+    #[test_case("yield *package", true => sset(&[PACKAGE_NOT_ALLOWED]); "yield from")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).yield_expression().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).yield_expression().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("yield" => false; "bare")]
@@ -590,5 +824,12 @@ mod yield_expression {
     #[test_case("yield *a" => false; "yield from (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).yield_expression().contains_arguments()
+    }
+
+    #[test_case("   yield" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "simple")]
+    #[test_case("   yield 1" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 } }; "value")]
+    #[test_case("   yield *u" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "from")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).yield_expression().location()
     }
 }

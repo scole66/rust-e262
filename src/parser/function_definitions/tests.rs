@@ -1,8 +1,7 @@
-use super::scanner::StringDelimiter;
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -13,7 +12,13 @@ const BAD_SUPER: &str = "‘super’ not allowed here";
 // FUNCTION DECLARATION
 #[test]
 fn function_declaration_test_01() {
-    let (node, scanner) = check(FunctionDeclaration::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(FunctionDeclaration::parse(
+        &mut newparser("function bob(a,b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 38);
     pretty_check(
         &*node,
@@ -38,58 +43,133 @@ fn function_declaration_test_01() {
 }
 #[test]
 fn function_declaration_test_02() {
-    let (node, scanner) = check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
     pretty_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
-    concise_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionDeclaration: function ( z ) {  }",
+        vec![
+            "Keyword: function",
+            "Punctuator: (",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn function_declaration_test_err_01() {
-    check_err(FunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘function’ expected", 1, 1);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn function_declaration_test_err_02() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true), "‘(’ expected", 1, 9);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn function_declaration_test_err_03() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false), "not an identifier", 1, 9);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        10,
+    );
 }
 #[test]
 fn function_declaration_test_err_04() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo"), Scanner::new(), false, false, true), "‘(’ expected", 1, 13);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn function_declaration_test_err_05() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo("), Scanner::new(), false, false, true), "‘)’ expected", 1, 14);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        14,
+    );
 }
 #[test]
 fn function_declaration_test_err_06() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo()"), Scanner::new(), false, false, true), "‘{’ expected", 1, 15);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo()"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn function_declaration_test_err_07() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo(){"), Scanner::new(), false, false, true), "‘}’ expected", 1, 16);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo(){"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        16,
+    );
 }
 #[test]
 fn function_declaration_test_prettyerrors_1() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function bob(a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_prettyerrors_2() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function (a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_conciseerrors_1() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function bob(a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_conciseerrors_2() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function (a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -102,17 +182,20 @@ fn function_declaration_test_cache_01() {
 }
 #[test]
 fn function_declaration_test_bound_names_01() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
 #[test]
 fn function_declaration_test_bound_names_02() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function (){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["*default*"]);
 }
 #[test]
 fn function_declaration_test_contains_01() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("function a(a=b.#valid){}" => true; "Params valid")]
@@ -127,30 +210,50 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
-    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
-    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function a(b){let b=3;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
-    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
-    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
-    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
-    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => sset(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => sset(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(b){let b=3;}", true => sset(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => sset(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => sset(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_declaration().location()
+    }
+
+    #[test_case("function named() {}" => "named"; "named")]
+    #[test_case("function (){}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).function_declaration().bound_name().into()
+    }
+
+    #[test_case("function() {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).function_declaration().is_constant_declaration()
     }
 }
 
 // FUNCTION EXPRESSION
 #[test]
 fn function_expression_test_01() {
-    let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new()));
+    let (node, scanner) =
+        check(FunctionExpression::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new()));
     chk_scan(&scanner, 38);
     pretty_check(
         &*node,
@@ -179,7 +282,18 @@ fn function_expression_test_02() {
     let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function (z) {}"), Scanner::new()));
     chk_scan(&scanner, 15);
     pretty_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
-    concise_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionExpression: function ( z ) {  }",
+        vec![
+            "Keyword: function",
+            "Punctuator: (",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -209,22 +323,26 @@ fn function_expression_test_err_07() {
 }
 #[test]
 fn function_expression_test_prettyerrors_1() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_prettyerrors_2() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_conciseerrors_1() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_conciseerrors_2() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -244,23 +362,34 @@ mod function_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
-    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
-    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
-    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
-    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
-    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
-    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
-    #[test_case("function a(a,b){let b=3;let c=10;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
-    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
-    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
-    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
-    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => sset(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => sset(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => sset(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => sset(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(a,b){let b=3;let c=10;}", true => sset(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => sset(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => sset(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => sset(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => sset(&[BAD_SUPER]); "SuperProperty in body")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("function a(){}" => true; "named")]
+    #[test_case("function (){}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).function_expression().is_named_function()
+    }
+
+    #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_expression().location()
     }
 }
 
@@ -334,23 +463,43 @@ mod function_body {
     const UNDEF_BREAK: &str = "undefined break target detected";
     const UNDEF_CONTINUE: &str = "undefined continue target detected";
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionStatementList")]
-    #[test_case("let b; let b;", false => set(&[B_ALREADY_DEFINED]); "duplicate lexical bindings")]
-    #[test_case("var b; var c; let b; let a;", false => set(&[B_ALREADY_LEX]); "var/lex name clash")]
-    #[test_case("a:a:a:;", false => set(&[DUP_LABLES]); "duplicate labels")]
-    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
-    #[test_case("while (1) continue a;", false => set(&[UNDEF_CONTINUE]); "undefined continue")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionStatementList")]
+    #[test_case("let b; let b;", false => sset(&[B_ALREADY_DEFINED]); "duplicate lexical bindings")]
+    #[test_case("var b; var c; let b; let a;", false => sset(&[B_ALREADY_LEX]); "var/lex name clash")]
+    #[test_case("a:a:a:;", false => sset(&[DUP_LABLES]); "duplicate labels")]
+    #[test_case("break a;", false => sset(&[UNDEF_BREAK]); "undefined break")]
+    #[test_case("while (1) continue a;", false => sset(&[UNDEF_CONTINUE]); "undefined continue")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).function_body().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).function_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]
     #[test_case("" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).function_body().contains_arguments()
+    }
+
+    #[test_case("   return 3;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_body().location()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).function_body().var_declared_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_body().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }
 
@@ -450,13 +599,13 @@ mod function_statement_list {
         Maker::new(src).function_statement_list().contains_undefined_continue_target(&[], &[])
     }
 
-    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
-    #[test_case("", true => set(&[]); "[empty]")]
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
+    #[test_case("", true => sset(&[]); "[empty]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).function_statement_list().early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).function_statement_list().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("" => false; "empty")]
@@ -464,5 +613,23 @@ mod function_statement_list {
     #[test_case("a;" => false; "stmt (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).function_statement_list().contains_arguments()
+    }
+
+    #[test_case("   return 3;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "something")]
+    #[test_case("   " => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).function_statement_list().location()
+    }
+
+    #[test_case("var alpha, beta;" => svec(&["alpha", "beta"]); "var statement")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_statement_list().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("let a, b, c; function pp(){}" => svec(&["let a , b , c ;"]); "stuff")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).function_statement_list().lexically_scoped_declarations().iter().map(String::from).collect()
     }
 }

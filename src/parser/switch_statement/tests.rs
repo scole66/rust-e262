@@ -1,25 +1,59 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
 #[test]
 fn switch_statement_test_01() {
-    let (node, scanner) = check(SwitchStatement::parse(&mut newparser("switch (0) { default: 0;}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(SwitchStatement::parse(&mut newparser("switch (0) { default: 0;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 25);
-    pretty_check(&*node, "SwitchStatement: switch ( 0 ) { default : 0 ; }", vec!["Expression: 0", "CaseBlock: { default : 0 ; }"]);
-    concise_check(&*node, "SwitchStatement: switch ( 0 ) { default : 0 ; }", vec!["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"]);
+    pretty_check(
+        &*node,
+        "SwitchStatement: switch ( 0 ) { default : 0 ; }",
+        vec!["Expression: 0", "CaseBlock: { default : 0 ; }"],
+    );
+    concise_check(
+        &*node,
+        "SwitchStatement: switch ( 0 ) { default : 0 ; }",
+        vec!["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn switch_statement_test_err() {
-    check_err(SwitchStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘switch’ expected", 1, 1);
-    check_err(SwitchStatement::parse(&mut newparser("switch"), Scanner::new(), false, false, true), "‘(’ expected", 1, 7);
-    check_err(SwitchStatement::parse(&mut newparser("switch("), Scanner::new(), false, false, true), "Expression expected", 1, 8);
-    check_err(SwitchStatement::parse(&mut newparser("switch(0"), Scanner::new(), false, false, true), "‘)’ expected", 1, 9);
-    check_err(SwitchStatement::parse(&mut newparser("switch(0)"), Scanner::new(), false, false, true), "‘{’ expected", 1, 10);
+    check_err(
+        SwitchStatement::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘switch’ expected",
+        1,
+        1,
+    );
+    check_err(
+        SwitchStatement::parse(&mut newparser("switch"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        7,
+    );
+    check_err(
+        SwitchStatement::parse(&mut newparser("switch("), Scanner::new(), false, false, true),
+        "Expression expected",
+        1,
+        8,
+    );
+    check_err(
+        SwitchStatement::parse(&mut newparser("switch(0"), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        9,
+    );
+    check_err(
+        SwitchStatement::parse(&mut newparser("switch(0)"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn switch_statement_test_printer_errs() {
@@ -53,7 +87,8 @@ fn switch_statement_test_contains() {
 }
 #[test]
 fn switch_statement_test_contains_duplicate_labels() {
-    let (item, _) = SwitchStatement::parse(&mut newparser("switch(a){default:t:;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        SwitchStatement::parse(&mut newparser("switch(a){default:t:;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
@@ -61,7 +96,10 @@ fn switch_statement_test_contains_duplicate_labels() {
 #[test_case("switch (a) { case 3: for (;;) continue x; }" => (false, true); "switch (a) { case 3: for (;;) continue x; }")]
 fn switch_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = SwitchStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("switch (a.#valid) {default:;}" => true; "Expression valid")]
 #[test_case("switch (a) {default: b.#valid;}" => true; "CaseBlock valid")]
@@ -78,14 +116,14 @@ mod switch_statement {
     const B_DUPLEX: &str = "‘b’ may not be declared both lexically and var-style";
     const B_ALREADY: &str = "‘b’ already defined";
 
-    #[test_case("switch (package) { default: implements; }", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "switch (Expression) CaseBlock")]
-    #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => set(&[B_ALREADY]); "duplicate lexicals")]
-    #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => set(&[B_DUPLEX]); "lex/var dups")]
+    #[test_case("switch (package) { default: implements; }", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "switch (Expression) CaseBlock")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => sset(&[B_ALREADY]); "duplicate lexicals")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => sset(&[B_DUPLEX]); "lex/var dups")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).switch_statement().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).switch_statement().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("switch(arguments){}" => true; "left")]
@@ -93,6 +131,16 @@ mod switch_statement {
     #[test_case("switch(0){}" => false; "none")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).switch_statement().contains_arguments()
+    }
+
+    #[test_case("switch(x){case 0: var a;}" => svec(&["a"]); "switch")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).switch_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   switch(0){}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 11 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).switch_statement().location()
     }
 }
 
@@ -110,7 +158,11 @@ fn case_block_test_02() {
     let (node, scanner) = check(CaseBlock::parse(&mut newparser("{case 0:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 10);
     pretty_check(&*node, "CaseBlock: { case 0 : ; }", vec!["CaseClauses: case 0 : ;"]);
-    concise_check(&*node, "CaseBlock: { case 0 : ; }", vec!["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "CaseBlock: { case 0 : ; }",
+        vec!["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -118,42 +170,85 @@ fn case_block_test_03() {
     let (node, scanner) = check(CaseBlock::parse(&mut newparser("{default:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 11);
     pretty_check(&*node, "CaseBlock: { default : ; }", vec!["DefaultClause: default : ;"]);
-    concise_check(&*node, "CaseBlock: { default : ; }", vec!["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "CaseBlock: { default : ; }",
+        vec!["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn case_block_test_04() {
-    let (node, scanner) = check(CaseBlock::parse(&mut newparser("{case 0:;default:;}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(CaseBlock::parse(&mut newparser("{case 0:;default:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 19);
-    pretty_check(&*node, "CaseBlock: { case 0 : ; default : ; }", vec!["CaseClauses: case 0 : ;", "DefaultClause: default : ;"]);
-    concise_check(&*node, "CaseBlock: { case 0 : ; default : ; }", vec!["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"]);
+    pretty_check(
+        &*node,
+        "CaseBlock: { case 0 : ; default : ; }",
+        vec!["CaseClauses: case 0 : ;", "DefaultClause: default : ;"],
+    );
+    concise_check(
+        &*node,
+        "CaseBlock: { case 0 : ; default : ; }",
+        vec!["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn case_block_test_05() {
-    let (node, scanner) = check(CaseBlock::parse(&mut newparser("{default:;case 0:;}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(CaseBlock::parse(&mut newparser("{default:;case 0:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 19);
-    pretty_check(&*node, "CaseBlock: { default : ; case 0 : ; }", vec!["DefaultClause: default : ;", "CaseClauses: case 0 : ;"]);
-    concise_check(&*node, "CaseBlock: { default : ; case 0 : ; }", vec!["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"]);
+    pretty_check(
+        &*node,
+        "CaseBlock: { default : ; case 0 : ; }",
+        vec!["DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
+    );
+    concise_check(
+        &*node,
+        "CaseBlock: { default : ; case 0 : ; }",
+        vec!["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn case_block_test_06() {
-    let (node, scanner) = check(CaseBlock::parse(&mut newparser("{case 1:;default:;case 0:;}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(CaseBlock::parse(&mut newparser("{case 1:;default:;case 0:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 27);
-    pretty_check(&*node, "CaseBlock: { case 1 : ; default : ; case 0 : ; }", vec!["CaseClauses: case 1 : ;", "DefaultClause: default : ;", "CaseClauses: case 0 : ;"]);
+    pretty_check(
+        &*node,
+        "CaseBlock: { case 1 : ; default : ; case 0 : ; }",
+        vec!["CaseClauses: case 1 : ;", "DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
+    );
     concise_check(
         &*node,
         "CaseBlock: { case 1 : ; default : ; case 0 : ; }",
-        vec!["Punctuator: {", "CaseClause: case 1 : ;", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
+        vec![
+            "Punctuator: {",
+            "CaseClause: case 1 : ;",
+            "DefaultClause: default : ;",
+            "CaseClause: case 0 : ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn case_block_test_errs() {
     check_err(CaseBlock::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘{’ expected", 1, 1);
-    check_err(CaseBlock::parse(&mut newparser("{"), Scanner::new(), false, false, true), "‘}’, ‘case’, or ‘default’ expected", 1, 2);
-    check_err(CaseBlock::parse(&mut newparser("{default:;"), Scanner::new(), false, false, true), "‘}’ expected", 1, 11);
+    check_err(
+        CaseBlock::parse(&mut newparser("{"), Scanner::new(), false, false, true),
+        "‘}’, ‘case’, or ‘default’ expected",
+        1,
+        2,
+    );
+    check_err(
+        CaseBlock::parse(&mut newparser("{default:;"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        11,
+    );
 }
 fn caseblock_print_check(src: &str) {
     let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), false, false, true).unwrap();
@@ -252,7 +347,10 @@ fn case_block_test_contains_duplicate_labels() {
 #[test_case("{ case a: ; default: ; case b: continue x; }" => (false, true); "{ case a: ; default: ; case b: continue x; }")]
 fn case_block_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("{}" => true; "empty")]
 #[test_case("{ case 1: a.#valid; }" => true; "nodef valid")]
@@ -281,17 +379,17 @@ mod case_block {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{}", true, false => set(&[]); "empty")]
-    #[test_case("{ case package: ;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "cases only")]
-    #[test_case("{ default: package;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "default only")]
-    #[test_case("{ case package:; default:implements; case interface:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "before+default+after")]
-    #[test_case("{ case package:; default: implements;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
-    #[test_case("{ default:package; case implements:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
+    #[test_case("{}", true, false => sset(&[]); "empty")]
+    #[test_case("{ case package: ;}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "cases only")]
+    #[test_case("{ default: package;}", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "default only")]
+    #[test_case("{ case package:; default:implements; case interface:;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "before+default+after")]
+    #[test_case("{ case package:; default: implements;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
+    #[test_case("{ default:package; case implements:;}", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_block().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_block().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{ }" => Vec::<String>::new(); "empty")]
@@ -322,6 +420,22 @@ mod case_block {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_block().contains_arguments()
     }
+
+    #[test_case("{}" => svec(&[]); "empty")]
+    #[test_case("{case 0:var q;}" => svec(&["q"]); "no default")]
+    #[test_case("{case 0:var a;default:var b;case 1:var c;}" => svec(&["a", "b", "c"]); "CDC")]
+    #[test_case("{case 0:var a;default:var b;}" => svec(&["a", "b"]); "CDx")]
+    #[test_case("{default:var b;case 1:var c;}" => svec(&["b", "c"]); "xDC")]
+    #[test_case("{default:var b;}" => svec(&["b"]); "xDx")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_block().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   {}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 2 } }; "no default")]
+    #[test_case("   {default:;}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 11 } }; "has default")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).case_block().location()
+    }
 }
 
 // CASE CLAUSES
@@ -330,15 +444,28 @@ fn case_clauses_test_01() {
     let (node, scanner) = check(CaseClauses::parse(&mut newparser("case 0:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "CaseClauses: case 0 : ;", vec!["CaseClause: case 0 : ;"]);
-    concise_check(&*node, "CaseClause: case 0 : ;", vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "CaseClause: case 0 : ;",
+        vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn case_clauses_test_02() {
-    let (node, scanner) = check(CaseClauses::parse(&mut newparser("case 0:;case 1:;"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(CaseClauses::parse(&mut newparser("case 0:;case 1:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 16);
-    pretty_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", vec!["CaseClauses: case 0 : ;", "CaseClause: case 1 : ;"]);
-    concise_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", vec!["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"]);
+    pretty_check(
+        &*node,
+        "CaseClauses: case 0 : ; case 1 : ;",
+        vec!["CaseClauses: case 0 : ;", "CaseClause: case 1 : ;"],
+    );
+    concise_check(
+        &*node,
+        "CaseClauses: case 0 : ; case 1 : ;",
+        vec!["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -403,7 +530,10 @@ fn case_clauses_test_contains_duplicate_labels() {
 #[test_case("case a: ; case b: continue x;" => (false, true); "case a: ; case b: continue x;")]
 fn case_clauses_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("case 1: a.#valid;" => true; "single valid")]
 #[test_case("case 1: a.#valid; case 2: ;" => true; "multi left valid")]
@@ -419,15 +549,15 @@ mod case_clauses {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
-    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
-    #[test_case("case implements: package; continue; case interface: break;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
-    #[test_case("case implements: package; continue; case interface: break;", false, true => set(&[]); "not strict; in iter; list")]
+    #[test_case("case implements: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => sset(&[]); "not strict; in iter")]
+    #[test_case("case implements: package; continue; case interface: break;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
+    #[test_case("case implements: package; continue; case interface: break;", false, true => sset(&[]); "not strict; in iter; list")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clauses().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_clauses().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("case 0: let a;" => vec!["a"]; "single")]
@@ -444,6 +574,12 @@ mod case_clauses {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_clauses().contains_arguments()
     }
+
+    #[test_case("case 0:var a;" => svec(&["a"]); "item")]
+    #[test_case("case 0:var a;case 1:var b;" => svec(&["a", "b"]); "list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clauses().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // CASE CLAUSE
@@ -452,7 +588,11 @@ fn case_clause_test_01() {
     let (node, scanner) = check(CaseClause::parse(&mut newparser("case 0:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "CaseClause: case 0 : ;", vec!["Expression: 0", "StatementList: ;"]);
-    concise_check(&*node, "CaseClause: case 0 : ;", vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "CaseClause: case 0 : ;",
+        vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -466,7 +606,12 @@ fn case_clause_test_02() {
 #[test]
 fn case_clause_test_errs() {
     check_err(CaseClause::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘case’ expected", 1, 1);
-    check_err(CaseClause::parse(&mut newparser("case"), Scanner::new(), false, false, true), "Expression expected", 1, 5);
+    check_err(
+        CaseClause::parse(&mut newparser("case"), Scanner::new(), false, false, true),
+        "Expression expected",
+        1,
+        5,
+    );
     check_err(CaseClause::parse(&mut newparser("case 0"), Scanner::new(), false, false, true), "‘:’ expected", 1, 7);
 }
 fn caseclause_print_check(src: &str) {
@@ -524,7 +669,10 @@ fn case_clause_test_contains_duplicate_labels() {
 #[test_case("case a: continue x;" => (false, true); "case a: continue x;")]
 fn case_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("case a.#valid:" => true; "Exp Only valid")]
 #[test_case("case a.#valid: ;" => true; "Expression valid")]
@@ -540,14 +688,14 @@ mod case_clause {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("case package:", true, false => set(&[PACKAGE_NOT_ALLOWED]); "empty")]
-    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
-    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    #[test_case("case package:", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "empty")]
+    #[test_case("case implements: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).case_clause().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).case_clause().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
@@ -563,6 +711,12 @@ mod case_clause {
     #[test_case("case 0:;" => false; "Binary (none)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_clause().contains_arguments()
+    }
+
+    #[test_case("case 0:" => svec(&[]); "empty")]
+    #[test_case("case 0:var a;" => svec(&["a"]); "item")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -586,7 +740,12 @@ fn default_clause_test_02() {
 #[test]
 fn default_clause_test_errs() {
     check_err(DefaultClause::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘default’ expected", 1, 1);
-    check_err(DefaultClause::parse(&mut newparser("default"), Scanner::new(), false, false, true), "‘:’ expected", 1, 8);
+    check_err(
+        DefaultClause::parse(&mut newparser("default"), Scanner::new(), false, false, true),
+        "‘:’ expected",
+        1,
+        8,
+    );
 }
 fn defclause_print_check(src: &str) {
     let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), false, false, true).unwrap();
@@ -641,7 +800,10 @@ fn default_clause_test_contains_duplicate_labels() {
 #[test_case("default: continue x;" => (false, true); "default: continue x;")]
 fn default_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("default:" => true; "no statement")]
 #[test_case("default: a.#valid;" => true; "statement valid")]
@@ -654,20 +816,25 @@ mod default_clause {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("default:", true, false => set(&[]); "empty")]
-    #[test_case("default: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
-    #[test_case("default: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    #[test_case("default:", true, false => sset(&[]); "empty")]
+    #[test_case("default: package; continue;", true, false => sset(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
+    #[test_case("default: package; continue;", false, true => sset(&[]); "not strict; in iter")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).default_clause().early_errors(&mut agent, &mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).default_clause().early_errors(&mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("default:" => Vec::<String>::new(); "no statements")]
     #[test_case("default: let z, w;" => vec!["z", "w"]; "statements with decls")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        Maker::new(src).default_clause().lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src)
+            .default_clause()
+            .lexically_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<String>>()
     }
 
     #[test_case("default:" => false; "empty")]
@@ -675,5 +842,11 @@ mod default_clause {
     #[test_case("default:;" => false; "stmt (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).default_clause().contains_arguments()
+    }
+
+    #[test_case("default:" => svec(&[]); "empty")]
+    #[test_case("default:var a;" => svec(&["a"]); "item")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).default_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

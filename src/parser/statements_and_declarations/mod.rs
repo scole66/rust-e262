@@ -1,26 +1,4 @@
-use super::async_function_definitions::AsyncFunctionDeclaration;
-use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
-use super::block::BlockStatement;
-use super::break_statement::BreakStatement;
-use super::class_definitions::ClassDeclaration;
-use super::continue_statement::ContinueStatement;
-use super::debugger_statement::DebuggerStatement;
-use super::declarations_and_variables::{LexicalDeclaration, VariableStatement};
-use super::empty_statement::EmptyStatement;
-use super::expression_statement::ExpressionStatement;
-use super::function_definitions::FunctionDeclaration;
-use super::generator_function_definitions::GeneratorDeclaration;
-use super::if_statement::IfStatement;
-use super::iteration_statements::IterationStatement;
-use super::labelled_statements::LabelledStatement;
-use super::return_statement::ReturnStatement;
-use super::scanner::{Scanner, StringToken};
-use super::switch_statement::SwitchStatement;
-use super::throw_statement::ThrowStatement;
-use super::try_statement::TryStatement;
-use super::with_statement::WithStatement;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -127,7 +105,13 @@ impl PrettyPrint for Statement {
 }
 
 impl Statement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Statement), scanner))
             .otherwise(|| {
                 let (block, after_block) = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -150,7 +134,8 @@ impl Statement {
                 Ok((Rc::new(Statement::If(if_node)), after_if))
             })
             .otherwise(|| {
-                let (bable_node, after_bable) = BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (bable_node, after_bable) =
+                    BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::Breakable(bable_node)), after_bable))
             })
             .otherwise(|| {
@@ -170,11 +155,13 @@ impl Statement {
                 }
             })
             .otherwise(|| {
-                let (with_node, after_with) = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (with_node, after_with) =
+                    WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::With(with_node)), after_with))
             })
             .otherwise(|| {
-                let (lbl_node, after_lbl) = LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (lbl_node, after_lbl) =
+                    LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::Labelled(lbl_node)), after_lbl))
             })
             .otherwise(|| {
@@ -191,7 +178,13 @@ impl Statement {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.statement_cache.get(&key) {
             Some(result) => result.clone(),
@@ -200,6 +193,25 @@ impl Statement {
                 parser.statement_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            Statement::Block(node) => node.location(),
+            Statement::Variable(node) => node.location(),
+            Statement::Empty(node) => node.location(),
+            Statement::Expression(node) => node.location(),
+            Statement::If(node) => node.location(),
+            Statement::Breakable(node) => node.location(),
+            Statement::Continue(node) => node.location(),
+            Statement::Break(node) => node.location(),
+            Statement::Return(node) => node.location(),
+            Statement::With(node) => node.location(),
+            Statement::Labelled(node) => node.location(),
+            Statement::Throw(node) => node.location(),
+            Statement::Try(node) => node.location(),
+            Statement::Debugger(node) => node.location(),
         }
     }
 
@@ -224,7 +236,13 @@ impl Statement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            Statement::Variable(_) | Statement::Empty(_) | Statement::Expression(_) | Statement::Continue(_) | Statement::Return(_) | Statement::Throw(_) | Statement::Debugger(_) => false,
+            Statement::Variable(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Continue(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Debugger(_) => false,
             Statement::Block(node) => node.contains_undefined_break_target(label_set),
             Statement::If(node) => node.contains_undefined_break_target(label_set),
             Statement::Breakable(node) => node.contains_undefined_break_target(label_set),
@@ -336,21 +354,21 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
-            Statement::Breakable(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Block(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Break(node) => node.early_errors(errs, strict, within_iteration || within_switch),
+            Statement::Breakable(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Continue(node) => node.early_errors(errs, strict, within_iteration),
             Statement::Debugger(_) | Statement::Empty(_) => (),
-            Statement::Expression(node) => node.early_errors(agent, errs, strict),
-            Statement::If(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Return(node) => node.early_errors(agent, errs, strict),
-            Statement::Throw(node) => node.early_errors(agent, errs, strict),
-            Statement::Try(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
-            Statement::Variable(node) => node.early_errors(agent, errs, strict),
-            Statement::With(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            Statement::Expression(node) => node.early_errors(errs, strict),
+            Statement::If(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Labelled(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Return(node) => node.early_errors(errs, strict),
+            Statement::Throw(node) => node.early_errors(errs, strict),
+            Statement::Try(node) => node.early_errors(errs, strict, within_iteration, within_switch),
+            Statement::Variable(node) => node.early_errors(errs, strict),
+            Statement::With(node) => node.early_errors(errs, strict, within_iteration, within_switch),
         }
     }
 
@@ -394,6 +412,28 @@ impl Statement {
             Statement::Labelled(ls) => ls.contains_arguments(),
             Statement::Throw(ts) => ts.contains_arguments(),
             Statement::Try(ts) => ts.contains_arguments(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            Statement::Empty(_)
+            | Statement::Debugger(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Expression(_)
+            | Statement::Throw(_)
+            | Statement::Return(_) => vec![],
+            Statement::Block(bs) => bs.var_scoped_declarations(),
+            Statement::Variable(vs) => vs.var_scoped_declarations(),
+            Statement::If(is) => is.var_scoped_declarations(),
+            Statement::Breakable(bs) => bs.var_scoped_declarations(),
+            Statement::With(ws) => ws.var_scoped_declarations(),
+            Statement::Labelled(ls) => ls.var_scoped_declarations(),
+            Statement::Try(ts) => ts.var_scoped_declarations(),
         }
     }
 }
@@ -445,6 +485,88 @@ impl PrettyPrint for Declaration {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum HoistableDeclPart {
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+}
+impl fmt::Display for HoistableDeclPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HoistableDeclPart::FunctionDeclaration(fd) => fd.fmt(f),
+            HoistableDeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
+            HoistableDeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+        }
+    }
+}
+#[derive(Debug)]
+pub enum DeclPart {
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+    ClassDeclaration(Rc<ClassDeclaration>),
+    LexicalDeclaration(Rc<LexicalDeclaration>),
+}
+impl From<HoistableDeclPart> for DeclPart {
+    fn from(src: HoistableDeclPart) -> Self {
+        match src {
+            HoistableDeclPart::FunctionDeclaration(fd) => DeclPart::FunctionDeclaration(fd),
+            HoistableDeclPart::GeneratorDeclaration(gd) => DeclPart::GeneratorDeclaration(gd),
+            HoistableDeclPart::AsyncFunctionDeclaration(afd) => DeclPart::AsyncFunctionDeclaration(afd),
+            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => DeclPart::AsyncGeneratorDeclaration(agd),
+        }
+    }
+}
+impl From<Rc<FunctionDeclaration>> for DeclPart {
+    fn from(src: Rc<FunctionDeclaration>) -> Self {
+        Self::FunctionDeclaration(src)
+    }
+}
+impl fmt::Display for DeclPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.fmt(f),
+            DeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+            DeclPart::ClassDeclaration(cd) => cd.fmt(f),
+            DeclPart::LexicalDeclaration(ld) => ld.fmt(f),
+        }
+    }
+}
+impl From<&DeclPart> for String {
+    fn from(src: &DeclPart) -> String {
+        src.to_string()
+    }
+}
+impl DeclPart {
+    pub fn is_constant_declaration(&self) -> bool {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.is_constant_declaration(),
+            DeclPart::GeneratorDeclaration(gd) => gd.is_constant_declaration(),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.is_constant_declaration(),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.is_constant_declaration(),
+            DeclPart::ClassDeclaration(cd) => cd.is_constant_declaration(),
+            DeclPart::LexicalDeclaration(ld) => ld.is_constant_declaration(),
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.bound_names(),
+            DeclPart::GeneratorDeclaration(gd) => gd.bound_names(),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.bound_names(),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.bound_names(),
+            DeclPart::ClassDeclaration(cd) => cd.bound_names(),
+            DeclPart::LexicalDeclaration(ld) => ld.bound_names(),
+        }
+    }
+}
+
 impl Declaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Declaration), scanner))
@@ -460,6 +582,14 @@ impl Declaration {
                 let (lex, after_lex) = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
                 Ok((Rc::new(Declaration::Lexical(lex)), after_lex))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            Declaration::Hoistable(h) => h.location(),
+            Declaration::Class(c) => c.location(),
+            Declaration::Lexical(l) => l.location(),
+        }
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -502,11 +632,11 @@ impl Declaration {
     /// See [Early Errors][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#early-error
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
-            Declaration::Class(node) => node.early_errors(agent, errs),
-            Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
+            Declaration::Hoistable(node) => node.early_errors(errs, strict),
+            Declaration::Class(node) => node.early_errors(errs),
+            Declaration::Lexical(node) => node.early_errors(errs, strict),
         }
     }
 
@@ -525,6 +655,29 @@ impl Declaration {
             Declaration::Hoistable(_) => false,
             Declaration::Class(cd) => cd.contains_arguments(),
             Declaration::Lexical(ld) => ld.contains_arguments(),
+        }
+    }
+
+    /// Returns the parse node corresponding to the declaration of this node.
+    ///
+    /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
+    pub fn declaration_part(&self) -> DeclPart {
+        match self {
+            Declaration::Hoistable(h) => h.declaration_part().into(),
+            Declaration::Class(cd) => DeclPart::ClassDeclaration(cd.clone()),
+            Declaration::Lexical(ld) => DeclPart::LexicalDeclaration(ld.clone()),
+        }
+    }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            Declaration::Hoistable(_) => vec![],
+            Declaration::Class(_) | Declaration::Lexical(_) => {
+                vec![self.declaration_part()]
+            }
         }
     }
 }
@@ -582,24 +735,43 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::HoistableDeclaration), scanner))
             .otherwise(|| {
-                let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (func, after_func) =
+                    FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::Function(func)), after_func))
             })
             .otherwise(|| {
-                let (gen, after_gen) = GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (gen, after_gen) =
+                    GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::Generator(gen)), after_gen))
             })
             .otherwise(|| {
-                let (afun, after_afun) = AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (afun, after_afun) =
+                    AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::AsyncFunction(afun)), after_afun))
             })
             .otherwise(|| {
-                let (agen, after_agen) = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (agen, after_agen) =
+                    AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
             })
+    }
+
+    fn location(&self) -> Location {
+        match self {
+            HoistableDeclaration::Function(f) => f.location(),
+            HoistableDeclaration::Generator(g) => g.location(),
+            HoistableDeclaration::AsyncFunction(af) => af.location(),
+            HoistableDeclaration::AsyncGenerator(ag) => ag.location(),
+        }
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -635,12 +807,24 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            HoistableDeclaration::Function(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::Generator(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent, errs, strict),
-            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::Function(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::Generator(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::AsyncFunction(node) => node.early_errors(errs, strict),
+            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(errs, strict),
+        }
+    }
+
+    /// Returns the parse node corresponding to the declaration of this node.
+    ///
+    /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
+    pub fn declaration_part(&self) -> HoistableDeclPart {
+        match self {
+            HoistableDeclaration::Function(fd) => HoistableDeclPart::FunctionDeclaration(Rc::clone(fd)),
+            HoistableDeclaration::Generator(gd) => HoistableDeclPart::GeneratorDeclaration(Rc::clone(gd)),
+            HoistableDeclaration::AsyncFunction(afd) => HoistableDeclPart::AsyncFunctionDeclaration(Rc::clone(afd)),
+            HoistableDeclaration::AsyncGenerator(agd) => HoistableDeclPart::AsyncGeneratorDeclaration(Rc::clone(agd)),
         }
     }
 }
@@ -688,16 +872,31 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BreakableStatement), scanner))
             .otherwise(|| {
-                let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (iter, after_iter) =
+                    IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Iteration(iter)), after_iter))
             })
             .otherwise(|| {
-                let (switch, after_switch) = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (switch, after_switch) =
+                    SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BreakableStatement::Iteration(i) => i.location(),
+            BreakableStatement::Switch(s) => s.location(),
+        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -770,10 +969,20 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
-            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),
+            BreakableStatement::Iteration(node) => node.early_errors(errs, strict, within_switch),
+            BreakableStatement::Switch(node) => node.early_errors(errs, strict, within_iteration),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            BreakableStatement::Iteration(node) => node.var_scoped_declarations(),
+            BreakableStatement::Switch(node) => node.var_scoped_declarations(),
         }
     }
 }

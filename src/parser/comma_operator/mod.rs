@@ -1,11 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::assignment_operators::AssignmentExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // Expression[In, Yield, Await] :
 //      AssignmentExpression[?In, ?Yield, ?Await]
@@ -67,13 +63,22 @@ impl IsFunctionDefinition for Expression {
 }
 
 impl Expression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Expression), scanner)).otherwise(|| {
             AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
                 let mut current = Rc::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
-                while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                    .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
+                while let Ok((right, after_right)) =
+                    scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                        .and_then(|(_, after_token)| {
+                            AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)
+                        })
                 {
                     current = Rc::new(Expression::Comma(current, right));
                     current_scanner = after_right;
@@ -83,7 +88,13 @@ impl Expression {
         })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -95,10 +106,21 @@ impl Expression {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            Expression::FallThru(exp) => exp.location(),
+            Expression::Comma(left, right) => left.location().merge(&right.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Expression::FallThru(node) => kind == ParseNodeKind::AssignmentExpression || node.contains(kind),
-            Expression::Comma(left, right) => [ParseNodeKind::Expression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind),
+            Expression::Comma(left, right) => {
+                [ParseNodeKind::Expression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
+            }
         }
     }
 
@@ -118,7 +140,9 @@ impl Expression {
         //  2. Return true.
         match self {
             Expression::FallThru(node) => node.all_private_identifiers_valid(names),
-            Expression::Comma(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            Expression::Comma(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -139,12 +163,12 @@ impl Expression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Expression::FallThru(node) => node.early_errors(agent, errs, strict),
+            Expression::FallThru(node) => node.early_errors(errs, strict),
             Expression::Comma(left, right) => {
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
         }
     }
@@ -163,6 +187,13 @@ impl Expression {
         match &self {
             Expression::FallThru(node) => node.assignment_target_type(strict),
             Expression::Comma(_, _) => ATTKind::Invalid,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            Expression::FallThru(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

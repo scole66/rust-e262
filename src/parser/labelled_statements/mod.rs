@@ -1,20 +1,14 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::function_definitions::FunctionDeclaration;
-use super::identifiers::LabelIdentifier;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
-use super::statements_and_declarations::Statement;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // LabelledStatement[Yield, Await, Return] :
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct LabelledStatement {
-    identifier: Rc<LabelIdentifier>,
-    item: Rc<LabelledItem>,
+    pub identifier: Rc<LabelIdentifier>,
+    pub item: Rc<LabelledItem>,
 }
 
 impl fmt::Display for LabelledStatement {
@@ -47,11 +41,21 @@ impl PrettyPrint for LabelledStatement {
 }
 
 impl LabelledStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (_, after_colon) = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
+    }
+
+    pub fn location(&self) -> Location {
+        self.identifier.location().merge(&self.item.location())
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
@@ -122,9 +126,9 @@ impl LabelledStatement {
         self.item.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
-        self.identifier.early_errors(agent, errs, strict);
-        self.item.early_errors(agent, errs, strict, within_iteration, within_switch);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        self.identifier.early_errors(errs, strict);
+        self.item.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     pub fn is_labelled_function(&self) -> bool {
@@ -139,6 +143,27 @@ impl LabelledStatement {
         //  4. Let subStmt be the Statement of item.
         //  5. Return IsLabelledFunction(subStmt).
         self.item.is_labelled_function()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.top_level_var_scoped_declarations()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.var_scoped_declarations()
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.item.lexically_scoped_declarations()
     }
 }
 
@@ -185,7 +210,13 @@ impl PrettyPrint for LabelledItem {
 }
 
 impl LabelledItem {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LabelledItem), scanner))
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -195,6 +226,13 @@ impl LabelledItem {
                 let (fcn, after_fcn) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
                 Ok((Rc::new(LabelledItem::Function(fcn)), after_fcn))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            LabelledItem::Statement(node) => node.location(),
+            LabelledItem::Function(node) => node.location(),
+        }
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
@@ -287,16 +325,19 @@ impl LabelledItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text is matched by this production.
         if matches!(self, LabelledItem::Function(_)) {
-            errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in modern ECMAScript code"));
+            errs.push(create_syntax_error_object(
+                "Labelled functions not allowed in modern ECMAScript code",
+                Some(self.location()),
+            ));
         }
         match self {
-            LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration, within_switch),
-            LabelledItem::Function(fcn) => fcn.early_errors(agent, errs, strict),
+            LabelledItem::Statement(stmt) => stmt.early_errors(errs, strict, within_iteration, within_switch),
+            LabelledItem::Function(fcn) => fcn.early_errors(errs, strict),
         }
     }
 
@@ -314,6 +355,41 @@ impl LabelledItem {
         match self {
             LabelledItem::Function(_) => true,
             LabelledItem::Statement(sub_stmt) => sub_stmt.is_labelled_function(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(fd) => {
+                vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))]
+            }
+            LabelledItem::Statement(stmt) => match &**stmt {
+                Statement::Labelled(ls) => ls.top_level_var_scoped_declarations(),
+                _ => stmt.var_scoped_declarations(),
+            },
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(_) => vec![],
+            LabelledItem::Statement(stmt) => stmt.var_scoped_declarations(),
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            LabelledItem::Statement(_) => vec![],
+            LabelledItem::Function(f) => vec![Rc::clone(f).into()],
         }
     }
 }

@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -10,7 +10,8 @@ const MISSING_INITIALIZER: &str = "Missing initializer in const declaration";
 // LEXICAL DECLARATION
 #[test]
 fn lexical_declaration_test_01() {
-    let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 6);
     pretty_check(&*node, "LexicalDeclaration: let a ;", vec!["LetOrConst: let", "BindingList: a"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
@@ -18,10 +19,15 @@ fn lexical_declaration_test_01() {
 }
 #[test]
 fn lexical_declaration_test_02() {
-    let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("const a=0;"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(LexicalDeclaration::parse(&mut newparser("const a=0;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 10);
     pretty_check(&*node, "LexicalDeclaration: const a = 0 ;", vec!["LetOrConst: const", "BindingList: a = 0"]);
-    concise_check(&*node, "LexicalDeclaration: const a = 0 ;", vec!["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: const a = 0 ;",
+        vec!["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -42,15 +48,30 @@ fn lexical_declaration_test_asi_01() {
 }
 #[test]
 fn lexical_declaration_test_err_01() {
-    check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "one of [‘let’, ‘const’] expected", 1, 1);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "one of [‘let’, ‘const’] expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn lexical_declaration_test_err_02() {
-    check_err(LexicalDeclaration::parse(&mut newparser("let"), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 4);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser("let"), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn lexical_declaration_test_err_03() {
-    check_err(LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false), "‘;’ expected", 1, 6);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false),
+        "‘;’ expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn lexical_declaration_test_prettyerrors_1() {
@@ -85,28 +106,39 @@ mod lexical_declaration {
     #[test_case("let a;" => false; "kwd let")]
     #[test_case("const a=0;" => true; "kwd const")]
     fn is_constant_declaration(src: &str) -> bool {
-        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_constant_declaration()
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_constant_declaration()
     }
 
     const LET_NOT_LEGAL: &str = "‘let’ is not a valid binding identifier";
     const DUPLICATE_LEX_A: &str = "Duplicate binding identifiers: ‘a’";
     const DUPLICATE_LEX_ABC: &str = "Duplicate binding identifiers: ‘a’, ‘b’, ‘c’";
 
-    #[test_case("let let=0;", false => set(&[LET_NOT_LEGAL]); "let let")]
-    #[test_case("let a=1,b=2,c=3,a=6;", true => set(&[DUPLICATE_LEX_A]); "duplicate names")]
-    #[test_case("let a=1,a=2,b=3,b=4,c=5,c=6;", true => set(&[DUPLICATE_LEX_ABC]); "many duplicates")]
-    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "sub-productions")]
+    #[test_case("let let=0;", false => sset(&[LET_NOT_LEGAL]); "let let")]
+    #[test_case("let a=1,b=2,c=3,a=6;", true => sset(&[DUPLICATE_LEX_A]); "duplicate names")]
+    #[test_case("let a=1,a=2,b=3,b=4,c=5,c=6;", true => sset(&[DUPLICATE_LEX_ABC]); "many duplicates")]
+    #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "sub-productions")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("let a=arguments;" => true; "yes")]
     #[test_case("let b;" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   let x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_declaration().location()
     }
 }
 
@@ -145,6 +177,12 @@ mod let_or_const {
     fn is_constant_declaration(which: LetOrConst) -> bool {
         which.is_constant_declaration()
     }
+
+    #[test_case(LetOrConst::Let => with |s| assert_ne!(s, ""); "kwd let")]
+    #[test_case(LetOrConst::Const => with |s| assert_ne!(s, ""); "kwd const")]
+    fn debug(src: LetOrConst) -> String {
+        format!("{src:?}")
+    }
 }
 
 // BINDING LIST
@@ -172,7 +210,12 @@ fn binding_list_test_02() {
 }
 #[test]
 fn binding_list_test_err_01() {
-    check_err(BindingList::parse(&mut newparser(""), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 1);
+    check_err(
+        BindingList::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_list_test_bound_names_01() {
@@ -208,13 +251,17 @@ mod binding_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true, true => set(&[PACKAGE_NOT_ALLOWED, MISSING_INITIALIZER]); "LexicalBinding")]
-    #[test_case("package,implements", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingList , LexicalBinding")]
+    #[test_case("package", true, true => sset(&[PACKAGE_NOT_ALLOWED, MISSING_INITIALIZER]); "LexicalBinding")]
+    #[test_case("package,implements", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingList , LexicalBinding")]
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
+            &mut errs,
+            strict,
+            is_constant_declaration,
+        );
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -224,6 +271,12 @@ mod binding_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 1 } }; "item")]
+    #[test_case("   a,b" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 3 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_list().location()
     }
 }
 
@@ -263,7 +316,12 @@ fn lexical_binding_test_03() {
 }
 #[test]
 fn lexical_binding_test_err_01() {
-    check_err(LexicalBinding::parse(&mut newparser(""), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 1);
+    check_err(
+        LexicalBinding::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn lexical_binding_test_err_02() {
@@ -319,18 +377,22 @@ mod lexical_binding {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a=0", true, true => set(&[]); "valid constant decl")]
-    #[test_case("a=0", true, false => set(&[]); "valid mutable decl, with initializer")]
-    #[test_case("a", true, false => set(&[]); "valid mutable decl, without initializer")]
-    #[test_case("a", true, true => set(&[MISSING_INITIALIZER]); "invalid constant decl")]
-    #[test_case("package", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("package=implements", true, true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
-    #[test_case("[package]=implements", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
+    #[test_case("a=0", true, true => sset(&[]); "valid constant decl")]
+    #[test_case("a=0", true, false => sset(&[]); "valid mutable decl, with initializer")]
+    #[test_case("a", true, false => sset(&[]); "valid mutable decl, without initializer")]
+    #[test_case("a", true, true => sset(&[MISSING_INITIALIZER]); "invalid constant decl")]
+    #[test_case("package", true, false => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("package=implements", true, true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
+    #[test_case("[package]=implements", true, false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
+            &mut errs,
+            strict,
+            is_constant_declaration,
+        );
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "id")]
@@ -341,6 +403,13 @@ mod lexical_binding {
     #[test_case("{a}=b" => false; "pattern (none)")]
     fn contains_arguments(src: &str) -> bool {
         LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 1 } }; "id; no init")]
+    #[test_case("  a=0" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 3 } }; "id with init")]
+    #[test_case("  {c}=a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_binding().location()
     }
 }
 
@@ -371,11 +440,16 @@ fn variable_statement_test_err_01() {
 }
 #[test]
 fn variable_statement_test_err_02() {
-    check_err(VariableStatement::parse(&mut newparser("var"), Scanner::new(), false, false), "VariableDeclaration expected", 1, 4);
+    check_err(
+        VariableStatement::parse(&mut newparser("var"), Scanner::new(), false, false),
+        "VariableDeclaration expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn variable_statement_test_err_03() {
-    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn variable_statement_test_var_declared_names_01() {
@@ -402,12 +476,15 @@ mod variable_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("var package;", true => set(&[PACKAGE_NOT_ALLOWED]); "var VariableDeclarationList ;")]
+    #[test_case("var package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "var VariableDeclarationList ;")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("var a=arguments;" => true; "yes")]
@@ -415,14 +492,24 @@ mod variable_statement {
     fn contains_arguments(src: &str) -> bool {
         VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("var left, center='ham', right;" => svec(&["left", "center = 'ham'", "right"]); "a list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).variable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   var left;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).variable_statement().location()
+    }
 }
 
 // VARIABLE DECLARATION LIST
 #[test]
 fn variable_declaration_list_test_01() {
-    let (node, scanner) = check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*node, VariableDeclarationList::Item(..)));
     pretty_check(&*node, "VariableDeclarationList: a", vec!["VariableDeclaration: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
     format!("{:?}", node);
@@ -431,11 +518,15 @@ fn variable_declaration_list_test_01() {
 }
 #[test]
 fn variable_declaration_list_test_02() {
-    let (node, scanner) = check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, VariableDeclarationList::List(..)));
-    pretty_check(&*node, "VariableDeclarationList: a , b", vec!["VariableDeclarationList: a", "VariableDeclaration: b"]);
-    concise_check(&*node, "VariableDeclarationList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    pretty_check(&*node, "VariableDeclarationList: a , b", vec!["VariableDeclaration: a", "VariableDeclaration: b"]);
+    concise_check(
+        &*node,
+        "VariableDeclarationList: a , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -450,7 +541,12 @@ fn variable_declaration_list_test_cache_01() {
 }
 #[test]
 fn variable_declaration_list_test_err_01() {
-    check_err(VariableDeclarationList::parse(&mut newparser(""), Scanner::new(), true, false, false), "VariableDeclaration expected", 1, 1);
+    check_err(
+        VariableDeclarationList::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "VariableDeclaration expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn variable_declaration_list_test_bound_names_01() {
@@ -459,7 +555,8 @@ fn variable_declaration_list_test_bound_names_01() {
 }
 #[test]
 fn variable_declaration_list_test_bound_names_02() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["a", "b"]);
 }
 #[test]
@@ -474,17 +571,20 @@ fn variable_declaration_list_test_contains_02() {
 }
 #[test]
 fn variable_declaration_list_test_contains_03() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn variable_declaration_list_test_contains_04() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=x,b=0"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=x,b=0"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn variable_declaration_list_test_contains_05() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=x,b=y"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=x,b=y"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("a=item.#valid" => true; "Item valid")]
@@ -501,13 +601,16 @@ mod variable_declaration_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "VariableDeclaration")]
-    #[test_case("package,implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "VariableDeclarationList , VariableDeclaration")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "VariableDeclaration")]
+    #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "VariableDeclarationList , VariableDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -516,7 +619,21 @@ mod variable_declaration_list {
     #[test_case("a,b=arguments" => true; "List (right)")]
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
-        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
+    }
+
+    #[test_case("item" => svec(&["item"]); "just one")]
+    #[test_case("left, center='ham', right" => svec(&["left", "center = 'ham'", "right"]); "a list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src)
+            .variable_declaration_list()
+            .var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 }
 
@@ -545,7 +662,8 @@ fn variable_declaration_test_02() {
 }
 #[test]
 fn variable_declaration_test_03() {
-    let (node, scanner) = check(VariableDeclaration::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclaration::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, VariableDeclaration::Pattern(..)));
     pretty_check(&*node, "VariableDeclaration: { a } = b", vec!["BindingPattern: { a }", "Initializer: = b"]);
@@ -556,11 +674,21 @@ fn variable_declaration_test_03() {
 }
 #[test]
 fn variable_declaration_test_err_01() {
-    check_err(VariableDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "VariableDeclaration expected", 1, 1);
+    check_err(
+        VariableDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "VariableDeclaration expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn variable_declaration_test_err_02() {
-    check_err(VariableDeclaration::parse(&mut newparser("{a}"), Scanner::new(), true, false, false), "‘=’ expected", 1, 4)
+    check_err(
+        VariableDeclaration::parse(&mut newparser("{a}"), Scanner::new(), true, false, false),
+        "‘=’ expected",
+        1,
+        4,
+    )
 }
 #[test]
 fn variable_declaration_test_bound_names_01() {
@@ -617,14 +745,17 @@ mod variable_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("package=implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
-    #[test_case("[package]=implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("package=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
+    #[test_case("[package]=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -634,7 +765,10 @@ mod variable_declaration {
     #[test_case("{a}=arguments" => true; "Pattern (right)")]
     #[test_case("{a}=b" => false; "Pattern (none)")]
     fn contains_arguments(src: &str) -> bool {
-        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }
 
@@ -715,13 +849,16 @@ mod binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "ObjectBindingPattern")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrayBindingPattern")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ObjectBindingPattern")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrayBindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{a=arguments}" => true; "Object (yes)")]
@@ -731,6 +868,20 @@ mod binding_pattern {
     fn contains_arguments(src: &str) -> bool {
         BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {a}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "object")]
+    #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "array")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_pattern().location()
+    }
+
+    #[test_case("{a=0}" => true; "object with expr")]
+    #[test_case("{}" => false; "object without expr")]
+    #[test_case("[a=0]" => true; "array with expr")]
+    #[test_case("[]" => false; "array without expr")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_pattern().contains_expression()
+    }
 }
 
 // OBJECT BINDING PATTERN
@@ -738,7 +889,7 @@ mod binding_pattern {
 fn object_binding_pattern_test_01() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ObjectBindingPattern::Empty));
+    assert!(matches!(&*node, ObjectBindingPattern::Empty { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { }", vec![]);
     concise_check(&*node, "ObjectBindingPattern: { }", vec!["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", node);
@@ -749,9 +900,13 @@ fn object_binding_pattern_test_01() {
 fn object_binding_pattern_test_02() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{...a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ObjectBindingPattern::RestOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::RestOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { ... a }", vec!["BindingRestProperty: ... a"]);
-    concise_check(&*node, "ObjectBindingPattern: { ... a }", vec!["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { ... a }",
+        vec!["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -760,7 +915,7 @@ fn object_binding_pattern_test_02() {
 fn object_binding_pattern_test_03() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ObjectBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a }", vec!["BindingPropertyList: a"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{:?}", node);
@@ -771,9 +926,17 @@ fn object_binding_pattern_test_03() {
 fn object_binding_pattern_test_04() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,...b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, Some(_))));
-    pretty_check(&*node, "ObjectBindingPattern: { a , ... b }", vec!["BindingPropertyList: a", "BindingRestProperty: ... b"]);
-    concise_check(&*node, "ObjectBindingPattern: { a , ... b }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"]);
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: Some(_), .. }));
+    pretty_check(
+        &*node,
+        "ObjectBindingPattern: { a , ... b }",
+        vec!["BindingPropertyList: a", "BindingRestProperty: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { a , ... b }",
+        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -782,16 +945,25 @@ fn object_binding_pattern_test_04() {
 fn object_binding_pattern_test_05() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, None)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: None, .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a , }", vec!["BindingPropertyList: a"]);
-    concise_check(&*node, "ObjectBindingPattern: { a , }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { a , }",
+        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
 #[test]
 fn object_binding_pattern_test_err_01() {
-    check_err(ObjectBindingPattern::parse(&mut newparser(""), Scanner::new(), false, false), "ObjectBindingPattern expected", 1, 1);
+    check_err(
+        ObjectBindingPattern::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ObjectBindingPattern expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn object_binding_pattern_test_err_02() {
@@ -811,7 +983,12 @@ fn object_binding_pattern_test_err_05() {
 }
 #[test]
 fn object_binding_pattern_test_err_06() {
-    check_err(ObjectBindingPattern::parse(&mut newparser("{b,...a"), Scanner::new(), false, false), "‘}’ expected", 1, 8);
+    check_err(
+        ObjectBindingPattern::parse(&mut newparser("{b,...a"), Scanner::new(), false, false),
+        "‘}’ expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn object_binding_pattern_test_bound_names_01() {
@@ -894,16 +1071,19 @@ mod object_binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{}", true => set(&[]); "Empty")]
-    #[test_case("{...package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ BindingRestProperty }")]
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ BindingPropertyList }")]
-    #[test_case("{package,}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ BindingPropertyList , } (trailing comma)")]
-    #[test_case("{package,...implements}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "{ BindingPropertyList , BindingRestProperty }")]
+    #[test_case("{}", true => sset(&[]); "Empty")]
+    #[test_case("{...package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ BindingRestProperty }")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ BindingPropertyList }")]
+    #[test_case("{package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ BindingPropertyList , } (trailing comma)")]
+    #[test_case("{package,...implements}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "{ BindingPropertyList , BindingRestProperty }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -917,6 +1097,24 @@ mod object_binding_pattern {
     fn contains_arguments(src: &str) -> bool {
         ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   { ...a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   { a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   { a, ...b }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_binding_pattern().location()
+    }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("{...a}" => false; "rest only")]
+    #[test_case("{a, b=0}" => true; "list only; present")]
+    #[test_case("{a, b}" => false; "list only; missing")]
+    #[test_case("{a=0, ...b}" => true; "list+rest; present")]
+    #[test_case("{a, ...b}" => false; "list+rest; missing")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).object_binding_pattern().contains_expression()
+    }
 }
 
 // ARRAY BINDING PATTERN
@@ -924,7 +1122,7 @@ mod object_binding_pattern {
 fn array_binding_pattern_test_01() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ]", vec![]);
     concise_check(&*node, "ArrayBindingPattern: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -935,7 +1133,7 @@ fn array_binding_pattern_test_01() {
 fn array_binding_pattern_test_02() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Elisions: ,"]);
     concise_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -946,9 +1144,13 @@ fn array_binding_pattern_test_02() {
 fn array_binding_pattern_test_03() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["BindingRestElement: ... a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ ... a ]",
+        vec!["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -957,9 +1159,13 @@ fn array_binding_pattern_test_03() {
 fn array_binding_pattern_test_04() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Elisions: ,", "BindingRestElement: ... a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ , ... a ]",
+        vec!["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -968,7 +1174,7 @@ fn array_binding_pattern_test_04() {
 fn array_binding_pattern_test_05() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a ]", vec!["BindingElementList: a"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -979,9 +1185,13 @@ fn array_binding_pattern_test_05() {
 fn array_binding_pattern_test_06() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { bre: None, elision: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["BindingElementList: a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -990,9 +1200,13 @@ fn array_binding_pattern_test_06() {
 fn array_binding_pattern_test_07() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["BindingElementList: a", "Elisions: ,"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1001,9 +1215,17 @@ fn array_binding_pattern_test_07() {
 fn array_binding_pattern_test_08() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, Some(_))));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , ... b ]", vec!["BindingElementList: a", "BindingRestElement: ... b"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , ... b ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"]);
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: None, bre: Some(_), .. }));
+    pretty_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ... b ]",
+        vec!["BindingElementList: a", "BindingRestElement: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ... b ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1012,9 +1234,24 @@ fn array_binding_pattern_test_08() {
 fn array_binding_pattern_test_09() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), Some(_))));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , , ... b ]", vec!["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , , ... b ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "BindingRestElement: ... b", "Punctuator: ]"]);
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: Some(_), .. }));
+    pretty_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ... b ]",
+        vec!["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ... b ]",
+        vec![
+            "Punctuator: [",
+            "IdentifierName: a",
+            "Punctuator: ,",
+            "Elisions: ,",
+            "BindingRestElement: ... b",
+            "Punctuator: ]",
+        ],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1025,15 +1262,30 @@ fn array_binding_pattern_test_err_01() {
 }
 #[test]
 fn array_binding_pattern_test_err_02() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("["), Scanner::new(), false, false), "BindingElement expected", 1, 2);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("["), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_03() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘]’, ‘,’] expected", 1, 3);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false),
+        "one of [‘]’, ‘,’] expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_04() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[,"), Scanner::new(), false, false), "BindingElement expected", 1, 3);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[,"), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_05() {
@@ -1041,15 +1293,30 @@ fn array_binding_pattern_test_err_05() {
 }
 #[test]
 fn array_binding_pattern_test_err_06() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[,,,,,,,,,,,,,..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 18);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[,,,,,,,,,,,,,..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        18,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_07() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 16);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        16,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_08() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,...ddd"), Scanner::new(), false, false), "‘]’ expected", 1, 19);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,...ddd"), Scanner::new(), false, false),
+        "‘]’ expected",
+        1,
+        19,
+    );
 }
 #[test]
 fn array_binding_pattern_test_bound_names_01() {
@@ -1194,20 +1461,23 @@ mod array_binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("[]", true => set(&[]); "Empty")]
-    #[test_case("[,]", true => set(&[]); "[ Elision ]")]
-    #[test_case("[...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ BindingRestElement ]")]
-    #[test_case("[,...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ Elision BindingRestElement ]")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList ]")]
-    #[test_case("[package,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList , ] (trailing comma)")]
-    #[test_case("[package,,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList , Elision ]")]
-    #[test_case("[package,...implements]", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , BindingRestElement ]")]
-    #[test_case("[package,,...implements]", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , Elision BindingRestElement ]")]
+    #[test_case("[]", true => sset(&[]); "Empty")]
+    #[test_case("[,]", true => sset(&[]); "[ Elision ]")]
+    #[test_case("[...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ BindingRestElement ]")]
+    #[test_case("[,...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ Elision BindingRestElement ]")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList ]")]
+    #[test_case("[package,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList , ] (trailing comma)")]
+    #[test_case("[package,,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ BindingElementList , Elision ]")]
+    #[test_case("[package,...implements]", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , BindingRestElement ]")]
+    #[test_case("[package,,...implements]", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "[ BindingElementList , Elision BindingRestElement ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[]" => false; "emtpy")]
@@ -1230,6 +1500,28 @@ mod array_binding_pattern {
     #[test_case("[a,,...b]" => false; "List Elision Rest (none)")]
     fn contains_arguments(src: &str) -> bool {
         ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   []" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   [ ...a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   [ a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   [ a, ...b ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_binding_pattern().location()
+    }
+
+    #[test_case("[]" => false; "empty")]
+    #[test_case("[...{a=0}]" => true; "rest-only; present")]
+    #[test_case("[...a]" => false; "rest-only; missing")]
+    #[test_case("[a,]" => false; "list-comma; missing")]
+    #[test_case("[a=0,]" => true; "list-comma; present")]
+    #[test_case("[a]" => false; "list-only; missing")]
+    #[test_case("[a=0]" => true; "list-only; present")]
+    #[test_case("[a,...b]" => false; "list+rest; missing")]
+    #[test_case("[a=0,...b]" => true; "list+rest; present (list)")]
+    #[test_case("[a,...{b=0}]" => true; "list+rest; present (rest)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).array_binding_pattern().contains_expression()
     }
 }
 
@@ -1258,7 +1550,12 @@ fn binding_rest_property_test_err_01() {
 }
 #[test]
 fn binding_rest_property_test_err_02() {
-    check_err(BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false), "not an identifier", 1, 4);
+    check_err(
+        BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "not an identifier",
+        1,
+        4,
+    );
 }
 #[test]
 fn binding_rest_property_test_bound_names_01() {
@@ -1274,12 +1571,15 @@ mod binding_rest_property {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 }
 
@@ -1301,7 +1601,11 @@ fn binding_property_list_test_02() {
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingPropertyList::List(..)));
     pretty_check(&*node, "BindingPropertyList: a , b", vec!["BindingPropertyList: a", "BindingProperty: b"]);
-    concise_check(&*node, "BindingPropertyList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    concise_check(
+        &*node,
+        "BindingPropertyList: a , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1319,7 +1623,12 @@ fn binding_property_list_test_03() {
 }
 #[test]
 fn binding_property_list_test_err_01() {
-    check_err(BindingPropertyList::parse(&mut newparser(""), Scanner::new(), false, false), "BindingProperty expected", 1, 1);
+    check_err(
+        BindingPropertyList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingProperty expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_property_list_test_bound_names_01() {
@@ -1370,13 +1679,16 @@ mod binding_property_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingProperty")]
-    #[test_case("package,implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPropertyList , BindingProperty")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingProperty")]
+    #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPropertyList , BindingProperty")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1386,6 +1698,15 @@ mod binding_property_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a" => false; "item; missing")]
+    #[test_case("a=0" => true; "item; present")]
+    #[test_case("a,b" => false; "list+item; missing")]
+    #[test_case("a=0,b" => true; "list+item; present (list)")]
+    #[test_case("a,b=0" => true; "list+item; present (item)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_property_list().contains_expression()
     }
 }
 
@@ -1425,7 +1746,12 @@ fn binding_element_list_test_03() {
 }
 #[test]
 fn binding_element_list_test_err_01() {
-    check_err(BindingElementList::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        BindingElementList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_element_list_test_bound_names_01() {
@@ -1476,13 +1802,16 @@ mod binding_element_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingElisionElement")]
-    #[test_case("package,implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingElementList , BindingElisionElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingElisionElement")]
+    #[test_case("package,implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingElementList , BindingElisionElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1492,6 +1821,15 @@ mod binding_element_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a" => false; "item; missing")]
+    #[test_case("a=0" => true; "item; present")]
+    #[test_case("a,b" => false; "list+item; missing")]
+    #[test_case("a=0,b" => true; "list+item; present (list)")]
+    #[test_case("a,b=0" => true; "list+item; present (item)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_element_list().contains_expression()
     }
 }
 
@@ -1520,7 +1858,12 @@ fn binding_elision_element_test_02() {
 }
 #[test]
 fn binding_elision_element_test_err_01() {
-    check_err(BindingElisionElement::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        BindingElisionElement::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_elision_element_test_bound_names_01() {
@@ -1559,13 +1902,16 @@ mod binding_elision_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingElement")]
-    #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision BindingElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingElement")]
+    #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1574,6 +1920,14 @@ mod binding_elision_element {
     #[test_case(",a" => false; "Elision Item (no)")]
     fn contains_arguments(src: &str) -> bool {
         BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(",a" => false; "Elision+Item; missing")]
+    #[test_case(",a=0" => true; "Elision+Item; present")]
+    #[test_case("a" => false; "Item; missing")]
+    #[test_case("a=0" => true; "Item; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_elision_element().contains_expression()
     }
 }
 
@@ -1613,7 +1967,12 @@ fn binding_property_test_03() {
 }
 #[test]
 fn binding_property_test_err_01() {
-    check_err(BindingProperty::parse(&mut newparser(""), Scanner::new(), false, false), "BindingProperty expected", 1, 1);
+    check_err(
+        BindingProperty::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingProperty expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_property_test_bound_names_01() {
@@ -1664,13 +2023,16 @@ mod binding_property {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "SingleNameBinding")]
-    #[test_case("[package]:implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "PropertyName : BindingElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "SingleNameBinding")]
+    #[test_case("[package]:implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "PropertyName : BindingElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -1680,6 +2042,15 @@ mod binding_property {
     #[test_case("a:b" => false; "N:E (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a" => false; "Single; missing")]
+    #[test_case("a=0" => true; "Single; present")]
+    #[test_case("a:b" => false; "Name+Element; missing")]
+    #[test_case("[0]:b" => true; "Name+Element; present (Name)")]
+    #[test_case("a:b=0" => true; "Name+Element; present (Element)")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_property().contains_expression()
     }
 }
 
@@ -1798,14 +2169,17 @@ mod binding_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "SingleNameBinding")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
-    #[test_case("[package]=implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "SingleNameBinding")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
+    #[test_case("[package]=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingPattern Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -1817,6 +2191,30 @@ mod binding_element {
     #[test_case("{a}=b" => false; "BP Izer (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   {x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "pattern without initializer")]
+    #[test_case("   {x}=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "pattern plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_element().location()
+    }
+
+    #[test_case("a" => false; "single; no init")]
+    #[test_case("a=1" => true; "single; with init")]
+    #[test_case("{a}" => false; "pattern, no init")]
+    #[test_case("{a}=b" => true; "pattern, with init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).binding_element().has_initializer()
+    }
+
+    #[test_case("a" => false; "Single; missing")]
+    #[test_case("a=0" => true; "Single; present")]
+    #[test_case("{a}" => false; "Pattern; missing")]
+    #[test_case("{a=0}" => true; "Pattern; present")]
+    #[test_case("{a}=b" => true; "Pattern+init")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_element().contains_expression()
     }
 }
 
@@ -1897,13 +2295,16 @@ mod single_name_binding {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
-    #[test_case("package=implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("package=implements", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "BindingIdentifier Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -1911,6 +2312,24 @@ mod single_name_binding {
     #[test_case("a=b" => false; "izer (no)")]
     fn contains_arguments(src: &str) -> bool {
         SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   x=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "nam plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).single_name_binding().location()
+    }
+
+    #[test_case("x" => false; "no init")]
+    #[test_case("x=a" => true; "with init")]
+    fn has_initializer(src: &str) -> bool {
+        Maker::new(src).single_name_binding().has_initializer()
+    }
+
+    #[test_case("x" => false; "no init")]
+    #[test_case("x=a" => true; "with init")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).single_name_binding().contains_expression()
     }
 }
 
@@ -1951,7 +2370,12 @@ fn binding_rest_element_test_err_01() {
 }
 #[test]
 fn binding_rest_element_test_err_02() {
-    check_err(BindingRestElement::parse(&mut newparser("..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 4);
+    check_err(
+        BindingRestElement::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn binding_rest_element_test_bound_names_01() {
@@ -1989,13 +2413,16 @@ mod binding_rest_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
-    #[test_case("...[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "... BindingPattern")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingIdentifier")]
+    #[test_case("...[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "... BindingPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...a" => false; "id")]
@@ -2003,5 +2430,18 @@ mod binding_rest_element {
     #[test_case("...{a}" => false; "pattern (no)")]
     fn contains_arguments(src: &str) -> bool {
         BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   ...x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "id")]
+    #[test_case("   ...{x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_rest_element().location()
+    }
+
+    #[test_case("...a" => false; "id")]
+    #[test_case("...{a}" => false; "pattern; missing")]
+    #[test_case("...{a=0}" => true; "pattern; present")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).binding_rest_element().contains_expression()
     }
 }

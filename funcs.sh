@@ -1,6 +1,6 @@
 function objects() {
     for file in $( \
-            LLVM_PROFILE_FILE="res-%m.profraw" cargo test --profile coverage --no-run --message-format=json 2> /dev/null | \
+            LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage --no-run --message-format=json 2> /dev/null | \
                 jq -r "select(.profile.test == true) | .filenames[]" | \
                 grep -v dSYM - \
             ); do
@@ -13,18 +13,31 @@ function objects() {
 function tst() {
   local here=$(pwd)
   cd ~/*/rust-e262
+  local output=res.profdata
+  case "$1" in
+    -o=*)
+      output="${1#-o=}"
+      shift
+      ;;
+  esac
   rm -f res-*.profraw
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
-  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" cargo test --profile coverage $quiet "$@"
-  cargo profdata -- merge res-*.profraw --output=res.profdata
+  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
+  local covstatus=$?
+  if [ $covstatus -eq 0 ]; then
+    cargo profdata -- merge res-*.profraw --output="$output"
+  fi
   cd $here
+  return $covstatus
 }
 
 function summary() {
   local here=$(pwd)
   cd ~/*/rust-e262
-  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' --instr-profile=res.profdata $(objects)
+  local profile=res.profdata
+  if [ $# -gt 0 ]; then profile="$1"; fi
+  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
   cd $here
 }
 
@@ -39,7 +52,7 @@ function s() {
   cd ~/*/rust-e262
   cargo cov -- show \
     --use-color \
-    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
+    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' \
     --instr-profile=res.profdata $(objects) \
     --show-instantiations \
     --show-line-counts-or-regions \
@@ -54,8 +67,10 @@ function report() {
   local here=$(pwd)
   cd ~/*/rust-e262
 
-  extra_args=()
-  pager=(cat)
+  local color=--use-color
+  local extra_args=()
+  local pager=(cat)
+  local profile=res.profdata
   while [ $# -gt 0 ]; do
     case "$1" in
       --uncovered)
@@ -67,6 +82,12 @@ function report() {
       --pager)
         pager=(less -RF)
         ;;
+      --no-color)
+        color=
+        ;;
+      --profile=*)
+        profile="${1#--profile=}"
+        ;;
       *)
         extra_args=("${extra_args[@]}" "$1")
         ;;
@@ -75,9 +96,9 @@ function report() {
   done
 
   cargo cov -- show \
-    --use-color \
-    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
-    --instr-profile=res.profdata $(objects) \
+    $color \
+    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' \
+    --instr-profile="$profile" $(objects) \
     --show-line-counts-or-regions \
     "${extra_args[@]}" | "${pager[@]}"
 

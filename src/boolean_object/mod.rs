@@ -1,13 +1,4 @@
-use super::agent::Agent;
-use super::cr::{AltCompletion, Completion};
-use super::errors::create_type_error;
-use super::object::{
-    ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
-    ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor, BOOLEAN_OBJECT_SLOTS,
-};
-use super::realm::IntrinsicId;
-use super::values::{ECMAScriptValue, PropertyKey};
+use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -31,7 +22,7 @@ impl ObjectInterface for BooleanObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn is_ordinary(&self) -> bool {
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
     fn id(&self) -> usize {
@@ -44,7 +35,7 @@ impl ObjectInterface for BooleanObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -54,7 +45,7 @@ impl ObjectInterface for BooleanObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -64,7 +55,7 @@ impl ObjectInterface for BooleanObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -74,7 +65,7 @@ impl ObjectInterface for BooleanObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -84,7 +75,7 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -94,8 +85,8 @@ impl ObjectInterface for BooleanObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
-        ordinary_define_own_property(agent, self, key, desc)
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+        ordinary_define_own_property(self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -104,8 +95,8 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
-        ordinary_has_property(agent, self, key)
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -114,8 +105,8 @@ impl ObjectInterface for BooleanObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
-        ordinary_get(agent, self, key, receiver)
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -124,8 +115,8 @@ impl ObjectInterface for BooleanObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
-        ordinary_set(agent, self, key, v, receiver)
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -134,8 +125,8 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
-        ordinary_delete(agent, self, key)
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -144,8 +135,8 @@ impl ObjectInterface for BooleanObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(agent, self))
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -156,8 +147,13 @@ impl BooleanObjectInterface for BooleanObject {
 }
 
 impl BooleanObject {
-    pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, BOOLEAN_OBJECT_SLOTS)), boolean_data: RefCell::new(false) }) }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)),
+                boolean_data: RefCell::new(false),
+            }),
+        }
     }
 }
 
@@ -168,9 +164,11 @@ impl BooleanObject {
 //  3. Let O be ? OrdinaryCreateFromConstructor(%Boolean%, "%Boolean.prototype%", « [[BooleanData]] »).
 //  4. Set O.[[BooleanData]] to b.
 //  5. Return O.
-pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
-    let constructor = agent.intrinsic(IntrinsicId::Boolean);
-    let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
+pub fn create_boolean_object(b: bool) -> Object {
+    let constructor = intrinsic(IntrinsicId::Boolean);
+    let o =
+        ordinary_create_from_constructor(&constructor, IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])
+            .unwrap();
     *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
     o
 }
@@ -183,7 +181,7 @@ pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
 //      b. Assert: Type(b) is Boolean.
 //      c. Return b.
 //  3. Throw a TypeError exception.
-pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> AltCompletion<bool> {
+pub fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
     match value {
         ECMAScriptValue::Boolean(b) => Ok(*b),
         ECMAScriptValue::Object(o) => {
@@ -192,10 +190,10 @@ pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> AltComp
                 let b = *b_obj.boolean_data().borrow();
                 Ok(b)
             } else {
-                Err(create_type_error(agent, "Object has no boolean value"))
+                Err(create_type_error("Object has no boolean value"))
             }
         }
-        _ => Err(create_type_error(agent, "Value is not boolean")),
+        _ => Err(create_type_error("Value is not boolean")),
     }
 }
 

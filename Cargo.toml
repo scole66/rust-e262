@@ -1,4 +1,4 @@
-cargo-features = ["profile-rustflags"]
+#cargo-features = ["profile-rustflags"]
 
 [package]
 name = "res"
@@ -12,19 +12,29 @@ edition = "2021"
 cc = "1.0"
 
 [dependencies]
-num = "0.3"
+num = { version = "0.4", features = ["num-bigint"] }
 libc = "0.2"
 itertools = "0.10.0"
-#lasso = "0.5.0"
 ahash = "0.7.2"
 lazy_static = "1.4.0"
 regex = "1"
 uid = "0.1.5"
 counter = "0.5.3"
+anyhow = "1.0.56"
+num_enum = "0.5.7"
+bimap = "0.6.2"
+non-empty-vec = "0.2.3"
+genawaiter = "0.99.1"
+futures = "0.3.28"
+yaml-rust = "0.4.5"
+color-eyre = "0.6.2"
 
 [dev-dependencies]
 test-case = "2.0"
 
 [profile.coverage]
 inherits = "dev"
-rustflags = [ "-Cinstrument-coverage" ]
+#rustflags = [ "-Cinstrument-coverage" ]
+
+[profile.bacon]
+inherits = "dev"

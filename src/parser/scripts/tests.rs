@@ -1,21 +1,75 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::scanner::StringDelimiter;
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 const UNDEF_BREAK: &str = "undefined break target detected";
 
+mod var_scope_decl {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    fn from_hoistable(part: HoistableDeclPart) -> String {
+        VarScopeDecl::from(part).to_string()
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    fn display(part: VarScopeDecl) -> String {
+        part.to_string()
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    fn string_from(part: VarScopeDecl) -> String {
+        String::from(&part)
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
+    fn debug(part: VarScopeDecl) -> String {
+        format!("{:?}", part)
+    }
+
+    #[test]
+    fn clone() {
+        let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
+        let copy = vsd.clone();
+        assert_eq!(vsd.to_string(), copy.to_string());
+    }
+}
+
 // SCRIPT
 #[test]
 fn script_test_01() {
-    let (node, scanner) = check(Script::parse(&mut newparser("let a=1; /* a bunch more text */\n/* even new lines */"), Scanner::new()));
+    let (node, scanner) =
+        check(Script::parse(&mut newparser("let a=1; /* a bunch more text */\n/* even new lines */"), Scanner::new()));
     assert_eq!(scanner.line, 2);
     assert_eq!(scanner.column, 21);
     assert_eq!(scanner.start_idx, 53);
     pretty_check(&*node, "Script: let a = 1 ;", vec!["ScriptBody: let a = 1 ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a = 1 ;", vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: let a = 1 ;",
+        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -71,22 +125,54 @@ fn script_test_contains_03() {
     assert_eq!(item.contains(ParseNodeKind::ScriptBody), true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+
 mod script {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("" => set(&[]); "emptyness")]
-    #[test_case("0;" => set(&[]); "Statement")]
-    #[test_case("'use strict'; package;" => set(&[PACKAGE_NOT_ALLOWED]); "strict expression")]
-    #[test_case("package;" => set(&[]); "non-strict")]
-    #[test_case("let x; const x=10;" => set(&[DUPLICATE_LEXICAL]); "lex duplicated")]
-    #[test_case("let x; var x=10;" => set(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
-    #[test_case("break a;" => set(&[UNDEF_BREAK]); "undefined break target")]
+    #[test_case("" => sset(&[]); "emptyness")]
+    #[test_case("0;" => sset(&[]); "Statement")]
+    #[test_case("'use strict'; package;" => sset(&[PACKAGE_NOT_ALLOWED]); "strict expression")]
+    #[test_case("package;" => sset(&[]); "non-strict")]
+    #[test_case("let x; const x=10;" => sset(&[DUPLICATE_LEXICAL]); "lex duplicated")]
+    #[test_case("let x; var x=10;" => sset(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
+    #[test_case("break a;" => sset(&[UNDEF_BREAK]); "undefined break target")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("let a; const pi=3; var alice; function bob(){}" => svec(&["a", "pi"]); "statement list")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("let a; const pi=3; var alice; function bob(){}" => svec(&["alice", "bob"]); "statement list")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("var a; function b(){} class q{} const h=0;" => svec(&["class q { }", "const h = 0 ;"]); "statement list")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("56;" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }; "no whitespace")]
+    #[test_case("// startup\n99;\n// tail\n" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 23 } }; "multiline; leading & trailing ws")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).script().location()
     }
 }
 
@@ -96,7 +182,11 @@ fn script_body_test_01() {
     let (node, scanner) = check(ScriptBody::parse(&mut newparser("let a=1;"), Scanner::new()));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ScriptBody: let a = 1 ;", vec!["StatementList: let a = 1 ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a = 1 ;", vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: let a = 1 ;",
+        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -128,7 +218,11 @@ fn script_body_test_contains_02() {
 
 #[test]
 fn script_body_test_directive_prologue_01() {
-    let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
+    let (item, _) = ScriptBody::parse(
+        &mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"),
+        Scanner::new(),
+    )
+    .unwrap();
 
     let dp = item.directive_prologue();
     assert_eq!(
@@ -137,7 +231,11 @@ fn script_body_test_directive_prologue_01() {
             StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Single, raw: None },
             StringToken { value: JSString::from("green"), delimiter: StringDelimiter::Single, raw: None },
             StringToken { value: JSString::from("orange"), delimiter: StringDelimiter::Single, raw: None },
-            StringToken { value: JSString::from("use strict"), delimiter: StringDelimiter::Single, raw: Some(String::from("use\\x20strict")) }
+            StringToken {
+                value: JSString::from("use strict"),
+                delimiter: StringDelimiter::Single,
+                raw: Some(String::from("use\\x20strict"))
+            }
         ]
     );
 }
@@ -170,19 +268,44 @@ mod script_body {
     const NEWTARG_DISALLOWED: &str = "`new.target` not allowed in top-level code";
     const DUPLICATE_LABELS: &str = "duplicate labels detected";
 
-    #[test_case("super();", false => set(&[SUPER_DISALLOWED]); "disallowed super")]
-    #[test_case("super();", true => set(&[]); "allowed super")]
-    #[test_case("new.target;", false => set(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
-    #[test_case("new.target;", true => set(&[]); "allowed new.target")]
-    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
-    #[test_case(";", false => set(&[]); "empty stmt")]
-    #[test_case("t:{t:;}", false => set(&[DUPLICATE_LABELS]); "duplicate labels")]
-    #[test_case("continue bob;", false => set(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
-    #[test_case("a.#mystery;", false => set(&["invalid private identifier detected"]); "invalid private id")]
+    #[test_case("super();", false => sset(&[SUPER_DISALLOWED]); "disallowed super")]
+    #[test_case("super();", true => sset(&[]); "allowed super")]
+    #[test_case("new.target;", false => sset(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
+    #[test_case("new.target;", true => sset(&[]); "allowed new.target")]
+    #[test_case("break a;", false => sset(&[UNDEF_BREAK]); "undefined break")]
+    #[test_case(";", false => sset(&[]); "empty stmt")]
+    #[test_case("t:{t:;}", false => sset(&[DUPLICATE_LABELS]); "duplicate labels")]
+    #[test_case("continue bob;", false => sset(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
+    #[test_case("a.#mystery;", false => sset(&["invalid private identifier detected"]); "invalid private id")]
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("class q{}" => svec(&["class q { }"]); "statements")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("/* header comment */\n    function a(){}\n    a();\n/* And that's all she wrote! */\n" => Location { starting_line: 2, starting_column: 5, span:Span { starting_index: 25, length: 23} }; "leading/trailing ws")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).script_body().location()
+    }
+
+    #[test_case("var a; const q=1; function b(){}" => svec(&["a", "b"]); "names")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 }

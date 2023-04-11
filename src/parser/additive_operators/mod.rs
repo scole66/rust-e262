@@ -1,11 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::multiplicative_operators::MultiplicativeExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // AdditiveExpression[Yield, Await] :
 //      MultiplicativeExpression[?Yield, ?Await]
@@ -21,7 +17,9 @@ pub enum AdditiveExpression {
 impl fmt::Display for AdditiveExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            AdditiveExpression::MultiplicativeExpression(boxed) => write!(f, "{}", boxed),
+            AdditiveExpression::MultiplicativeExpression(boxed) => {
+                write!(f, "{}", boxed)
+            }
             AdditiveExpression::Add(ae, me) => {
                 write!(f, "{} + {}", ae, me)
             }
@@ -40,7 +38,9 @@ impl PrettyPrint for AdditiveExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AdditiveExpression: {}", first, self)?;
         match &self {
-            AdditiveExpression::MultiplicativeExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AdditiveExpression::MultiplicativeExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => {
                 ae.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 me.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -83,9 +83,16 @@ impl AdditiveExpression {
         let (me, after_me) = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(AdditiveExpression::MultiplicativeExpression(me));
         let mut current_scanner = after_me;
-        while let Ok((punct, me, after_me)) = scan_for_punct_set(current_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Plus, Punctuator::Minus])
-            .and_then(|(token, after_op)| MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag).map(|(node, after_node)| (token, node, after_node)))
-        {
+        while let Ok((punct, me, after_me)) = scan_for_punct_set(
+            current_scanner,
+            parser.source,
+            ScanGoal::InputElementDiv,
+            &[Punctuator::Plus, Punctuator::Minus],
+        )
+        .and_then(|(token, _, after_op)| {
+            MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag)
+                .map(|(node, after_node)| (token, node, after_node))
+        }) {
             current = Rc::new(match punct {
                 Punctuator::Plus => AdditiveExpression::Add(current, me),
                 _ => AdditiveExpression::Subtract(current, me),
@@ -93,6 +100,15 @@ impl AdditiveExpression {
             current_scanner = after_me;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(exp) => exp.location(),
+            AdditiveExpression::Add(left, right) | AdditiveExpression::Subtract(left, right) => {
+                left.location().merge(&right.location())
+            }
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -119,8 +135,12 @@ impl AdditiveExpression {
         //  2. Return true.
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.all_private_identifiers_valid(names),
-            AdditiveExpression::Add(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            AdditiveExpression::Subtract(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            AdditiveExpression::Add(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            AdditiveExpression::Subtract(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -137,16 +157,18 @@ impl AdditiveExpression {
         //  2. Return false.
         match self {
             AdditiveExpression::MultiplicativeExpression(me) => me.contains_arguments(),
-            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => ae.contains_arguments() || me.contains_arguments(),
+            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => {
+                ae.contains_arguments() || me.contains_arguments()
+            }
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(agent, errs, strict),
+            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(errs, strict),
             AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => {
-                l.early_errors(agent, errs, strict);
-                r.early_errors(agent, errs, strict);
+                l.early_errors(errs, strict);
+                r.early_errors(errs, strict);
             }
         }
     }
@@ -165,6 +187,13 @@ impl AdditiveExpression {
         match self {
             AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
             AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(strict),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

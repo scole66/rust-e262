@@ -1,15 +1,7 @@
+use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::arrow_function_definitions::ArrowFunction;
-use super::async_arrow_function_definitions::AsyncArrowFunction;
-use super::conditional_operator::ConditionalExpression;
-use super::generator_function_definitions::YieldExpression;
-use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // AssignmentExpression[In, Yield, Await] :
 //      ConditionalExpression[?In, ?Yield, ?Await]
@@ -42,12 +34,24 @@ impl fmt::Display for AssignmentExpression {
             AssignmentExpression::Yield(node) => node.fmt(f),
             AssignmentExpression::Arrow(node) => node.fmt(f),
             AssignmentExpression::AsyncArrow(node) => node.fmt(f),
-            AssignmentExpression::Assignment(left, right) => write!(f, "{} = {}", left, right),
-            AssignmentExpression::OpAssignment(left, op, right) => write!(f, "{} {} {}", left, op, right),
-            AssignmentExpression::LandAssignment(left, right) => write!(f, "{} &&= {}", left, right),
-            AssignmentExpression::LorAssignment(left, right) => write!(f, "{} ||= {}", left, right),
-            AssignmentExpression::CoalAssignment(left, right) => write!(f, "{} ??= {}", left, right),
-            AssignmentExpression::Destructuring(left, right) => write!(f, "{} = {}", left, right),
+            AssignmentExpression::Assignment(left, right) => {
+                write!(f, "{} = {}", left, right)
+            }
+            AssignmentExpression::OpAssignment(left, op, right) => {
+                write!(f, "{} {} {}", left, op, right)
+            }
+            AssignmentExpression::LandAssignment(left, right) => {
+                write!(f, "{} &&= {}", left, right)
+            }
+            AssignmentExpression::LorAssignment(left, right) => {
+                write!(f, "{} ||= {}", left, right)
+            }
+            AssignmentExpression::CoalAssignment(left, right) => {
+                write!(f, "{} ??= {}", left, right)
+            }
+            AssignmentExpression::Destructuring(left, right) => {
+                write!(f, "{} = {}", left, right)
+            }
         }
     }
 }
@@ -149,16 +153,27 @@ impl IsFunctionDefinition for AssignmentExpression {
 }
 
 impl AssignmentExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let result = Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), scanner))
             .otherwise(|| {
                 if yield_flag {
-                    YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield, Scanner::new()))
+                    YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| {
+                        (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield, Scanner::new())
+                    })
                 } else {
                     Err(ParseError::new(PECode::Generic, scanner))
                 }
             })
-            .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Rc::new(AssignmentExpression::Arrow(af)), after_af, Scanner::new())))
+            .otherwise(|| {
+                ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag)
+                    .map(|(af, after_af)| (Rc::new(AssignmentExpression::Arrow(af)), after_af, Scanner::new()))
+            })
             .otherwise(|| {
                 AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag)
                     .map(|(aaf, after_aaf)| (Rc::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf, Scanner::new()))
@@ -188,31 +203,55 @@ impl AssignmentExpression {
                             Punctuator::CaretEq,
                         ],
                     )
-                    .and_then(|(op, after_op)| {
+                    .and_then(|(op, _, after_op)| {
                         let make_ae = match op {
                             Punctuator::Eq => AssignmentExpression::Assignment,
                             Punctuator::AmpAmpEq => AssignmentExpression::LandAssignment,
                             Punctuator::PipePipeEq => AssignmentExpression::LorAssignment,
                             Punctuator::QQEq => AssignmentExpression::CoalAssignment,
-                            Punctuator::StarEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Multiply, ae),
-                            Punctuator::SlashEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Divide, ae),
-                            Punctuator::PercentEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Modulo, ae),
-                            Punctuator::PlusEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Add, ae),
-                            Punctuator::MinusEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Subtract, ae),
-                            Punctuator::LtLtEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::LeftShift, ae),
-                            Punctuator::GtGtEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::SignedRightShift, ae),
-                            Punctuator::GtGtGtEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::UnsignedRightShift, ae),
-                            Punctuator::AmpEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseAnd, ae),
-                            Punctuator::PipeEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseOr, ae),
-                            Punctuator::StarStarEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae),
+                            Punctuator::StarEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Multiply, ae)
+                            }
+                            Punctuator::SlashEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Divide, ae)
+                            }
+                            Punctuator::PercentEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Modulo, ae)
+                            }
+                            Punctuator::PlusEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Add, ae)
+                            }
+                            Punctuator::MinusEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Subtract, ae)
+                            }
+                            Punctuator::LtLtEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::LeftShift, ae)
+                            }
+                            Punctuator::GtGtEq => |lhs, ae| {
+                                AssignmentExpression::OpAssignment(lhs, AssignmentOperator::SignedRightShift, ae)
+                            },
+                            Punctuator::GtGtGtEq => |lhs, ae| {
+                                AssignmentExpression::OpAssignment(lhs, AssignmentOperator::UnsignedRightShift, ae)
+                            },
+                            Punctuator::AmpEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseAnd, ae)
+                            }
+                            Punctuator::PipeEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseOr, ae)
+                            }
+                            Punctuator::StarStarEq => {
+                                |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae)
+                            }
                             _ => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae),
                         };
-                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag).map(|(ae, after_ae)| (Rc::new(make_ae(lhs, ae)), after_ae, after_lhs))
+                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)
+                            .map(|(ae, after_ae)| (Rc::new(make_ae(lhs, ae)), after_ae, after_lhs))
                     })
                 })
             })
             .otherwise(|| {
-                ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ce, after_ce)| (Rc::new(AssignmentExpression::FallThru(ce)), after_ce, Scanner::new()))
+                ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)
+                    .map(|(ce, after_ce)| (Rc::new(AssignmentExpression::FallThru(ce)), after_ce, Scanner::new()))
             })?;
 
         if let AssignmentExpression::Assignment(lhs, ae) = &*result.0 {
@@ -231,7 +270,13 @@ impl AssignmentExpression {
         Ok((result.0, result.1))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.assignment_expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -243,6 +288,21 @@ impl AssignmentExpression {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            AssignmentExpression::FallThru(exp) => exp.location(),
+            AssignmentExpression::Yield(exp) => exp.location(),
+            AssignmentExpression::Arrow(exp) => exp.location(),
+            AssignmentExpression::AsyncArrow(exp) => exp.location(),
+            AssignmentExpression::Assignment(lhs, ae)
+            | AssignmentExpression::OpAssignment(lhs, _, ae)
+            | AssignmentExpression::LandAssignment(lhs, ae)
+            | AssignmentExpression::LorAssignment(lhs, ae)
+            | AssignmentExpression::CoalAssignment(lhs, ae) => lhs.location().merge(&ae.location()),
+            AssignmentExpression::Destructuring(destructure, ae) => destructure.location().merge(&ae.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AssignmentExpression::FallThru(node) => kind == ParseNodeKind::ConditionalExpression || node.contains(kind),
@@ -250,25 +310,40 @@ impl AssignmentExpression {
             AssignmentExpression::Arrow(node) => kind == ParseNodeKind::ArrowFunction || node.contains(kind),
             AssignmentExpression::AsyncArrow(node) => kind == ParseNodeKind::AsyncArrowFunction || node.contains(kind),
             AssignmentExpression::Assignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
             }
             AssignmentExpression::OpAssignment(left, op, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentOperator, ParseNodeKind::AssignmentExpression].contains(&kind)
+                [
+                    ParseNodeKind::LeftHandSideExpression,
+                    ParseNodeKind::AssignmentOperator,
+                    ParseNodeKind::AssignmentExpression,
+                ]
+                .contains(&kind)
                     || left.contains(kind)
                     || op.contains(kind)
                     || right.contains(kind)
             }
             AssignmentExpression::LandAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
             }
             AssignmentExpression::LorAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
             }
             AssignmentExpression::CoalAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
-                [ParseNodeKind::AssignmentPattern, ParseNodeKind::AssignmentExpression].contains(&kind) || pat.contains(kind) || exp.contains(kind)
+                [ParseNodeKind::AssignmentPattern, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || pat.contains(kind)
+                    || exp.contains(kind)
             }
         }
     }
@@ -292,12 +367,24 @@ impl AssignmentExpression {
             AssignmentExpression::Yield(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
-            AssignmentExpression::Assignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::OpAssignment(left, _, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::LandAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::LorAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::CoalAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::Destructuring(pat, exp) => pat.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            AssignmentExpression::Assignment(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            AssignmentExpression::OpAssignment(left, _, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            AssignmentExpression::LandAssignment(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            AssignmentExpression::LorAssignment(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            AssignmentExpression::CoalAssignment(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            AssignmentExpression::Destructuring(pat, exp) => {
+                pat.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -326,7 +413,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentExpression :
         // LeftHandSideExpression AssignmentOperator AssignmentExpression
@@ -335,10 +422,10 @@ impl AssignmentExpression {
         // LeftHandSideExpression ??= AssignmentExpression
         // It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
         match self {
-            AssignmentExpression::FallThru(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::Yield(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::Arrow(node) => node.early_errors(agent, errs, strict),
-            AssignmentExpression::AsyncArrow(node) => node.early_errors(agent, errs, strict),
+            AssignmentExpression::FallThru(node) => node.early_errors(errs, strict),
+            AssignmentExpression::Yield(node) => node.early_errors(errs, strict),
+            AssignmentExpression::Arrow(node) => node.early_errors(errs, strict),
+            AssignmentExpression::AsyncArrow(node) => node.early_errors(errs, strict),
             AssignmentExpression::Assignment(left, right)
             | AssignmentExpression::OpAssignment(left, _, right)
             | AssignmentExpression::LandAssignment(left, right)
@@ -353,14 +440,17 @@ impl AssignmentExpression {
                 //
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
                 if left.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
+                    errs.push(create_syntax_error_object(
+                        "Invalid left-hand side in assignment",
+                        Some(left.location()),
+                    ));
                 }
-                left.early_errors(agent, errs, strict);
-                right.early_errors(agent, errs, strict);
+                left.early_errors(errs, strict);
+                right.early_errors(errs, strict);
             }
             AssignmentExpression::Destructuring(pat, exp) => {
-                pat.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+                pat.early_errors(errs, strict);
+                exp.early_errors(errs, strict);
             }
         }
     }
@@ -387,6 +477,50 @@ impl AssignmentExpression {
             | AssignmentExpression::CoalAssignment(_, _)
             | AssignmentExpression::Destructuring(..) => ATTKind::Invalid,
             AssignmentExpression::FallThru(node) => node.assignment_target_type(strict),
+        }
+    }
+
+    /// Determine if this parse node is an anonymous function
+    ///
+    /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
+    pub fn is_anonymous_function_definition(&self) -> bool {
+        self.is_function_definition() && !self.is_named_function()
+    }
+
+    pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
+        match self.function_definition() {
+            Some(fd) if !fd.is_named_function() => Some(fd),
+            Some(_) | None => None,
+        }
+    }
+
+    pub fn function_definition(&self) -> Option<NameableProduction> {
+        match self {
+            AssignmentExpression::FallThru(node) => NameableProduction::try_from(node.clone()).ok(),
+            AssignmentExpression::Arrow(node) => Some(NameableProduction::Arrow(node.clone())),
+            AssignmentExpression::AsyncArrow(node) => Some(NameableProduction::AsyncArrow(node.clone())),
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Assignment(_, _)
+            | AssignmentExpression::OpAssignment(_, _, _)
+            | AssignmentExpression::LandAssignment(_, _)
+            | AssignmentExpression::LorAssignment(_, _)
+            | AssignmentExpression::CoalAssignment(_, _)
+            | AssignmentExpression::Destructuring(_, _) => None,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Assignment(..)
+            | AssignmentExpression::OpAssignment(..)
+            | AssignmentExpression::LandAssignment(..)
+            | AssignmentExpression::LorAssignment(..)
+            | AssignmentExpression::CoalAssignment(..)
+            | AssignmentExpression::Destructuring(..)
+            | AssignmentExpression::Arrow(..)
+            | AssignmentExpression::AsyncArrow(..) => false,
+            AssignmentExpression::FallThru(node) => node.is_named_function(),
         }
     }
 }
@@ -494,8 +628,21 @@ impl PrettyPrint for AssignmentPattern {
 impl AssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentPattern), scanner))
-            .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
-            .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
+            .otherwise(|| {
+                ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap))
+            })
+            .otherwise(|| {
+                ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap))
+            })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            AssignmentPattern::Object(pattern) => pattern.location(),
+            AssignmentPattern::Array(pattern) => pattern.location(),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -535,10 +682,10 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentPattern::Object(obj) => obj.early_errors(agent, errs, strict),
-            AssignmentPattern::Array(ary) => ary.early_errors(agent, errs, strict),
+            AssignmentPattern::Object(obj) => obj.early_errors(errs, strict),
+            AssignmentPattern::Array(ary) => ary.early_errors(errs, strict),
         }
     }
 }
@@ -557,20 +704,24 @@ impl AssignmentPattern {
 /// [1]: https://tc39.es/ecma262/#prod-ObjectAssignmentPattern
 #[derive(Debug)]
 pub enum ObjectAssignmentPattern {
-    Empty,
-    RestOnly(Rc<AssignmentRestProperty>),
-    ListOnly(Rc<AssignmentPropertyList>),
-    ListRest(Rc<AssignmentPropertyList>, Option<Rc<AssignmentRestProperty>>),
+    Empty { location: Location },
+    RestOnly { arp: Rc<AssignmentRestProperty>, location: Location },
+    ListOnly { apl: Rc<AssignmentPropertyList>, location: Location },
+    ListRest { apl: Rc<AssignmentPropertyList>, arp: Option<Rc<AssignmentRestProperty>>, location: Location },
 }
 
 impl fmt::Display for ObjectAssignmentPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ObjectAssignmentPattern::Empty => write!(f, "{{ }}"),
-            ObjectAssignmentPattern::RestOnly(arp) => write!(f, "{{ {} }}", arp),
-            ObjectAssignmentPattern::ListOnly(apl) => write!(f, "{{ {} }}", apl),
-            ObjectAssignmentPattern::ListRest(apl, None) => write!(f, "{{ {} , }}", apl),
-            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => write!(f, "{{ {} , {} }}", apl, arp),
+            ObjectAssignmentPattern::Empty { .. } => write!(f, "{{ }}"),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => write!(f, "{{ {} }}", arp),
+            ObjectAssignmentPattern::ListOnly { apl, .. } => write!(f, "{{ {} }}", apl),
+            ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => {
+                write!(f, "{{ {} , }}", apl)
+            }
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
+                write!(f, "{{ {} , {} }}", apl, arp)
+            }
         }
     }
 }
@@ -583,10 +734,13 @@ impl PrettyPrint for ObjectAssignmentPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
         match self {
-            ObjectAssignmentPattern::Empty => Ok(()),
-            ObjectAssignmentPattern::RestOnly(arp) => arp.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => {
+            ObjectAssignmentPattern::Empty { .. } => Ok(()),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => {
+                apl.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
                 apl.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 arp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -599,20 +753,16 @@ impl PrettyPrint for ObjectAssignmentPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        match self {
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, _) => {
-                apl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            }
-            _ => {}
+        if let ObjectAssignmentPattern::ListOnly { apl, .. } | ObjectAssignmentPattern::ListRest { apl, .. } = self {
+            apl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        if matches!(self, ObjectAssignmentPattern::ListRest(..)) {
+        if matches!(self, ObjectAssignmentPattern::ListRest { .. }) {
             pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         }
-        match self {
-            ObjectAssignmentPattern::RestOnly(arp) | ObjectAssignmentPattern::ListRest(_, Some(arp)) => {
-                arp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            }
-            _ => {}
+        if let ObjectAssignmentPattern::RestOnly { arp, .. }
+        | ObjectAssignmentPattern::ListRest { arp: Some(arp), .. } = self
+        {
+            arp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
@@ -620,40 +770,70 @@ impl PrettyPrint for ObjectAssignmentPattern {
 
 impl ObjectAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let (open_loc, after_brace) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, after_brace))
             .otherwise(|| {
                 let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(after_apl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBrace])?;
+                let (punct, punct_loc, after_punct) = scan_for_punct_set(
+                    after_apl,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::Comma, Punctuator::RightBrace],
+                )?;
                 match punct {
-                    Punctuator::RightBrace => Ok((Rc::new(ObjectAssignmentPattern::ListOnly(apl)), after_punct)),
+                    Punctuator::RightBrace => Ok((
+                        Rc::new(ObjectAssignmentPattern::ListOnly { apl, location: open_loc.merge(&punct_loc) }),
+                        after_punct,
+                    )),
                     _ => {
-                        let (arp, after_arp) = match AssignmentRestProperty::parse(parser, after_punct, yield_flag, await_flag) {
-                            Ok((node, scan)) => (Some(node), scan),
-                            Err(_) => (None, after_punct),
-                        };
-                        let after_close = scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                        Ok((Rc::new(ObjectAssignmentPattern::ListRest(apl, arp)), after_close))
+                        let (arp, after_arp) =
+                            match AssignmentRestProperty::parse(parser, after_punct, yield_flag, await_flag) {
+                                Ok((node, scan)) => (Some(node), scan),
+                                Err(_) => (None, after_punct),
+                            };
+                        let (rb_loc, after_close) = scan_for_punct(
+                            after_arp,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightBrace,
+                        )?;
+                        Ok((
+                            Rc::new(ObjectAssignmentPattern::ListRest { apl, arp, location: open_loc.merge(&rb_loc) }),
+                            after_close,
+                        ))
                     }
                 }
             })
             .otherwise(|| {
                 let (arp, after_arp) = AssignmentRestProperty::parse(parser, after_brace, yield_flag, await_flag)?;
-                let after_close = scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Rc::new(ObjectAssignmentPattern::RestOnly(arp)), after_close))
+                let (rb_loc, after_close) =
+                    scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Rc::new(ObjectAssignmentPattern::RestOnly { arp, location: open_loc.merge(&rb_loc) }), after_close))
             })
             .otherwise(|| {
-                let after_close = scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Rc::new(ObjectAssignmentPattern::Empty), after_close))
+                let (rb_loc, after_close) =
+                    scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Rc::new(ObjectAssignmentPattern::Empty { location: open_loc.merge(&rb_loc) }), after_close))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ObjectAssignmentPattern::Empty { location }
+            | ObjectAssignmentPattern::RestOnly { location, .. }
+            | ObjectAssignmentPattern::ListOnly { location, .. }
+            | ObjectAssignmentPattern::ListRest { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ObjectAssignmentPattern::Empty => false,
-            ObjectAssignmentPattern::RestOnly(arp) => arp.contains(kind),
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.contains(kind),
-            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => apl.contains(kind) || arp.contains(kind),
+            ObjectAssignmentPattern::Empty { .. } => false,
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.contains(kind),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.contains(kind),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => apl.contains(kind) || arp.contains(kind),
         }
     }
 
@@ -665,10 +845,13 @@ impl ObjectAssignmentPattern {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ObjectAssignmentPattern::Empty => true,
-            ObjectAssignmentPattern::RestOnly(arp) => arp.all_private_identifiers_valid(names),
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.all_private_identifiers_valid(names),
-            ObjectAssignmentPattern::ListRest(apl, Some(apr)) => apl.all_private_identifiers_valid(names) && apr.all_private_identifiers_valid(names),
+            ObjectAssignmentPattern::Empty { .. } => true,
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.all_private_identifiers_valid(names),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.all_private_identifiers_valid(names),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(apr), .. } => {
+                apl.all_private_identifiers_valid(names) && apr.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -684,21 +867,25 @@ impl ObjectAssignmentPattern {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ObjectAssignmentPattern::Empty => false,
-            ObjectAssignmentPattern::RestOnly(arp) => arp.contains_arguments(),
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.contains_arguments(),
-            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => apl.contains_arguments() || arp.contains_arguments(),
+            ObjectAssignmentPattern::Empty { .. } => false,
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.contains_arguments(),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.contains_arguments(),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
+                apl.contains_arguments() || arp.contains_arguments()
+            }
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ObjectAssignmentPattern::Empty => (),
-            ObjectAssignmentPattern::RestOnly(arp) => arp.early_errors(agent, errs, strict),
-            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.early_errors(agent, errs, strict),
-            ObjectAssignmentPattern::ListRest(apl, Some(apr)) => {
-                apl.early_errors(agent, errs, strict);
-                apr.early_errors(agent, errs, strict);
+            ObjectAssignmentPattern::Empty { .. } => (),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.early_errors(errs, strict),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.early_errors(errs, strict),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(apr), .. } => {
+                apl.early_errors(errs, strict);
+                apr.early_errors(errs, strict);
             }
         }
     }
@@ -710,23 +897,47 @@ impl ObjectAssignmentPattern {
 //      [ AssignmentElementList[?Yield, ?Await] , Elision_opt AssignmentRestElement[?Yield, ?Await]opt ]
 #[derive(Debug)]
 pub enum ArrayAssignmentPattern {
-    RestOnly(Option<Rc<Elisions>>, Option<Rc<AssignmentRestElement>>),
-    ListOnly(Rc<AssignmentElementList>),
-    ListRest(Rc<AssignmentElementList>, Option<Rc<Elisions>>, Option<Rc<AssignmentRestElement>>),
+    RestOnly {
+        elision: Option<Rc<Elisions>>,
+        are: Option<Rc<AssignmentRestElement>>,
+        location: Location,
+    },
+    ListOnly {
+        ael: Rc<AssignmentElementList>,
+        location: Location,
+    },
+    ListRest {
+        ael: Rc<AssignmentElementList>,
+        elision: Option<Rc<Elisions>>,
+        are: Option<Rc<AssignmentRestElement>>,
+        location: Location,
+    },
 }
 
 impl fmt::Display for ArrayAssignmentPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayAssignmentPattern::RestOnly(None, None) => write!(f, "[ ]"),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => write!(f, "[ {} ]", elisions),
-            ArrayAssignmentPattern::RestOnly(None, Some(are)) => write!(f, "[ {} ]", are),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => write!(f, "[ {} {} ]", elisions, are),
-            ArrayAssignmentPattern::ListOnly(ael) => write!(f, "[ {} ]", ael),
-            ArrayAssignmentPattern::ListRest(ael, None, None) => write!(f, "[ {} , ]", ael),
-            ArrayAssignmentPattern::ListRest(ael, Some(elisions), None) => write!(f, "[ {} , {} ]", ael, elisions),
-            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => write!(f, "[ {} , {} ]", ael, are),
-            ArrayAssignmentPattern::ListRest(ael, Some(elisions), Some(are)) => write!(f, "[ {} , {} {} ]", ael, elisions, are),
+            ArrayAssignmentPattern::RestOnly { elision: None, are: None, .. } => write!(f, "[ ]"),
+            ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: None, .. } => {
+                write!(f, "[ {} ]", elisions)
+            }
+            ArrayAssignmentPattern::RestOnly { elision: None, are: Some(are), .. } => {
+                write!(f, "[ {} ]", are)
+            }
+            ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: Some(are), .. } => {
+                write!(f, "[ {} {} ]", elisions, are)
+            }
+            ArrayAssignmentPattern::ListOnly { ael, .. } => write!(f, "[ {} ]", ael),
+            ArrayAssignmentPattern::ListRest { ael, elision: None, are: None, .. } => write!(f, "[ {} , ]", ael),
+            ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: None, .. } => {
+                write!(f, "[ {} , {} ]", ael, elisions)
+            }
+            ArrayAssignmentPattern::ListRest { ael, elision: None, are: Some(are), .. } => {
+                write!(f, "[ {} , {} ]", ael, are)
+            }
+            ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: Some(are), .. } => {
+                write!(f, "[ {} , {} {} ]", ael, elisions, are)
+            }
         }
     }
 }
@@ -739,23 +950,30 @@ impl PrettyPrint for ArrayAssignmentPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
         match self {
-            ArrayAssignmentPattern::RestOnly(None, None) => Ok(()),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => elisions.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayAssignmentPattern::RestOnly(None, Some(are)) => are.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => {
+            ArrayAssignmentPattern::RestOnly { elision: None, are: None, .. } => Ok(()),
+            ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: None, .. } => {
+                elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::RestOnly { elision: None, are: Some(are), .. } => {
+                are.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: Some(are), .. } => {
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 are.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, None, None) => ael.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayAssignmentPattern::ListRest(ael, Some(elisions), None) => {
+            ArrayAssignmentPattern::ListOnly { ael, .. }
+            | ArrayAssignmentPattern::ListRest { ael, elision: None, are: None, .. } => {
+                ael.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: None, .. } => {
                 ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => {
+            ArrayAssignmentPattern::ListRest { ael, elision: None, are: Some(are), .. } => {
                 ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 are.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayAssignmentPattern::ListRest(ael, Some(elisions), Some(are)) => {
+            ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: Some(are), .. } => {
                 ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 are.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -769,26 +987,21 @@ impl PrettyPrint for ArrayAssignmentPattern {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        match self {
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, ..) => {
-                ael.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            }
-            _ => {}
+        if let ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, .. } = self {
+            ael.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        if matches!(self, ArrayAssignmentPattern::ListRest(..)) {
+        if matches!(self, ArrayAssignmentPattern::ListRest { .. }) {
             pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         }
-        match self {
-            ArrayAssignmentPattern::RestOnly(Some(e), _) | ArrayAssignmentPattern::ListRest(_, Some(e), _) => {
-                e.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            }
-            _ => {}
+        if let ArrayAssignmentPattern::RestOnly { elision: Some(e), .. }
+        | ArrayAssignmentPattern::ListRest { elision: Some(e), .. } = self
+        {
+            e.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        match self {
-            ArrayAssignmentPattern::RestOnly(_, Some(are)) | ArrayAssignmentPattern::ListRest(_, _, Some(are)) => {
-                are.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            }
-            _ => {}
+        if let ArrayAssignmentPattern::RestOnly { are: Some(are), .. }
+        | ArrayAssignmentPattern::ListRest { are: Some(are), .. } = self
+        {
+            are.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
     }
@@ -796,47 +1009,79 @@ impl PrettyPrint for ArrayAssignmentPattern {
 
 impl ArrayAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+        let (open_loc, after_open) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new(PECode::ArrayAssignmentPatternEndFailure, after_open))
             .otherwise(|| {
-                let (el, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
+                let (ael, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
+                let (punct, punct_loc, after_punct) = scan_for_punct_set(
+                    after_el,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::Comma, Punctuator::RightBracket],
+                )?;
                 match punct {
-                    Punctuator::RightBracket => Ok((Rc::new(ArrayAssignmentPattern::ListOnly(el)), after_punct)),
+                    Punctuator::RightBracket => Ok((
+                        Rc::new({
+                            let location = open_loc.merge(&punct_loc);
+                            ArrayAssignmentPattern::ListOnly { ael, location }
+                        }),
+                        after_punct,
+                    )),
                     _ => {
-                        let (elisions, after_elisions) = match Elisions::parse(parser, after_punct) {
+                        let (elision, after_elisions) = match Elisions::parse(parser, after_punct) {
                             Ok((node, scan)) => (Some(node), scan),
                             Err(_) => (None, after_punct),
                         };
-                        let (are, after_are) = match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
-                            Ok((node, scan)) => (Some(node), scan),
-                            Err(_) => (None, after_elisions),
-                        };
-                        let after_close = scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
-                        Ok((Rc::new(ArrayAssignmentPattern::ListRest(el, elisions, are)), after_close))
+                        let (are, after_are) =
+                            match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                                Ok((node, scan)) => (Some(node), scan),
+                                Err(_) => (None, after_elisions),
+                            };
+                        let (close_loc, after_close) = scan_for_punct(
+                            after_are,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightBracket,
+                        )?;
+                        let location = open_loc.merge(&close_loc);
+                        Ok((Rc::new(ArrayAssignmentPattern::ListRest { ael, elision, are, location }), after_close))
                     }
                 }
             })
             .otherwise(|| {
-                let (elisions, after_elisions) = match Elisions::parse(parser, after_open) {
+                let (elision, after_elisions) = match Elisions::parse(parser, after_open) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_open),
                 };
-                let (are, after_are) = match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
-                    Ok((node, scan)) => (Some(node), scan),
-                    Err(_) => (None, after_elisions),
-                };
-                let after_close = scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
-                Ok((Rc::new(ArrayAssignmentPattern::RestOnly(elisions, are)), after_close))
+                let (are, after_are) =
+                    match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                        Ok((node, scan)) => (Some(node), scan),
+                        Err(_) => (None, after_elisions),
+                    };
+                let (close_loc, after_close) =
+                    scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                let location = open_loc.merge(&close_loc);
+                Ok((Rc::new(ArrayAssignmentPattern::RestOnly { elision, are, location }), after_close))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ArrayAssignmentPattern::RestOnly { location, .. }
+            | ArrayAssignmentPattern::ListOnly { location, .. }
+            | ArrayAssignmentPattern::ListRest { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayAssignmentPattern::RestOnly(_, None) => false,
-            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.contains(kind),
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.contains(kind),
-            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.contains(kind) || are.contains(kind),
+            ArrayAssignmentPattern::RestOnly { are: None, .. } => false,
+            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.contains(kind),
+            ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
+                ael.contains(kind)
+            }
+            ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => ael.contains(kind) || are.contains(kind),
         }
     }
 
@@ -848,10 +1093,14 @@ impl ArrayAssignmentPattern {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrayAssignmentPattern::RestOnly(_, None) => true,
-            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.all_private_identifiers_valid(names),
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.all_private_identifiers_valid(names),
-            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.all_private_identifiers_valid(names) && are.all_private_identifiers_valid(names),
+            ArrayAssignmentPattern::RestOnly { are: None, .. } => true,
+            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.all_private_identifiers_valid(names),
+            ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
+                ael.all_private_identifiers_valid(names)
+            }
+            ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
+                ael.all_private_identifiers_valid(names) && are.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -867,21 +1116,27 @@ impl ArrayAssignmentPattern {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ArrayAssignmentPattern::RestOnly(_, None) => false,
-            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.contains_arguments(),
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.contains_arguments(),
-            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.contains_arguments() || are.contains_arguments(),
+            ArrayAssignmentPattern::RestOnly { are: None, .. } => false,
+            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.contains_arguments(),
+            ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
+                ael.contains_arguments()
+            }
+            ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
+                ael.contains_arguments() || are.contains_arguments()
+            }
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrayAssignmentPattern::RestOnly(_, None) => (),
-            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.early_errors(agent, errs, strict),
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.early_errors(agent, errs, strict),
-            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => {
-                ael.early_errors(agent, errs, strict);
-                are.early_errors(agent, errs, strict);
+            ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
+            ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(errs, strict),
+            ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
+                ael.early_errors(errs, strict)
+            }
+            ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
+                ael.early_errors(errs, strict);
+                are.early_errors(errs, strict);
             }
         }
     }
@@ -920,7 +1175,7 @@ impl PrettyPrint for AssignmentRestProperty {
 
 impl AssignmentRestProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_dots = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
+        let (_, after_dots) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
         let (dat, after_dat) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestProperty(dat)), after_dat))
     }
@@ -953,15 +1208,18 @@ impl AssignmentRestProperty {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
-        if let DestructuringAssignmentTarget::AssignmentPattern(_) = &*self.0 {
+        if let DestructuringAssignmentTarget::AssignmentPattern(pat) = &*self.0 {
             // e.g.: ({...{a}}=b)
-            errs.push(create_syntax_error_object(agent, "`...` must be followed by an assignable reference in assignment contexts"));
+            errs.push(create_syntax_error_object(
+                "`...` must be followed by an assignable reference in assignment contexts",
+                Some(pat.location()),
+            ));
         }
-        self.0.early_errors(agent, errs, strict);
+        self.0.early_errors(errs, strict);
     }
 }
 
@@ -978,7 +1236,9 @@ impl fmt::Display for AssignmentPropertyList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AssignmentPropertyList::Item(item) => item.fmt(f),
-            AssignmentPropertyList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            AssignmentPropertyList::List(lst, item) => {
+                write!(f, "{} , {}", lst, item)
+            }
         }
     }
 }
@@ -1020,8 +1280,9 @@ impl AssignmentPropertyList {
         let (item, after_item) = AssignmentProperty::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(AssignmentPropertyList::Item(item));
         let mut current_scanner = after_item;
-        while let Ok((next_item, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag))
+        while let Ok((next_item, after_next)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|(_, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(AssignmentPropertyList::List(current_production, next_item));
             current_scanner = after_next;
@@ -1045,7 +1306,9 @@ impl AssignmentPropertyList {
         //  2. Return true.
         match self {
             AssignmentPropertyList::Item(item) => item.all_private_identifiers_valid(names),
-            AssignmentPropertyList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            AssignmentPropertyList::List(list, item) => {
+                list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1066,12 +1329,12 @@ impl AssignmentPropertyList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentPropertyList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentPropertyList::Item(item) => item.early_errors(errs, strict),
             AssignmentPropertyList::List(list, item) => {
-                list.early_errors(agent, errs, strict);
-                item.early_errors(agent, errs, strict);
+                list.early_errors(errs, strict);
+                item.early_errors(errs, strict);
             }
         }
     }
@@ -1090,7 +1353,9 @@ impl fmt::Display for AssignmentElementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AssignmentElementList::Item(item) => item.fmt(f),
-            AssignmentElementList::List(list, item) => write!(f, "{} , {}", list, item),
+            AssignmentElementList::List(list, item) => {
+                write!(f, "{} , {}", list, item)
+            }
         }
     }
 }
@@ -1132,8 +1397,10 @@ impl AssignmentElementList {
         let (item, after_item) = AssignmentElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(AssignmentElementList::Item(item));
         let mut current_scanner = after_item;
-        while let Ok((next_item, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag))
+        while let Ok((next_item, after_next)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                |(_, after_comma)| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag),
+            )
         {
             current_production = Rc::new(AssignmentElementList::List(current_production, next_item));
             current_scanner = after_next;
@@ -1157,7 +1424,9 @@ impl AssignmentElementList {
         //  2. Return true.
         match self {
             AssignmentElementList::Item(item) => item.all_private_identifiers_valid(names),
-            AssignmentElementList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            AssignmentElementList::List(list, item) => {
+                list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1178,12 +1447,12 @@ impl AssignmentElementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            AssignmentElementList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentElementList::Item(item) => item.early_errors(errs, strict),
             AssignmentElementList::List(list, item) => {
-                list.early_errors(agent, errs, strict);
-                item.early_errors(agent, errs, strict);
+                list.early_errors(errs, strict);
+                item.early_errors(errs, strict);
             }
         }
     }
@@ -1272,8 +1541,8 @@ impl AssignmentElisionElement {
         self.element.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(errs, strict);
     }
 }
 
@@ -1347,7 +1616,8 @@ impl AssignmentProperty {
         Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, scanner))
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                let (_, after_colon) =
+                    scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
                 Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
             })
@@ -1379,7 +1649,9 @@ impl AssignmentProperty {
         match self {
             AssignmentProperty::Ident(_, None) => true,
             AssignmentProperty::Ident(_, Some(init)) => init.all_private_identifiers_valid(names),
-            AssignmentProperty::Property(name, element) => name.all_private_identifiers_valid(names) && element.all_private_identifiers_valid(names),
+            AssignmentProperty::Property(name, element) => {
+                name.all_private_identifiers_valid(names) && element.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1401,7 +1673,7 @@ impl AssignmentProperty {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentProperty : IdentifierReference Initializeropt
         //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
@@ -1414,16 +1686,19 @@ impl AssignmentProperty {
                     // should have a different API for the "simple or not" query. Something like validate_simple_target
                     // that returns a Result<(), String>, where the error case is a description of why things aren't
                     // simple.
-                    errs.push(create_syntax_error_object(agent, format!("Identifier {} is an invalid left-hand-side", idref.string_value())));
+                    errs.push(create_syntax_error_object(
+                        format!("Identifier {} is an invalid left-hand-side", idref.string_value()),
+                        Some(idref.location()),
+                    ));
                 }
-                idref.early_errors(agent, errs, strict);
+                idref.early_errors(errs, strict);
                 if let Some(i) = izer {
-                    i.early_errors(agent, errs, strict);
+                    i.early_errors(errs, strict);
                 }
             }
             AssignmentProperty::Property(pn, ae) => {
-                pn.early_errors(agent, errs, strict);
-                ae.early_errors(agent, errs, strict);
+                pn.early_errors(errs, strict);
+                ae.early_errors(errs, strict);
             }
         }
     }
@@ -1521,10 +1796,10 @@ impl AssignmentElement {
         self.target.contains_arguments() || self.initializer.as_ref().map_or(false, |izer| izer.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.target.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.target.early_errors(errs, strict);
         if let Some(izer) = &self.initializer {
-            izer.early_errors(agent, errs, strict);
+            izer.early_errors(errs, strict);
         }
     }
 }
@@ -1562,7 +1837,8 @@ impl PrettyPrint for AssignmentRestElement {
 
 impl AssignmentRestElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_dots = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (_, after_dots) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (target, after_target) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestElement(target)), after_target))
     }
@@ -1595,8 +1871,8 @@ impl AssignmentRestElement {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(agent, errs, strict);
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(errs, strict);
     }
 }
 
@@ -1625,8 +1901,12 @@ impl PrettyPrint for DestructuringAssignmentTarget {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}DestructuringAssignmentTarget: {}", first, self)?;
         match self {
-            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.pprint_with_leftpad(writer, &successive, Spot::Final),
-            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.pprint_with_leftpad(writer, &successive, Spot::Final),
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
+                lhs.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => {
+                pat.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1691,7 +1971,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // DestructuringAssignmentTarget : LeftHandSideExpression
         //  * If LeftHandSideExpression is an ObjectLiteral or an ArrayLiteral, the following Early Error rules are applied:
@@ -1699,12 +1979,12 @@ impl DestructuringAssignmentTarget {
         //  * If LeftHandSideExpression is neither an ObjectLiteral nor an ArrayLiteral, the following Early Error rule is applied:
         //      * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
         match self {
-            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(agent, errs, strict),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(errs, strict),
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
                 if lhs.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
+                    errs.push(create_syntax_error_object("Invalid left-hand side in assignment", Some(lhs.location())));
                 }
-                lhs.early_errors(agent, errs, strict);
+                lhs.early_errors(errs, strict);
             }
         }
     }

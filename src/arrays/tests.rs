@@ -1,6 +1,5 @@
 use super::*;
-use crate::object::{ordinary_object_create, set, Object, PropertyInfo, PropertyInfoKind};
-use crate::tests::{faux_errors, test_agent, unwind_any_error};
+use crate::tests::*;
 use test_case::test_case;
 
 mod array_object {
@@ -18,14 +17,14 @@ mod array_object {
         ]); "hundred length")]
         #[test_case(7294967295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
         fn normal(length: u64) -> Result<Vec<PropertyInfo>, String> {
-            let mut agent = test_agent();
+            setup_test_agent();
 
-            let result = ArrayObject::create(&mut agent, length, None);
+            let result = ArrayObject::create(length, None);
             match result {
-                Err(err) => Err(unwind_any_error(&mut agent, err)),
+                Err(err) => Err(unwind_any_error(err)),
                 Ok(obj) => {
-                    assert!(obj.is_array(&mut agent).unwrap());
-                    assert_eq!(obj.o.get_prototype_of(&mut agent).unwrap(), Some(agent.intrinsic(IntrinsicId::ArrayPrototype)));
+                    assert!(obj.is_array().unwrap());
+                    assert_eq!(obj.o.get_prototype_of().unwrap(), Some(intrinsic(IntrinsicId::ArrayPrototype)));
                     Ok(obj.o.common_object_data().borrow().propdump())
                 }
             }
@@ -33,71 +32,35 @@ mod array_object {
 
         #[test]
         fn proto_specified() {
-            let mut agent = test_agent();
-            let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            setup_test_agent();
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
 
-            let obj = ArrayObject::create(&mut agent, 600, Some(object_proto.clone())).unwrap();
-            assert!(obj.is_array(&mut agent).unwrap());
-            assert_eq!(obj.o.get_prototype_of(&mut agent).unwrap(), Some(object_proto));
+            let obj = ArrayObject::create(600, Some(object_proto.clone())).unwrap();
+            assert!(obj.is_array().unwrap());
+            assert_eq!(obj.o.get_prototype_of().unwrap(), Some(object_proto));
         }
     }
 
     #[test]
     fn debug() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
+        setup_test_agent();
+        let a = ArrayObject::create(0, None).unwrap();
         assert_ne!(format!("{:?}", a), "");
     }
 
-    #[test]
-    fn is_ordinary() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        assert_eq!(a.o.is_ordinary(), true);
+    fn make() -> Object {
+        let o = ArrayObject::create(0, None).unwrap();
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        o
     }
 
-    #[test]
-    fn get_prototype_of() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let a_proto = a.o.get_prototype_of(&mut agent).unwrap().unwrap();
-        assert_eq!(a_proto, agent.intrinsic(IntrinsicId::ArrayPrototype));
-    }
-
-    #[test]
-    fn set_prototype_of() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let success = a.o.set_prototype_of(&mut agent, Some(obj_proto.clone())).unwrap();
-        assert!(success);
-        assert_eq!(obj_proto, a.o.get_prototype_of(&mut agent).unwrap().unwrap());
-    }
-
-    #[test]
-    fn is_extensible() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        assert!(a.o.is_extensible(&mut agent).unwrap());
-    }
-    #[test]
-    fn prevent_extensions() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        assert!(a.o.prevent_extensions(&mut agent).unwrap());
-        assert!(!a.o.is_extensible(&mut agent).unwrap());
-    }
-    #[test]
-    fn get_own_property() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let desc: DataDescriptor = a.o.get_own_property(&mut agent, &"length".into()).unwrap().unwrap().try_into().unwrap();
-
-        assert_eq!(desc.configurable, false);
-        assert_eq!(desc.enumerable, false);
-        assert_eq!(desc.value, 0.0.into());
-        assert_eq!(desc.writable, true);
-    }
+    default_uses_ordinary_get_prototype_of_test!();
+    default_get_prototype_of_test!(ArrayPrototype);
+    default_set_prototype_of_test!();
+    default_is_extensible_test!();
+    default_prevent_extensions_test!();
+    default_get_own_property_test!();
 
     mod define_own_property {
         use super::*;
@@ -118,16 +81,27 @@ mod array_object {
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(1.0), writable: true}},
             PropertyInfo { name: PropertyKey::from("0"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from("zero"), writable: true}}
         ])); "zero")]
-        fn normal(key: &str, val: impl Into<ECMAScriptValue>, writable: bool, enumerable: bool, configurable: bool) -> Result<(bool, Vec<PropertyInfo>), String> {
-            let mut agent = test_agent();
-            let a = ArrayObject::create(&mut agent, 0, None).unwrap();
+        fn normal(
+            key: &str,
+            val: impl Into<ECMAScriptValue>,
+            writable: bool,
+            enumerable: bool,
+            configurable: bool,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
+            setup_test_agent();
+            let a = ArrayObject::create(0, None).unwrap();
             let result = a.o.define_own_property(
-                &mut agent,
                 key.into(),
-                PotentialPropertyDescriptor { value: Some(val.into()), writable: Some(writable), enumerable: Some(enumerable), configurable: Some(configurable), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(val.into()),
+                    writable: Some(writable),
+                    enumerable: Some(enumerable),
+                    configurable: Some(configurable),
+                    ..Default::default()
+                },
             );
             match result {
-                Err(err) => Err(unwind_any_error(&mut agent, err)),
+                Err(err) => Err(unwind_any_error(err)),
                 Ok(success) => Ok((success, a.o.common_object_data().borrow().propdump())),
             }
         }
@@ -139,40 +113,65 @@ mod array_object {
         #[test_case("900", true, true, true, true => Ok((false, vec![
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(100.0), writable: false}},
         ])); "attempted length change")]
-        fn read_only_length(key: &str, val: impl Into<ECMAScriptValue>, writable: bool, enumerable: bool, configurable: bool) -> Result<(bool, Vec<PropertyInfo>), String> {
-            let mut agent = test_agent();
-            let a = ArrayObject::create(&mut agent, 100, None).unwrap();
+        fn read_only_length(
+            key: &str,
+            val: impl Into<ECMAScriptValue>,
+            writable: bool,
+            enumerable: bool,
+            configurable: bool,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
+            setup_test_agent();
+            let a = ArrayObject::create(100, None).unwrap();
             // Make the length property read-only
-            a.o.define_own_property(&mut agent, "length".into(), PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            a.o.define_own_property(
+                "length".into(),
+                PotentialPropertyDescriptor { writable: Some(false), ..Default::default() },
+            )
+            .unwrap();
             // Exercise function under test
             let result = a.o.define_own_property(
-                &mut agent,
                 key.into(),
-                PotentialPropertyDescriptor { value: Some(val.into()), writable: Some(writable), enumerable: Some(enumerable), configurable: Some(configurable), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(val.into()),
+                    writable: Some(writable),
+                    enumerable: Some(enumerable),
+                    configurable: Some(configurable),
+                    ..Default::default()
+                },
             );
             match result {
-                Err(err) => Err(unwind_any_error(&mut agent, err)),
+                Err(err) => Err(unwind_any_error(err)),
                 Ok(success) => Ok((success, a.o.common_object_data().borrow().propdump())),
             }
         }
 
         #[test]
         fn read_only_elem() {
-            let mut agent = test_agent();
-            let a = ArrayObject::create(&mut agent, 100, None).unwrap();
+            setup_test_agent();
+            let a = ArrayObject::create(100, None).unwrap();
             // Make a read-only property with an array index
             a.o.define_own_property(
-                &mut agent,
                 "30".into(),
-                PotentialPropertyDescriptor { value: Some("blue".into()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some("blue".into()),
+                    writable: Some(false),
+                    enumerable: Some(true),
+                    configurable: Some(false),
+                    ..Default::default()
+                },
             )
             .unwrap();
             // Now exercise: try to overwrite that property
             let result =
                 a.o.define_own_property(
-                    &mut agent,
                     "30".into(),
-                    PotentialPropertyDescriptor { value: Some("green".into()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                    PotentialPropertyDescriptor {
+                        value: Some("green".into()),
+                        writable: Some(false),
+                        enumerable: Some(true),
+                        configurable: Some(false),
+                        ..Default::default()
+                    },
                 )
                 .unwrap();
 
@@ -197,103 +196,110 @@ mod array_object {
         }
     }
 
-    #[test]
-    fn has_property() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        assert!(a.o.has_property(&mut agent, &"length".into()).unwrap());
-    }
-    #[test]
-    fn get() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let receiver: ECMAScriptValue = a.clone().into();
-        let val = a.o.get(&mut agent, &"length".into(), &receiver).unwrap();
-        assert_eq!(val, 0.into());
-    }
+    default_has_property_test!();
+    default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
     #[test]
     fn set_() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
+        setup_test_agent();
+        let a = ArrayObject::create(0, None).unwrap();
         let receiver: ECMAScriptValue = a.clone().into();
-        let success = a.o.set(&mut agent, "length".into(), 100.into(), &receiver).unwrap();
+        let success = a.o.set("length".into(), 100.into(), &receiver).unwrap();
         assert!(success);
-        assert_eq!(a.o.get(&mut agent, &"length".into(), &receiver).unwrap(), 100.into());
+        assert_eq!(a.o.get(&"length".into(), &receiver).unwrap(), 100.into());
     }
-    #[test]
-    fn delete() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let success = a.o.delete(&mut agent, &"length".into()).unwrap();
-        assert!(!success);
-    }
+    default_delete_test!();
     #[test]
     fn own_property_keys() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let list = a.o.own_property_keys(&mut agent).unwrap();
+        setup_test_agent();
+        let a = ArrayObject::create(0, None).unwrap();
+        let list = a.o.own_property_keys().unwrap();
         assert_eq!(list, vec!["length".into()]);
     }
     #[test]
     fn is_array_object() {
-        let mut agent = test_agent();
-        let a = ArrayObject::create(&mut agent, 0, None).unwrap();
+        setup_test_agent();
+        let a = ArrayObject::create(0, None).unwrap();
         assert!(a.o.is_array_object());
     }
+    none_function!(to_symbol_obj);
+    false_function!(is_plain_object);
+    none_function!(to_string_obj);
+    none_function!(to_generator_object);
+    false_function!(is_generator_object);
+    none_function!(to_arguments_object);
+    false_function!(is_symbol_object);
 
     mod set_length {
         use super::*;
         use test_case::test_case;
 
-        fn value_just_once(agent: &mut Agent, this_value: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion {
+        fn value_just_once(
+            this_value: ECMAScriptValue,
+            _: Option<&Object>,
+            _: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
             // The value 320 the first time, errors thrown all other times.
             let this: Object = this_value.try_into().unwrap();
-            let previous = get(agent, &this, &"has_already_run".into()).unwrap();
+            let previous = get(&this, &"has_already_run".into()).unwrap();
             match previous {
                 ECMAScriptValue::Undefined => {
-                    set(agent, &this, "has_already_run".into(), true.into(), true).unwrap();
+                    set(&this, "has_already_run".into(), true.into(), true).unwrap();
                     Ok(320.0.into())
                 }
-                _ => Err(create_type_error(agent, "valueOf called too many times")),
+                _ => Err(create_type_error("valueOf called too many times")),
             }
         }
-        fn screwy_get_value(agent: &mut Agent) -> PotentialPropertyDescriptor {
-            let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
-            let obj = ordinary_object_create(agent, Some(object_proto), &[]);
-            let value_of = create_builtin_function(agent, value_just_once, false, 0.0, "valueOf".into(), &[], None, Some(function_proto), None);
+        fn screwy_get_value() -> PotentialPropertyDescriptor {
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+            let obj = ordinary_object_create(Some(object_proto), &[]);
+            let value_of = create_builtin_function(
+                value_just_once,
+                false,
+                0.0,
+                "valueOf".into(),
+                &[],
+                None,
+                Some(function_proto),
+                None,
+            );
             define_property_or_throw(
-                agent,
                 &obj,
                 "valueOf",
-                PotentialPropertyDescriptor { value: Some(value_of.into()), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(value_of.into()),
+                    writable: Some(false),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
             )
             .unwrap();
             PotentialPropertyDescriptor { value: Some(obj.into()), ..Default::default() }
         }
-        fn readonly(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn readonly() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }
         }
-        fn fraction(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn fraction() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(1.5.into()), ..Default::default() }
         }
-        fn symbol(a: &mut Agent) -> PotentialPropertyDescriptor {
-            let sym = a.wks(WksId::Species);
+        fn symbol() -> PotentialPropertyDescriptor {
+            let sym = wks(WksId::Species);
             PotentialPropertyDescriptor { value: Some(sym.into()), ..Default::default() }
         }
-        fn bigger(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn bigger() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(7000.into()), ..Default::default() }
         }
-        fn configurable_400(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn configurable_400() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(400.into()), configurable: Some(true), ..Default::default() }
         }
-        fn writable_700(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn writable_700() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(700.0.into()), writable: Some(true), ..Default::default() }
         }
-        fn readonly_0(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn readonly_0() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(0.into()), writable: Some(false), ..Default::default() }
         }
-        fn fifty(_: &mut Agent) -> PotentialPropertyDescriptor {
+        fn fifty() -> PotentialPropertyDescriptor {
             PotentialPropertyDescriptor { value: Some(50.0.into()), ..Default::default() }
         }
 
@@ -318,26 +324,31 @@ mod array_object {
                     kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(7000.0), writable: true },
                 }
             ])); "length increase")]
-        fn zero_elements(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
-            let mut agent = test_agent();
-            let aobj = ArrayObject::create(&mut agent, 0, None).unwrap();
+        fn zero_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+            setup_test_agent();
+            let aobj = ArrayObject::create(0, None).unwrap();
             let a = aobj.o.to_array_object().unwrap();
-            let desc = make_desc(&mut agent);
+            let desc = make_desc();
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
 
         #[test]
         fn readonly_length() {
-            let mut agent = test_agent();
-            let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
-            define_property_or_throw(&mut agent, &aobj, "length", PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            setup_test_agent();
+            let aobj = ArrayObject::create(9000, None).unwrap();
+            define_property_or_throw(
+                &aobj,
+                "length",
+                PotentialPropertyDescriptor { writable: Some(false), ..Default::default() },
+            )
+            .unwrap();
             let a = aobj.o.to_array_object().unwrap();
 
             let result = a
-                .set_length(&mut agent, PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() })
+                .set_length(PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() })
                 .map(|success| (success, a.common.borrow().propdump()))
-                .map_err(|err| unwind_any_error(&mut agent, err));
+                .map_err(unwind_any_error);
             assert_eq!(
                 result,
                 Ok((
@@ -412,16 +423,16 @@ mod array_object {
                 kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0), writable: false },
             },
         ])); "delete them all and lock")]
-        fn three_elements(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
-            let mut agent = test_agent();
-            let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
-            set(&mut agent, &aobj, "0".into(), "blue".into(), true).unwrap();
-            set(&mut agent, &aobj, "100".into(), "green".into(), true).unwrap();
-            set(&mut agent, &aobj, "500".into(), "red".into(), true).unwrap();
+        fn three_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+            setup_test_agent();
+            let aobj = ArrayObject::create(9000, None).unwrap();
+            set(&aobj, "0".into(), "blue".into(), true).unwrap();
+            set(&aobj, "100".into(), "green".into(), true).unwrap();
+            set(&aobj, "500".into(), "red".into(), true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
-            let desc = make_desc(&mut agent);
+            let desc = make_desc();
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
 
         #[test_case(fifty => Ok((false, vec![
@@ -464,104 +475,133 @@ mod array_object {
                 kind: PropertyInfoKind::Data { value: ECMAScriptValue::from("green"), writable: true },
             },
         ])); "abort then freeze")]
-        fn frozen_middle(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
-            let mut agent = test_agent();
-            let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
-            set(&mut agent, &aobj, "0".into(), "blue".into(), true).unwrap();
+        fn frozen_middle(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+            setup_test_agent();
+            let aobj = ArrayObject::create(9000, None).unwrap();
+            set(&aobj, "0".into(), "blue".into(), true).unwrap();
             define_property_or_throw(
-                &mut agent,
                 &aobj,
                 "100",
-                PotentialPropertyDescriptor { value: Some("green".into()), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some("green".into()),
+                    writable: Some(true),
+                    enumerable: Some(true),
+                    configurable: Some(false),
+                    ..Default::default()
+                },
             )
             .unwrap();
-            set(&mut agent, &aobj, "500".into(), "red".into(), true).unwrap();
+            set(&aobj, "500".into(), "red".into(), true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
-            let desc = make_desc(&mut agent);
+            let desc = make_desc();
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
         }
     }
 }
 
 #[test]
 fn array_create() {
-    let mut agent = test_agent();
-    let array_proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-    let custom_proto = ordinary_object_create(&mut agent, Some(array_proto), &[]);
-    let aobj = super::array_create(&mut agent, 231, Some(custom_proto.clone())).unwrap();
-    assert_eq!(aobj.o.get_prototype_of(&mut agent).unwrap(), Some(custom_proto));
-    assert_eq!(get(&mut agent, &aobj, &"length".into()).unwrap(), ECMAScriptValue::from(231.0));
-    assert!(aobj.is_array(&mut agent).unwrap())
+    setup_test_agent();
+    let array_proto = intrinsic(IntrinsicId::ArrayPrototype);
+    let custom_proto = ordinary_object_create(Some(array_proto), &[]);
+    let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
+    assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
+    assert_eq!(get(&aobj, &"length".into()).unwrap(), ECMAScriptValue::from(231.0));
+    assert!(aobj.is_array().unwrap())
 }
 
-fn make_ordinary_object(agent: &mut Agent) -> ECMAScriptValue {
-    let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    ordinary_object_create(agent, Some(proto), &[]).into()
+fn make_ordinary_object() -> ECMAScriptValue {
+    let proto = intrinsic(IntrinsicId::ObjectPrototype);
+    ordinary_object_create(Some(proto), &[]).into()
 }
-fn make_array_object(agent: &mut Agent) -> ECMAScriptValue {
-    super::array_create(agent, 10, None).unwrap().into()
+fn make_array_object() -> ECMAScriptValue {
+    super::array_create(10, None).unwrap().into()
 }
 #[test_case(make_ordinary_object => Ok(false); "ordinary object")]
 #[test_case(make_array_object => Ok(true); "array object")]
-#[test_case(|_| ECMAScriptValue::Undefined => Ok(false); "undefined")]
-#[test_case(|_| ECMAScriptValue::Null => Ok(false); "null")]
-#[test_case(|_| ECMAScriptValue::from(true) => Ok(false); "boolean")]
-#[test_case(|_| ECMAScriptValue::from(33.2) => Ok(false); "number")]
-fn is_array(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<bool, String> {
-    let mut agent = test_agent();
-    let arg = make_arg(&mut agent);
+#[test_case(|| ECMAScriptValue::Undefined => Ok(false); "undefined")]
+#[test_case(|| ECMAScriptValue::Null => Ok(false); "null")]
+#[test_case(|| ECMAScriptValue::from(true) => Ok(false); "boolean")]
+#[test_case(|| ECMAScriptValue::from(33.2) => Ok(false); "number")]
+fn is_array(make_arg: fn() -> ECMAScriptValue) -> Result<bool, String> {
+    setup_test_agent();
+    let arg = make_arg();
 
-    super::is_array(&mut agent, &arg).map_err(|err| unwind_any_error(&mut agent, err))
+    super::is_array(&arg).map_err(unwind_any_error)
 }
 
 mod array_species_create {
     use super::*;
     use test_case::test_case;
 
-    fn make_ordinary(agent: &mut Agent) -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        ordinary_object_create(agent, Some(proto), &[])
+    fn make_ordinary() -> Object {
+        let proto = intrinsic(IntrinsicId::ObjectPrototype);
+        ordinary_object_create(Some(proto), &[])
     }
 
-    fn make_throwing_constructor_prop(agent: &mut Agent) -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-        let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
-        let obj = super::super::array_create(agent, 0, Some(proto)).unwrap();
-        let constructor_getter = create_builtin_function(agent, faux_errors, false, 0.0, "constructor".into(), &[], None, Some(function_proto), Some("get".into()));
+    fn make_throwing_constructor_prop() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+        let obj = super::super::array_create(0, Some(proto)).unwrap();
+        let constructor_getter = create_builtin_function(
+            faux_errors,
+            false,
+            0.0,
+            "constructor".into(),
+            &[],
+            None,
+            Some(function_proto),
+            Some("get".into()),
+        );
         define_property_or_throw(
-            agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { get: Some(constructor_getter.into()), set: None, enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                get: Some(constructor_getter.into()),
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
     }
-    fn make_undefined_constructor_prop(agent: &mut Agent) -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-        let obj = super::super::array_create(agent, 0, Some(proto)).unwrap();
+    fn make_undefined_constructor_prop() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let obj = super::super::array_create(0, Some(proto)).unwrap();
         define_property_or_throw(
-            agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::Undefined),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
     }
-    fn make_plain_array(agent: &mut Agent) -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-        super::super::array_create(agent, 5, Some(proto)).unwrap()
+    fn make_plain_array() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        super::super::array_create(5, Some(proto)).unwrap()
     }
-    fn make_primitive_constructor_prop(agent: &mut Agent) -> Object {
-        let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
-        let obj = super::super::array_create(agent, 0, Some(proto)).unwrap();
+    fn make_primitive_constructor_prop() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let obj = super::super::array_create(0, Some(proto)).unwrap();
         define_property_or_throw(
-            agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(false)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(false)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
@@ -595,12 +635,12 @@ mod array_species_create {
         },
     ]); "plain array")]
     #[test_case(make_primitive_constructor_prop, 10 => Err("TypeError: Array species constructor invalid".to_string()); "primitive in constructor")]
-    fn f(make_original: fn(&mut Agent) -> Object, length: u64) -> Result<Vec<PropertyInfo>, String> {
-        let mut agent = test_agent();
-        let original = make_original(&mut agent);
-        array_species_create(&mut agent, &original, length)
+    fn f(make_original: fn() -> Object, length: u64) -> Result<Vec<PropertyInfo>, String> {
+        setup_test_agent();
+        let original = make_original();
+        array_species_create(&original, length)
             .map(|val| Object::try_from(val).unwrap().o.common_object_data().borrow().propdump())
-            .map_err(|err| unwind_any_error(&mut agent, err))
+            .map_err(unwind_any_error)
     }
 
     // todo!(): More tests want to be here to cover other code paths, but those code paths require:
@@ -614,8 +654,8 @@ mod array_species_create {
 fn defaults() {
     // These don't really test anything except the default implementations, but it does clear a fair few instantiations
     // out of the "uncovered" set.
-    let mut agent = test_agent();
-    let a = super::array_create(&mut agent, 10, None).unwrap();
+    setup_test_agent();
+    let a = super::array_create(10, None).unwrap();
     assert_eq!(a.o.is_date_object(), false);
     assert!(a.o.to_function_obj().is_none());
     assert!(a.o.to_error_obj().is_none());
@@ -638,6 +678,7 @@ fn defaults() {
 #[test_case(super::array_from => panics; "array_from")]
 #[test_case(super::array_is_array => panics; "array_is_array")]
 #[test_case(super::array_of => panics; "array_of")]
+#[test_case(super::array_species => panics; "array_species")]
 #[test_case(super::array_prototype_at => panics; "array_prototype_at")]
 #[test_case(super::array_prototype_concat => panics; "array_prototype_concat")]
 #[test_case(super::array_prototype_copy_within => panics; "array_prototype_copy_within")]
@@ -647,12 +688,13 @@ fn defaults() {
 #[test_case(super::array_prototype_filter => panics; "array_prototype_filter")]
 #[test_case(super::array_prototype_find => panics; "array_prototype_find")]
 #[test_case(super::array_prototype_find_index => panics; "array_prototype_find_index")]
+#[test_case(super::array_prototype_find_last => panics; "array_prototype_find_last")]
+#[test_case(super::array_prototype_find_last_index => panics; "array_prototype_find_last_index")]
 #[test_case(super::array_prototype_flat => panics; "array_prototype_flat")]
 #[test_case(super::array_prototype_flat_map => panics; "array_prototype_flat_map")]
 #[test_case(super::array_prototype_for_each => panics; "array_prototype_for_each")]
 #[test_case(super::array_prototype_includes => panics; "array_prototype_includes")]
 #[test_case(super::array_prototype_index_of => panics; "array_prototype_index_of")]
-#[test_case(super::array_prototype_join => panics; "array_prototype_join")]
 #[test_case(super::array_prototype_keys => panics; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics; "array_prototype_last_index_of")]
 #[test_case(super::array_prototype_map => panics; "array_prototype_map")]
@@ -667,10 +709,321 @@ fn defaults() {
 #[test_case(super::array_prototype_sort => panics; "array_prototype_sort")]
 #[test_case(super::array_prototype_splice => panics; "array_prototype_splice")]
 #[test_case(super::array_prototype_to_locale_string => panics; "array_prototype_to_locale_string")]
-#[test_case(super::array_prototype_to_string => panics; "array_prototype_to_string")]
+#[test_case(super::array_prototype_to_reversed => panics; "array_prototype_to_reversed")]
+#[test_case(super::array_prototype_to_sorted => panics; "array_prototype_to_sorted")]
+#[test_case(super::array_prototype_to_spliced => panics; "array_prototype_to_spliced")]
 #[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
-#[test_case(super::array_prototype_values => panics; "array_prototype_values")]
-fn todo(f: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) {
-    let mut agent = test_agent();
-    f(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap();
+#[test_case(super::array_prototype_with => panics; "array_prototype_with")]
+fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+    setup_test_agent();
+    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test]
+fn provision_array_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+
+    let array = intrinsic(IntrinsicId::Array);
+    let global = get_global_object().unwrap();
+    let global_array = global.o.get_own_property(&"Array".into()).unwrap().unwrap();
+    let arrayfcn = Object::try_from(func_validation(global_array, "Array", 1)).unwrap();
+    assert_eq!(arrayfcn, array);
+
+    let from = array.o.get_own_property(&"from".into()).unwrap().unwrap();
+    func_validation(from, "from", 1);
+
+    let is_array = array.o.get_own_property(&"isArray".into()).unwrap().unwrap();
+    func_validation(is_array, "isArray", 1);
+
+    let of = array.o.get_own_property(&"of".into()).unwrap().unwrap();
+    func_validation(of, "of", 0);
+
+    let species_sym = wks(WksId::Species);
+    let species = array.o.get_own_property(&species_sym.into()).unwrap().unwrap();
+    getter_validation(species, "get [Symbol.species]", 0);
+
+    let prototype_pd = array.o.get_own_property(&"prototype".into()).unwrap().unwrap();
+    let proto_intrinsic = intrinsic(IntrinsicId::ArrayPrototype);
+    let prototype = Object::try_from(data_validation(prototype_pd, false, false, false)).unwrap();
+    assert_eq!(proto_intrinsic, prototype);
+    assert!(prototype.o.is_array_object());
+    let proto_proto = prototype.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(proto_proto, intrinsic(IntrinsicId::ObjectPrototype));
+
+    let length_pd = prototype.o.get_own_property(&"length".into()).unwrap().unwrap();
+    let length = data_validation(length_pd, true, false, false);
+    assert_eq!(length, 0.0.into());
+
+    func_validation(prototype.o.get_own_property(&"at".into()).unwrap().unwrap(), "at", 1);
+    func_validation(prototype.o.get_own_property(&"concat".into()).unwrap().unwrap(), "concat", 1);
+    func_validation(prototype.o.get_own_property(&"copyWithin".into()).unwrap().unwrap(), "copyWithin", 2);
+    func_validation(prototype.o.get_own_property(&"entries".into()).unwrap().unwrap(), "entries", 0);
+    func_validation(prototype.o.get_own_property(&"every".into()).unwrap().unwrap(), "every", 1);
+    func_validation(prototype.o.get_own_property(&"fill".into()).unwrap().unwrap(), "fill", 1);
+    func_validation(prototype.o.get_own_property(&"filter".into()).unwrap().unwrap(), "filter", 1);
+    func_validation(prototype.o.get_own_property(&"find".into()).unwrap().unwrap(), "find", 1);
+    func_validation(prototype.o.get_own_property(&"findIndex".into()).unwrap().unwrap(), "findIndex", 1);
+    func_validation(prototype.o.get_own_property(&"findLast".into()).unwrap().unwrap(), "findLast", 1);
+    func_validation(prototype.o.get_own_property(&"findLastIndex".into()).unwrap().unwrap(), "findLastIndex", 1);
+    func_validation(prototype.o.get_own_property(&"flat".into()).unwrap().unwrap(), "flat", 0);
+    func_validation(prototype.o.get_own_property(&"flatMap".into()).unwrap().unwrap(), "flatMap", 1);
+    func_validation(prototype.o.get_own_property(&"forEach".into()).unwrap().unwrap(), "forEach", 1);
+    func_validation(prototype.o.get_own_property(&"includes".into()).unwrap().unwrap(), "includes", 1);
+    func_validation(prototype.o.get_own_property(&"indexOf".into()).unwrap().unwrap(), "indexOf", 1);
+    func_validation(prototype.o.get_own_property(&"join".into()).unwrap().unwrap(), "join", 1);
+    func_validation(prototype.o.get_own_property(&"keys".into()).unwrap().unwrap(), "keys", 0);
+    func_validation(prototype.o.get_own_property(&"lastIndexOf".into()).unwrap().unwrap(), "lastIndexOf", 1);
+    func_validation(prototype.o.get_own_property(&"map".into()).unwrap().unwrap(), "map", 1);
+    func_validation(prototype.o.get_own_property(&"pop".into()).unwrap().unwrap(), "pop", 0);
+    func_validation(prototype.o.get_own_property(&"push".into()).unwrap().unwrap(), "push", 1);
+    func_validation(prototype.o.get_own_property(&"reduce".into()).unwrap().unwrap(), "reduce", 1);
+    func_validation(prototype.o.get_own_property(&"reduceRight".into()).unwrap().unwrap(), "reduceRight", 1);
+    func_validation(prototype.o.get_own_property(&"reverse".into()).unwrap().unwrap(), "reverse", 0);
+    func_validation(prototype.o.get_own_property(&"shift".into()).unwrap().unwrap(), "shift", 0);
+    func_validation(prototype.o.get_own_property(&"slice".into()).unwrap().unwrap(), "slice", 2);
+    func_validation(prototype.o.get_own_property(&"some".into()).unwrap().unwrap(), "some", 1);
+    func_validation(prototype.o.get_own_property(&"sort".into()).unwrap().unwrap(), "sort", 1);
+    func_validation(prototype.o.get_own_property(&"splice".into()).unwrap().unwrap(), "splice", 2);
+    func_validation(prototype.o.get_own_property(&"toLocaleString".into()).unwrap().unwrap(), "toLocaleString", 0);
+    func_validation(prototype.o.get_own_property(&"toReversed".into()).unwrap().unwrap(), "toReversed", 0);
+    func_validation(prototype.o.get_own_property(&"toSorted".into()).unwrap().unwrap(), "toSorted", 1);
+    func_validation(prototype.o.get_own_property(&"toSpliced".into()).unwrap().unwrap(), "toSpliced", 2);
+    func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
+    func_validation(prototype.o.get_own_property(&"unshift".into()).unwrap().unwrap(), "unshift", 1);
+    let values = func_validation(prototype.o.get_own_property(&"values".into()).unwrap().unwrap(), "values", 0);
+    func_validation(prototype.o.get_own_property(&"with".into()).unwrap().unwrap(), "with", 2);
+
+    let constructor_pd = prototype.o.get_own_property(&"constructor".into()).unwrap().unwrap();
+    let constructor = data_validation(constructor_pd, true, false, true);
+    assert_eq!(constructor, array.into());
+
+    let iter =
+        func_validation(prototype.o.get_own_property(&wks(WksId::Iterator).into()).unwrap().unwrap(), "values", 0);
+    assert_eq!(iter, values);
+    assert_eq!(iter, ECMAScriptValue::from(intrinsic(IntrinsicId::ArrayPrototypeValues)));
+
+    // todo: unscopables
+}
+
+#[test]
+fn provision_array_iterator_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+    let aiproto = intrinsic(IntrinsicId::ArrayIteratorPrototype);
+    let tostringtag_symbol = wks(WksId::ToStringTag);
+    let iterator_prototype = intrinsic(IntrinsicId::IteratorPrototype);
+
+    assert_eq!(aiproto.o.get_prototype_of().unwrap().unwrap(), iterator_prototype);
+
+    let tst = aiproto.o.get_own_property(&tostringtag_symbol.into()).unwrap().unwrap();
+    let value = data_validation(tst, false, false, true);
+    assert_eq!(value, "Array Iterator".into());
+
+    let next = aiproto.o.get_own_property(&"next".into()).unwrap().unwrap();
+    func_validation(next, "next", 0);
+}
+
+mod key_value_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(KeyValueKind::Key => with |s| assert_ne!(s, ""))]
+    #[test_case(KeyValueKind::Value => with |s| assert_ne!(s, ""))]
+    #[test_case(KeyValueKind::KeyValue => with |s| assert_ne!(s, ""))]
+    fn fmt(item: KeyValueKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = KeyValueKind::Key;
+        let other = item.clone();
+
+        assert_eq!(item, other);
+    }
+
+    #[test_case(KeyValueKind::Key, KeyValueKind::Key => true)]
+    #[test_case(KeyValueKind::Value, KeyValueKind::Key => false)]
+    #[test_case(KeyValueKind::KeyValue, KeyValueKind::Key => false)]
+    fn eq(a: KeyValueKind, b: KeyValueKind) -> bool {
+        a.eq(&b)
+    }
+}
+
+#[test_case(|| ECMAScriptValue::Undefined,
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Undefined and null cannot be converted to objects")
+            ; "ToObject throws")]
+#[test_case(|| {
+                   let obj = ordinary_object_create(None, &[]);
+                   let sym = wks(WksId::Unscopables);
+                   create_data_property_or_throw(&obj, "length", sym).unwrap();
+                   ECMAScriptValue::from(obj)
+               },
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Symbol values cannot be converted to Number values")
+            ; "length_of_array_like throws")]
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+            || ECMAScriptValue::from(wks(WksId::Unscopables))
+            => serr("TypeError: Symbols may not be converted to strings")
+            ; "ToString fails")]
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+            || ECMAScriptValue::Undefined
+            => vok("")
+            ; "empty array")]
+#[test_case(|| ECMAScriptValue::from(
+                create_array_from_list(
+                    &[
+                        ECMAScriptValue::from("first"),
+                        ECMAScriptValue::Undefined,
+                        ECMAScriptValue::from("second"),
+                        ECMAScriptValue::Null,
+                        ECMAScriptValue::from("third"),
+                    ])),
+            || ECMAScriptValue::from("-=-")
+            => vok("first-=--=-second-=--=-third")
+            ; "array with 5 elems")]
+#[test_case(|| ECMAScriptValue::from(
+                create_array_from_list(&[ECMAScriptValue::from(wks(WksId::Unscopables))])),
+            || ECMAScriptValue::from("-=-")
+            => serr("TypeError: Symbols may not be converted to strings")
+            ; "symbol in elements")]
+#[test_case(|| {
+                    let obj = super::super::array_create(10, None).unwrap();
+                    let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                    let ppd = PotentialPropertyDescriptor::new()
+                        .get(ECMAScriptValue::from(thrower.clone()))
+                        .set(ECMAScriptValue::from(thrower))
+                        .enumerable(false)
+                        .configurable(false);
+                    define_property_or_throw(&obj, "3", ppd).unwrap();
+                    ECMAScriptValue::from(obj)
+               },
+            || ECMAScriptValue::Undefined
+            => serr("TypeError: Generic TypeError")
+            ; "bad element")]
+fn array_prototype_join(
+    make_this: impl FnOnce() -> ECMAScriptValue,
+    make_sep: impl FnOnce() -> ECMAScriptValue,
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    let sep = make_sep();
+    super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
+}
+
+#[test_case(|| ECMAScriptValue::Undefined
+            => serr("TypeError: Undefined and null cannot be converted to objects")
+            ; "ToObject throws")]
+#[test_case(|| ECMAScriptValue::from(create_array_from_list(&[1.into(), 2.into(), 3.into()]))
+            => vok("1,2,3")
+            ; "std array")]
+#[test_case(|| ECMAScriptValue::from(DeadObject::object())
+            => serr("TypeError: get called on DeadObject")
+            ; "get throws")]
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[]))
+            => vok("[object Object]")
+            ; "lacking join")]
+fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    super::array_prototype_to_string(this_value, None, &[]).map_err(unwind_any_error)
+}
+
+mod array_iterator {
+    use super::super::array_create;
+    use super::super::create_array_from_list;
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Key => Ok(vec![0.into(), 1.into()]); "keys")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::Value => Ok(vec![1.into(), 2.into()]); "values")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::KeyValue => Ok(vec![0.into(), 1.into(), 1.into(), 2.into()]); "key values")]
+    #[test_case(DeadObject::object, KeyValueKind::Key => serr("TypeError: get called on DeadObject"); "LengthOfArrayLike throws")]
+    #[test_case(|| {
+                       let obj = array_create(10, None).unwrap();
+                       let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                       let ppd = PotentialPropertyDescriptor::new()
+                           .get(ECMAScriptValue::from(thrower.clone()))
+                           .set(ECMAScriptValue::from(thrower))
+                           .enumerable(false)
+                           .configurable(false);
+                       define_property_or_throw(&obj, "1", ppd).unwrap();
+                       obj
+                   },
+                KeyValueKind::Value
+                => serr("TypeError: Generic TypeError")
+                ; "element 1 can't be gotten")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::Key => serr("TypeError: thrown from generator"); "keys/throw")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::Value => serr("TypeError: thrown from generator"); "values/throw")]
+    #[test_case(|| create_array_from_list(&[1.into(), 2.into(), 99.into(), 100.into()]), KeyValueKind::KeyValue => serr("TypeError: thrown from generator"); "key values/throw")]
+    fn standard(make_array: impl FnOnce() -> Object, kind: KeyValueKind) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let array = make_array();
+
+        let iter_obj = super::create_array_iterator(array, kind);
+        let thrower =
+            create_builtin_function(throwing_next, false, 0.0, "next".into(), BUILTIN_FUNCTION_SLOTS, None, None, None);
+        set(&iter_obj, "next".into(), thrower.into(), true).map_err(unwind_any_error)?;
+        let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
+        let mut result = vec![];
+        loop {
+            let item = ir.step().map_err(unwind_any_error)?;
+            match item {
+                Some(iter_result) => {
+                    if kind != KeyValueKind::KeyValue {
+                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
+                    } else {
+                        let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
+                        let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
+                        let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
+                        result.push(left);
+                        result.push(right);
+                    }
+                }
+                None => break,
+            }
+        }
+        Ok(result)
+    }
+
+    fn throwing_next(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        _: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let obj = to_object(this_value.clone())?;
+        let so_far = get(&obj, &"called_count".into())?;
+        let so_far = if so_far.is_undefined() { 0.0 } else { to_number(so_far)? };
+
+        let result = if so_far < 3.0 {
+            generator_resume(this_value, ECMAScriptValue::Undefined, "%ArrayIteratorPrototype%")?
+        } else {
+            generator_resume_abrupt(this_value, create_type_error("thrown from generator"), "%ArrayIteratorPrototype%")?
+        };
+        set(&obj, "called_count".into(), ECMAScriptValue::from(so_far + 1.0), true)?;
+        Ok(result)
+    }
+}
+
+#[test_case(|| ECMAScriptValue::from(create_array_from_list(&[1.into(), 2.into()])) => Ok(vec![1.into(), 2.into()]); "normal")]
+#[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "not an object")]
+fn array_prototype_values(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+    setup_test_agent();
+    let this_value = make_this();
+    let iter = super::array_prototype_values(this_value, None, &[]).map_err(unwind_any_error)?;
+    let ir = get_iterator(&iter, IteratorKind::Sync).map_err(unwind_any_error)?;
+    let mut result = vec![];
+    loop {
+        let item = ir.step().map_err(unwind_any_error)?;
+        match item {
+            Some(iter_result) => {
+                result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
+            }
+            None => break,
+        }
+    }
+    Ok(result)
 }

@@ -1,7 +1,7 @@
-use super::testhelp::{check, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -18,11 +18,20 @@ fn conditional_expression_test_01() {
 }
 #[test]
 fn conditional_expression_test_02() {
-    let (se, scanner) = check(ConditionalExpression::parse(&mut newparser("a?b:c"), Scanner::new(), true, false, false));
+    let (se, scanner) =
+        check(ConditionalExpression::parse(&mut newparser("a?b:c"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*se, ConditionalExpression::Conditional(..)));
-    pretty_check(&*se, "ConditionalExpression: a ? b : c", vec!["ShortCircuitExpression: a", "AssignmentExpression: b", "AssignmentExpression: c"]);
-    concise_check(&*se, "ConditionalExpression: a ? b : c", vec!["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"]);
+    pretty_check(
+        &*se,
+        "ConditionalExpression: a ? b : c",
+        vec!["ShortCircuitExpression: a", "AssignmentExpression: b", "AssignmentExpression: c"],
+    );
+    concise_check(
+        &*se,
+        "ConditionalExpression: a ? b : c",
+        vec!["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"],
+    );
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
 }
@@ -48,7 +57,8 @@ fn conditional_expression_test_prettyerrors_1() {
 }
 #[test]
 fn conditional_expression_test_prettyerrors_2() {
-    let (item, _) = ConditionalExpression::parse(&mut newparser("true?a:b"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ConditionalExpression::parse(&mut newparser("true?a:b"), Scanner::new(), true, false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -58,7 +68,8 @@ fn conditional_expression_test_conciseerrors_1() {
 }
 #[test]
 fn conditional_expression_test_conciseerrors_2() {
-    let (item, _) = ConditionalExpression::parse(&mut newparser("true?a:b"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ConditionalExpression::parse(&mut newparser("true?a:b"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -73,17 +84,20 @@ fn conditional_expression_test_contains_02() {
 }
 #[test]
 fn conditional_expression_test_contains_03() {
-    let (item, _) = ConditionalExpression::parse(&mut newparser("this?1:0"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ConditionalExpression::parse(&mut newparser("this?1:0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn conditional_expression_test_contains_04() {
-    let (item, _) = ConditionalExpression::parse(&mut newparser("0?this:0"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ConditionalExpression::parse(&mut newparser("0?this:0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn conditional_expression_test_contains_05() {
-    let (item, _) = ConditionalExpression::parse(&mut newparser("0?0:this"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ConditionalExpression::parse(&mut newparser("0?0:this"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
@@ -113,20 +127,26 @@ mod conditional_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
-    #[test_case("package?interface:implements", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "conditional")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package?interface:implements", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "conditional")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
     #[test_case("1" => true; "literal")]
     #[test_case("a ? 0 : b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -136,7 +156,10 @@ mod conditional_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy ? bob : alice" => false; "trinary (no)")]
     fn contains_arguments(src: &str) -> bool {
-        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("eval", false => ATTKind::Simple; "simple eval")]
@@ -144,5 +167,18 @@ mod conditional_expression {
     #[test_case("a?b:c", false => ATTKind::Invalid; "conditional")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).conditional_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a?b:c" => false; "conditional")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).conditional_expression().is_named_function()
+    }
+
+    #[test_case("  a?b:c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "conditional")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).conditional_expression().location()
     }
 }

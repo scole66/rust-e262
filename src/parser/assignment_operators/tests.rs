@@ -1,7 +1,7 @@
-use super::testhelp::{check, expected_scan, newparser, set, sv, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_data, concise_error_validate, pretty_data, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 const INVALID_LHS: &str = "Invalid left-hand side in assignment";
@@ -122,7 +122,7 @@ mod assignment_expression {
         sv(&["AssignmentExpression: [ a ] = [ 1 ]", "ArrayAssignmentPattern: [ a ]", "Punctuator: =", "ArrayLiteral: [ 1 ]"])
     )); "AssignmentPattern = AssignmentExpression")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 1)); "empty")]
-    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), 3)); "bad destructuring")]
+    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), (1, 3, 1))); "bad destructuring")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), false, true, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -152,7 +152,10 @@ mod assignment_expression {
     #[test_case("a??=b" => false; "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
     #[test_case("[a]=[1]" => false; "AssignmentPattern = AssignmentExpression")]
     fn is_function_definition(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_function_definition()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_function_definition()
     }
 
     #[test_case("a", true => ATTKind::Simple; "Fall-thru (identifier)")]
@@ -335,55 +338,61 @@ mod assignment_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
-    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
-    #[test_case("package=>interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
+    #[test_case("yield package", true => sset(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
+    #[test_case("package=>interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
     #[test_case("async package=>interface", true => panics "not yet implemented"; "AsyncArrowFunction")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
-    #[test_case("package*=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
-    #[test_case("package/=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression /= AssignmentExpression (divide)")]
-    #[test_case("package%=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression %= AssignmentExpression (modulo)")]
-    #[test_case("package+=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression += AssignmentExpression (add)")]
-    #[test_case("package-=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression -= AssignmentExpression (subtract)")]
-    #[test_case("package<<=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
-    #[test_case("package>>=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
-    #[test_case("package>>>=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
-    #[test_case("package&=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
-    #[test_case("package^=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
-    #[test_case("package|=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
-    #[test_case("package**=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
-    #[test_case("package&&=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
-    #[test_case("package||=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
-    #[test_case("package??=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
-    #[test_case("[package]=[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPattern = AssignmentExpression")]
-    #[test_case("(a=>a)=b", true => set(&[INVALID_LHS]); "LHS must be simple (assignment)")]
-    #[test_case("(a=>a)*=b", true => set(&[INVALID_LHS]); "LHS must be simple (multiplication)")]
-    #[test_case("(a=>a)/=b", true => set(&[INVALID_LHS]); "LHS must be simple (division)")]
-    #[test_case("(a=>a)%=b", true => set(&[INVALID_LHS]); "LHS must be simple (modulo)")]
-    #[test_case("(a=>a)+=b", true => set(&[INVALID_LHS]); "LHS must be simple (add)")]
-    #[test_case("(a=>a)-=b", true => set(&[INVALID_LHS]); "LHS must be simple (subtract)")]
-    #[test_case("(a=>a)<<=b", true => set(&[INVALID_LHS]); "LHS must be simple (lsh)")]
-    #[test_case("(a=>a)>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (rsh)")]
-    #[test_case("(a=>a)>>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (ursh)")]
-    #[test_case("(a=>a)&=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise and)")]
-    #[test_case("(a=>a)^=b", true => set(&[INVALID_LHS]); "LHS must be simple (xor)")]
-    #[test_case("(a=>a)|=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise or)")]
-    #[test_case("(a=>a)**=b", true => set(&[INVALID_LHS]); "LHS must be simple (exponentiation)")]
-    #[test_case("(a=>a)&&=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical and)")]
-    #[test_case("(a=>a)||=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical or)")]
-    #[test_case("(a=>a)??=b", true => set(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
+    #[test_case("package*=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
+    #[test_case("package/=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression /= AssignmentExpression (divide)")]
+    #[test_case("package%=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression %= AssignmentExpression (modulo)")]
+    #[test_case("package+=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression += AssignmentExpression (add)")]
+    #[test_case("package-=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression -= AssignmentExpression (subtract)")]
+    #[test_case("package<<=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
+    #[test_case("package>>=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
+    #[test_case("package>>>=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
+    #[test_case("package&=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
+    #[test_case("package^=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
+    #[test_case("package|=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
+    #[test_case("package**=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
+    #[test_case("package&&=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
+    #[test_case("package||=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
+    #[test_case("package??=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
+    #[test_case("[package]=[interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPattern = AssignmentExpression")]
+    #[test_case("(a=>a)=b", true => sset(&[INVALID_LHS]); "LHS must be simple (assignment)")]
+    #[test_case("(a=>a)*=b", true => sset(&[INVALID_LHS]); "LHS must be simple (multiplication)")]
+    #[test_case("(a=>a)/=b", true => sset(&[INVALID_LHS]); "LHS must be simple (division)")]
+    #[test_case("(a=>a)%=b", true => sset(&[INVALID_LHS]); "LHS must be simple (modulo)")]
+    #[test_case("(a=>a)+=b", true => sset(&[INVALID_LHS]); "LHS must be simple (add)")]
+    #[test_case("(a=>a)-=b", true => sset(&[INVALID_LHS]); "LHS must be simple (subtract)")]
+    #[test_case("(a=>a)<<=b", true => sset(&[INVALID_LHS]); "LHS must be simple (lsh)")]
+    #[test_case("(a=>a)>>=b", true => sset(&[INVALID_LHS]); "LHS must be simple (rsh)")]
+    #[test_case("(a=>a)>>>=b", true => sset(&[INVALID_LHS]); "LHS must be simple (ursh)")]
+    #[test_case("(a=>a)&=b", true => sset(&[INVALID_LHS]); "LHS must be simple (bitwise and)")]
+    #[test_case("(a=>a)^=b", true => sset(&[INVALID_LHS]); "LHS must be simple (xor)")]
+    #[test_case("(a=>a)|=b", true => sset(&[INVALID_LHS]); "LHS must be simple (bitwise or)")]
+    #[test_case("(a=>a)**=b", true => sset(&[INVALID_LHS]); "LHS must be simple (exponentiation)")]
+    #[test_case("(a=>a)&&=b", true => sset(&[INVALID_LHS]); "LHS must be simple (logical and)")]
+    #[test_case("(a=>a)||=b", true => sset(&[INVALID_LHS]); "LHS must be simple (logical or)")]
+    #[test_case("(a=>a)??=b", true => sset(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
     #[test_case("1" => true; "literal")]
     #[test_case("a=3" => true; "assignment op")]
     fn is_strictly_deletable(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -413,7 +422,95 @@ mod assignment_expression {
     #[test_case("xyzzy ??= bob" => false; "Coal (no)")]
     #[test_case("{xyzzy} = bob" => false; "Destructuring (no)")]
     fn contains_arguments(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
+    }
+
+    #[test_case("function blue(){}" => false; "named function")]
+    #[test_case("function (){}" => true; "anonymous function")]
+    #[test_case("function *a(){}" => false; "named generator")]
+    #[test_case("function *(){}" => true; "anonymous generator")]
+    #[test_case("async function blue(){}" => false; "async named function")]
+    #[test_case("async function (){}" => true; "async anonymous function")]
+    #[test_case("async function *a(){}" => false; "async named generator")]
+    #[test_case("async function *(){}" => true; "async anonymous generator")]
+    #[test_case("class {}" => true; "anonymous class")]
+    #[test_case("class a{}" => false; "named class")]
+    #[test_case("x => x*2" => true; "arrow function")]
+    #[test_case("async x => x + 3" => true; "async arrow function")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("(function *(){})" => true; "parenthesized function expr")]
+    fn is_anonymous_function_definition(src: &str) -> bool {
+        Maker::new(src).assignment_expression().is_anonymous_function_definition()
+    }
+
+    #[test_case("function blue(){}" => true; "named function")]
+    #[test_case("function (){}" => false; "anonymous function")]
+    #[test_case("function *a(){}" => true; "named generator")]
+    #[test_case("function *(){}" => false; "anonymous generator")]
+    #[test_case("async function blue(){}" => true; "async named function")]
+    #[test_case("async function (){}" => false; "async anonymous function")]
+    #[test_case("async function *a(){}" => true; "async named generator")]
+    #[test_case("async function *(){}" => false; "async anonymous generator")]
+    #[test_case("class {}" => false; "anonymous class")]
+    #[test_case("class a{}" => true; "named class")]
+    #[test_case("x => x*2" => false; "arrow function")]
+    #[test_case("async x => x + 3" => false; "async arrow function")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("(function *(){})" => false; "parenthesized function expr")]
+    #[test_case("a+b" => false; "additive")]
+    #[test_case("a^b" => false; "bitwise xor")]
+    #[test_case("a&b" => false; "bitwise and")]
+    #[test_case("a|b" => false; "bitwise or")]
+    #[test_case("a??b" => false; "coalesce")]
+    #[test_case("a||b" => false; "logical or")]
+    #[test_case("a&&b" => false; "logical and")]
+    #[test_case("a<<b" => false; "shift expr")]
+    #[test_case("(a,b)" => false; "comma")]
+    #[test_case("a==b" => false; "equality")]
+    #[test_case("a**b" => false; "exponent")]
+    #[test_case("a.b" => false; "member")]
+    #[test_case("a()" => false; "call")]
+    #[test_case("new a" => false; "new expr")]
+    #[test_case("a*b" => false; "multiplicative")]
+    #[test_case("a<b" => false; "relational")]
+    #[test_case("-a" => false; "unary expr")]
+    #[test_case("a++" => false; "update expr")]
+    #[test_case("a?b:c" => false; "conditional")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).assignment_expression().is_named_function()
+    }
+
+    #[test_case(" 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 2 } }; "fall-thru")]
+    #[test_case(" yield 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 8 } }; "yield expression")]
+    #[test_case(" x => x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 6 } }; "arrow function")]
+    #[test_case(" async x => x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 12 } }; "async arrow function")]
+    #[test_case(" x = x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 5 } }; "assignment")]
+    #[test_case(" x += x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 6 } }; "op-assignment")]
+    #[test_case(" x &&= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "logical-and assignment")]
+    #[test_case(" x ||= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "logical-or assignment")]
+    #[test_case(" x ??= x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 7 } }; "coalesce assignment")]
+    #[test_case(" {alpha, beta} = x" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 17 } }; "destructuring assignment")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_expression().location()
+    }
+
+    #[test_case("10" => None; "literal")]
+    #[test_case("function(){}" => ssome("function (  ) {  }"); "fall-thru; function")]
+    #[test_case("x => x" => ssome("x => x"); "arrow")]
+    #[test_case("async x => x" => ssome("async x => x"); "async arrow")]
+    #[test_case("x = 10" => None; "other assignment")]
+    fn function_definition(src: &str) -> Option<String> {
+        Maker::new(src).assignment_expression().function_definition().map(|x| x.to_string())
+    }
+
+    #[test_case("function(){}" => ssome("function (  ) {  }"); "nameless function")]
+    #[test_case("function foo(){}" => None; "named function")]
+    #[test_case("x = 10" => None; "not a function")]
+    fn anonymous_function_definition(src: &str) -> Option<String> {
+        Maker::new(src).assignment_expression().anonymous_function_definition().map(|x| x.to_string())
     }
 }
 
@@ -582,13 +679,16 @@ mod assignment_pattern {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrayAssignmentPattern")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "ArrayAssignmentPattern")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments]" => true; "array (yes)")]
@@ -597,6 +697,12 @@ mod assignment_pattern {
     #[test_case("{xyzzy}" => false; "object (no)")]
     fn contains_arguments(src: &str) -> bool {
         AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(" {a,b,c}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "object pattern")]
+    #[test_case(" [x,y,z]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "array pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_pattern().location()
     }
 }
 
@@ -699,15 +805,18 @@ mod object_assignment_pattern {
     }
 
     #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("{...package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentRestProperty }")]
-    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList }")]
-    #[test_case("{package,}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList , } (trailing comma)")]
-    #[test_case("{package,...interface}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "{ AssignmentPropertyList , AssignmentRestProperty }")]
+    #[test_case("{...package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentRestProperty }")]
+    #[test_case("{package}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList }")]
+    #[test_case("{package,}", true => sset(&[PACKAGE_NOT_ALLOWED]); "{ AssignmentPropertyList , } (trailing comma)")]
+    #[test_case("{package,...interface}", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "{ AssignmentPropertyList , AssignmentRestProperty }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -722,6 +831,14 @@ mod object_assignment_pattern {
     #[test_case("{xyzzy,...bob}" => false; "List+Rest (no)")]
     fn contains_arguments(src: &str) -> bool {
         ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(" {}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 2 } }; "empty")]
+    #[test_case(" { ...a }" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "rest-only")]
+    #[test_case(" {a,b,c}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "list-only")]
+    #[test_case(" {a,...b}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "list+rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_assignment_pattern().location()
     }
 }
 
@@ -869,18 +986,21 @@ mod array_assignment_pattern {
 
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
     #[test_case("[,]", true => AHashSet::<String>::new(); "[ Elision ]")]
-    #[test_case("[...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentRestElement ]")]
-    #[test_case("[,...package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ Elision AssignmentRestElement ]")]
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList ]")]
-    #[test_case("[package,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , ] (trailing comma)")]
-    #[test_case("[package,,]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , Elision ]")]
-    #[test_case("[package,...interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , AssignmentRestElement ]")]
-    #[test_case("[package,,...interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
+    #[test_case("[...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentRestElement ]")]
+    #[test_case("[,...package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ Elision AssignmentRestElement ]")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList ]")]
+    #[test_case("[package,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , ] (trailing comma)")]
+    #[test_case("[package,,]", true => sset(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentElementList , Elision ]")]
+    #[test_case("[package,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , AssignmentRestElement ]")]
+    #[test_case("[package,,...interface]", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[]" => false; "Empty")]
@@ -903,6 +1023,13 @@ mod array_assignment_pattern {
     #[test_case("[xyzzy,,...bob]" => false; "List Elision Rest (no)")]
     fn contains_arguments(src: &str) -> bool {
         ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case(" [ ...a ]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "rest-only")]
+    #[test_case(" [1,2,3]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "list-only")]
+    #[test_case(" [1,...b]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "list+rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_assignment_pattern().location()
     }
 }
 
@@ -955,13 +1082,16 @@ mod assignment_rest_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
-    #[test_case("...{a}", true => set(&["`...` must be followed by an assignable reference in assignment contexts"]); "assignable refs")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
+    #[test_case("...{a}", true => sset(&["`...` must be followed by an assignable reference in assignment contexts"]); "assignable refs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...arguments" => true; "Rest (yes)")]
@@ -1033,13 +1163,16 @@ mod assignment_property_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
-    #[test_case("package,interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPropertyList , AssignmentProperty")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
+    #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPropertyList , AssignmentProperty")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1114,13 +1247,16 @@ mod assignment_element_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
-    #[test_case("package,interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentElementList , AssignmentElisionElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
+    #[test_case("package,interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentElementList , AssignmentElisionElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1192,13 +1328,16 @@ mod assignment_elision_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
-    #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentElement")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
+    #[test_case(",package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1283,16 +1422,19 @@ mod assignment_property {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("eval", true => set(&["Identifier eval is an invalid left-hand-side"]); "IdentifierReference (eval)")]
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "IdentifierReference (package)")]
-    #[test_case("eval=interface", true => set(&["Identifier eval is an invalid left-hand-side", INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer (eval)")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer")]
-    #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "PropertyName : AssignmentElement")]
+    #[test_case("eval", true => sset(&["Identifier eval is an invalid left-hand-side"]); "IdentifierReference (eval)")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "IdentifierReference (package)")]
+    #[test_case("eval=interface", true => sset(&["Identifier eval is an invalid left-hand-side", INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer (eval)")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "IdentifierReference Initializer")]
+    #[test_case("[package]:interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "PropertyName : AssignmentElement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "id (yes)")]
@@ -1332,7 +1474,10 @@ mod assignment_element {
 
     #[test]
     fn debug() {
-        assert_ne!("", format!("{:?}", AssignmentElement::parse(&mut newparser("A"), Scanner::new(), false, false).unwrap()));
+        assert_ne!(
+            "",
+            format!("{:?}", AssignmentElement::parse(&mut newparser("A"), Scanner::new(), false, false).unwrap())
+        );
     }
 
     #[test_case("a")]
@@ -1369,13 +1514,16 @@ mod assignment_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
-    #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "DestructuringAssignmentTarget Initializer")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
+    #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "DestructuringAssignmentTarget Initializer")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1434,12 +1582,15 @@ mod assignment_rest_element {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
+    #[test_case("...package", true => sset(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("...arguments" => true; "yes")]
@@ -1464,7 +1615,7 @@ mod destructuring_assignment_target {
         sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
     )); "AssignmentPattern")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
-    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 7)); "ObjectLiteral but not AssignmentPattern")]
+    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), (1, 7, 1))); "ObjectLiteral but not AssignmentPattern")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1473,20 +1624,23 @@ mod destructuring_assignment_target {
     }
     #[test]
     fn debug() {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
         assert_ne!("", format!("{:?}", item));
     }
 
     #[test_case("blue")]
     #[test_case("{}"; "ObjectLiteral")]
     fn pretty_errors(src: &str) {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test_case("blue")]
     #[test_case("{}"; "ObjectLiteral")]
     fn concise_errors(src: &str) {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
     }
 
@@ -1508,14 +1662,17 @@ mod destructuring_assignment_target {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "lhs")]
-    #[test_case("(a=>a)", true => set(&[INVALID_LHS]); "not simple")]
+    #[test_case("[package]", true => sset(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "lhs")]
+    #[test_case("(a=>a)", true => sset(&[INVALID_LHS]); "not simple")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -1523,6 +1680,9 @@ mod destructuring_assignment_target {
     #[test_case("no" => false; "Exp (no)")]
     #[test_case("{no}" => false; "Pattern (no)")]
     fn contains_arguments(src: &str) -> bool {
-        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }

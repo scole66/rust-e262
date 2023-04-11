@@ -1,11 +1,7 @@
-use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, AWAIT_IN_CLASS_STATIC, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS,
-    IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR,
-    SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
-};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
 
@@ -22,15 +18,21 @@ fn ss(s: &str) -> Option<String> {
 // CLASS DECLARATION
 #[test]
 fn class_declaration_test_01() {
-    let (node, scanner) = check(ClassDeclaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false, false));
+    let (node, scanner) =
+        check(ClassDeclaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassDeclaration: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(&*node, "ClassDeclaration: class a { }", vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    concise_check(
+        &*node,
+        "ClassDeclaration: class a { }",
+        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn class_declaration_test_02() {
-    let (node, scanner) = check(ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ClassDeclaration: class { }", vec!["ClassTail: { }"]);
     concise_check(&*node, "ClassDeclaration: class { }", vec!["Keyword: class", "ClassTail: { }"]);
@@ -38,19 +40,35 @@ fn class_declaration_test_02() {
 }
 #[test]
 fn class_declaration_test_err_01() {
-    check_err(ClassDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, false), "‘class’ expected", 1, 1);
+    check_err(
+        ClassDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "‘class’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn class_declaration_test_err_02() {
-    check_err(ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false), "not an identifier", 1, 6);
+    check_err(
+        ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        6,
+    );
 }
 #[test]
 fn class_declaration_test_err_03() {
-    check_err(ClassDeclaration::parse(&mut newparser("class a"), Scanner::new(), false, false, false), "‘{’ expected", 1, 8);
+    check_err(
+        ClassDeclaration::parse(&mut newparser("class a"), Scanner::new(), false, false, false),
+        "‘{’ expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn class_declaration_test_prettyerrors_1() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -60,7 +78,8 @@ fn class_declaration_test_prettyerrors_2() {
 }
 #[test]
 fn class_declaration_test_conciseerrors_1() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -80,22 +99,26 @@ fn class_declaration_test_bound_names_02() {
 }
 #[test]
 fn class_declaration_test_contains_01() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { [67](){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { [67](){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn class_declaration_test_contains_02() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn class_declaration_test_contains_03() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class { [67](){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class { [67](){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn class_declaration_test_contains_04() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("class a { a(){item.#valid;} }" => true; "Named class valid")]
@@ -110,13 +133,13 @@ mod class_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
-    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_declaration().early_errors(&mut agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_declaration().early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -126,6 +149,23 @@ mod class_declaration {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_declaration().contains_arguments()
     }
+
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "unnamed")]
+    #[test_case("   class a {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "named")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_declaration().location()
+    }
+
+    #[test_case("class named {}" => "named"; "named")]
+    #[test_case("class {}" => "*default*"; "unnamed")]
+    fn bound_name(src: &str) -> String {
+        Maker::new(src).class_declaration().bound_name().into()
+    }
+
+    #[test_case("class x {}" => false; "typical")]
+    fn is_constant_declaration(src: &str) -> bool {
+        Maker::new(src).class_declaration().is_constant_declaration()
+    }
 }
 
 // CLASS EXPRESSION
@@ -134,7 +174,11 @@ fn class_expression_test_01() {
     let (node, scanner) = check(ClassExpression::parse(&mut newparser("class a{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassExpression: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(&*node, "ClassExpression: class a { }", vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    concise_check(
+        &*node,
+        "ClassExpression: class a { }",
+        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -205,13 +249,13 @@ mod class_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
-    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    #[test_case("class { a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_expression().early_errors(&mut agent, &mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_expression().early_errors(&mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -220,6 +264,17 @@ mod class_expression {
     #[test_case("class {}" => false; "unnamed(no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_expression().contains_arguments()
+    }
+
+    #[test_case("class a {}" => true; "named")]
+    #[test_case("class {}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).class_expression().is_named_function()
+    }
+
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_expression().location()
     }
 }
 
@@ -245,7 +300,11 @@ fn class_tail_test_03() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a { }"), Scanner::new(), false, false));
     chk_scan(&scanner, 13);
     pretty_check(&*node, "ClassTail: extends a { }", vec!["ClassHeritage: extends a"]);
-    concise_check(&*node, "ClassTail: extends a { }", vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ClassTail: extends a { }",
+        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -253,7 +312,11 @@ fn class_tail_test_04() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a{;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "ClassTail: extends a { ; }", vec!["ClassHeritage: extends a", "ClassBody: ;"]);
-    concise_check(&*node, "ClassTail: extends a { ; }", vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ClassTail: extends a { ; }",
+        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -276,13 +339,26 @@ fn class_tail_test_prettyerrors_2() {
 }
 #[test]
 fn class_tail_test_prettyerrors_3() {
-    let (item, _) =
-        ClassTail::parse(&mut newparser("extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(
+            "extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}",
+        ),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn class_tail_test_prettyerrors_4() {
-    let (item, _) = ClassTail::parse(&mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -297,13 +373,26 @@ fn class_tail_test_conciseerrors_2() {
 }
 #[test]
 fn class_tail_test_conciseerrors_3() {
-    let (item, _) =
-        ClassTail::parse(&mut newparser("extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(
+            "extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}",
+        ),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn class_tail_test_conciseerrors_4() {
-    let (item, _) = ClassTail::parse(&mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -345,20 +434,20 @@ mod class_tail {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{ a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "no heritage")]
-    #[test_case("extends package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "has heritage")]
-    #[test_case("extends package {}" => set(&[PACKAGE_NOT_ALLOWED]); "heritage, no body")]
-    #[test_case("extends Boolean { constructor() { super(); }}" => set(&[]); "super with extends")]
-    #[test_case("{ constructor() { super(); }}" => set(&[PARENTLESS_SUPER]); "super without extends")]
-    #[test_case("{ constructor(){} }" => set(&[]); "constructor without super")]
-    #[test_case("{ a(){} }" => set(&[]); "no constructor")]
-    #[test_case("{}" => set(&[]); "no body")]
+    #[test_case("{ a=package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "no heritage")]
+    #[test_case("extends package { a=implements; }" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "has heritage")]
+    #[test_case("extends package {}" => sset(&[PACKAGE_NOT_ALLOWED]); "heritage, no body")]
+    #[test_case("extends Boolean { constructor() { super(); }}" => sset(&[]); "super with extends")]
+    #[test_case("{ constructor() { super(); }}" => sset(&[PARENTLESS_SUPER]); "super without extends")]
+    #[test_case("{ constructor(){} }" => sset(&[]); "constructor without super")]
+    #[test_case("{ a(){} }" => sset(&[]); "no constructor")]
+    #[test_case("{}" => sset(&[]); "no body")]
 
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_tail().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_tail().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -371,6 +460,11 @@ mod class_tail {
     #[test_case("extends a { a; }" => false; "both (none)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_tail().contains_arguments()
+    }
+
+    #[test_case("   { a; }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_tail().location()
     }
 }
 
@@ -389,7 +483,12 @@ fn class_heritage_test_err_01() {
 }
 #[test]
 fn class_heritage_test_err_02() {
-    check_err(ClassHeritage::parse(&mut newparser("extends"), Scanner::new(), false, false), "LeftHandSideExpression expected", 1, 8);
+    check_err(
+        ClassHeritage::parse(&mut newparser("extends"), Scanner::new(), false, false),
+        "LeftHandSideExpression expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn class_heritage_test_prettyerrors_1() {
@@ -421,19 +520,24 @@ mod class_heritage {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("extends package" => set(&[PACKAGE_NOT_ALLOWED]); "err")]
-    #[test_case("extends Boolean" => set(&[]); "ok")]
+    #[test_case("extends package" => sset(&[PACKAGE_NOT_ALLOWED]); "err")]
+    #[test_case("extends Boolean" => sset(&[]); "ok")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_heritage().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_heritage().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("extends arguments" => true; "yes")]
     #[test_case("extends a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_heritage().contains_arguments()
+    }
+
+    #[test_case("   extends bool" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 12 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_heritage().location()
     }
 }
 
@@ -490,28 +594,28 @@ mod class_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";" => set(&[]); "empty")]
-    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "one field")]
-    #[test_case("constructor(){this.stage=1;} constructor(){this.stage=2;}" => set(&[DUPLICATE_CONSTRUCTOR]); "duplicate constructor")]
-    #[test_case("#a; #a;" => set(&[PRIVATE_A_ALREADY_DEFN]); "duplicate private id")]
-    #[test_case("get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[]); "getter/setter ok")]
-    #[test_case("static get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[PREV_STATIC_GETTER]); "static getter / nonstatic setter")]
-    #[test_case("get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[PREV_GETTER]); "nonstatic getter / static setter")]
-    #[test_case("static get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[]); "static getter / static setter")]
-    #[test_case("set #a(val){this.val=val;} get #a(){this.val=val;}" => set(&[]); "setter/getter ok")]
-    #[test_case("static set #a(val){return this.val;} get #a(){this.val=val;}" => set(&[PREV_STATIC_SETTER]); "static setter / nonstatic getter")]
-    #[test_case("set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[PREV_SETTER]); "nonstatic setter / static getter")]
-    #[test_case("static set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[]); "static setter / static getter")]
-    #[test_case("get #a(){return this.val;} #a(){}" => set(&[PREV_GETTER]); "nonstatic getter / method")]
-    #[test_case("static get #a(){return this.val;} #a(){}" => set(&[PREV_STATIC_GETTER]); "static getter / method")]
-    #[test_case("set #a(val){this.val=val;} #a(){}" => set(&[PREV_SETTER]); "setter / method")]
-    #[test_case("static set #a(val){this.val=val;} #a(){}" => set(&[PREV_STATIC_SETTER]); "static setter / method")]
-    #[test_case("static #a(){} get #a(){return this.val;}" => set(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
+    #[test_case(";" => sset(&[]); "empty")]
+    #[test_case("[package];" => sset(&[PACKAGE_NOT_ALLOWED]); "one field")]
+    #[test_case("constructor(){this.stage=1;} constructor(){this.stage=2;}" => sset(&[DUPLICATE_CONSTRUCTOR]); "duplicate constructor")]
+    #[test_case("#a; #a;" => sset(&[PRIVATE_A_ALREADY_DEFN]); "duplicate private id")]
+    #[test_case("get #a(){return this.val;} set #a(val){this.val=val;}" => sset(&[]); "getter/setter ok")]
+    #[test_case("static get #a(){return this.val;} set #a(val){this.val=val;}" => sset(&[PREV_STATIC_GETTER]); "static getter / nonstatic setter")]
+    #[test_case("get #a(){return this.val;} static set #a(val){this.val=val;}" => sset(&[PREV_GETTER]); "nonstatic getter / static setter")]
+    #[test_case("static get #a(){return this.val;} static set #a(val){this.val=val;}" => sset(&[]); "static getter / static setter")]
+    #[test_case("set #a(val){this.val=val;} get #a(){this.val=val;}" => sset(&[]); "setter/getter ok")]
+    #[test_case("static set #a(val){return this.val;} get #a(){this.val=val;}" => sset(&[PREV_STATIC_SETTER]); "static setter / nonstatic getter")]
+    #[test_case("set #a(val){return this.val;} static get #a(){this.val=val;}" => sset(&[PREV_SETTER]); "nonstatic setter / static getter")]
+    #[test_case("static set #a(val){return this.val;} static get #a(){this.val=val;}" => sset(&[]); "static setter / static getter")]
+    #[test_case("get #a(){return this.val;} #a(){}" => sset(&[PREV_GETTER]); "nonstatic getter / method")]
+    #[test_case("static get #a(){return this.val;} #a(){}" => sset(&[PREV_STATIC_GETTER]); "static getter / method")]
+    #[test_case("set #a(val){this.val=val;} #a(){}" => sset(&[PREV_SETTER]); "setter / method")]
+    #[test_case("static set #a(val){this.val=val;} #a(){}" => sset(&[PREV_STATIC_SETTER]); "static setter / method")]
+    #[test_case("static #a(){} get #a(){return this.val;}" => sset(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_body().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_body().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments];" => true; "yes")]
@@ -522,7 +626,12 @@ mod class_body {
 
     #[test_case("a(){} #b(){} async *#c(){}" => v(&[("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "mix")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
-        Maker::new(src).class_body().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_body()
+            .private_bound_identifiers()
+            .into_iter()
+            .map(|s| (String::from(s.name), s.usage))
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) {  }"); "constructor present")]
@@ -577,15 +686,28 @@ fn class_element_list_test_01() {
     let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ClassElementList: a (  ) {  }", vec!["ClassElement: a (  ) {  }"]);
-    concise_check(&*node, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "MethodDefinition: a (  ) {  }",
+        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn class_element_list_test_02() {
-    let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){} ; b(a){a;}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(ClassElementList::parse(&mut newparser("a(){} ; b(a){a;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 16);
-    pretty_check(&*node, "ClassElementList: a (  ) {  } ; b ( a ) { a ; }", vec!["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"]);
-    concise_check(&*node, "ClassElementList: a (  ) {  } ; b ( a ) { a ; }", vec!["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"]);
+    pretty_check(
+        &*node,
+        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
+        vec!["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"],
+    );
+    concise_check(
+        &*node,
+        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
+        vec!["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -666,15 +788,15 @@ mod class_element_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "item (errs)")]
-    #[test_case("a=10;" => set(&[]); "item (ok)")]
-    #[test_case("a=package; b=implements;" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
-    #[test_case("a=10; b=20;" => set(&[]); "list (ok)")]
+    #[test_case("a=package;" => sset(&[PACKAGE_NOT_ALLOWED]); "item (errs)")]
+    #[test_case("a=10;" => sset(&[]); "item (ok)")]
+    #[test_case("a=package; b=implements;" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
+    #[test_case("a=10; b=20;" => sset(&[]); "list (ok)")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_element_list().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_element_list().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments];" => true; "item (yes)")]
@@ -688,7 +810,12 @@ mod class_element_list {
     #[test_case("#one_item(){}" => v(&[("#one_item", IdUsage::Public)]); "Item")]
     #[test_case("#a; #b; other; #c;" => v(&[("#a", IdUsage::Public), ("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "List")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
-        Maker::new(src).class_element_list().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_element_list()
+            .private_bound_identifiers()
+            .into_iter()
+            .map(|s| (String::from(s.name), s.usage))
+            .collect::<Vec<_>>()
     }
 
     #[test_case("static foo;" => svec(&[]); "item; static")]
@@ -698,7 +825,12 @@ mod class_element_list {
     #[test_case("a; b; [c];" => svec(&["a", "b"]); "List; no name")]
     #[test_case("a; b; c;" => svec(&["a", "b", "c"]); "List; named")]
     fn prototype_property_name_list(src: &str) -> Vec<String> {
-        Maker::new(src).class_element_list().prototype_property_name_list().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_element_list()
+            .prototype_property_name_list()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a;" => None; "Item: just a field")]
@@ -709,6 +841,12 @@ mod class_element_list {
     fn constructor_method(src: &str) -> Option<String> {
         Maker::new(src).class_element_list().constructor_method().map(|cstr| format!("{}", cstr))
     }
+
+    #[test_case("   a;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "item")]
+    #[test_case("   a; b;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element_list().location()
+    }
 }
 
 // CLASS ELEMENT
@@ -717,7 +855,11 @@ fn class_element_test_01() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ClassElement: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
-    concise_check(&*node, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "MethodDefinition: a (  ) {  }",
+        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     assert_ne!(format!("{:?}", node), "");
 }
 #[test]
@@ -951,25 +1093,25 @@ mod class_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";" => set(&[]); "empty")]
-    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "field def")]
-    #[test_case("static a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "static field")]
-    #[test_case("a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
-    #[test_case("static a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "static method def")]
-    #[test_case("static { package; }" => set(&[PACKAGE_NOT_ALLOWED]); "static block")]
-    #[test_case("constructor(){super();}" => set(&[]); "constructor with super")]
-    #[test_case("other(){super();}" => set(&[BAD_SUPER]); "other with super")]
-    #[test_case("get constructor(){}" => set(&[SPECIAL_CONSTRUCTOR]); "constructor special")]
-    #[test_case("static thing(){super();}" => set(&[BAD_SUPER]); "static super")]
-    #[test_case("static prototype(){ return a }" => set(&[STATIC_PROTO]); "static prototype")]
-    #[test_case("constructor;" => set(&[CONSTRUCTOR_FIELD]); "constructor field")]
-    #[test_case("static prototype;" => set(&[STATIC_PROTO]); "static proto field")]
-    #[test_case("static constructor;" => set(&[CONSTRUCTOR_FIELD]); "static constructor field")]
+    #[test_case(";" => sset(&[]); "empty")]
+    #[test_case("[package];" => sset(&[PACKAGE_NOT_ALLOWED]); "field def")]
+    #[test_case("static a=package;" => sset(&[PACKAGE_NOT_ALLOWED]); "static field")]
+    #[test_case("a(){package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "method def")]
+    #[test_case("static a(){package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "static method def")]
+    #[test_case("static { package; }" => sset(&[PACKAGE_NOT_ALLOWED]); "static block")]
+    #[test_case("constructor(){super();}" => sset(&[]); "constructor with super")]
+    #[test_case("other(){super();}" => sset(&[BAD_SUPER]); "other with super")]
+    #[test_case("get constructor(){}" => sset(&[SPECIAL_CONSTRUCTOR]); "constructor special")]
+    #[test_case("static thing(){super();}" => sset(&[BAD_SUPER]); "static super")]
+    #[test_case("static prototype(){ return a }" => sset(&[STATIC_PROTO]); "static prototype")]
+    #[test_case("constructor;" => sset(&[CONSTRUCTOR_FIELD]); "constructor field")]
+    #[test_case("static prototype;" => sset(&[STATIC_PROTO]); "static proto field")]
+    #[test_case("static constructor;" => sset(&[CONSTRUCTOR_FIELD]); "static constructor field")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_element().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_element().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments](){}" => true; "Method (yes)")]
@@ -1050,6 +1192,16 @@ mod class_element {
     fn class_element_kind(src: &str) -> Option<CEKind> {
         Maker::new(src).class_element().class_element_kind()
     }
+
+    #[test_case("  ;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 1 } }; "empty")]
+    #[test_case("  a(){}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "method")]
+    #[test_case("  static a(){}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 12 } }; "static method")]
+    #[test_case("  a;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 2 } }; "field")]
+    #[test_case("  static a;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 9 } }; "static field")]
+    #[test_case("  static {}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 9 } }; "static block")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element().location()
+    }
 }
 
 mod ce_kind {
@@ -1090,7 +1242,12 @@ fn field_definition_test_02() {
 }
 #[test]
 fn field_definition_test_err_01() {
-    check_err(FieldDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+    check_err(
+        FieldDefinition::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn field_definition_test_prettyerrors_1() {
@@ -1166,15 +1323,15 @@ mod field_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("[package]=implements" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "with izer")]
-    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "without izer")]
-    #[test_case("a=arguments" => set(&[UNEXPECTED_ARGS]); "args in izer")]
-    #[test_case("a=super()" => set(&[UNEXPECTED_SUPER]); "super in izer")]
+    #[test_case("[package]=implements" => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "with izer")]
+    #[test_case("[package]" => sset(&[PACKAGE_NOT_ALLOWED]); "without izer")]
+    #[test_case("a=arguments" => sset(&[UNEXPECTED_ARGS]); "args in izer")]
+    #[test_case("a=super()" => sset(&[UNEXPECTED_SUPER]); "super in izer")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).field_definition().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).field_definition().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("[arguments]" => true; "name (yes)")]
@@ -1195,6 +1352,12 @@ mod field_definition {
     #[test_case("[Math.sin(x)]" => None; "complex")]
     fn prop_name(src: &str) -> Option<String> {
         Maker::new(src).field_definition().prop_name().map(String::from)
+    }
+
+    #[test_case("   monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 }}; "no init")]
+    #[test_case("   monkey = omega" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 }}; "with init")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).field_definition().location()
     }
 }
 
@@ -1217,7 +1380,12 @@ fn class_element_name_test_02() {
 }
 #[test]
 fn class_element_name_test_err_01() {
-    check_err(ClassElementName::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+    check_err(
+        ClassElementName::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn class_element_name_test_prettyerrors_1() {
@@ -1281,15 +1449,15 @@ mod class_element_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("bob" => set(&[]); "utterly normal")]
-    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "bad property name")]
-    #[test_case("#constructor" => set(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
-    #[test_case("#private" => set(&[]); "simple private")]
+    #[test_case("bob" => sset(&[]); "utterly normal")]
+    #[test_case("[package]" => sset(&[PACKAGE_NOT_ALLOWED]); "bad property name")]
+    #[test_case("#constructor" => sset(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
+    #[test_case("#private" => sset(&[]); "simple private")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_element_name().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_element_name().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => Some(JSString::from("a")); "normal")]
@@ -1311,6 +1479,12 @@ mod class_element_name {
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).class_element_name().private_bound_identifier().map(String::from)
     }
+
+    #[test_case("   monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 }}; "normal")]
+    #[test_case("   #monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 }}; "private")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element_name().location()
+    }
 }
 
 mod class_static_block {
@@ -1322,7 +1496,11 @@ mod class_static_block {
         let (node, scanner) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
         chk_scan(&scanner, 13);
         pretty_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["ClassStaticBlockBody: 0 ;"]);
-        concise_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"]);
+        concise_check(
+            &*node,
+            "ClassStaticBlock: static { 0 ; }",
+            vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"],
+        );
         assert_ne!(format!("{:?}", node), "");
     }
     #[test_case("", "‘static’ expected", 1; "Empty Source")]
@@ -1353,19 +1531,24 @@ mod class_static_block {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("static {}" => set(&[]); "empty")]
-    #[test_case("static {package;}" => set(&[PACKAGE_NOT_ALLOWED]); "something")]
+    #[test_case("static {}" => sset(&[]); "empty")]
+    #[test_case("static {package;}" => sset(&[PACKAGE_NOT_ALLOWED]); "something")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_static_block().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_static_block().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("static { arguments; }" => true; "yes")]
     #[test_case("static {}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_static_block().contains_arguments()
+    }
+
+    #[test_case("   static { stuff(); }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_static_block().location()
     }
 }
 
@@ -1398,21 +1581,21 @@ mod class_static_block_body {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "yes")]
-    #[test_case("p;" => set(&[]); "no")]
-    #[test_case("let a; const a=0;" => set(&[A_ALREADY_DEFN]); "duplicate lexicals")]
-    #[test_case("let a; function a(){}" => set(&[A_ALREADY_DEFN]); "var/lex clash")]
-    #[test_case("a: a: ;" => set(&[DUPLICATE_LABELS]); "duplicate labels")]
-    #[test_case("break foo;" => set(&[UNDEFINED_BREAK]); "undefined break")]
-    #[test_case("while (1) continue foo;" => set(&[UNDEF_CONT_TGT]); "undefined continue")]
-    #[test_case("let x = arguments;" => set(&[UNEXPECTED_ARGS]); "has arguments")]
-    #[test_case("super();" => set(&[UNEXPECTED_SUPER]); "super call")]
-    #[test_case("await a();" => set(&[AWAIT_IN_CLASS_STATIC]); "await expr")]
+    #[test_case("package;" => sset(&[PACKAGE_NOT_ALLOWED]); "yes")]
+    #[test_case("p;" => sset(&[]); "no")]
+    #[test_case("let a; const a=0;" => sset(&[A_ALREADY_DEFN]); "duplicate lexicals")]
+    #[test_case("let a; function a(){}" => sset(&[A_ALREADY_DEFN]); "var/lex clash")]
+    #[test_case("a: a: ;" => sset(&[DUPLICATE_LABELS]); "duplicate labels")]
+    #[test_case("break foo;" => sset(&[UNDEFINED_BREAK]); "undefined break")]
+    #[test_case("while (1) continue foo;" => sset(&[UNDEF_CONT_TGT]); "undefined continue")]
+    #[test_case("let x = arguments;" => sset(&[UNEXPECTED_ARGS]); "has arguments")]
+    #[test_case("super();" => sset(&[UNEXPECTED_SUPER]); "super call")]
+    #[test_case("await a();" => sset(&[AWAIT_IN_CLASS_STATIC]); "await expr")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_static_block_body().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_static_block_body().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -1462,14 +1645,14 @@ mod class_static_block_statement_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
-    #[test_case("0;" => set(&[]); "normal")]
-    #[test_case("" => set(&[]); "empty")]
+    #[test_case("package;" => sset(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    #[test_case("0;" => sset(&[]); "normal")]
+    #[test_case("" => sset(&[]); "empty")]
     fn early_errors(src: &str) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        Maker::new(src).class_static_block_statement_list().early_errors(&mut agent, &mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        Maker::new(src).class_static_block_statement_list().early_errors(&mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("", &[] => false; "empty")]
@@ -1519,12 +1702,28 @@ mod class_static_block_statement_list {
     #[test_case("var a; const q=1; function b(){}" => svec(&["a", "b"]); "names")]
     #[test_case("" => svec(&[]); "empty")]
     fn var_declared_names(src: &str) -> Vec<String> {
-        Maker::new(src).class_static_block_statement_list().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_static_block_statement_list()
+            .var_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
     #[test_case("" => svec(&[]); "empty")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        Maker::new(src).class_static_block_statement_list().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_static_block_statement_list()
+            .lexically_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+    }
+
+    #[test_case("   " => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("   stuff();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_static_block_statement_list().location()
     }
 }

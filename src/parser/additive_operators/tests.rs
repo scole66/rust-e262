@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // ADDITIVE EXPRESSION
@@ -25,7 +25,11 @@ mod additive_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Add(..)));
         pretty_check(&*ae, "AdditiveExpression: a + b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(&*ae, "AdditiveExpression: a + b", vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
+        concise_check(
+            &*ae,
+            "AdditiveExpression: a + b",
+            vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"],
+        );
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -35,7 +39,11 @@ mod additive_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Subtract(..)));
         pretty_check(&*ae, "AdditiveExpression: a - b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(&*ae, "AdditiveExpression: a - b", vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
+        concise_check(
+            &*ae,
+            "AdditiveExpression: a - b",
+            vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"],
+        );
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -51,7 +59,12 @@ mod additive_expression {
     }
     #[test]
     fn parse_05() {
-        check_err(AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+        check_err(
+            AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "ExponentiationExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -134,16 +147,19 @@ mod additive_expression {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
-    #[test_case("package+3", true => set(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; AE bad")]
-    #[test_case("3+package", true => set(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; ME bad")]
-    #[test_case("package-3", true => set(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; AE bad")]
-    #[test_case("3-package", true => set(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; ME bad")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
+    #[test_case("package+3", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; AE bad")]
+    #[test_case("3+package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; ME bad")]
+    #[test_case("package-3", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; AE bad")]
+    #[test_case("3-package", true => sset(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; ME bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -171,5 +187,19 @@ mod additive_expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval, strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).additive_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a+b" => false; "additive")]
+    #[test_case("13" => false; "fall-thru, not named func")]
+    #[test_case("function bob(){}" => true; "fall-thru, named")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).additive_expression().is_named_function()
+    }
+
+    #[test_case("\nblue" => Location { starting_line: 2, starting_column: 1, span: Span{ starting_index: 1, length: 4 } }; "fall-thru")]
+    #[test_case("/* x */ a   +\n(p-l)" => Location { starting_line: 1, starting_column: 9, span: Span{ starting_index: 8, length: 11 } }; "add")]
+    #[test_case("  a-b" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 } }; "subtract")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).additive_expression().location()
     }
 }

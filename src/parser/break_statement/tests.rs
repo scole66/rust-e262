@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // BREAK STATEMENT
@@ -51,11 +51,11 @@ fn break_statement_test_err_01() {
 }
 #[test]
 fn break_statement_test_err_02() {
-    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn break_statement_test_err_03() {
-    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 8);
+    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
 }
 #[test]
 fn break_statement_test_prettyerrors_1() {
@@ -108,13 +108,23 @@ mod break_statement {
 
     const ILLEGAL_BREAK: &str = "break statement must lie within iteration or switch statement";
 
-    #[test_case("break;", true, true => set(&[]); "simple break; ok")]
-    #[test_case("break;", true, false => set(&[ILLEGAL_BREAK]); "break not in a good spot")]
-    #[test_case("break package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
+    #[test_case("break;", true, true => sset(&[]); "simple break; ok")]
+    #[test_case("break;", true, false => sset(&[ILLEGAL_BREAK]); "break not in a good spot")]
+    #[test_case("break package;", true, true => sset(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
     fn early_errors(src: &str, strict: bool, within_breakable: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        BreakStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_breakable);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        BreakStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
+            &mut errs,
+            strict,
+            within_breakable,
+        );
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+    }
+
+    #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "no label")]
+    #[test_case("   break lbl;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "with label")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).break_statement().location()
     }
 }

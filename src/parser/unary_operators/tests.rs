@@ -1,7 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::{test_agent, unwind_syntax_error_object};
+use crate::prettyprint::testhelp::*;
+use crate::tests::*;
 use ahash::AHashSet;
 
 // UNARY EXPRESSION
@@ -23,7 +23,7 @@ mod unary_expression {
     fn delete() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Delete(_)));
+        assert!(matches!(*ue, UnaryExpression::Delete { .. }));
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", vec!["Keyword: delete", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -33,7 +33,7 @@ mod unary_expression {
     fn void() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
-        assert!(matches!(*ue, UnaryExpression::Void(_)));
+        assert!(matches!(*ue, UnaryExpression::Void { .. }));
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", vec!["Keyword: void", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -43,7 +43,7 @@ mod unary_expression {
     fn r#typeof() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Typeof(_)));
+        assert!(matches!(*ue, UnaryExpression::Typeof { .. }));
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", vec!["Keyword: typeof", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -53,7 +53,7 @@ mod unary_expression {
     fn numberify() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::NoOp(_)));
+        assert!(matches!(*ue, UnaryExpression::NoOp { .. }));
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", vec!["Punctuator: +", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -63,7 +63,7 @@ mod unary_expression {
     fn negate() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Negate(_)));
+        assert!(matches!(*ue, UnaryExpression::Negate { .. }));
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", vec!["Punctuator: -", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -73,7 +73,7 @@ mod unary_expression {
     fn complement() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Complement(_)));
+        assert!(matches!(*ue, UnaryExpression::Complement { .. }));
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", vec!["Punctuator: ~", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -83,7 +83,7 @@ mod unary_expression {
     fn not() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Not(_)));
+        assert!(matches!(*ue, UnaryExpression::Not { .. }));
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", vec!["Punctuator: !", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -101,18 +101,63 @@ mod unary_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false), "UnaryExpression expected", 1, 1);
+        check_err(
+            UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete() {
-        check_err(UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
-        check_err(UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false), "UnaryExpression expected", 1, 5);
-        check_err(UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
-        check_err(UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("await"), Scanner::new(), false, true), "UnaryExpression expected", 1, 6);
+        check_err(
+            UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            7,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            5,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            7,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("await"), Scanner::new(), false, true),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
 
     #[test]
@@ -342,22 +387,25 @@ mod unary_expression {
 
     const ITEM_NOT_DELETABLE: &str = "Item is not deletable";
 
-    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
-    #[test_case("delete package", true => set(&[PACKAGE_NOT_ALLOWED, ITEM_NOT_DELETABLE]); "delete")]
-    #[test_case("delete (((foo)))", true => set(&[ITEM_NOT_DELETABLE]); "nested ref")]
+    #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
+    #[test_case("delete package", true => sset(&[PACKAGE_NOT_ALLOWED, ITEM_NOT_DELETABLE]); "delete")]
+    #[test_case("delete (((foo)))", true => sset(&[ITEM_NOT_DELETABLE]); "nested ref")]
     #[test_case("delete a", false => AHashSet::<String>::new(); "non-strict delete")]
-    #[test_case("void package", true => set(&[PACKAGE_NOT_ALLOWED]); "void")]
-    #[test_case("typeof package", true => set(&[PACKAGE_NOT_ALLOWED]); "typeof_")]
-    #[test_case("+ package", true => set(&[PACKAGE_NOT_ALLOWED]); "noop")]
-    #[test_case("- package", true => set(&[PACKAGE_NOT_ALLOWED]); "negate")]
-    #[test_case("~ package", true => set(&[PACKAGE_NOT_ALLOWED]); "complement")]
-    #[test_case("! package", true => set(&[PACKAGE_NOT_ALLOWED]); "not")]
-    #[test_case("await package", true => set(&[PACKAGE_NOT_ALLOWED]); "await_")]
+    #[test_case("void package", true => sset(&[PACKAGE_NOT_ALLOWED]); "void")]
+    #[test_case("typeof package", true => sset(&[PACKAGE_NOT_ALLOWED]); "typeof_")]
+    #[test_case("+ package", true => sset(&[PACKAGE_NOT_ALLOWED]); "noop")]
+    #[test_case("- package", true => sset(&[PACKAGE_NOT_ALLOWED]); "negate")]
+    #[test_case("~ package", true => sset(&[PACKAGE_NOT_ALLOWED]); "complement")]
+    #[test_case("! package", true => sset(&[PACKAGE_NOT_ALLOWED]); "not")]
+    #[test_case("await package", true => sset(&[PACKAGE_NOT_ALLOWED]); "await_")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
+        setup_test_agent();
         let mut errs = vec![];
-        UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -408,5 +456,25 @@ mod unary_expression {
     #[test_case("await a", false => ATTKind::Invalid; "await kwd")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).unary_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("-a" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).unary_expression().is_named_function()
+    }
+
+    #[test_case("  delete a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "delete")]
+    #[test_case("  void a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "void")]
+    #[test_case("  typeof a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "typeof kwd")]
+    #[test_case("  +a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "to-number")]
+    #[test_case("  -a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "negate")]
+    #[test_case("  ~a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "complement")]
+    #[test_case("  !a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 2 }}; "not")]
+    #[test_case("  await a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 7 }}; "await kwd")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).unary_expression().location()
     }
 }
