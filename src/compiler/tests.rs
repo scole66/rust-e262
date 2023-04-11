@@ -1152,19 +1152,64 @@ mod call_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a()", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "call-expression; strict")]
-    #[test_case("a()", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "call-expression; non-strict")]
-    #[test_case("super()", true, None => panics "not yet implemented"; "super call")]
-    #[test_case("import(a)", true, None => panics "not yet implemented"; "import call")]
-    #[test_case("a()()", true, None => panics "not yet implemented"; "call-on-call")]
-    #[test_case("a()[b]", true, None => panics "not yet implemented"; "expr-on-call")]
-    #[test_case("a().b", true, None => panics "not yet implemented"; "property-on-call")]
-    #[test_case("a()`${b}`", true, None => panics "not yet implemented"; "template-on-call")]
-    #[test_case("a().#pid", true, None => panics "not yet implemented"; "private-on-call")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case("a()", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]), true, false)); "call-expression; strict")]
+    #[test_case("a()", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]), true, false)); "call-expression; non-strict")]
+    #[test_case("super()", true, &[] => panics "not yet implemented"; "super call")]
+    #[test_case("import(a)", true, &[] => panics "not yet implemented"; "import call")]
+    #[test_case("a()()", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "call-on-call")]
+    #[test_case("a()()", false, &[(Fillable::String, 0)]
+                => serr("Out of room for strings in this compilation unit")
+                ; "call-expression-arguments: expression compile fail")]
+    #[test_case("a()(1n)", false, &[(Fillable::BigInt, 0)]
+                => serr("Out of room for big ints in this compilation unit")
+                ; "call-expression-arguments: arguments compile fails")]
+    #[test_case("a()(@@@)", false, &[]
+                => serr("out of range integral type conversion attempted")
+                ; "call-expression-arguments: unwind jump too far")]
+    #[test_case("a()[b]", true, &[] => panics "not yet implemented"; "expr-on-call")]
+    #[test_case("a().b", true, &[] => panics "not yet implemented"; "property-on-call")]
+    #[test_case("a()`${b}`", true, &[] => panics "not yet implemented"; "template-on-call")]
+    #[test_case("a().#pid", true, &[] => panics "not yet implemented"; "private-on-call")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).call_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
