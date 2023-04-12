@@ -6082,3 +6082,34 @@ mod template_middle_list {
             .map_err(|e| e.to_string())
     }
 }
+
+mod template_spans {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("}`", false, &[] => Ok((svec(&["STRING 0 ()"]), false)); "tail-only")]
+    #[test_case("}xyx`", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "tail-only: no room for strings")]
+    #[test_case("}${0}`", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "FLOAT 0 (0)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 0 ()",
+        "ADD"
+    ]), true)); "list-tail")]
+    #[test_case("}${0}`", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-tail; compile fail in list")]
+    #[test_case("}aa${0}bb`", false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-tail; no room for tail string")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).template_spans();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
