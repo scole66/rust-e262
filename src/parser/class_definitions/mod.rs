@@ -1832,7 +1832,10 @@ impl ClassStaticBlockBody {
             errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(self.0.location())));
         }
         if self.0.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object("await expressions not expected here", Some(self.0.location())));
+            errs.push(create_syntax_error_object(
+                "Cannot use await in class static initialization block",
+                Some(self.0.location()),
+            ));
         }
         self.0.early_errors(errs, strict);
     }

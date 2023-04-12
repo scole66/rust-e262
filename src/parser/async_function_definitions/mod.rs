@@ -165,7 +165,10 @@ impl AsyncFunctionDeclaration {
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             // FormalParameters Contains AwaitExpression is true.
-            errs.push(create_syntax_error_object("await expressions not expected here", Some(self.params.location())));
+            errs.push(create_syntax_error_object(
+                "Illegal await-expression in formal parameters of async function",
+                Some(self.params.location()),
+            ));
         }
         let duplicates_checked = if strict_function {
             // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
@@ -373,7 +376,10 @@ impl AsyncFunctionExpression {
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             // FormalParameters Contains AwaitExpression is true.
-            errs.push(create_syntax_error_object("await expressions not expected here", Some(self.params.location())));
+            errs.push(create_syntax_error_object(
+                "Illegal await-expression in formal parameters of async function",
+                Some(self.params.location()),
+            ));
         }
         let duplicates_checked = if strict_function {
             // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.

@@ -1590,7 +1590,7 @@ mod class_static_block_body {
     #[test_case("while (1) continue foo;" => sset(&[UNDEF_CONT_TGT]); "undefined continue")]
     #[test_case("let x = arguments;" => sset(&[UNEXPECTED_ARGS]); "has arguments")]
     #[test_case("super();" => sset(&[UNEXPECTED_SUPER]); "super call")]
-    #[test_case("await a();" => sset(&[UNEXPECTED_AWAIT]); "await expr")]
+    #[test_case("await a();" => sset(&[AWAIT_IN_CLASS_STATIC]); "await expr")]
     fn early_errors(src: &str) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];

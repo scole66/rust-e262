@@ -253,7 +253,7 @@ mod async_function_declaration {
     }
 
     #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => sset(&[UNEXPECTED_AWAIT]); "await param")]
+    #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
     #[test_case("async function(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => sset(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
@@ -460,7 +460,7 @@ mod async_function_expression {
     use test_case::test_case;
 
     #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => sset(&[UNEXPECTED_AWAIT]); "await param")]
+    #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
     #[test_case("async function(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => sset(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
