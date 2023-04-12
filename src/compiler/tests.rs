@@ -692,7 +692,7 @@ mod primary_expression {
         #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
         #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
         #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
-        #[test_case("``", true => panics "not yet implemented"; "template literal")]
+        #[test_case("``", true => svec(&["STRING 0 ()"]); "template literal")]
         #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
         #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
@@ -5992,6 +5992,88 @@ mod array_literal {
     #[test_case("[a,]", false, &[] => Ok((svec(&["ARRAY", "ZERO", "POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT", "JUMP_IF_ABRUPT 1", "POP"]), true)); "list-elision, fallible")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).array_literal();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod template_middle_list {
+    // } text ${ expression
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("}text${1", false, &[] => Ok((svec(&[
+        "STRING 0 (text)",
+        "FLOAT 0 (1)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "tm-exp; normal")]
+    #[test_case("}text${1", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "tm-exp; head doesn't fit")]
+    #[test_case("}text${1", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "tm-exp; expression compile fail")]
+    #[test_case("}${a", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "STRING 1 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "tm-exp; expr is reference")]
+    #[test_case("}${0}${1", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "FLOAT 0 (0)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 0 ()",
+        "ADD",
+        "FLOAT 1 (1)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list-tm-exp; infallible")]
+    #[test_case("}${0}${1", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-tm-exp; list compile fails")]
+    #[test_case("}${0}x${1", false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-tm-exp; no room for tm-string")]
+    #[test_case("}${a}${0", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-tm-exp; exp compile fails")]
+    #[test_case("}${0}${a", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "FLOAT 0 (0)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 17",
+        "STRING 0 ()",
+        "ADD",
+        "STRING 1 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list-tm-exp; exp is ref")]
+    #[test_case("}${a}${@@@", false, &[] => serr("out of range integral type conversion attempted"); "list-tm-exp; exp too large")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).template_middle_list();
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
