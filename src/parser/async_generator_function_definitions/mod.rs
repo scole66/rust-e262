@@ -266,7 +266,7 @@ impl AsyncGeneratorDeclaration {
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
         let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
+        let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, true);
         let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);

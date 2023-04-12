@@ -176,13 +176,17 @@ mod async_generator_method {
         item.has_direct_super()
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true)
-            .unwrap()
-            .0
-            .early_errors(&mut vec![], true);
+    #[test_case("async *a(){}", false => sset(&[]); "all good")]
+    #[test_case("async *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER]); "direct super")]
+    #[test_case("async *a(b=yield 3){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in param")]
+    #[test_case("async *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async *b(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "param/body var clash")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_method();
+        node.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test]
@@ -518,13 +522,26 @@ mod async_generator_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true)
-            .unwrap()
-            .0
-            .early_errors(&mut vec![], true);
+    #[test_case("async function *a(){}", false => sset(&[]); "all good")]
+    #[test_case("async function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "direct super")]
+    #[test_case("async function *a(b=yield 3){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in param")]
+    #[test_case("async function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async function *b(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "param/body var clash")]
+    #[test_case("async function *(a,a){}", false => sset(&[]); "not strict, dup params")]
+    #[test_case("async function *(a,a){}", true => sset(&[A_ALREADY_DEFN]); "dups, strict form 1")]
+    #[test_case("async function *(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "dups, strict form 2")]
+    #[test_case("async function *eval(a){}", true => sset(&[BAD_EVAL]); "eval used as fname")]
+    #[test_case("async function *arguments(a){}", true => sset(&[BAD_ARGUMENTS]); "arguments used as fname")]
+    #[test_case("async function *a(b=await x){}", false => sset(&[UNEXPECTED_AWAIT]); "await in parameter")]
+    #[test_case("async function *a(b=super.x){}", false => sset(&[UNEXPECTED_SUPER2]); "superprop in params")]
+    #[test_case("async function *(){super.x;}", false => sset(&[UNEXPECTED_SUPER2]); "superprop in body")]
+    #[test_case("async function *(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "supercall in body")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_declaration();
+        node.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -763,6 +780,7 @@ mod async_generator_expression {
     #[test_case("async function *foo(...a) { 'use strict'; f(a);}", false => sset(&[BAD_USE_STRICT]); "complex params")]
     #[test_case("async function *foo(a){let a; const b=0;}", false => sset(&[A_ALREADY_DEFN]); "param/body lex dup")]
     #[test_case("async function *foo(a=await j){}", false => sset(&[UNEXPECTED_AWAIT]); "await in params")]
+    #[test_case("async function *foo(a=yield j){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
