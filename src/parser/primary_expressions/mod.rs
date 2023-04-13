@@ -2635,10 +2635,10 @@ impl TemplateLiteral {
 //      TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
 pub struct SubstitutionTemplate {
-    template_head: TemplateData,
+    pub template_head: TemplateData,
     tagged: bool,
-    expression: Rc<Expression>,
-    template_spans: Rc<TemplateSpans>,
+    pub expression: Rc<Expression>,
+    pub template_spans: Rc<TemplateSpans>,
     location: Location,
 }
 

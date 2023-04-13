@@ -166,6 +166,10 @@ test_defs[CompilerTryStatement]="parser::try_statement::TryStatement try_stateme
 test_defs[CompilerFinally]="parser::try_statement::Finally finally compiler"
 test_defs[CompilerCatch]="parser::try_statement::Catch catch:: compiler"
 test_defs[compile_call]="compile_call call_member_expression compiler"
+test_defs[CompilerTemplateLiteral]="parser::primary_expressions::TemplateLiteral template_literal compiler"
+test_defs[CompilerSubstitutionTemplate]="parser::primary_expressions::SubstitutionTemplate substitution_template compiler"
+test_defs[CompilerTemplateSpans]="parser::primary_expressions::TemplateSpans template_spans compiler"
+test_defs[CompilerTemplateMiddleList]="parser::primary_expressions::TemplateMiddleList template_middle_list compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
