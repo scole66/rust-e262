@@ -1146,6 +1146,18 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let fc = agent.execution_context_stack.borrow()[index].stack[idx].clone();
                     agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
+                Insn::ToString => {
+                    let val = ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .pop()
+                            .expect("insn should have a stack argument")
+                            .expect("insn's arg should not be an error"),
+                    )
+                    .expect("insn's arg should be a value");
+                    let result = to_string(val).map(NormalCompletion::from);
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
+                }
                 Insn::ToNumeric => {
                     let nc_val = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let val: ECMAScriptValue = nc_val.try_into().unwrap();

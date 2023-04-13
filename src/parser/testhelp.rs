@@ -1156,6 +1156,18 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`TemplateMiddleList`] parse node.
+    pub fn template_middle_list(self) -> Rc<TemplateMiddleList> {
+        TemplateMiddleList::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.tagged_flag,
+        )
+        .unwrap()
+        .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`TemplateSpans`] parse node.
     pub fn template_spans(self) -> Rc<TemplateSpans> {
         TemplateSpans::parse(

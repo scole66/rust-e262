@@ -186,6 +186,7 @@ impl Chunk {
             | Insn::Pop
             | Insn::Pop2Push3
             | Insn::Dup
+            | Insn::ToString
             | Insn::ToNumeric
             | Insn::Increment
             | Insn::Decrement

@@ -368,3 +368,13 @@ fn call_expression(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }
+
+#[test_case("'['+(Array()).toString()+']'" => vok("[]"); "Array()")]
+#[test_case("(Array(10)).toString()" => vok(",,,,,,,,,"); "Array(10)")]
+#[test_case("(new Array(1,2)).toString()" => vok("1,2"); "new Array(1,2)")]
+#[test_case("(new Array(true)).toString()" => vok("true"); "new Array(true)")]
+#[test_case("Array(54.3)" => serr("Thrown: RangeError: Bad length in array construction"); "Array(54.3)")]
+fn array_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}

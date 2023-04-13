@@ -77,6 +77,7 @@ pub enum Insn {
     SetPrototype,
     ToPropertyKey,
     CopyDataProps,
+    ToString,
     ToNumeric,
     Increment,
     Decrement,
@@ -203,6 +204,7 @@ impl fmt::Display for Insn {
             Insn::SetPrototype => "SET_PROTO",
             Insn::ToPropertyKey => "TO_KEY",
             Insn::CopyDataProps => "COPY_DATA_PROPS",
+            Insn::ToString => "TO_STRING",
             Insn::ToNumeric => "TO_NUMERIC",
             Insn::Increment => "INCREMENT",
             Insn::Decrement => "DECREMENT",
@@ -832,7 +834,9 @@ impl PrimaryExpression {
             PrimaryExpression::ArrayLiteral { node: al } => {
                 al.compile(chunk, strict, text).map(CompilerStatusFlags::from)
             }
-            PrimaryExpression::TemplateLiteral { node } => todo!(),
+            PrimaryExpression::TemplateLiteral { node } => {
+                node.compile(chunk, strict, text).map(CompilerStatusFlags::from)
+            }
             PrimaryExpression::Function { node } => {
                 node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
             }
@@ -1341,6 +1345,225 @@ impl ArrayLiteral {
                     chunk.fixup(exit).expect("Jump is too short to fail");
                 }
                 Ok(exit_status)
+            }
+        }
+    }
+}
+
+impl TemplateLiteral {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate { data, .. } => {
+                // Runtime Semantics: Evaluation
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  1. Return the TV of NoSubstitutionTemplate.
+                let tv = data.tv.as_ref().expect("Template literals as expressions should not be raw-only");
+                let idx = chunk.add_to_string_pool(tv.clone())?;
+                chunk.op_plus_arg(Insn::String, idx);
+                Ok(AbruptResult::Never)
+            }
+            TemplateLiteral::SubstitutionTemplate(st) => st.compile(chunk, strict, text).map(AbruptResult::from),
+        }
+    }
+}
+
+impl SubstitutionTemplate {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        //  1. Let head be the TV of TemplateHead as defined in 12.9.6.
+        //  2. Let subRef be ? Evaluation of Expression.
+        //  3. Let sub be ? GetValue(subRef).
+        //  4. Let middle be ? ToString(sub).
+        //  5. Let tail be ? Evaluation of TemplateSpans.
+        //  6. Return the string-concatenation of head, middle, and tail.
+        // NOTE: The string conversion semantics applied to the Expression value are like
+        // String.prototype.concat rather than the + operator.
+
+        //    STRING head                        head
+        //    <expression>                       subRef/sub/err head
+        //    GET_VALUE                          sub/err head
+        //    JUMP_IF_ABRUPT unwind              sub head
+        //    TO_STRING                          middle/err head
+        //    JUMP_IF_ABRUPT unwind              middle head
+        //    ADD                                leading
+        //    <templatespans>                    tail/err leading
+        //    JUMP_IF_ABRUPT unwind              tail leading
+        //    ADD                                result
+        //    JUMP exit
+        // unwind:                               err other
+        //    UNWIND 1                           err
+        // exit:                                 result/err
+
+        let mut unwinds = vec![];
+
+        let tv = self.template_head.tv.as_ref().expect("Templates in expressions should not be raw-only");
+        let head = chunk.add_to_string_pool(tv.clone())?;
+        chunk.op_plus_arg(Insn::String, head);
+        let status = self.expression.compile(chunk, strict, text)?;
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        if status.maybe_ref() || status.maybe_abrupt() {
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        chunk.op(Insn::ToString);
+        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        chunk.op(Insn::Add);
+        let status = self.template_spans.compile(chunk, strict, text)?;
+        if status.maybe_abrupt() {
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        chunk.op(Insn::Add);
+        let exit = chunk.op_jump(Insn::Jump);
+        for mark in unwinds {
+            chunk.fixup(mark)?;
+        }
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.fixup(exit).expect("jump too short to fail");
+
+        Ok(AlwaysAbruptResult)
+    }
+}
+
+impl TemplateSpans {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            TemplateSpans::Tail { data, .. } => {
+                // TemplateSpans : TemplateTail
+                //  1. Return the TV of TemplateTail.
+                let idx = chunk.add_to_string_pool(
+                    data.tv.as_ref().expect("templates as expressions should not be raw").clone(),
+                )?;
+                chunk.op_plus_arg(Insn::String, idx);
+                Ok(AbruptResult::Never)
+            }
+            TemplateSpans::List { tml, data, .. } => {
+                // TemplateSpans : TemplateMiddleList TemplateTail
+                //  1. Let head be ? Evaluation of TemplateMiddleList.
+                //  2. Let tail be the TV of TemplateTail as defined in 12.9.6.
+                //  3. Return the string-concatenation of head and tail.
+
+                //    <tml>                  head/err
+                //    JUMP_IF_ABRUPT exit    head
+                //    STRING tail            tail head
+                //    ADD                    result
+                // exit:                     result/err
+                tml.compile(chunk, strict, text)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let tail = chunk.add_to_string_pool(
+                    data.tv.as_ref().expect("templates as expressions should not be raw").clone(),
+                )?;
+                chunk.op_plus_arg(Insn::String, tail);
+                chunk.op(Insn::Add);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AbruptResult::Maybe)
+            }
+        }
+    }
+}
+
+impl TemplateMiddleList {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        match self {
+            TemplateMiddleList::ListHead { data, exp, .. } => {
+                // TemplateMiddleList : TemplateMiddle Expression
+                //  1. Let head be the TV of TemplateMiddle as defined in 12.9.6.
+                //  2. Let subRef be ? Evaluation of Expression.
+                //  3. Let sub be ? GetValue(subRef).
+                //  4. Let middle be ? ToString(sub).
+                //  5. Return the string-concatenation of head and middle.
+
+                //   STRING head               head
+                //   <expression>              subref/err head
+                //   GET_VALUE                 sub/err head
+                //   JUMP_IF_ABRUPT unwind     sub head
+                //   TO_STRING                 middle/err head
+                //   JUMP_IF_ABRUPT unwind     middle head
+                //   ADD                       result
+                //   JUMP exit
+                // unwind:                     err head
+                //   UNWIND 1                  err
+                // exit:                       result/err
+
+                let mut unwinds = vec![];
+                let head = chunk.add_to_string_pool(
+                    data.tv.as_ref().expect("templates used in expressions should not be raw").clone(),
+                )?;
+                chunk.op_plus_arg(Insn::String, head);
+                let status = exp.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::ToString);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Add);
+                let exit = chunk.op_jump(Insn::Jump);
+                for mark in unwinds {
+                    chunk.fixup(mark).expect("jumps are too short to fail");
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("Jump should be too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+            TemplateMiddleList::ListMid(tml, mid, exp, _) => {
+                // TemplateMiddleList : TemplateMiddleList TemplateMiddle Expression
+                //  1. Let rest be ? Evaluation of TemplateMiddleList.
+                //  2. Let middle be the TV of TemplateMiddle.
+                //  3. Let subRef be ? Evaluation of Expression.
+                //  4. Let sub be ? GetValue(subRef).
+                //  5. Let last be ? ToString(sub).
+                //  6. Return the string-concatenation of rest, middle, and last.
+
+                //   <templatemiddlelist>     rest/err
+                //   JUMP_IF_ABRUPT exit      rest
+                //   STRING middle            middle rest
+                //   ADD                      leader
+                //   <expression>             subref/err leader
+                //   GET_VALUE                sub/err leader
+                //   JUMP_IF_ABRUPT unwind    sub leader
+                //   TO_STRING                last/err leader
+                //   JUMP_IF_ABRUPT unwind    last leader
+                //   ADD                      result
+                //   JUMP exit
+                // unwind:                    err leader
+                //   UNWIND 1                 err
+                // exit:                      result/err
+
+                let mut exits = vec![];
+                let mut unwinds = vec![];
+
+                tml.compile(chunk, strict, text)?;
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                let middle = chunk.add_to_string_pool(
+                    mid.tv.as_ref().expect("template expressions should not be raw-only").clone(),
+                )?;
+                chunk.op_plus_arg(Insn::String, middle);
+                chunk.op(Insn::Add);
+                let status = exp.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::ToString);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Add);
+                exits.push(chunk.op_jump(Insn::Jump));
+                for mark in unwinds {
+                    chunk.fixup(mark).expect("Jumps too short to fail");
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                for mark in exits {
+                    chunk.fixup(mark)?;
+                }
+
+                Ok(AlwaysAbruptResult)
             }
         }
     }
