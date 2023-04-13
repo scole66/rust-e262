@@ -134,6 +134,7 @@ pub enum Insn {
     RequireConstructor,
     Construct,
     IteratorAccumulate,
+    IterateArguments,
 }
 
 impl fmt::Display for Insn {
@@ -259,6 +260,7 @@ impl fmt::Display for Insn {
             Insn::RequireConstructor => "REQ_CSTR",
             Insn::Construct => "CONSTRUCT",
             Insn::IteratorAccumulate => "ITERATOR_ACCUM",
+            Insn::IterateArguments => "ITER_ARGS",
         })
     }
 }
@@ -1942,6 +1944,12 @@ impl LeftHandSideExpression {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ArgListSizeHint {
+    fixed_len: u16,
+    has_variable: bool, // If true, the list is appended with another stack list (length included)
+}
+
 impl Arguments {
     pub fn argument_list_evaluation(
         &self,
@@ -1951,23 +1959,67 @@ impl Arguments {
     ) -> anyhow::Result<AbruptResult> {
         match self {
             Arguments::Empty { .. } => {
+                // Arguments : ( )
+                //  1. Return a new empty List.
+
+                //   FLOAT 0
+
                 let index = chunk.add_to_float_pool(0.0)?;
                 chunk.op_plus_arg(Insn::Float, index);
                 Ok(AbruptResult::Never)
             }
             Arguments::ArgumentList(al, _) | Arguments::ArgumentListComma(al, _) => {
-                let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict, text)?;
-                let exit = if status == AbruptResult::Maybe {
-                    // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
-                    // or Stack: err ...
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                // Arguments : ( ArgumentList )
+                // Arguments : ( ArgumentList , )
+                //  1. Return ? ArgumentListEvaluation of ArgumentList
+
+                //    <argument_list>        (err) or (arg(n+m-1) .. arg(m) M arg(m-1) .. arg0) (prev <- N, M existence)
+                //  ---- if N > 0 || M not present
+                //    JUMP_IF_ABRUPT exit
+                //    ---- if M present
+                //    ROTATE_UP N
+                //    ----
+                //    FLOAT N
+                //    ---- if M present
+                //    ADD
+                //    ----
+                //  ----
+
+                let (ArgListSizeHint { fixed_len, has_variable }, status) =
+                    al.argument_list_evaluation(chunk, strict, text)?;
+                if !has_variable {
+                    // size known at compile time:
+                    //   <argument_list>       (err) or (arg(n-1) arg(n-2) ... arg0)
+                    //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
+                    //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
+                    // exit:
+                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    let index = chunk.add_to_float_pool(fixed_len as f64)?;
+                    chunk.op_plus_arg(Insn::Float, index);
+                    if let Some(mark) = exit {
+                        chunk.fixup(mark).expect("Jump is too short to overflow.");
+                    }
                 } else {
-                    None
-                };
-                let index = chunk.add_to_float_pool(arg_list_len as f64)?;
-                chunk.op_plus_arg(Insn::Float, index);
-                if let Some(mark) = exit {
-                    chunk.fixup(mark).expect("Jump is too short to overflow.");
+                    // size variable at compile time
+                    //   <argument_list>       (err) or (arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0)
+                    //   --- if N > 0 ---
+                    //   JUMP_IF_ABRUPT exit   arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0
+                    //   ROTATE_UP N           M arg(m+n-1) ... arg(m) arg(m-1) ... arg0
+                    //   FLOAT N               N M arg(m+n-1) ... arg(m) arg(m-1) ... arg0
+                    //   ADD                   len arg(len-1) ... arg0
+                    //   ----
+                    // exit:
+
+                    if fixed_len > 0 {
+                        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                        chunk.op_plus_arg(Insn::RotateUp, fixed_len);
+                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        chunk.op_plus_arg(Insn::Float, idx);
+                        chunk.op(Insn::Add);
+                        if let Some(mark) = exit {
+                            chunk.fixup(mark).expect("Jump too short to fail");
+                        }
+                    }
                 }
                 Ok(status)
             }
@@ -1981,28 +2033,84 @@ impl ArgumentList {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<(u16, AbruptResult)> {
+    ) -> anyhow::Result<(ArgListSizeHint, AbruptResult)> {
         match self {
-            ArgumentList::FallThru(item) => {
-                // Stack: ...
-                let status = item.compile(chunk, strict, text)?;
-                // Stack: ref/err ...
-                if status.can_be_reference == RefResult::Maybe {
+            ArgumentList::FallThru(ae) => {
+                // ArgumentList : AssignmentExpression
+                //  1. Let ref be ? Evaluation of AssignmentExpression.
+                //  2. Let arg be ? GetValue(ref).
+                //  3. Return « arg ».
+
+                //    <ae>             ref/err
+                //    GET_VALUE        val/err
+                // exit:
+                // (returning length = known:1)
+
+                let status = ae.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
                 // Stack val/err ...
-                Ok((
-                    1,
-                    (status.can_be_abrupt == AbruptResult::Maybe || status.can_be_reference == RefResult::Maybe).into(),
-                ))
+                Ok((ArgListSizeHint { fixed_len: 1, has_variable: false }, status.into()))
             }
-            ArgumentList::Dots(_) => todo!(),
+            ArgumentList::Dots(ae) => {
+                // ArgumentList : ... AssignmentExpression
+                //  1. Let list be a new empty List.
+                //  2. Let spreadRef be ? Evaluation of AssignmentExpression.
+                //  3. Let spreadObj be ? GetValue(spreadRef).
+                //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
+                //  5. Repeat,
+                //      a. Let next be ? IteratorStep(iteratorRecord).
+                //      b. If next is false, return list.
+                //      c. Let nextArg be ? IteratorValue(next).
+                //      d. Append nextArg to list.
+
+                //   <ae>                   spreadref/err
+                //   GET_VALUE              spreadobj/err
+                //   JUMP_IF_ABRUPT exit    spreadobj
+                //   ITER_ARGS              (err) or (N arg(n-1) arg(n-2) ... arg(0))
+                // exit:
+                // (returning length = mystery:0)
+
+                let status = ae.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                chunk.op(Insn::IterateArguments);
+                if let Some(mark) = exit {
+                    chunk.fixup(mark).expect("jump too short to fail");
+                }
+                Ok((ArgListSizeHint { fixed_len: 0, has_variable: true }, AlwaysAbruptResult.into()))
+            }
             ArgumentList::ArgumentList(lst, item) => {
+                // ArgumentList : ArgumentList , AssignmentExpression
+                //  1. Let precedingArgs be ? ArgumentListEvaluation of ArgumentList.
+                //  2. Let ref be ? Evaluation of AssignmentExpression.
+                //  3. Let arg be ? GetValue(ref).
+                //  4. Return the list-concatenation of precedingArgs and « arg ».
+
+                //    <list>                 err/list  (length received as kind(amt))
+                //    JUMP_IF_ABRUPT exit    list
+                //    <ae>                   ref/err list
+                //    GET_VALUE              val/err list
+                //    JUMP_IF_NORMAL exit    err list  (returning length is kind(amt+1))
+                //    --- if amt > 0 ---
+                //    UNWIND amt
+                //    ---
+                //    --- if kind == mystery
+                //    UNWIND_LIST
+                // exit:
+
                 // Stack: ...
                 let (prev_count, status) = lst.argument_list_evaluation(chunk, strict, text)?;
                 // Stack: val(N) val(N-1) ... val(0) ...
                 // or err ...
-                let exit = if status == AbruptResult::Maybe { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let status2 = item.compile(chunk, strict, text)?;
                 // Stack: val/err val(n) val(n-1) ... val(0) ...
                 if status2.maybe_ref() {
@@ -2010,14 +2118,20 @@ impl ArgumentList {
                 }
                 if status2.maybe_ref() || status2.maybe_abrupt() {
                     let happy = chunk.op_jump(Insn::JumpIfNormal);
-                    chunk.op_plus_arg(Insn::Unwind, prev_count);
+                    let amt = prev_count.fixed_len;
+                    if amt > 0 {
+                        chunk.op_plus_arg(Insn::Unwind, amt);
+                    }
+                    if prev_count.has_variable {
+                        chunk.op(Insn::UnwindList);
+                    }
                     chunk.fixup(happy).expect("Jump is too short to overflow.");
                 }
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
                 Ok((
-                    prev_count + 1,
+                    ArgListSizeHint { fixed_len: prev_count.fixed_len + 1, has_variable: prev_count.has_variable },
                     (status == AbruptResult::Maybe || status2.maybe_abrupt() || status2.maybe_ref()).into(),
                 ))
             }

@@ -1647,6 +1647,65 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         }
                     }
                 }
+                Insn::IterateArguments => {
+                    // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
+                    // representation of an argument list (N arg(n-1) ... arg(0)). See
+                    // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
+                    // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
+                    //
+                    //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
+                    //  5. Repeat,
+                    //      a. Let next be ? IteratorStep(iteratorRecord).
+                    //      b. If next is false, return list.
+                    //      c. Let nextArg be ? IteratorValue(next).
+                    //      d. Append nextArg to list.
+                    let spread_obj = ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .pop()
+                            .expect("insn has a stack arg")
+                            .expect("should not be an error"),
+                    )
+                    .expect("arg should be a value");
+
+                    match get_iterator(&spread_obj, IteratorKind::Sync).and_then(|iterator_record| {
+                        let mut count = 0;
+                        match loop {
+                            match iterator_step(&iterator_record) {
+                                Ok(next) => match next {
+                                    None => {
+                                        ec_push(Ok(count.into()));
+                                        break Ok(());
+                                    }
+                                    Some(obj) => match iterator_value(&obj) {
+                                        Ok(next_arg) => {
+                                            count += 1;
+                                            ec_push(Ok(next_arg.into()));
+                                        }
+                                        Err(e) => {
+                                            break Err(e);
+                                        }
+                                    },
+                                },
+                                Err(e) => {
+                                    break Err(e);
+                                }
+                            }
+                        } {
+                            Ok(()) => Ok(()),
+                            Err(e) => {
+                                // unwind
+                                for _ in 0..count {
+                                    ec_pop();
+                                }
+                                Err(e)
+                            }
+                        }
+                    }) {
+                        Ok(_) => (),
+                        Err(e) => ec_push(Err(e)),
+                    }
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;

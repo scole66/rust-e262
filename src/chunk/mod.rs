@@ -236,7 +236,8 @@ impl Chunk {
             | Insn::Construct
             | Insn::Object
             | Insn::Array
-            | Insn::IteratorAccumulate => (1, format!("    {insn}")),
+            | Insn::IteratorAccumulate
+            | Insn::IterateArguments => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
