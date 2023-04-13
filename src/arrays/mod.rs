@@ -613,11 +613,80 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
 fn array_constructor_function(
     _this_value: ECMAScriptValue,
-    _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array ( ...values )
+    // This function performs the following steps when called:
+    //
+    //  1. If NewTarget is undefined, let newTarget be the active function object; else let newTarget be
+    //     NewTarget.
+    //  2. Let proto be ? GetPrototypeFromConstructor(newTarget, "%Array.prototype%").
+    //  3. Let numberOfArgs be the number of elements in values.
+    //  4. If numberOfArgs = 0, then
+    //      a. Return ! ArrayCreate(0, proto).
+    //  5. Else if numberOfArgs = 1, then
+    //      a. Let len be values[0].
+    //      b. Let array be ! ArrayCreate(0, proto).
+    //      c. If len is not a Number, then
+    //          i. Perform ! CreateDataPropertyOrThrow(array, "0", len).
+    //          ii. Let intLen be 1𝔽.
+    //      d. Else,
+    //          i. Let intLen be ! ToUint32(len).
+    //          ii. If SameValueZero(intLen, len) is false, throw a RangeError exception.
+    //      e. Perform ! Set(array, "length", intLen, true).
+    //      f. Return array.
+    //  6. Else,
+    //      a. Assert: numberOfArgs ≥ 2.
+    //      b. Let array be ? ArrayCreate(numberOfArgs, proto).
+    //      c. Let k be 0.
+    //      d. Repeat, while k < numberOfArgs,
+    //          i. Let Pk be ! ToString(𝔽(k)).
+    //          ii. Let itemK be values[k].
+    //          iii. Perform ! CreateDataPropertyOrThrow(array, Pk, itemK).
+    //          iv. Set k to k + 1.
+    //      e. Assert: The mathematical value of array's "length" property is numberOfArgs.
+    //      f. Return array.
+    let nt = match new_target {
+        Some(obj) => obj.clone(),
+        None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
+    };
+    let proto = get_prototype_from_constructor(&nt, IntrinsicId::ArrayPrototype)?;
+    let number_of_args = arguments.len() as u64;
+    match number_of_args {
+        0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
+        1 => {
+            let len = arguments[0].clone();
+            let array = array_create(0, Some(proto)).expect("Array creation with zero length should succeed");
+            let int_len = match len {
+                ECMAScriptValue::Number(len) => {
+                    let int_len = to_uint32(len).expect("number to uint32 should not fail");
+                    if !number_same_value_zero(int_len as f64, len) {
+                        return Err(create_range_error("Bad length in array construction"));
+                    }
+                    int_len
+                }
+                _ => {
+                    create_data_property_or_throw(&array, "0", len).expect("Property creation should be successful");
+                    1
+                }
+            };
+            set(&array, "length".into(), int_len.into(), true).expect("Set should succeed");
+            Ok(array.into())
+        }
+        _ => {
+            let array = array_create(number_of_args, Some(proto))
+                .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
+            for k in 0..number_of_args {
+                let pk = format!("{k}");
+                create_data_property_or_throw(&array, pk, arguments[k as usize].clone())
+                    .expect("property creation should succeed");
+            }
+            Ok(array.into())
+        }
+    }
 }
+
 fn array_from(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
