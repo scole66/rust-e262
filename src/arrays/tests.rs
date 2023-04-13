@@ -674,7 +674,6 @@ fn defaults() {
     assert_eq!(a.o.is_error_object(), false);
 }
 
-#[test_case(super::array_constructor_function => panics; "array_constructor_function")]
 #[test_case(super::array_from => panics; "array_from")]
 #[test_case(super::array_is_array => panics; "array_is_array")]
 #[test_case(super::array_of => panics; "array_of")]
@@ -1026,4 +1025,56 @@ fn array_prototype_values(make_this: impl FnOnce() -> ECMAScriptValue) -> Result
         }
     }
     Ok(result)
+}
+
+mod array_constructor_function {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| Some(intrinsic(IntrinsicId::Array)), Vec::new => Ok(vec![]); "zero args")]
+    #[test_case(|| Some(intrinsic(IntrinsicId::Array)), || vec![ECMAScriptValue::from(3)] => Ok(vec![ECMAScriptValue::Undefined, ECMAScriptValue::Undefined, ECMAScriptValue::Undefined]); "one numeric arg")]
+    #[test_case(|| Some(intrinsic(IntrinsicId::Array)), || vec![ECMAScriptValue::from("three")] => Ok(vec![ECMAScriptValue::from("three")]); "one non-numeric arg")]
+    #[test_case(|| Some(intrinsic(IntrinsicId::Array)), || vec![ECMAScriptValue::from(128.5)] => serr("RangeError: Bad length in array construction"); "one non-integer number arg")]
+    #[test_case(|| Some(intrinsic(IntrinsicId::Array)), || vec![ECMAScriptValue::from("bob"), ECMAScriptValue::from(true), ECMAScriptValue::from(99)] => Ok(vec![ECMAScriptValue::from("bob"), ECMAScriptValue::from(true), ECMAScriptValue::from(99)]); "multiple args")]
+    #[test_case(|| {
+                let array_function = Some(intrinsic(IntrinsicId::Array));
+                AGENT.with(|agent| {
+                    let mut stack = agent.execution_context_stack.borrow_mut();
+                    let mut ec = stack.last_mut().unwrap();
+                    ec.function = array_function;
+                });
+                None
+               },
+            || vec![ECMAScriptValue::from("three")] => Ok(vec![ECMAScriptValue::from("three")]); "called as func, not constructor")]
+    #[test_case(|| {
+                let func_proto = intrinsic(IntrinsicId::FunctionPrototype);
+                let obj = ordinary_object_create(Some(func_proto), &[]);
+                let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+                let desc = PotentialPropertyDescriptor::new().get(thrower);
+                define_property_or_throw(&obj, "prototype", desc).unwrap();
+                Some(obj)
+            },
+            Vec::new => serr("TypeError: Generic TypeError"); "get-proto-from-constructor fails")]
+    fn call(
+        make_nt: impl FnOnce() -> Option<Object>,
+        make_arguments: impl FnOnce() -> Vec<ECMAScriptValue>,
+    ) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let nt = make_nt();
+        let args = make_arguments();
+
+        let array = super::array_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args)
+            .map_err(unwind_any_error)?;
+        let array = Object::try_from(array).unwrap();
+        let mut result = vec![];
+        let length = f64::try_from(get(&array, &"length".into()).unwrap()).unwrap();
+
+        for x in 0..(length as usize) {
+            let pk = format!("{x}");
+            let item = get(&array, &pk.into()).unwrap();
+            result.push(item);
+        }
+
+        Ok(result)
+    }
 }
