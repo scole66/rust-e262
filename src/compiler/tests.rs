@@ -6113,3 +6113,102 @@ mod template_spans {
             .map_err(|e| e.to_string())
     }
 }
+
+mod substitution_template {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("`${0}`", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "FLOAT 0 (0)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 6",
+        "ADD",
+        "STRING 0 ()",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "one item, infallible")]
+    #[test_case("`head${0}tail`", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no room for head")]
+    #[test_case("`head${8n}tail`", false, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "expr compile fail")]
+    #[test_case("`head${a}tail`", false, &[] => Ok((svec(&[
+        "STRING 0 (head)",
+        "STRING 1 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 6",
+        "ADD",
+        "STRING 2 (tail)",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "fallible expression")]
+    #[test_case("`head ${a} middle ${8n} tail`", false, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "spans compile fail")]
+    #[test_case("`head ${a} middle ${b} tail`", false, &[] => Ok((svec(&[
+        "STRING 0 (head )",
+        "STRING 1 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 30",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 27",
+        "ADD",
+        "STRING 2 ( middle )",
+        "STRING 3 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 4 ( tail)",
+        "ADD",
+        "JUMP_IF_ABRUPT 3",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "spans fallible")]
+    #[test_case("`head ${a} middle ${@@@} tail`", false, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).substitution_template();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod template_literal {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("`rust`", false, &[] => Ok((svec(&["STRING 0 (rust)"]), false)); "no-sub")]
+    #[test_case("`rust`", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no-sub, no room")]
+    #[test_case("`${0}`", false, &[] => Ok((svec(&[
+        "STRING 0 ()",
+        "FLOAT 0 (0)",
+        "TO_STRING",
+        "JUMP_IF_ABRUPT 6",
+        "ADD",
+        "STRING 0 ()",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "subsitution templ")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).template_literal();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
