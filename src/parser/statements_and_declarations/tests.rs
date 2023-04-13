@@ -1057,7 +1057,7 @@ mod hoistable_declaration {
     #[test_case("function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "FunctionDeclaration")]
     #[test_case("function *package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "GeneratorDeclaration")]
     #[test_case("async function package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionDeclaration")]
-    #[test_case("async function *package(){}", true => panics "not yet implemented" /* sset(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
+    #[test_case("async function *package(){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncGeneratorDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];

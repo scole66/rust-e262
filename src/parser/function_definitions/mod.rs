@@ -151,7 +151,7 @@ pub fn function_early_errors(
     ident: Option<&Rc<BindingIdentifier>>,
     params: &Rc<FormalParameters>,
     body: &Rc<FunctionBody>,
-) {
+) -> bool {
     // Static Semantics: Early Errors
     //  FunctionDeclaration :
     //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
@@ -210,6 +210,8 @@ pub fn function_early_errors(
     }
     params.early_errors(errs, strict_function, strict_function);
     body.early_errors(errs, strict_function);
+
+    strict_function
 }
 
 // FunctionExpression :

@@ -1,6 +1,8 @@
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::testhelp::*;
+use crate::tests::*;
+use ahash::AHashSet;
 use test_case::test_case;
 
 // ASYNC GENERATOR METHOD
@@ -174,13 +176,17 @@ mod async_generator_method {
         item.has_direct_super()
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true)
-            .unwrap()
-            .0
-            .early_errors(&mut vec![], true);
+    #[test_case("async *a(){}", false => sset(&[]); "all good")]
+    #[test_case("async *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER]); "direct super")]
+    #[test_case("async *a(b=yield 3){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in param")]
+    #[test_case("async *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async *b(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "param/body var clash")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_method();
+        node.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test]
@@ -516,13 +522,26 @@ mod async_generator_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true)
-            .unwrap()
-            .0
-            .early_errors(&mut vec![], true);
+    #[test_case("async function *a(){}", false => sset(&[]); "all good")]
+    #[test_case("async function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "direct super")]
+    #[test_case("async function *a(b=yield 3){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in param")]
+    #[test_case("async function *a(...b){'use strict';}", false => sset(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async function *b(a){let a;}", false => sset(&[A_ALREADY_DEFN]); "param/body var clash")]
+    #[test_case("async function *(a,a){}", false => sset(&[]); "not strict, dup params")]
+    #[test_case("async function *(a,a){}", true => sset(&[A_ALREADY_DEFN]); "dups, strict form 1")]
+    #[test_case("async function *(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "dups, strict form 2")]
+    #[test_case("async function *eval(a){}", true => sset(&[BAD_EVAL]); "eval used as fname")]
+    #[test_case("async function *arguments(a){}", true => sset(&[BAD_ARGUMENTS]); "arguments used as fname")]
+    #[test_case("async function *a(b=await x){}", false => sset(&[UNEXPECTED_AWAIT]); "await in parameter")]
+    #[test_case("async function *a(b=super.x){}", false => sset(&[UNEXPECTED_SUPER2]); "superprop in params")]
+    #[test_case("async function *(){super.x;}", false => sset(&[UNEXPECTED_SUPER2]); "superprop in body")]
+    #[test_case("async function *(){super();}", false => sset(&[UNEXPECTED_SUPER2]); "supercall in body")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_declaration();
+        node.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -747,13 +766,27 @@ mod async_generator_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new())
-            .unwrap()
-            .0
-            .early_errors(&mut vec![], true);
+    #[test_case("async function *package(a=implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "sub exprs (with id)")]
+    #[test_case("async function *(a=package) { implements; }", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "sub exprs (no id)")]
+    #[test_case("async function *foo() { super(); }", false => sset(&[UNEXPECTED_SUPER2]); "body supercall")]
+    #[test_case("async function *foo(a=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "params supercall")]
+    #[test_case("async function *foo(){return super.a;}", false => sset(&[UNEXPECTED_SUPER2]); "body superprop")]
+    #[test_case("async function *foo(a=super.a){}", false => sset(&[UNEXPECTED_SUPER2]); "params superprop")]
+    #[test_case("async function *foo(a, a, a){}", false => sset(&[]); "dups, but not strict")]
+    #[test_case("async function *foo(a, a, a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "dups; strict via directive")]
+    #[test_case("async function *foo(a, a, a){}", true => sset(&[A_ALREADY_DEFN]); "dups; strict via function call")]
+    #[test_case("async function *eval(){}", true => sset(&[BAD_EVAL]); "named eval in strict")]
+    #[test_case("async function *arguments(){'use strict';}", false => sset(&[BAD_ARGUMENTS]); "named arguments via directive")]
+    #[test_case("async function *foo(...a) { 'use strict'; f(a);}", false => sset(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async function *foo(a){let a; const b=0;}", false => sset(&[A_ALREADY_DEFN]); "param/body lex dup")]
+    #[test_case("async function *foo(a=await j){}", false => sset(&[UNEXPECTED_AWAIT]); "await in params")]
+    #[test_case("async function *foo(a=yield j){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_expression();
+        node.early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("async function *a(){}" => true; "named")]
@@ -815,10 +848,12 @@ mod async_generator_body {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut vec![], true);
+    #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "std")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        Maker::new(src).async_generator_body().early_errors(&mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]

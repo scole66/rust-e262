@@ -120,9 +120,52 @@ impl AsyncGeneratorMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
+        //  * It is a Syntax Error if HasDirectSuper of AsyncGeneratorMethod is true.
+        //  * It is a Syntax Error if UniqueFormalParameters Contains YieldExpression is true.
+        //  * It is a Syntax Error if UniqueFormalParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncGeneratorBody is true and
+        //    IsSimpleParameterList of UniqueFormalParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncGeneratorBody.
+        let cus = self.body.function_body_contains_use_strict();
+        if self.has_direct_super() {
+            errs.push(create_syntax_error_object("Calls to ‘super’ not allowed here", Some(self.location)));
+        }
+        if self.params.contains(ParseNodeKind::YieldExpression) {
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
+        }
+        if cus && !self.params.is_simple_parameter_list() {
+            errs.push(create_syntax_error_object(
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+                Some(self.params.location()),
+            ));
+        }
+        let bn = self.params.bound_names();
+        for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.body.0.location())));
+        }
+
+        let strict_func = strict || cus;
+
+        self.name.early_errors(errs, strict_func);
+        self.params.early_errors(errs, strict_func);
+        self.body.early_errors(errs, strict_func);
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -223,7 +266,7 @@ impl AsyncGeneratorDeclaration {
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
         let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
+        let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, true);
         let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
@@ -262,9 +305,54 @@ impl AsyncGeneratorDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  AsyncGeneratorDeclaration :
+        //      async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
+        //      async function * ( FormalParameters ) { AsyncGeneratorBody }
+        //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
+        //    UniqueFormalParameters : FormalParameters are applied.
+        //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
+        //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncGeneratorBody is true and
+        //    IsSimpleParameterList of FormalParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncGeneratorBody.
+        //  * It is a Syntax Error if FormalParameters Contains YieldExpression is true.
+        //  * It is a Syntax Error if FormalParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
+        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        if self.params.contains(ParseNodeKind::YieldExpression) {
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
+        }
+        if self.params.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(
+                "Await expressions can't be parameter initializers in async functions",
+                Some(self.params.location()),
+            ));
+        }
+
+        if let Some(bi) = &self.ident {
+            bi.early_errors(errs, strict_function);
+        }
+        self.params.early_errors(errs, strict_function, strict_function);
+        self.body.early_errors(errs, strict_function);
     }
 
     pub fn is_constant_declaration(&self) -> bool {
@@ -378,9 +466,53 @@ impl AsyncGeneratorExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  AsyncGeneratorExpression :
+        //      async function * BindingIdentifier[opt] ( FormalParameters ) { AsyncGeneratorBody }
+        //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
+        //    UniqueFormalParameters : FormalParameters are applied.
+        //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
+        //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncGeneratorBody is true and
+        //    IsSimpleParameterList of FormalParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncGeneratorBody.
+        //  * It is a Syntax Error if FormalParameters Contains YieldExpression is true.
+        //  * It is a Syntax Error if FormalParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
+        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        if self.params.contains(ParseNodeKind::YieldExpression) {
+            errs.push(create_syntax_error_object(
+                "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
+            ));
+        }
+        if self.params.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(
+                "Await expressions can't be parameter initializers in async functions",
+                Some(self.params.location()),
+            ));
+        }
+
+        if let Some(bi) = &self.ident {
+            bi.early_errors(errs, strict_function);
+        }
+        self.params.early_errors(errs, strict_function, strict_function);
+        self.body.early_errors(errs, strict_function);
     }
 
     pub fn is_named_function(&self) -> bool {
@@ -448,9 +580,18 @@ impl AsyncGeneratorBody {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(errs, strict);
     }
 
     /// Return a list of identifiers defined by the `var` statement for this node.

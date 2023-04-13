@@ -553,7 +553,7 @@ mod method_definition {
     #[test_case("[package](implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
     #[test_case("*[package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "GeneratorMethod")]
     #[test_case("async [package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncMethod")]
-    #[test_case("async *[package](){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
+    #[test_case("async *[package](){}", true => sset(&[PACKAGE_NOT_ALLOWED]); "AsyncGeneratorMethod")]
     #[test_case("get [package](){implements;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
     #[test_case("set [package](implements){interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
     #[test_case("[package](implements){'use strict'; interface;}", false => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; ordinary")]
