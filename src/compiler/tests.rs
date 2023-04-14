@@ -1203,8 +1203,92 @@ mod call_expression {
     #[test_case("a()(@@@)", false, &[]
                 => serr("out of range integral type conversion attempted")
                 ; "call-expression-arguments: unwind jump too far")]
-    #[test_case("a()[b]", true, &[] => panics "not yet implemented"; "expr-on-call")]
-    #[test_case("a().b", true, &[] => panics "not yet implemented"; "property-on-call")]
+    #[test_case("a()[b]", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP_IF_ABRUPT 18",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 8",
+        "TO_KEY",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "STRICT_REF"
+    ]), true, true)); "CallExpression: [ Expression ]")]
+    #[test_case("a().b[c]", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "STRICT_REF",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 18",
+        "STRING 2 (c)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 8",
+        "TO_KEY",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 1",
+        "STRICT_REF"
+    ]), true, true)); "ce-exp; ce is ref")]
+    #[test_case("a()[b]", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "ce-exp; ce fails compilation")]
+    #[test_case("a()[8n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "ce-exp; exp fails compilation")]
+    #[test_case("a().b", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "STRICT_REF"
+    ]), true, true)); "property-on-call")]
+    #[test_case("a().b", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "ce-prop; ce fails compilation")]
+    #[test_case("a().b.c", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "STRICT_REF",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 2 (c)",
+        "STRICT_REF"
+    ]), true, true)); "ce-prop, ce is ref")]
+    #[test_case("a().b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "ce-prop; id doesn't fit")]
     #[test_case("a()`${b}`", true, &[] => panics "not yet implemented"; "template-on-call")]
     #[test_case("a().#pid", true, &[] => panics "not yet implemented"; "private-on-call")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
