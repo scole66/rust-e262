@@ -1,9 +1,17 @@
 use super::*;
 
-#[derive(Debug)]
 pub struct ParameterMap {
     env: Rc<dyn EnvironmentRecord>,
     properties: Vec<Option<JSString>>,
+}
+
+impl std::fmt::Debug for ParameterMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParameterMap")
+            .field("env", &format!("{:?}", &self.env)) // turn off "alterate" flag for env
+            .field("properties", &self.properties)
+            .finish()
+    }
 }
 
 impl ParameterMap {
