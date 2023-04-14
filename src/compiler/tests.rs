@@ -1322,32 +1322,32 @@ mod argument_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a", true, None => Ok((svec(&[
+    #[test_case("a", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE"
         ]), 1, false, true, false)); "item/reference/strict")]
-    #[test_case("a", false, None => Ok((svec(&[
+    #[test_case("a", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE"
         ]), 1, false, true, false)); "item/reference/non-strict")]
-    #[test_case("true", true, None => Ok((svec(&[
+    #[test_case("true", true, &[] => Ok((svec(&[
         "TRUE"
         ]), 1, false, false, false)); "item/literal")]
-    #[test_case("a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for item")]
-    #[test_case("...a", true, None => Ok((svec(&[
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no room for item")]
+    #[test_case("...a", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
         "JUMP_IF_ABRUPT 1",
         "ITER_ARGS"
     ]), 0, true, true, false)); "...a -style object unpacking")]
-    #[test_case("true, false", true, None => Ok((svec(&[
+    #[test_case("true, false", true, &[] => Ok((svec(&[
         "TRUE",
         "FALSE"
         ]), 2, false, false, false)); "list/noref")]
-    #[test_case("a,b", true, None => Ok((svec(&[
+    #[test_case("a,b", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -1358,7 +1358,7 @@ mod argument_list {
         "JUMP_IF_NORMAL 2",
         "UNWIND 1"
         ]), 2, false, true, false)); "errable items, strict")]
-    #[test_case("a,b", false, None => Ok((svec(&[
+    #[test_case("a,b", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -1369,18 +1369,117 @@ mod argument_list {
         "JUMP_IF_NORMAL 2",
         "UNWIND 1"
         ]), 2, false, true, false)); "errable items, non-strict")]
-    #[test_case("a,b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for first list")]
-    #[test_case("a,b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no room for last item")]
-    #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
-    #[test_case("a,...b", true, None => panics "not yet implemented"; "list + rest")]
+    #[test_case("a,b", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no room for first list")]
+    #[test_case("a,b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "no room for last item")]
+    #[test_case("a,@@@", true, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
+    #[test_case("a,...b", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "FLOAT 0 (1)",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), 0, true, true, false)); "list + rest")]
+    #[test_case("...a,b", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 7",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 1",
+        "UNWIND_LIST"
+    ]), 1, true, true, false)); "spread + item")]
+    #[test_case("...1", false, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "ITER_ARGS"
+    ]), 0, true, true, false)); "infallible spread")]
+    #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "spread; ae compile fails")]
+    #[test_case("a,...b", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list-spread; list compile fails")]
+    #[test_case("1,...b", false, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "FLOAT 0 (1)",
+        "STRING 0 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), 0, true, true, false)); "list-spread; list infallible")]
+    #[test_case("...a,56,...b", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 2",
+        "FLOAT 0 (56)",
+        "JUMP_IF_ABRUPT 18",
+        "ROTATEUP 2",
+        "FLOAT 1 (1)",
+        "ADD",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), 0, true, true, false)); "list-spread; list is spread followed by direct")]
+    #[test_case("...a,'a',...b", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-spread; no room for list touchup")]
+    #[test_case("...a,...b", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 13",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), 0, true, true, false)); "list-spread; list is var with no direct")]
+    #[test_case("'a',...b", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-spread, direct, no room for math")]
+    #[test_case("1,...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list-spread; spread compile fails")]
+    #[test_case("1,...9", false, &[] =>  Ok((svec(&[
+        "FLOAT 0 (1)",
+        "FLOAT 0 (1)",
+        "FLOAT 1 (9)",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), 0, true, true, false)); "list-spread; infallible")]
+    #[test_case("...a,...@@@", false, &[] => serr("out of range integral type conversion attempted"); "list-spread; jump too far A")]
     fn argument_list_evaluation(
         src: &str,
         strict: bool,
-        spots_avail: Option<usize>,
+        what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, u16, bool, bool, bool), String> {
         let node = Maker::new(src).argument_list();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", what);
         node.argument_list_evaluation(&mut c, strict, src)
             .map(|(ArgListSizeHint { fixed_len: count, has_variable }, status)| {
                 (

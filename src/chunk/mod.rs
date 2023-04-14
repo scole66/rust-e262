@@ -231,6 +231,7 @@ impl Chunk {
             | Insn::ExtractArg
             | Insn::FinishArgs
             | Insn::UnwindList
+            | Insn::AppendList
             | Insn::ExtractThrownValue
             | Insn::SwapList
             | Insn::RequireConstructor

@@ -374,6 +374,7 @@ fn call_expression(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(new Array(1,2)).toString()" => vok("1,2"); "new Array(1,2)")]
 #[test_case("(new Array(true)).toString()" => vok("true"); "new Array(true)")]
 #[test_case("Array(54.3)" => serr("Thrown: RangeError: Bad length in array construction"); "Array(54.3)")]
+#[test_case("const a = Array('b', ...['a', 'c'], 'm', ...['x', 'y', 'z']);a.toString()" => vok("b,a,c,m,x,y,z"); "spread element arguments")]
 fn array_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

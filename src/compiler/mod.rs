@@ -52,6 +52,7 @@ pub enum Insn {
     RotateDown,
     Unwind,
     UnwindList,
+    AppendList,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -179,6 +180,7 @@ impl fmt::Display for Insn {
             Insn::RotateDown => "ROTATEDOWN",
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
+            Insn::AppendList => "APPEND_LIST",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -2227,7 +2229,7 @@ impl Arguments {
                     //   <argument_list>       (err) or (arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0)
                     //   --- if N > 0 ---
                     //   JUMP_IF_ABRUPT exit   arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0
-                    //   ROTATE_UP N           M arg(m+n-1) ... arg(m) arg(m-1) ... arg0
+                    //   ROTATE_UP N+1         M arg(m+n-1) ... arg(m) arg(m-1) ... arg0
                     //   FLOAT N               N M arg(m+n-1) ... arg(m) arg(m-1) ... arg0
                     //   ADD                   len arg(len-1) ... arg0
                     //   ----
@@ -2235,7 +2237,7 @@ impl Arguments {
 
                     if fixed_len > 0 {
                         let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                        chunk.op_plus_arg(Insn::RotateUp, fixed_len);
+                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
                         let idx = chunk.add_to_float_pool(fixed_len as f64)?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
@@ -2358,7 +2360,79 @@ impl ArgumentList {
                     (status == AbruptResult::Maybe || status2.maybe_abrupt() || status2.maybe_ref()).into(),
                 ))
             }
-            ArgumentList::ArgumentListDots(_, _) => todo!(),
+            ArgumentList::ArgumentListDots(list, ae) => {
+                // ArgumentList : ArgumentList , ... AssignmentExpression
+                //  1. Let precedingArgs be ? ArgumentListEvaluation of ArgumentList.
+                //  2. Let spreadRef be ? Evaluation of AssignmentExpression.
+                //  3. Let iteratorRecord be ? GetIterator(? GetValue(spreadRef), sync).
+                //  4. Repeat,
+                //      a. Let next be ? IteratorStep(iteratorRecord).
+                //      b. If next is false, return precedingArgs.
+                //      c. Let nextArg be ? IteratorValue(next).
+                //      d. Append nextArg to precedingArgs.
+
+                //    <list>                 err/preceding_args  (length received as fixed/has_var)
+                //    JUMP_IF_ABRUPT exit    preceding_args
+                //  --- if has_var
+                //    --- if fixed > 0
+                //    ROTATE_UP fixed+1
+                //    FLOAT fixed
+                //    ADD
+                //    ---
+                //  --- else
+                //    FLOAT fixed
+                //  ---
+                //    <ae>                   spreadRef/err preceding_args
+                //    GET_VALUE              spreadVal/err preceding_args
+                //    JUMP_IF_ABRUPT unwind  spreadVal preceding_args
+                //    ITER_ARGS              new_args/err preceding_args
+                //    JUMP_IF_ABRUPT unwind  new_args preceding_args
+                //    APPEND_LIST            args (fixed=0/has_var=true)
+                //    JUMP exit
+                // unwind:
+                //    UNWIND_LIST
+                // exit:
+
+                let mut unwinds = vec![];
+
+                let (ArgListSizeHint { fixed_len, has_variable }, status) =
+                    list.argument_list_evaluation(chunk, strict, text)?;
+                let exit1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                if has_variable {
+                    if fixed_len > 0 {
+                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
+                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        chunk.op_plus_arg(Insn::Float, idx);
+                        chunk.op(Insn::Add);
+                    }
+                } else {
+                    let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                    chunk.op_plus_arg(Insn::Float, idx);
+                }
+
+                let status = ae.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.maybe_abrupt() || status.maybe_ref() {
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::IterateArguments);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::AppendList);
+                let exit2 = chunk.op_jump(Insn::Jump);
+
+                for mark in unwinds {
+                    chunk.fixup(mark).expect("jumps too short to fail");
+                }
+                chunk.op(Insn::UnwindList);
+                if let Some(mark) = exit1 {
+                    chunk.fixup(mark)?;
+                }
+                chunk.fixup(exit2).expect("jump too short to fail");
+
+                Ok((ArgListSizeHint { fixed_len: 0, has_variable: true }, AbruptResult::Maybe))
+            }
         }
     }
 }

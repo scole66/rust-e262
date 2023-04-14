@@ -1246,6 +1246,38 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                     agent.execution_context_stack.borrow_mut()[index].stack.push(err_to_keep);
                 }
+                Insn::AppendList => {
+                    // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
+                    // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
+                    // call them ListA and ListB ...
+                    let len_a = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("AppendList stack depth should be at least 2")
+                                .expect("list length should not be an error"),
+                        )
+                        .expect("list length should be an ecmascript value"),
+                    )
+                    .expect("list length should be a ecamscript number value") as usize;
+                    {
+                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                        let stack = &mut ec.stack;
+                        let len = stack.len();
+                        assert!(len > len_a);
+                        stack[len - (len_a + 1)..len].rotate_left(1);
+                    }
+                    let len_b = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("AppendList stack dep th should include two lists")
+                                .expect("list length should not be an error"),
+                        )
+                        .expect("list length shoud be a value"),
+                    )
+                    .expect("list length should be a number value") as usize;
+                    let new_len = len_a + len_b;
+                    ec_push(Ok((new_len as f64).into()));
+                }
                 Insn::Call => {
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
