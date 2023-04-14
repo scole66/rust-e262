@@ -1624,7 +1624,7 @@ impl PrettyPrint for CallExpression {
             CallExpression::CallExpressionIdentifierName(ce, right, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::NotFinal)
+                pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::Final)
             }
             CallExpression::CallExpressionTemplateLiteral(ce, right) => {
                 let successive = head(writer, ce)?;
