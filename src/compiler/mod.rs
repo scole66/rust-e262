@@ -1801,65 +1801,65 @@ impl ComputedPropertyName {
     }
 }
 
-impl MemberExpression {
-    /// See [EvaluatePropertyAccessWithIdentifierKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
-    fn evaluate_property_access_with_identifier_key(
-        chunk: &mut Chunk,
-        identifier_name: &IdentifierData,
-        strict: bool,
-    ) -> anyhow::Result<AlwaysRefResult> {
-        // Stack: base ...
-        let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
-        chunk.op_plus_arg(Insn::String, idx);
-        // Stack: name base ...
-        chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
-        // Stack: ref
-        Ok(AlwaysRefResult)
+/// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
+fn evaluate_property_access_with_expression_key(
+    chunk: &mut Chunk,
+    expression: &Rc<Expression>,
+    strict: bool,
+    text: &str,
+) -> anyhow::Result<AlwaysAbruptRefResult> {
+    let mut exits = vec![];
+    // Stack: base ...
+    let state = expression.compile(chunk, strict, text)?;
+    // Stack: propertyNameReference/error1 base ...
+    if state.maybe_ref() {
+        chunk.op(Insn::GetValue);
     }
-
-    /// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
-    fn evaluate_property_access_with_expression_key(
-        chunk: &mut Chunk,
-        expression: &Rc<Expression>,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AlwaysAbruptRefResult> {
-        let mut exits = vec![];
-        // Stack: base ...
-        let state = expression.compile(chunk, strict, text)?;
-        // Stack: propertyNameReference/error1 base ...
-        if state.maybe_ref() {
-            chunk.op(Insn::GetValue);
-        }
-        // Stack: propertyNameValue/error1/error2 base ...
-        if state.maybe_abrupt() || state.maybe_ref() {
-            let norm = chunk.op_jump(Insn::JumpIfNormal);
-            // Stack: error1/error2 base ...
-            chunk.op_plus_arg(Insn::Unwind, 1);
-            // stack: error1/error2 ...
-            let exit = chunk.op_jump(Insn::Jump);
-            exits.push(exit);
-            chunk.fixup(norm).expect("Jump is too short to overflow.");
-        }
-        // Stack: nameValue base ...
-        chunk.op(Insn::ToPropertyKey);
-        // Stack: key/err base ...
+    // Stack: propertyNameValue/error1/error2 base ...
+    if state.maybe_abrupt() || state.maybe_ref() {
         let norm = chunk.op_jump(Insn::JumpIfNormal);
+        // Stack: error1/error2 base ...
         chunk.op_plus_arg(Insn::Unwind, 1);
+        // stack: error1/error2 ...
         let exit = chunk.op_jump(Insn::Jump);
         exits.push(exit);
         chunk.fixup(norm).expect("Jump is too short to overflow.");
-
-        // Stack: key base ...
-        chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
-        // Stack: ref ...
-
-        for exit in exits {
-            chunk.fixup(exit).expect("Jump is too short to overflow.");
-        }
-        Ok(AlwaysAbruptRefResult)
     }
+    // Stack: nameValue base ...
+    chunk.op(Insn::ToPropertyKey);
+    // Stack: key/err base ...
+    let norm = chunk.op_jump(Insn::JumpIfNormal);
+    chunk.op_plus_arg(Insn::Unwind, 1);
+    let exit = chunk.op_jump(Insn::Jump);
+    exits.push(exit);
+    chunk.fixup(norm).expect("Jump is too short to overflow.");
 
+    // Stack: key base ...
+    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+    // Stack: ref ...
+
+    for exit in exits {
+        chunk.fixup(exit).expect("Jump is too short to overflow.");
+    }
+    Ok(AlwaysAbruptRefResult)
+}
+
+/// See [EvaluatePropertyAccessWithIdentifierKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
+fn evaluate_property_access_with_identifier_key(
+    chunk: &mut Chunk,
+    identifier_name: &IdentifierData,
+    strict: bool,
+) -> anyhow::Result<AlwaysRefResult> {
+    // Stack: base ...
+    let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
+    chunk.op_plus_arg(Insn::String, idx);
+    // Stack: name base ...
+    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+    // Stack: ref
+    Ok(AlwaysRefResult)
+}
+
+impl MemberExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MemberExpression::PrimaryExpression(pe) => pe.compile(chunk, strict, text),
@@ -1874,7 +1874,7 @@ impl MemberExpression {
                     mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     might_be_abrupt = true;
                 }
-                Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
                 if let Some(mark) = mark {
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
@@ -1893,7 +1893,7 @@ impl MemberExpression {
                     None
                 };
                 // Stack: base ...
-                Self::evaluate_property_access_with_expression_key(chunk, exp, strict, text)?;
+                evaluate_property_access_with_expression_key(chunk, exp, strict, text)?;
                 // expressions are always: abrupt/ref, so we can avoid further boolean logic.
 
                 // Stack: ref/err ...
@@ -2065,8 +2065,54 @@ impl CallExpression {
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult.into())
             }
-            CallExpression::CallExpressionExpression(_, _, _) => todo!(),
-            CallExpression::CallExpressionIdentifierName(_, _, _) => todo!(),
+            CallExpression::CallExpressionExpression(ce, exp, _) => {
+                // CallExpression : CallExpression [ Expression ]
+                //  1. Let baseReference be ? Evaluation of CallExpression.
+                //  2. Let baseValue be ? GetValue(baseReference).
+                //  3. If the source text matched by this CallExpression is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  4. Return ? EvaluatePropertyAccessWithExpressionKey(baseValue, Expression, strict).
+
+                //   <ce>                   ref/err
+                //   GET_VALUE              val/err
+                //   JUMP_IF_ABRUPT exit    val
+                //   <evaluate_property_access_with_expression_key>
+                // exit:
+
+                let status = ce.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                evaluate_property_access_with_expression_key(chunk, exp, strict, text)?;
+                chunk.fixup(exit).expect("Jump too short to fail");
+
+                Ok(AlwaysAbruptRefResult.into())
+            }
+            CallExpression::CallExpressionIdentifierName(ce, id, _) => {
+                // CallExpression : CallExpression . IdentifierName
+                //  1. Let baseReference be ? Evaluation of CallExpression.
+                //  2. Let baseValue be ? GetValue(baseReference).
+                //  3. If the source text matched by this CallExpression is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  4. Return EvaluatePropertyAccessWithIdentifierKey(baseValue, IdentifierName, strict).
+
+                //   <ce>                 ref/err
+                //   GET_VALUE            val/err
+                //   JUMP_IF_ABRUPT exit
+                //   <evaluate_property_access_with_identifier_key>
+                // exit:
+
+                let status = ce.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                chunk.fixup(exit).expect("Jump too short to fail");
+
+                Ok(AlwaysAbruptRefResult.into())
+            }
             CallExpression::CallExpressionTemplateLiteral(_, _) => todo!(),
             CallExpression::CallExpressionPrivateId(_, _, _) => todo!(),
         }
