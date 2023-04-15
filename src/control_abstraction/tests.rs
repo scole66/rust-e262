@@ -994,7 +994,7 @@ mod get_iterator {
 
     #[test_case(undefined, IteratorKind::Async => panics "not yet implemented"; "async iterators")]
     #[test_case(undefined, IteratorKind::Sync => serr("TypeError: Undefined and null cannot be converted to objects"); "get_method fails")]
-    #[test_case(empty_object, IteratorKind::Sync => serr("TypeError: not an iterator"); "no next method")]
+    #[test_case(empty_object, IteratorKind::Sync => serr("TypeError: object is not iterable"); "no next method")]
     #[test_case(silly_this, IteratorKind::Sync => Ok(("Next".to_string(), "Iterator(This)".to_string(), false)); "happy path")]
     fn call(make_obj: impl FnOnce() -> ECMAScriptValue, kind: IteratorKind) -> Result<(String, String, bool), String> {
         setup_test_agent();

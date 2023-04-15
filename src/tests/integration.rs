@@ -355,7 +355,7 @@ fn function_prototype_call(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("let a=[200]; [100,...a].toString()" => vok("100,200"); "list+spread")]
 #[test_case("let b=100, a=[200]; [b,...a].toString()" => vok("100,200"); "list+spread; list fallible")]
 #[test_case("let a=[200]; [100,,...a].toString()" => vok("100,,200"); "list+elision+spread")]
-#[test_case("[...0]" => serr("Thrown: TypeError: not an iterator"); "invalid spread target")]
+#[test_case("[...0]" => serr("Thrown: TypeError: object is not iterable"); "invalid spread target")]
 fn array_literal(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
@@ -393,8 +393,8 @@ fn array_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
 // ArgumentList: ... AssignmentExpression
 #[test_case("const a=[10];f(...a)" => vok("10"); "spread; fallible ref; succeeds")]
 #[test_case("f(...a)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "spread; fallible ref; fails")]
-#[test_case("const a=true;f(...a)" => serr("Thrown: TypeError: not an iterator"); "spread; fallible ref; iter fails")]
-#[test_case("f(...10)" => serr("Thrown: TypeError: not an iterator"); "spread; infallible expr; iter fails")]
+#[test_case("const a=true;f(...a)" => serr("Thrown: TypeError: object is not iterable"); "spread; fallible ref; iter fails")]
+#[test_case("f(...10)" => serr("Thrown: TypeError: object is not iterable"); "spread; infallible expr; iter fails")]
 #[test_case("f(...[])" => vok(""); "spread; infallible expr; iter successful")]
 // ArgumentList: ArgumentList , AssignmentExpression
 #[test_case("f('a', 'b')" => vok("a,b"); "list-exp; infallible both")]
@@ -406,7 +406,7 @@ fn array_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("f('a', c())" => vok("a,c"); "list-exp; exp not ref; exp succeeds")]
 // ArgumentList: ArgumentList , ... AssignmentExpression
 #[test_case("f(1, ...[1])" => vok("1,1"); "list-spread; all infallible; successful")]
-#[test_case("f(1, ...3)" => serr("Thrown: TypeError: not an iterator"); "list-spread; all infallible; iter fails")]
+#[test_case("f(1, ...3)" => serr("Thrown: TypeError: object is not iterable"); "list-spread; all infallible; iter fails")]
 #[test_case("f(a, ...[1])" => serr("Thrown: ReferenceError: Unresolvable Reference"); "list-spread; list is ref; list fails")]
 #[test_case("const a='a'; f(a, ...[1])" => vok("a,1"); "list-spread; list is ref; successful")]
 #[test_case("f(c(),...['b'])" => vok("c,b"); "list-spread; list is non-ref, fallible; successful")]

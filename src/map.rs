@@ -7,7 +7,7 @@ use super::*;
 /// used as a Map key and whose second element is the value to associate with that key.
 ///
 /// See [AddEntriesFromIterable](https://tc39.es/ecma262/#sec-add-entries-from-iterable) in ECMA-262.
-fn add_entries_from_iterable(
+pub fn add_entries_from_iterable(
     target: &ECMAScriptValue,
     iterable: &ECMAScriptValue,
     adder: &ECMAScriptValue,
