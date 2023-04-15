@@ -937,7 +937,7 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
         }
     };
     if method.is_undefined() {
-        return Err(create_type_error("not an iterator"));
+        return Err(create_type_error("object is not iterable"));
     }
     get_iterator_from_method(obj, &method)
 }

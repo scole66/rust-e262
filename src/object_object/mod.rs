@@ -495,13 +495,80 @@ fn object_freeze(
     }
 }
 
+/// Transforms an iterable of key-value pairs into an object
+///
+/// ## Syntax
+///
+/// ```javascript
+/// Object.fromEntries(iterable)
+/// ```
+///
+/// ### Parameters
+///
+/// * `iterable`: An iterable, such as an Array or Map, containing a list of objects. Each object should have
+///   two properties:
+///      * `0`: A string or symbol representing the property key.
+///      * `1`: The property value.
+///
+/// Typically, this object is implemented as a two-element array, with the first element being the property
+/// key and the second element being the property value.
+///
+/// ### Return Value
+/// A new object whose properties are given by the entries of the iterable.
+///
+/// ## Description
+/// The `Object.fromEntries()` method takes a list of key-value pairs and returns a new object whose
+/// properties are given by those entries. The iterable argument is expected to be an object that implements
+/// an `@@iterator` method. The method returns an iterator object that produces two-element array-like
+/// objects. The first element is a value that will be used as a property key, and the second element is the
+/// value to associate with that property key.
+///
+/// `Object.fromEntries()` performs the reverse of `Object.entries()`, except that `Object.entries()` only
+/// returns string-keyed properties, while `Object.fromEntries()` can also create symbol-keyed properties.
+///
+/// *Note*: Unlike `Array.from()`, `Object.fromEntries()` does not use the value of `this`, so calling it on
+/// another constructor does not create objects of that type.
+///
+/// See
+/// [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries).
 fn object_from_entries(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.fromEntries ( iterable )
+    // This function performs the following steps when called:
+    //
+    //  1. Perform ? RequireObjectCoercible(iterable).
+    //  2. Let obj be OrdinaryObjectCreate(%Object.prototype%).
+    //  3. Assert: obj is an extensible ordinary object with no own properties.
+    //  4. Let closure be a new Abstract Closure with parameters (key, value) that captures obj and performs
+    //     the following steps when called:
+    //      a. Let propertyKey be ? ToPropertyKey(key).
+    //      b. Perform ! CreateDataPropertyOrThrow(obj, propertyKey, value).
+    //      c. Return undefined.
+    //  5. Let adder be CreateBuiltinFunction(closure, 2, "", « »).
+    //  6. Return ? AddEntriesFromIterable(obj, iterable, adder).
+    // NOTE: The function created for adder is never directly accessible to ECMAScript code.
+    let mut args = FuncArgs::from(arguments);
+    let iterable = args.next_arg();
+    require_object_coercible(&iterable)?;
+    let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let closure = |this: ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| {
+        let this_obj = Object::try_from(this).expect("'this' should be an object");
+        let mut args = FuncArgs::from(args);
+        let key = args.next_arg();
+        let value = args.next_arg();
+        let property_key = to_property_key(key)?;
+        create_data_property_or_throw(&this_obj, property_key, value).unwrap();
+        let result: Completion<ECMAScriptValue> = Ok(ECMAScriptValue::Undefined);
+        result
+    };
+    let adder = create_builtin_function(closure, false, 2.0, "".into(), &[], None, None, None);
+    add_entries_from_iterable(&obj.into(), &iterable, &adder.into())
 }
+
 fn object_get_own_property_descriptor(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

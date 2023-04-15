@@ -600,4 +600,57 @@ mod constructor {
             assert_eq!(unwind_any_error(result), "TypeError: Object cannot be frozen");
         }
     }
+
+    mod from_entries {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(Vec::new => serr("TypeError: Undefined and null are not allowed in this context"); "fails coercible check")]
+        #[test_case(|| vec![ECMAScriptValue::from(10)] => serr("TypeError: object is not iterable"); "not a key/value iterator")]
+        #[test_case(|| {
+            let first = create_array_from_list(&[ECMAScriptValue::from("first"), ECMAScriptValue::from(true)]);
+            let second = create_array_from_list(&[ECMAScriptValue::from("second"), ECMAScriptValue::from(998)]);
+            let entries = create_array_from_list(&[ECMAScriptValue::from(first), ECMAScriptValue::from(second)]);
+            vec![ECMAScriptValue::from(entries)]
+        } => sok("first:true,second:998"); "typical")]
+        #[test_case(|| {
+            let key = ordinary_object_create(None, &[]); // no prototype means no toString
+            let pair = create_array_from_list(&[ECMAScriptValue::from(key), ECMAScriptValue::from("item")]);
+            let entries = create_array_from_list(&[ECMAScriptValue::from(pair)]);
+            vec![ECMAScriptValue::from(entries)]
+        } => serr("TypeError: Cannot convert object to primitive value"); "to_property_key throws")]
+        fn call(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+            setup_test_agent();
+            let args = make_args();
+
+            let res =
+                object_from_entries(ECMAScriptValue::Undefined, None, args.as_slice()).map_err(unwind_any_error)?;
+
+            let repr = match res {
+                ECMAScriptValue::Undefined
+                | ECMAScriptValue::Null
+                | ECMAScriptValue::Boolean(_)
+                | ECMAScriptValue::String(_)
+                | ECMAScriptValue::Number(_)
+                | ECMAScriptValue::BigInt(_)
+                | ECMAScriptValue::Symbol(_) => format!("{res:?}"),
+                ECMAScriptValue::Object(o) => {
+                    let keys = ordinary_own_property_keys(&o);
+                    let mut r = String::new();
+                    let mut first = true;
+                    for key in keys {
+                        let value = get(&o, &key).map_err(unwind_any_error)?;
+                        if !first {
+                            r.push(',');
+                        } else {
+                            first = false;
+                        }
+                        r.push_str(&format!("{key}:{value}"));
+                    }
+                    r
+                }
+            };
+            Ok(repr)
+        }
+    }
 }

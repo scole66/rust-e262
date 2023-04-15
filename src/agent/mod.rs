@@ -438,7 +438,7 @@ pub fn set_default_global_bindings() {
     // Number ( . . . )
     constructor_property!(Number);
     // Object ( . . . )
-    //constructor_property!(Object);
+    constructor_property!(Object);
     // Promise ( . . . )
     // Proxy ( . . . )
     // RangeError ( . . . )
