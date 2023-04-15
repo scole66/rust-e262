@@ -1063,7 +1063,7 @@ pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Obje
     iterator_record.step()
 }
 
-fn iterator_close(
+pub fn iterator_close(
     iterator_record: &IteratorRecord,
     completion: Completion<ECMAScriptValue>,
 ) -> Completion<ECMAScriptValue> {
