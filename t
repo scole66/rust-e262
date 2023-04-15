@@ -621,6 +621,8 @@ test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
 test_defs[ExecutionContext]="ExecutionContext execution_context execution_context"
 
+test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from_iterable map"
+
 if $everything; then
   names=("${!test_defs[@]}")
 fi
