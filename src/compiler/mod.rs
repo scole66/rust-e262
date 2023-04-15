@@ -780,6 +780,12 @@ impl AsyncArrowFunction {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum EnvUsage {
+    UsePutValue,
+    UseCurrentLexical,
+}
+
 impl IdentifierReference {
     /// Generate the code for IdentifierReference
     ///
@@ -4397,9 +4403,11 @@ impl CatchParameter {
     ) -> anyhow::Result<AbruptResult> {
         match self {
             CatchParameter::Ident(node) => {
-                node.compile_binding_initialization(chunk, strict, false).map(AbruptResult::from)
+                node.compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical).map(AbruptResult::from)
             }
-            CatchParameter::Pattern(node) => node.compile_binding_initialization(chunk, strict, text, false),
+            CatchParameter::Pattern(node) => {
+                node.compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
+            }
         }
     }
 }
@@ -4803,7 +4811,12 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     }
 
     // 24-26.
-    let status = formals.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+    let status = formals.compile_binding_initialization(
+        chunk,
+        strict,
+        text,
+        if has_duplicates { EnvUsage::UsePutValue } else { EnvUsage::UseCurrentLexical },
+    )?;
     // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
     let mut exit = None;
     if status.maybe_abrupt() {
@@ -5027,15 +5040,11 @@ impl ParamSource {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            ParamSource::FormalParameters(params) => {
-                params.compile_binding_initialization(chunk, strict, text, has_duplicates)
-            }
-            ParamSource::ArrowParameters(params) => {
-                params.compile_binding_initialization(chunk, strict, text, has_duplicates)
-            }
+            ParamSource::FormalParameters(params) => params.compile_binding_initialization(chunk, strict, text, env),
+            ParamSource::ArrowParameters(params) => params.compile_binding_initialization(chunk, strict, text, env),
             ParamSource::AsyncArrowBinding(_) => todo!(),
             ParamSource::ArrowFormals(_) => todo!(),
         }
@@ -5049,16 +5058,16 @@ impl FormalParameters {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
             FormalParameters::Empty(_) => Ok(AbruptResult::from(false)),
-            FormalParameters::Rest(frp) => frp.compile_binding_initialization(chunk, strict, text, has_duplicates),
+            FormalParameters::Rest(frp) => frp.compile_binding_initialization(chunk, strict, text, env),
             FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => {
-                fpl.compile_binding_initialization(chunk, strict, text, has_duplicates)
+                fpl.compile_binding_initialization(chunk, strict, text, env)
             }
             FormalParameters::ListRest(list, rest) => {
-                let list_status = list.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                let list_status = list.compile_binding_initialization(chunk, strict, text, env)?;
                 todo!()
                 //let rest_status = rest.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
                 //Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
@@ -5073,16 +5082,16 @@ impl ArrowParameters {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
         match self {
             ArrowParameters::Identifier(bi) => {
                 chunk.op(Insn::ExtractArg);
                 // Stack: val n-1 arg[n-1] ... arg[1]
-                bi.compile_binding_initialization(chunk, strict, has_duplicates).map(AbruptResult::from)
+                bi.compile_binding_initialization(chunk, strict, env).map(AbruptResult::from)
             }
-            ArrowParameters::Formals(afp) => afp.compile_binding_initialization(chunk, strict, text, has_duplicates),
+            ArrowParameters::Formals(afp) => afp.compile_binding_initialization(chunk, strict, text, env),
         }
     }
 }
@@ -5093,9 +5102,9 @@ impl ArrowFormalParameters {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
-        self.params.compile_binding_initialization(chunk, strict, text, has_duplicates)
+        self.params.compile_binding_initialization(chunk, strict, text, env)
     }
 }
 
@@ -5105,27 +5114,22 @@ impl UniqueFormalParameters {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
-        self.formals.compile_binding_initialization(chunk, strict, text, has_duplicates)
+        self.formals.compile_binding_initialization(chunk, strict, text, env)
     }
 }
 
-fn compile_initialize_bound_name(
-    chunk: &mut Chunk,
-    strict: bool,
-    has_duplicates: bool,
-    idx: u16,
-) -> NeverAbruptRefResult {
-    match has_duplicates {
-        true => {
+fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage, idx: u16) -> NeverAbruptRefResult {
+    match env {
+        EnvUsage::UsePutValue => {
             chunk.op_plus_arg(Insn::String, idx);
             chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
             chunk.op(Insn::Swap);
             chunk.op(Insn::PutValue);
             chunk.op(Insn::Pop);
         }
-        false => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
+        EnvUsage::UseCurrentLexical => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
     }
     NeverAbruptRefResult
 }
@@ -5135,7 +5139,7 @@ impl BindingIdentifier {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         // Stack: val ...
         let binding_id = match self {
@@ -5144,7 +5148,7 @@ impl BindingIdentifier {
             BindingIdentifier::Await { .. } => JSString::from("await"),
         };
         let id_idx = chunk.add_to_string_pool(binding_id)?;
-        compile_initialize_bound_name(chunk, strict, has_duplicates, id_idx);
+        compile_initialize_bound_name(chunk, strict, env, id_idx);
         Ok(NeverAbruptRefResult)
     }
 }
@@ -5155,13 +5159,13 @@ impl FormalParameterList {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            FormalParameterList::Item(item) => item.compile_binding_initialization(chunk, strict, text, has_duplicates),
+            FormalParameterList::Item(item) => item.compile_binding_initialization(chunk, strict, text, env),
             FormalParameterList::List(list, item) => {
-                let list_status = list.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
-                let item_status = item.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                let list_status = list.compile_binding_initialization(chunk, strict, text, env)?;
+                let item_status = item.compile_binding_initialization(chunk, strict, text, env)?;
                 Ok(AbruptResult::from(list_status.maybe_abrupt() || item_status.maybe_abrupt()))
             }
         }
@@ -5174,9 +5178,9 @@ impl FormalParameter {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
-        self.element.compile_binding_initialization(chunk, strict, text, has_duplicates)
+        self.element.compile_binding_initialization(chunk, strict, text, env)
     }
 }
 
@@ -5186,16 +5190,14 @@ impl BindingElement {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
         match self {
-            BindingElement::Single(single) => {
-                single.compile_binding_initialization(chunk, strict, text, has_duplicates)
-            }
+            BindingElement::Single(single) => single.compile_binding_initialization(chunk, strict, text, env),
             BindingElement::Pattern(bp, None) => {
                 chunk.op(Insn::ExtractArg);
-                bp.compile_binding_initialization(chunk, strict, text, has_duplicates)
+                bp.compile_binding_initialization(chunk, strict, text, env)
             }
             BindingElement::Pattern(bp, Some(init)) => {
                 chunk.op(Insn::ExtractArg);
@@ -5223,7 +5225,7 @@ impl BindingElement {
                 };
                 chunk.fixup(mark)?;
                 // Stack: val n-1 arg[n-1] ... arg[1]
-                let status = bp.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
+                let status = bp.compile_binding_initialization(chunk, strict, text, env)?;
                 if let Some(&mark) = exit.as_ref() {
                     chunk.fixup(mark)?;
                 }
@@ -5241,7 +5243,7 @@ impl SingleNameBinding {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
         let (id, maybe_init) = {
@@ -5288,10 +5290,9 @@ impl SingleNameBinding {
         if let Some(mark) = no_init {
             chunk.fixup(mark)?;
         }
-        if has_duplicates {
-            chunk.op(Insn::PutValue);
-        } else {
-            chunk.op(Insn::InitializeReferencedBinding);
+        match env {
+            EnvUsage::UsePutValue => chunk.op(Insn::PutValue),
+            EnvUsage::UseCurrentLexical => chunk.op(Insn::InitializeReferencedBinding),
         }
         chunk.op(Insn::Pop);
         if let Some(&mark) = exit.as_ref() {
@@ -5310,12 +5311,12 @@ impl BindingPattern {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Something to make errors, for coverage. Remove when real impl happens.
         chunk.add_to_string_pool("nothing but nonsense".into())?;
         chunk.op(Insn::ToDo);
-        if has_duplicates {
+        if env == EnvUsage::UsePutValue {
             for _ in 0..32768 {
                 chunk.op(Insn::Nop);
             }
@@ -5331,7 +5332,7 @@ impl FunctionRestParameter {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        has_duplicates: bool,
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         todo!()
     }
