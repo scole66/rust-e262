@@ -1246,6 +1246,38 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                     agent.execution_context_stack.borrow_mut()[index].stack.push(err_to_keep);
                 }
+                Insn::AppendList => {
+                    // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
+                    // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
+                    // call them ListA and ListB ...
+                    let len_a = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("AppendList stack depth should be at least 2")
+                                .expect("list length should not be an error"),
+                        )
+                        .expect("list length should be an ecmascript value"),
+                    )
+                    .expect("list length should be a ecamscript number value") as usize;
+                    {
+                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                        let stack = &mut ec.stack;
+                        let len = stack.len();
+                        assert!(len > len_a);
+                        stack[len - (len_a + 1)..len].rotate_left(1);
+                    }
+                    let len_b = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("AppendList stack dep th should include two lists")
+                                .expect("list length should not be an error"),
+                        )
+                        .expect("list length shoud be a value"),
+                    )
+                    .expect("list length should be a number value") as usize;
+                    let new_len = len_a + len_b;
+                    ec_push(Ok((new_len as f64).into()));
+                }
                 Insn::Call => {
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
@@ -1657,6 +1689,65 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         Err(e) => {
                             agent.execution_context_stack.borrow_mut()[index].stack.push(Err(e));
                         }
+                    }
+                }
+                Insn::IterateArguments => {
+                    // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
+                    // representation of an argument list (N arg(n-1) ... arg(0)). See
+                    // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
+                    // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
+                    //
+                    //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
+                    //  5. Repeat,
+                    //      a. Let next be ? IteratorStep(iteratorRecord).
+                    //      b. If next is false, return list.
+                    //      c. Let nextArg be ? IteratorValue(next).
+                    //      d. Append nextArg to list.
+                    let spread_obj = ECMAScriptValue::try_from(
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .pop()
+                            .expect("insn has a stack arg")
+                            .expect("should not be an error"),
+                    )
+                    .expect("arg should be a value");
+
+                    match get_iterator(&spread_obj, IteratorKind::Sync).and_then(|iterator_record| {
+                        let mut count = 0;
+                        match loop {
+                            match iterator_step(&iterator_record) {
+                                Ok(next) => match next {
+                                    None => {
+                                        ec_push(Ok(count.into()));
+                                        break Ok(());
+                                    }
+                                    Some(obj) => match iterator_value(&obj) {
+                                        Ok(next_arg) => {
+                                            count += 1;
+                                            ec_push(Ok(next_arg.into()));
+                                        }
+                                        Err(e) => {
+                                            break Err(e);
+                                        }
+                                    },
+                                },
+                                Err(e) => {
+                                    break Err(e);
+                                }
+                            }
+                        } {
+                            Ok(()) => Ok(()),
+                            Err(e) => {
+                                // unwind
+                                for _ in 0..count {
+                                    ec_pop();
+                                }
+                                Err(e)
+                            }
+                        }
+                    }) {
+                        Ok(_) => (),
+                        Err(e) => ec_push(Err(e)),
                     }
                 }
             }

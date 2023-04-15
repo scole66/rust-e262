@@ -378,3 +378,59 @@ fn array_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }
+
+// Arguments: ( )
+#[test_case("f()" => vok(""); "empty list")]
+// Arguments: ( ArgumentList )
+#[test_case("f(1)" => vok("1"); "one item, infallible")]
+#[test_case("f(a)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "one item, fallible, fails")]
+#[test_case("const a=99;f(a)" => vok("99"); "one item, fallible, succeeds")]
+// Arguments: ( ArgumentList , )
+#[test_case("f(1,)" => vok("1"); "one item, comma, infallible")]
+#[test_case("f(a,)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "one item, comma, fallible, fails")]
+#[test_case("const a=99;f(a,)" => vok("99"); "one item, comma, fallible, succeeds")]
+// ArgumentList: AssignmentExpression (handled above)
+// ArgumentList: ... AssignmentExpression
+#[test_case("const a=[10];f(...a)" => vok("10"); "spread; fallible ref; succeeds")]
+#[test_case("f(...a)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "spread; fallible ref; fails")]
+#[test_case("const a=true;f(...a)" => serr("Thrown: TypeError: not an iterator"); "spread; fallible ref; iter fails")]
+#[test_case("f(...10)" => serr("Thrown: TypeError: not an iterator"); "spread; infallible expr; iter fails")]
+#[test_case("f(...[])" => vok(""); "spread; infallible expr; iter successful")]
+// ArgumentList: ArgumentList , AssignmentExpression
+#[test_case("f('a', 'b')" => vok("a,b"); "list-exp; infallible both")]
+#[test_case("const a='a'; f(a, 'b')" => vok("a,b"); "list-exp; list fallible; succeeds")]
+#[test_case("f(a, 'b')" => serr("Thrown: ReferenceError: Unresolvable Reference"); "list-exp; list fails")]
+#[test_case("const b='b'; f('a', b)" => vok("a,b"); "list-exp; exp ref; exp succeeds")]
+#[test_case("f('a', b)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "list-exp; exp ref; exp fails")]
+#[test_case("f('a', t())" => serr("Thrown: thrown"); "list-exp; exp not ref; exp fails")]
+#[test_case("f('a', c())" => vok("a,c"); "list-exp; exp not ref; exp succeeds")]
+// ArgumentList: ArgumentList , ... AssignmentExpression
+#[test_case("f(1, ...[1])" => vok("1,1"); "list-spread; all infallible; successful")]
+#[test_case("f(1, ...3)" => serr("Thrown: TypeError: not an iterator"); "list-spread; all infallible; iter fails")]
+#[test_case("f(a, ...[1])" => serr("Thrown: ReferenceError: Unresolvable Reference"); "list-spread; list is ref; list fails")]
+#[test_case("const a='a'; f(a, ...[1])" => vok("a,1"); "list-spread; list is ref; successful")]
+#[test_case("f(c(),...['b'])" => vok("c,b"); "list-spread; list is non-ref, fallible; successful")]
+#[test_case("f(t(),...['b'])" => serr("Thrown: thrown"); "list-spread; list non-ref, list fails")]
+#[test_case("f(c(),...t())" => serr("Thrown: thrown"); "list-spread; spread non-ref, fails")]
+#[test_case("f(c(),...a)" => serr("Thrown: ReferenceError: Unresolvable Reference"); "list-spread; spread ref, fails")]
+#[test_case("const a=['a'];f(c(),...a)" => vok("c,a"); "list-spread; spread-ref; successful")]
+#[test_case("f('b', ...['a', 'c'], 'm', ...['x', 'y', 'z'])" => vok("b,a,c,m,x,y,z"); "spread element arguments")]
+fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let program = format!(
+        "
+        function f() {{
+            let r = [];
+            for (let i = 0; i < arguments.length; i++)
+                r[i] = arguments[i];
+            return r.toString();
+        }}
+        function t() {{
+            throw 'thrown';
+        }}
+        let c = () => 'c';
+        {src}
+        "
+    );
+    process_ecmascript(&program).map_err(|e| e.to_string())
+}
