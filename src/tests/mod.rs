@@ -980,4 +980,34 @@ pub fn getter_validation(
     }
 }
 
+impl ECMAScriptValue {
+    pub fn test_result_string(&self) -> String {
+        match self {
+            ECMAScriptValue::Undefined
+            | ECMAScriptValue::Null
+            | ECMAScriptValue::Boolean(_)
+            | ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_) => format!("{self}"),
+            ECMAScriptValue::Object(o) => {
+                let keys = ordinary_own_property_keys(o);
+                let mut r = String::new();
+                let mut first = true;
+                for key in keys {
+                    let value = crate::object::get(o, &key);
+                    if !first {
+                        r.push(',');
+                    } else {
+                        first = false;
+                    }
+                    let value_str = value.map(|val| format!("{val}")).unwrap_or_else(unwind_any_error);
+                    r.push_str(&format!("{key}:{value_str}"));
+                }
+                r
+            }
+        }
+    }
+}
+
 mod integration;

@@ -2948,23 +2948,23 @@ mod enumerable_own_property_names {
         })
     }
 
-    #[test_case(dead, EnumerationStyle::Key => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property_keys throws")]
-    #[test_case(normal, EnumerationStyle::Key => Ok(vec!["one".into(), "three".into()]); "keys: normal object")]
-    #[test_case(normal, EnumerationStyle::Value => Ok(vec![1.0.into(), 3.0.into()]); "values: normal object")]
-    #[test_case(ownprop, EnumerationStyle::Value => Err("TypeError: [[GetOwnProperty]] called more than once".to_string()); "GetOwnProperty throws")]
-    #[test_case(getthrows, EnumerationStyle::Value => Err("TypeError: [[Get]] called on TestObject".to_string()); "get throws")]
-    #[test_case(lyingkeys, EnumerationStyle::Value => Ok(Vec::<ECMAScriptValue>::new()); "ownkeys lies")]
-    fn f(make_obj: fn() -> Object, kind: EnumerationStyle) -> Result<Vec<ECMAScriptValue>, String> {
+    #[test_case(dead, KeyValueKind::Key => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property_keys throws")]
+    #[test_case(normal, KeyValueKind::Key => Ok(vec!["one".into(), "three".into()]); "keys: normal object")]
+    #[test_case(normal, KeyValueKind::Value => Ok(vec![1.0.into(), 3.0.into()]); "values: normal object")]
+    #[test_case(ownprop, KeyValueKind::Value => Err("TypeError: [[GetOwnProperty]] called more than once".to_string()); "GetOwnProperty throws")]
+    #[test_case(getthrows, KeyValueKind::Value => Err("TypeError: [[Get]] called on TestObject".to_string()); "get throws")]
+    #[test_case(lyingkeys, KeyValueKind::Value => Ok(Vec::<ECMAScriptValue>::new()); "ownkeys lies")]
+    fn f(make_obj: fn() -> Object, kind: KeyValueKind) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let obj = make_obj();
-        enumerable_own_property_names(&obj, kind).map_err(unwind_any_error)
+        enumerable_own_properties(&obj, kind).map_err(unwind_any_error)
     }
 
     #[test]
     fn keyvalue() {
         setup_test_agent();
         let obj = normal();
-        let result = enumerable_own_property_names(&obj, EnumerationStyle::KeyPlusValue).unwrap();
+        let result = enumerable_own_properties(&obj, KeyValueKind::KeyValue).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(getv(&result[0], &"0".into()).unwrap(), "one".into());
         assert_eq!(getv(&result[0], &"1".into()).unwrap(), 1.0.into());
@@ -3264,5 +3264,73 @@ mod object {
         setup_test_agent();
         let obj = make_obj();
         obj.is_typed_array()
+    }
+}
+
+mod test_integrity_level {
+    use super::*;
+    use test_case::test_case;
+
+    fn make_simple_obj(level: IntegrityLevel) -> Object {
+        let obj = create_array_from_list(&[
+            ECMAScriptValue::from(100),
+            ECMAScriptValue::from(200),
+            ECMAScriptValue::from(300),
+        ]);
+        super::set_integrity_level(&obj, level).unwrap();
+        obj
+    }
+    fn throwing_own_property_keys() -> Object {
+        let obj = TestObject::object(&[FunctionId::OwnPropertyKeys]);
+        obj.o.prevent_extensions().unwrap();
+        obj
+    }
+    fn second_kabloom_throws(ao: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        if *key == PropertyKey::from("kabloom") {
+            let state = ao.something.get();
+            if state == 0 {
+                ao.something.set(1);
+            } else {
+                return Err(create_type_error("[[GetOwnProperty]] called on kabloom"));
+            }
+        }
+        Ok(ordinary_get_own_property(ao, key))
+    }
+    fn throwing_get_own_property() -> Object {
+        let throwing_key = PropertyKey::from("kabloom");
+        let obj = AdaptableObject::object(AdaptableMethods {
+            get_own_property_override: Some(second_kabloom_throws),
+            ..Default::default()
+        });
+        create_data_property_or_throw(&obj, throwing_key, "boom").unwrap();
+        obj.o.prevent_extensions().unwrap();
+        obj
+    }
+    fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
+        Ok(vec!["one".into(), "two".into(), "three".into()])
+    }
+    fn lyingkeys() -> Object {
+        let obj = AdaptableObject::object(AdaptableMethods {
+            own_property_keys_override: Some(lying_ownprops),
+            ..Default::default()
+        });
+        obj.o.prevent_extensions().unwrap();
+        obj
+    }
+
+    #[test_case(|| ordinary_object_create(None, &[]), IntegrityLevel::Sealed => Ok(false); "very basic object")]
+    #[test_case(DeadObject::object, IntegrityLevel::Sealed => serr("TypeError: is_extensible called on DeadObject"); "is_extensible throws")]
+    #[test_case(|| make_simple_obj(IntegrityLevel::Sealed), IntegrityLevel::Sealed => Ok(true); "sealed object / checking sealed")]
+    #[test_case(|| make_simple_obj(IntegrityLevel::Sealed), IntegrityLevel::Frozen => Ok(false); "sealed object / checking frozen")]
+    #[test_case(|| make_simple_obj(IntegrityLevel::Frozen), IntegrityLevel::Sealed => Ok(true); "frozen object / checking sealed")]
+    #[test_case(|| make_simple_obj(IntegrityLevel::Frozen), IntegrityLevel::Frozen => Ok(true); "frozen object / checking frozen")]
+    #[test_case(throwing_own_property_keys, IntegrityLevel::Sealed => serr("TypeError: [[OwnPropertyKeys]] called on TestObject"); "own_property_keys throws")]
+    #[test_case(throwing_get_own_property, IntegrityLevel::Sealed => serr("TypeError: [[GetOwnProperty]] called on kabloom"); "get_own_property throws")]
+    #[test_case(lyingkeys, IntegrityLevel::Frozen => Ok(true); "own_property_keys lied about keys")]
+    fn call(make_obj: impl FnOnce() -> Object, level: IntegrityLevel) -> Result<bool, String> {
+        setup_test_agent();
+        let obj = make_obj();
+
+        super::test_integrity_level(&obj, level).map_err(unwind_any_error)
     }
 }

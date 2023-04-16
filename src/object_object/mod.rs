@@ -461,7 +461,7 @@ fn object_entries(
     let mut args = FuncArgs::from(arguments);
     let o_arg = args.next_arg();
     let obj = to_object(o_arg)?;
-    let name_list = enumerable_own_property_names(&obj, EnumerationStyle::KeyPlusValue)?;
+    let name_list = enumerable_own_properties(&obj, KeyValueKind::KeyValue)?;
     Ok(create_array_from_list(&name_list).into())
 }
 
@@ -572,108 +572,394 @@ fn object_from_entries(
 fn object_get_own_property_descriptor(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.getOwnPropertyDescriptor ( O, P )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let key be ? ToPropertyKey(P).
+    //  3. Let desc be ? obj.[[GetOwnProperty]](key).
+    //  4. Return FromPropertyDescriptor(desc).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let p = args.next_arg();
+    let obj = to_object(o)?;
+    let key = to_property_key(p)?;
+    let desc = obj.o.get_own_property(&key)?;
+    let result = from_property_descriptor(desc);
+    Ok(match result {
+        Some(obj) => ECMAScriptValue::from(obj),
+        None => ECMAScriptValue::Undefined,
+    })
 }
+
 fn object_get_own_property_descriptors(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.getOwnPropertyDescriptors ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let ownKeys be ? obj.[[OwnPropertyKeys]]().
+    //  3. Let descriptors be OrdinaryObjectCreate(%Object.prototype%).
+    //  4. For each element key of ownKeys, do
+    //      a. Let desc be ? obj.[[GetOwnProperty]](key).
+    //      b. Let descriptor be FromPropertyDescriptor(desc).
+    //      c. If descriptor is not undefined, perform ! CreateDataPropertyOrThrow(descriptors, key,
+    //         descriptor).
+    //  5. Return descriptors.
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let obj = to_object(o)?;
+    let own_keys = obj.o.own_property_keys()?;
+    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+    let descriptors = ordinary_object_create(Some(object_proto), &[]);
+    for key in own_keys {
+        let desc = obj.o.get_own_property(&key)?;
+        let descriptor = from_property_descriptor(desc);
+        if let Some(descriptor) = descriptor {
+            create_data_property_or_throw(&descriptors, key, descriptor).expect("Simple property addition should work");
+        }
+    }
+    Ok(ECMAScriptValue::from(descriptors))
 }
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+enum KeyType {
+    String,
+    Symbol,
+}
+fn get_own_property_keys(o: ECMAScriptValue, typ: KeyType) -> Completion<Vec<ECMAScriptValue>> {
+    // GetOwnPropertyKeys ( O, type )
+    // The abstract operation GetOwnPropertyKeys takes arguments O (an ECMAScript language value) and type
+    // (string or symbol) and returns either a normal completion containing a List of property keys or a throw
+    // completion. It performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let keys be ? obj.[[OwnPropertyKeys]]().
+    //  3. Let nameList be a new empty List.
+    //  4. For each element nextKey of keys, do
+    //      a. If nextKey is a Symbol and type is symbol, or if nextKey is a String and type is string, then
+    //          i. Append nextKey to nameList.
+    //  5. Return nameList.
+    let obj = to_object(o)?;
+    let keys = obj.o.own_property_keys()?;
+    Ok(keys
+        .into_iter()
+        .filter(|key| match typ {
+            KeyType::String => matches!(key, &PropertyKey::String(_)),
+            KeyType::Symbol => matches!(key, &PropertyKey::Symbol(_)),
+        })
+        .map(ECMAScriptValue::from)
+        .collect::<Vec<_>>())
+}
+
 fn object_get_own_property_names(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.getOwnPropertyNames ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Return CreateArrayFromList(? GetOwnPropertyKeys(O, string)).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let keys = get_own_property_keys(o, KeyType::String)?;
+    Ok(create_array_from_list(keys.as_slice()).into())
 }
 fn object_get_own_property_symbols(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.getOwnPropertySymbols ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Return CreateArrayFromList(? GetOwnPropertyKeys(O, symbol)).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let keys = get_own_property_keys(o, KeyType::Symbol)?;
+    Ok(create_array_from_list(keys.as_slice()).into())
 }
+
 fn object_get_prototype_of(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.getPrototypeOf ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Return ? obj.[[GetPrototypeOf]]().
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let obj = to_object(o)?;
+    Ok(match obj.o.get_prototype_of()? {
+        Some(obj) => ECMAScriptValue::from(obj),
+        None => ECMAScriptValue::Undefined,
+    })
 }
+
 fn object_has_own(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.hasOwn ( O, P )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let key be ? ToPropertyKey(P).
+    //  3. Return ? HasOwnProperty(obj, key).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let p = args.next_arg();
+    let obj = to_object(o)?;
+    let key = to_property_key(p)?;
+    has_own_property(&obj, &key).map(ECMAScriptValue::from)
 }
+
 fn object_is(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.is ( value1, value2 )
+    // This function performs the following steps when called:
+    //
+    //  1. Return SameValue(value1, value2).
+    let mut args = FuncArgs::from(arguments);
+    let value1 = args.next_arg();
+    let value2 = args.next_arg();
+    Ok(value1.same_value(&value2).into())
 }
 fn object_is_extensible(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.isExtensible ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. If O is not an Object, return false.
+    //  2. Return ? IsExtensible(O).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(ECMAScriptValue::from(false)),
+        ECMAScriptValue::Object(obj) => is_extensible(&obj).map(ECMAScriptValue::from),
+    }
 }
+
 fn object_is_frozen(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.isFrozen ( O )
+    // This function performs the following steps when called:
+    //
+    // 1. If O is not an Object, return true.
+    // 2. Return ? TestIntegrityLevel(O, frozen).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(ECMAScriptValue::from(true)),
+        ECMAScriptValue::Object(obj) => test_integrity_level(&obj, IntegrityLevel::Frozen).map(ECMAScriptValue::from),
+    }
 }
+
 fn object_is_sealed(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.isSealed ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. If O is not an Object, return true.
+    //  2. Return ? TestIntegrityLevel(O, sealed).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(ECMAScriptValue::from(true)),
+        ECMAScriptValue::Object(obj) => test_integrity_level(&obj, IntegrityLevel::Sealed).map(ECMAScriptValue::from),
+    }
 }
 fn object_keys(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.keys ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let keyList be ? EnumerableOwnProperties(obj, key).
+    //  3. Return CreateArrayFromList(keyList).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let obj = to_object(o)?;
+    let key_list = enumerable_own_properties(&obj, KeyValueKind::Key)?;
+    Ok(create_array_from_list(key_list.as_slice()).into())
 }
+
 fn object_prevent_extensions(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.preventExtensions ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. If O is not an Object, return O.
+    //  2. Let status be ? O.[[PreventExtensions]]().
+    //  3. If status is false, throw a TypeError exception.
+    //  4. Return O.
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(o),
+        ECMAScriptValue::Object(o) => {
+            let status = o.o.prevent_extensions()?;
+            if !status {
+                Err(create_type_error("cannot prevent extensions for this object"))
+            } else {
+                Ok(o.into())
+            }
+        }
+    }
 }
+
 fn object_seal(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.seal ( O )
+    // This function performs the following steps when called:
+    //
+    // 1. If O is not an Object, return O.
+    // 2. Let status be ? SetIntegrityLevel(O, sealed).
+    // 3. If status is false, throw a TypeError exception.
+    // 4. Return O.
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(o),
+        ECMAScriptValue::Object(o) => {
+            let status = set_integrity_level(&o, IntegrityLevel::Sealed)?;
+            if !status {
+                Err(create_type_error("cannot seal this object"))
+            } else {
+                Ok(o.into())
+            }
+        }
+    }
 }
+
 fn object_set_prototype_of(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.setPrototypeOf ( O, proto )
+    // This function performs the following steps when called:
+    //
+    //  1. Set O to ? RequireObjectCoercible(O).
+    //  2. If proto is not an Object and proto is not null, throw a TypeError exception.
+    //  3. If O is not an Object, return O.
+    //  4. Let status be ? O.[[SetPrototypeOf]](proto).
+    //  5. If status is false, throw a TypeError exception.
+    //  6. Return O.
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let proto = args.next_arg();
+    require_object_coercible(&o)?;
+    let proto = match proto {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => {
+            return Err(create_type_error("Prototype must be an object or null"));
+        }
+        ECMAScriptValue::Null => None,
+        ECMAScriptValue::Object(p) => Some(p),
+    };
+    match o {
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Ok(o),
+        ECMAScriptValue::Object(o) => {
+            let status = o.o.set_prototype_of(proto)?;
+            if !status {
+                Err(create_type_error("Prototype setting failed"))
+            } else {
+                Ok(o.into())
+            }
+        }
+    }
 }
+
 fn object_values(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.values ( O )
+    // This function performs the following steps when called:
+    //
+    //  1. Let obj be ? ToObject(O).
+    //  2. Let valueList be ? EnumerableOwnProperties(obj, value).
+    //  3. Return CreateArrayFromList(valueList).
+    let mut args = FuncArgs::from(arguments);
+    let o = args.next_arg();
+    let obj = to_object(o)?;
+    let value_list = enumerable_own_properties(&obj, KeyValueKind::Value)?;
+    Ok(create_array_from_list(value_list.as_slice()).into())
 }
+
 fn object_prototype_has_own_property(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

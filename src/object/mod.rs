@@ -1871,6 +1871,44 @@ pub fn set_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool
     Ok(true)
 }
 
+pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
+    // TestIntegrityLevel ( O, level )
+    // The abstract operation TestIntegrityLevel takes arguments O (an Object) and level (sealed or frozen)
+    // and returns either a normal completion containing a Boolean or a throw completion. It is used to
+    // determine if the set of own properties of an object are fixed. It performs the following steps when
+    // called:
+    //
+    //  1. Let extensible be ? IsExtensible(O).
+    //  2. If extensible is true, return false.
+    //  3. NOTE: If the object is extensible, none of its properties are examined.
+    //  4. Let keys be ? O.[[OwnPropertyKeys]]().
+    //  5. For each element k of keys, do
+    //      a. Let currentDesc be ? O.[[GetOwnProperty]](k).
+    //      b. If currentDesc is not undefined, then
+    //          i. If currentDesc.[[Configurable]] is true, return false.
+    //          ii. If level is frozen and IsDataDescriptor(currentDesc) is true, then
+    //              1. If currentDesc.[[Writable]] is true, return false.
+    //  6. Return true.
+    let extensible = is_extensible(o)?;
+    if extensible {
+        return Ok(false);
+    }
+    let keys = o.o.own_property_keys()?;
+    for k in keys {
+        let current_desc = o.o.get_own_property(&k)?;
+        if let Some(current_desc) = current_desc {
+            if current_desc.configurable
+                || level == IntegrityLevel::Frozen
+                    && current_desc.is_data_descriptor()
+                    && current_desc.is_writable().expect("data descriptors should have the writable flag")
+            {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
 // CreateArrayFromList ( elements )
 //
 // The abstract operation CreateArrayFromList takes argument elements (a List of ECMAScript language values). It is
@@ -1995,24 +2033,18 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
 //  4. Return properties.
 //
 // https://tc39.es/ecma262/#sec-enumerableownpropertynames
-#[derive(Debug, PartialEq, Eq)]
-pub enum EnumerationStyle {
-    Key,
-    Value,
-    KeyPlusValue,
-}
-pub fn enumerable_own_property_names(obj: &Object, kind: EnumerationStyle) -> Completion<Vec<ECMAScriptValue>> {
+pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion<Vec<ECMAScriptValue>> {
     let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
     for key in own_keys.into_iter() {
         if matches!(key, PropertyKey::String(_)) {
             if let Some(desc) = obj.o.get_own_property(&key)? {
                 if desc.enumerable {
-                    if kind == EnumerationStyle::Key {
+                    if kind == KeyValueKind::Key {
                         properties.push(ECMAScriptValue::from(key));
                     } else {
                         let value = get(obj, &key)?;
-                        if kind == EnumerationStyle::Value {
+                        if kind == KeyValueKind::Value {
                             properties.push(value);
                         } else {
                             let entry = create_array_from_list(&[key.into(), value]);

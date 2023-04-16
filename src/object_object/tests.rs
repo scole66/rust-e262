@@ -626,31 +626,81 @@ mod constructor {
             let res =
                 object_from_entries(ECMAScriptValue::Undefined, None, args.as_slice()).map_err(unwind_any_error)?;
 
-            let repr = match res {
-                ECMAScriptValue::Undefined
-                | ECMAScriptValue::Null
-                | ECMAScriptValue::Boolean(_)
-                | ECMAScriptValue::String(_)
-                | ECMAScriptValue::Number(_)
-                | ECMAScriptValue::BigInt(_)
-                | ECMAScriptValue::Symbol(_) => format!("{res:?}"),
-                ECMAScriptValue::Object(o) => {
-                    let keys = ordinary_own_property_keys(&o);
-                    let mut r = String::new();
-                    let mut first = true;
-                    for key in keys {
-                        let value = get(&o, &key).map_err(unwind_any_error)?;
-                        if !first {
-                            r.push(',');
-                        } else {
-                            first = false;
-                        }
-                        r.push_str(&format!("{key}:{value}"));
-                    }
-                    r
-                }
-            };
+            let repr = res.test_result_string();
+            // let repr = match res {
+            //     ECMAScriptValue::Undefined
+            //     | ECMAScriptValue::Null
+            //     | ECMAScriptValue::Boolean(_)
+            //     | ECMAScriptValue::String(_)
+            //     | ECMAScriptValue::Number(_)
+            //     | ECMAScriptValue::BigInt(_)
+            //     | ECMAScriptValue::Symbol(_) => format!("{res:?}"),
+            //     ECMAScriptValue::Object(o) => {
+            //         let keys = ordinary_own_property_keys(&o);
+            //         let mut r = String::new();
+            //         let mut first = true;
+            //         for key in keys {
+            //             let value = get(&o, &key).map_err(unwind_any_error)?;
+            //             if !first {
+            //                 r.push(',');
+            //             } else {
+            //                 first = false;
+            //             }
+            //             r.push_str(&format!("{key}:{value}"));
+            //         }
+            //         r
+            //     }
+            // };
             Ok(repr)
         }
+    }
+
+    mod get_own_property_descriptor {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(|| create_array_from_list(&[ECMAScriptValue::from("bob"), ECMAScriptValue::from("charlie")]).into(), || ECMAScriptValue::from("0") => sok("value:bob,writable:true,enumerable:true,configurable:true"); "get 0 from array")]
+        #[test_case(|| create_array_from_list(&[ECMAScriptValue::from("bob"), ECMAScriptValue::from("charlie")]).into(), || ECMAScriptValue::from("10") => sok("undefined"); "prop not found")]
+        #[test_case(|| ECMAScriptValue::Undefined, || ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
+        #[test_case(|| ECMAScriptValue::from(true), || ordinary_object_create(None, &[]).into() => serr("TypeError: Cannot convert object to primitive value"); "to_property_key throws")]
+        #[test_case(|| DeadObject::object().into(), || ECMAScriptValue::from("prop") => serr("TypeError: get_own_property called on DeadObject"); "get_own_property throws")]
+        fn call(
+            make_o: impl FnOnce() -> ECMAScriptValue,
+            make_p: impl FnOnce() -> ECMAScriptValue,
+        ) -> Result<String, String> {
+            setup_test_agent();
+            let o = make_o();
+            let p = make_p();
+            let result = object_get_own_property_descriptor(ECMAScriptValue::Undefined, None, &[o, p])
+                .map_err(unwind_any_error)?;
+            Ok(result.test_result_string())
+        }
+    }
+}
+
+mod get_own_property_keys {
+    use super::*;
+    use test_case::test_case;
+
+    fn test_obj() -> ECMAScriptValue {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        create_data_property_or_throw(&obj, "string_key", "blue").unwrap();
+        create_data_property_or_throw(&obj, "other_key", 892).unwrap();
+        create_data_property_or_throw(&obj, wks(WksId::ToStringTag), "awkward").unwrap();
+        obj.into()
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined, KeyType::String => serr("TypeError: Undefined and null cannot be converted to objects"); "uncoerceable")]
+    #[test_case(|| create_array_from_list(&[ECMAScriptValue::from("bob")]).into(), KeyType::String => sok("0, length"); "one-elem array; strings")]
+    #[test_case(test_obj, KeyType::String => sok("string_key, other_key"); "test obj; strings")]
+    #[test_case(test_obj, KeyType::Symbol => sok("Symbol(Symbol.toStringTag)"); "test obj; symbols")]
+    #[test_case(|| DeadObject::object().into(), KeyType::String => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys throws")]
+    fn call(make_val: impl FnOnce() -> ECMAScriptValue, typ: KeyType) -> Result<String, String> {
+        setup_test_agent();
+        let value = make_val();
+
+        let result = get_own_property_keys(value, typ).map_err(unwind_any_error)?;
+        Ok(result.into_iter().map(|v| format!("{v}")).join(", "))
     }
 }
