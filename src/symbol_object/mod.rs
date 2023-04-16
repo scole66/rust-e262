@@ -406,6 +406,20 @@ fn symbol_constructor_function(
     }
 }
 
+pub fn global_symbol(key: JSString) -> Symbol {
+    let gsm = global_symbol_registry();
+    let mut registry = gsm.borrow_mut();
+    let maybe_sym = registry.symbol_by_key(&key);
+    match maybe_sym {
+        Some(sym) => sym,
+        None => {
+            let new_symbol = Symbol::new(Some(key.clone()));
+            registry.add(key, new_symbol.clone());
+            new_symbol
+        }
+    }
+}
+
 /// Symbol.for()
 ///
 /// The `Symbol.for(key)` method searches for existing symbols in a runtime-wide symbol registry with the given key and
@@ -443,17 +457,7 @@ fn symbol_for(
     let mut args = FuncArgs::from(arguments);
     let key = args.next_arg();
     let string_key = to_string(key)?;
-    let gsm = global_symbol_registry();
-    let mut registry = gsm.borrow_mut();
-    let maybe_sym = registry.symbol_by_key(&string_key);
-    match maybe_sym {
-        Some(sym) => Ok(sym.into()),
-        None => {
-            let new_symbol = Symbol::new(Some(string_key.clone()));
-            registry.add(string_key, new_symbol.clone());
-            Ok(new_symbol.into())
-        }
-    }
+    Ok(global_symbol(string_key).into())
 }
 
 /// Symbol.keyFor()

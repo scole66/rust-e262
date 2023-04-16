@@ -565,7 +565,7 @@ test_defs[string_prototype_iterator]="string_prototype_iterator string_prototype
 
 test_defs[get_own_property_keys]="get_own_property_keys get_own_property_keys object_object"
 test_defs[object_from_entries]="object_from_entries constructor::from_entries object_object"
-test_defs[object_get_own_property_descriptor]="object_get_own_property_descriptor constructor::get_own_property_descriptor object_object"
+test_defs[object_get_own_property_descriptor]="object_get_own_property_descriptor constructor::get_own_property_descriptor:: object_object"
 test_defs[object_get_own_property_descriptors]="object_get_own_property_descriptors constructor::get_own_property_descriptors object_object"
 test_defs[object_get_own_property_names]="object_get_own_property_names constructor::get_own_property_names object_object"
 test_defs[object_get_own_property_symbols]="object_get_own_property_symbols constructor::get_own_property_symbols object_object"

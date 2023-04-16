@@ -1010,4 +1010,10 @@ impl ECMAScriptValue {
     }
 }
 
+pub fn which_intrinsic(to_be_checked: &Object) -> Option<IntrinsicId> {
+    let realm_ref = current_realm_record().unwrap();
+    let realm = realm_ref.borrow();
+    realm.intrinsics.which(to_be_checked)
+}
+
 mod integration;
