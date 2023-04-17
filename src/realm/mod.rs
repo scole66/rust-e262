@@ -293,8 +293,12 @@ impl Intrinsics {
             o if o == &self.iterator_prototype => Some(IntrinsicId::IteratorPrototype),
             o if o == &self.generator_function => Some(IntrinsicId::GeneratorFunction),
             o if o == &self.generator_function_prototype => Some(IntrinsicId::GeneratorFunctionPrototype),
-            o if o == &self.generator_function_prototype_prototype => Some(IntrinsicId::GeneratorFunctionPrototypePrototype),
-            o if o == &self.generator_function_prototype_prototype_next => Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+            o if o == &self.generator_function_prototype_prototype => {
+                Some(IntrinsicId::GeneratorFunctionPrototypePrototype)
+            }
+            o if o == &self.generator_function_prototype_prototype_next => {
+                Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
+            }
             o if o == &self.number => Some(IntrinsicId::Number),
             o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
             o if o == &self.object => Some(IntrinsicId::Object),

@@ -767,6 +767,28 @@ mod constructor {
             }
         }
     }
+
+    #[test_case(||ECMAScriptValue::Undefined, ||ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
+    #[test_case(||DeadObject::object().into(), ||DeadObject::object().into() => serr("TypeError: get called on DeadObject"); "to_property_key throws")]
+    #[test_case(||create_array_from_list(&[ECMAScriptValue::from(10)]).into(), ||ECMAScriptValue::from("length") => vok(true); "typical")]
+    fn has_own(
+        make_o: impl FnOnce() -> ECMAScriptValue,
+        make_p: impl FnOnce() -> ECMAScriptValue,
+    ) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        let o = make_o();
+        let p = make_p();
+
+        object_has_own(ECMAScriptValue::Undefined, None, &[o, p]).map_err(unwind_any_error)
+    }
+
+    // Don't need to get fancy here, same_value is already tested.
+    #[test_case(ECMAScriptValue::from(10), ECMAScriptValue::from(10) => vok(true); "equal")]
+    #[test_case(ECMAScriptValue::from("bob"), ECMAScriptValue::Null => vok(false); "not equal")]
+    fn is(left: ECMAScriptValue, right: ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        object_is(ECMAScriptValue::Undefined, None, &[left, right]).map_err(unwind_any_error)
+    }
 }
 
 mod get_own_property_keys {
