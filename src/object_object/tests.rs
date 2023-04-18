@@ -789,6 +789,60 @@ mod constructor {
         setup_test_agent();
         object_is(ECMAScriptValue::Undefined, None, &[left, right]).map_err(unwind_any_error)
     }
+
+    #[test_case(|| ECMAScriptValue::from("hello") => vok(false); "non-object")]
+    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(true); "object")]
+    fn is_extensible(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        let o = make_o();
+        object_is_extensible(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+    }
+
+    #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
+    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(false); "object")]
+    fn is_frozen(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        let o = make_o();
+        object_is_frozen(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+    }
+
+    #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
+    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(false); "object")]
+    fn is_sealed(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        let o = make_o();
+        object_is_sealed(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
+    #[test_case(|| DeadObject::object().into() => serr("TypeError: own_property_keys called on DeadObject"); "enumerable_own_properties throws")]
+    #[test_case(|| create_array_from_list(&[ECMAScriptValue::from(10), ECMAScriptValue::from(3)]).into() => Ok(vec!["0".into(), "1".into()]); "array object")]
+    fn keys(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let o = make_o();
+        object_keys(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
+            ECMAScriptValue::Undefined
+            | ECMAScriptValue::Null
+            | ECMAScriptValue::Boolean(_)
+            | ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_) => vec![v],
+            ECMAScriptValue::Object(o) => {
+                if o.o.has_property(&"length".into()).unwrap() {
+                    let length = f64::try_from(get(&o, &"length".into()).unwrap()).unwrap() as usize;
+                    let mut result = vec![];
+                    for idx in 0..length {
+                        let val = get(&o, &format!("{idx}").into()).unwrap();
+                        result.push(val);
+                    }
+                    result
+                } else {
+                    vec![o.into()]
+                }
+            }
+        })
+    }
 }
 
 mod get_own_property_keys {
