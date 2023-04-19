@@ -843,6 +843,158 @@ mod constructor {
             }
         })
     }
+
+    mod prevent_extensions {
+        use super::*;
+        use test_case::test_case;
+
+        fn never_locks(_: &AdaptableObject) -> Completion<bool> {
+            Ok(false)
+        }
+
+        fn unlockable() -> ECMAScriptValue {
+            let obj = AdaptableObject::object(AdaptableMethods {
+                prevent_extensions_override: Some(never_locks),
+                ..Default::default()
+            });
+            obj.into()
+        }
+
+        fn ordinary() -> ECMAScriptValue {
+            let obj = ordinary_object_create(None, &[]);
+            create_data_property_or_throw(&obj, "sentinel", "tomato").unwrap();
+            obj.into()
+        }
+
+        #[test_case(|| ECMAScriptValue::from("potato") => vok("potato"); "not-object")]
+        #[test_case(|| DeadObject::object().into() => serr("TypeError: prevent_extensions called on DeadObject"); "prevent_extensions throws")]
+        #[test_case(ordinary => vok("tomato"); "typical")]
+        #[test_case(unlockable => serr("TypeError: cannot prevent extensions for this object"); "always-open object")]
+        fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+            setup_test_agent();
+            let o = make_o();
+            let res = object_prevent_extensions(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+            match Object::try_from(res.clone()) {
+                Err(_) => Ok(res),
+                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+            }
+        }
+    }
+
+    mod seal {
+        use super::*;
+        use test_case::test_case;
+
+        fn never_locks(_: &AdaptableObject) -> Completion<bool> {
+            Ok(false)
+        }
+
+        fn unlockable() -> ECMAScriptValue {
+            let obj = AdaptableObject::object(AdaptableMethods {
+                prevent_extensions_override: Some(never_locks),
+                ..Default::default()
+            });
+            obj.into()
+        }
+
+        fn ordinary() -> ECMAScriptValue {
+            let obj = ordinary_object_create(None, &[]);
+            create_data_property_or_throw(&obj, "sentinel", "tomato").unwrap();
+            obj.into()
+        }
+
+        #[test_case(|| ECMAScriptValue::from("potato") => vok("potato"); "not-object")]
+        #[test_case(|| DeadObject::object().into() => serr("TypeError: prevent_extensions called on DeadObject"); "set_integrity_level throws")]
+        #[test_case(ordinary => vok("tomato"); "typical")]
+        #[test_case(unlockable => serr("TypeError: cannot seal this object"); "always-open object")]
+        fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+            setup_test_agent();
+            let o = make_o();
+            let res = object_seal(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+            match Object::try_from(res.clone()) {
+                Err(_) => Ok(res),
+                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+            }
+        }
+    }
+
+    mod set_prototype_of {
+        use super::*;
+        use test_case::test_case;
+
+        fn sentinel_obj() -> ECMAScriptValue {
+            let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+            let obj = ordinary_object_create(Some(objproto), &[]);
+            create_data_property_or_throw(&obj, "sentinel", "turtle").unwrap();
+            obj.into()
+        }
+
+        fn ordinary() -> ECMAScriptValue {
+            ordinary_object_create(None, &[]).into()
+        }
+
+        fn sentinelized() -> ECMAScriptValue {
+            let proto = Object::try_from(sentinel_obj()).unwrap();
+            ordinary_object_create(Some(proto), &[]).into()
+        }
+
+        fn immutable() -> ECMAScriptValue {
+            let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+            immutable_prototype_exotic_object_create(Some(&objproto)).into()
+        }
+
+        #[test_case(ordinary, sentinel_obj => vok("turtle"); "typical")]
+        #[test_case(|| ECMAScriptValue::Undefined, sentinel_obj => serr("TypeError: Undefined and null are not allowed in this context"); "not coercible")]
+        #[test_case(ordinary, || ECMAScriptValue::from(true) => serr("TypeError: Prototype must be an object or null"); "bad proto")]
+        #[test_case(|| ECMAScriptValue::from("dog"), sentinel_obj => vok("dog"); "not object")]
+        #[test_case(sentinelized, || ECMAScriptValue::Null => vok(ECMAScriptValue::Undefined); "proto erasure")]
+        #[test_case(|| DeadObject::object().into(), || ECMAScriptValue::Null => serr("TypeError: set_prototype_of called on DeadObject"); "set_prototype_of throws")]
+        #[test_case(immutable, || ECMAScriptValue::Null => serr("TypeError: Prototype setting failed"); "immutable proto")]
+        fn call(
+            make_o: impl FnOnce() -> ECMAScriptValue,
+            make_p: impl FnOnce() -> ECMAScriptValue,
+        ) -> Result<ECMAScriptValue, String> {
+            setup_test_agent();
+            let o = make_o();
+            let proto = make_p();
+            let res =
+                object_set_prototype_of(ECMAScriptValue::Undefined, None, &[o, proto]).map_err(unwind_any_error)?;
+            match Object::try_from(res.clone()) {
+                Err(_) => Ok(res),
+                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+            }
+        }
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
+    #[test_case(|| DeadObject::object().into() => serr("TypeError: own_property_keys called on DeadObject"); "enumerable_own_properties throws")]
+    #[test_case(|| create_array_from_list(&[ECMAScriptValue::from(10), ECMAScriptValue::from(3)]).into() => Ok(vec![10.into(), 3.into()]); "array object")]
+    fn values(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let o = make_o();
+        object_values(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
+            ECMAScriptValue::Undefined
+            | ECMAScriptValue::Null
+            | ECMAScriptValue::Boolean(_)
+            | ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_) => vec![v],
+            ECMAScriptValue::Object(o) => {
+                if o.o.has_property(&"length".into()).unwrap() {
+                    let length = f64::try_from(get(&o, &"length".into()).unwrap()).unwrap() as usize;
+                    let mut result = vec![];
+                    for idx in 0..length {
+                        let val = get(&o, &format!("{idx}").into()).unwrap();
+                        result.push(val);
+                    }
+                    result
+                } else {
+                    vec![o.into()]
+                }
+            }
+        })
+    }
 }
 
 mod get_own_property_keys {
