@@ -6,6 +6,7 @@ use std::rc::Rc;
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum IntrinsicId {
     // If you add something here, _please_ update the ALL_INTRINSIC_IDS list in the unit tests!
+    // And to the "which" function, below.
     Array,
     ArrayPrototype,
     ArrayPrototypeValues,
@@ -273,6 +274,53 @@ impl Intrinsics {
             IntrinsicId::URIErrorPrototype => &self.uri_error_prototype,
         }
         .clone()
+    }
+    #[cfg(test)]
+    pub fn which(&self, intrinsic: &Object) -> Option<IntrinsicId> {
+        match intrinsic {
+            o if o == &self.array => Some(IntrinsicId::Array),
+            o if o == &self.array_prototype => Some(IntrinsicId::ArrayPrototype),
+            o if o == &self.array_prototype_values => Some(IntrinsicId::ArrayPrototypeValues),
+            o if o == &self.array_iterator_prototype => Some(IntrinsicId::ArrayIteratorPrototype),
+            o if o == &self.boolean => Some(IntrinsicId::Boolean),
+            o if o == &self.boolean_prototype => Some(IntrinsicId::BooleanPrototype),
+            o if o == &self.error => Some(IntrinsicId::Error),
+            o if o == &self.error_prototype => Some(IntrinsicId::ErrorPrototype),
+            o if o == &self.eval_error => Some(IntrinsicId::EvalError),
+            o if o == &self.eval_error_prototype => Some(IntrinsicId::EvalErrorPrototype),
+            o if o == &self.function => Some(IntrinsicId::Function),
+            o if o == &self.function_prototype => Some(IntrinsicId::FunctionPrototype),
+            o if o == &self.iterator_prototype => Some(IntrinsicId::IteratorPrototype),
+            o if o == &self.generator_function => Some(IntrinsicId::GeneratorFunction),
+            o if o == &self.generator_function_prototype => Some(IntrinsicId::GeneratorFunctionPrototype),
+            o if o == &self.generator_function_prototype_prototype => {
+                Some(IntrinsicId::GeneratorFunctionPrototypePrototype)
+            }
+            o if o == &self.generator_function_prototype_prototype_next => {
+                Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
+            }
+            o if o == &self.number => Some(IntrinsicId::Number),
+            o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
+            o if o == &self.object => Some(IntrinsicId::Object),
+            o if o == &self.object_prototype => Some(IntrinsicId::ObjectPrototype),
+            o if o == &self.object_prototype_to_string => Some(IntrinsicId::ObjectPrototypeToString),
+            o if o == &self.range_error => Some(IntrinsicId::RangeError),
+            o if o == &self.range_error_prototype => Some(IntrinsicId::RangeErrorPrototype),
+            o if o == &self.reference_error => Some(IntrinsicId::ReferenceError),
+            o if o == &self.reference_error_prototype => Some(IntrinsicId::ReferenceErrorPrototype),
+            o if o == &self.string => Some(IntrinsicId::String),
+            o if o == &self.string_prototype => Some(IntrinsicId::StringPrototype),
+            o if o == &self.symbol => Some(IntrinsicId::Symbol),
+            o if o == &self.symbol_prototype => Some(IntrinsicId::SymbolPrototype),
+            o if o == &self.syntax_error => Some(IntrinsicId::SyntaxError),
+            o if o == &self.syntax_error_prototype => Some(IntrinsicId::SyntaxErrorPrototype),
+            o if o == &self.throw_type_error => Some(IntrinsicId::ThrowTypeError),
+            o if o == &self.type_error => Some(IntrinsicId::TypeError),
+            o if o == &self.type_error_prototype => Some(IntrinsicId::TypeErrorPrototype),
+            o if o == &self.uri_error => Some(IntrinsicId::URIError),
+            o if o == &self.uri_error_prototype => Some(IntrinsicId::URIErrorPrototype),
+            _ => None,
+        }
     }
 }
 
