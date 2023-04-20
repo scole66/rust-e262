@@ -1375,21 +1375,57 @@ mod arguments {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("()", true, None => Ok((svec(&["FLOAT 0 (0)"]), false, false)); "empty")]
-    #[test_case("()", true, Some(0) => serr("Out of room for floats in this compilation unit"); "empty; no space for args")]
-    #[test_case("(1)", true, None => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)"]), false, false)); "one arg; no errors")]
-    #[test_case("(a)", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for args")]
-    #[test_case("(999)", true, Some(1) => serr("Out of room for floats in this compilation unit"); "no room for length")]
-    #[test_case("(a,)", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; strict")]
-    #[test_case("(a,)", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; non-strict")]
+    #[test_case("()", true, &[] => Ok((svec(&["FLOAT 0 (0)"]), false, false)); "empty")]
+    #[test_case("()", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "empty; no space for args")]
+    #[test_case("(1)", true, &[] => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)"]), false, false)); "one arg; no errors")]
+    #[test_case("(a)", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no room for args")]
+    #[test_case("(999)", true, &[(Fillable::Float, 1)] => serr("Out of room for floats in this compilation unit"); "no room for length")]
+    #[test_case("(a,)", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; strict")]
+    #[test_case("(a,)", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; non-strict")]
+    #[test_case("(a,...b,c)", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 15",
+        "FLOAT 0 (1)",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST",
+        "JUMP_IF_ABRUPT 7",
+        "STRING 2 (c)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 1",
+        "UNWIND_LIST",
+        "JUMP_IF_ABRUPT 5",
+        "ROTATEUP 2",
+        "FLOAT 0 (1)",
+        "ADD"
+    ]), true, false)); "with variable arg")]
+    #[test_case("(true,true,true,true,true,true,...[],true)", false, &[(Fillable::Float, 1)] => serr("Out of room for floats in this compilation unit"); "varargs, out of float space")]
+    #[test_case("(true,...[])", false, &[] => Ok((svec(&[
+        "TRUE",
+        "FLOAT 0 (1)",
+        "ARRAY",
+        "ITER_ARGS",
+        "JUMP_IF_ABRUPT 3",
+        "APPEND_LIST",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ]), true, false)); "no need to add more at end")]
     fn argument_list_evaluation(
         src: &str,
         strict: bool,
-        spots_avail: Option<usize>,
+        what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arguments();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", what);
         node.argument_list_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
@@ -6433,5 +6469,49 @@ mod template_literal {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
             })
             .map_err(|e| e.to_string())
+    }
+}
+
+mod env_usage {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(EnvUsage::UsePutValue, EnvUsage::UsePutValue => true; "equal")]
+    #[test_case(EnvUsage::UseCurrentLexical, EnvUsage::UsePutValue => false; "not equal")]
+    fn eq(left: EnvUsage, right: EnvUsage) -> bool {
+        left == right
+    }
+
+    #[test_case(EnvUsage::UsePutValue => with |a| assert_ne!(a, ""); "sample")]
+    fn debug(item: EnvUsage) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(EnvUsage::UsePutValue => EnvUsage::UsePutValue)]
+    #[allow(clippy::clone_on_copy)]
+    fn clone(a: EnvUsage) -> EnvUsage {
+        a.clone()
+    }
+}
+
+mod arg_list_size_hint {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ArgListSizeHint { fixed_len: 20, has_variable: true }, ArgListSizeHint { fixed_len: 20, has_variable: true } => true; "equal")]
+    #[test_case(ArgListSizeHint { fixed_len: 23, has_variable: false }, ArgListSizeHint { fixed_len: 3, has_variable: true } => false; "not equal")]
+    fn eq(left: ArgListSizeHint, right: ArgListSizeHint) -> bool {
+        left == right
+    }
+
+    #[test_case(ArgListSizeHint { fixed_len: 12, has_variable: true } => with |a| assert_ne!(a, ""); "sample")]
+    fn debug(item: ArgListSizeHint) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(ArgListSizeHint { fixed_len: 2, has_variable: false } => ArgListSizeHint { fixed_len: 2, has_variable: false })]
+    #[allow(clippy::clone_on_copy)]
+    fn clone(a: ArgListSizeHint) -> ArgListSizeHint {
+        a.clone()
     }
 }
