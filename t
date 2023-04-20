@@ -56,6 +56,8 @@ test_defs[symbol_description]="symbol_description symbol_description symbol_obje
 test_defs[SymbolObject_own_property_keys]="SymbolObject@ObjectInterface::own_property_keys symbol_object::own_keys symbol_object"
 
 test_defs[Insn]="Insn insn compiler"
+test_defs[EnvUsage]="EnvUsage env_usage compiler"
+test_defs[ArgListSizeHint]="ArgListSizeHint arg_list_size_hint compiler"
 test_defs[CompilerStatusFlags]="CompilerStatusFlags compiler_status_flags compiler"
 test_defs[CompilerIdentifierReference]="parser::identifiers::IdentifierReference identifier_reference compiler"
 test_defs[CompilerPrimaryExpression]="parser::primary_expressions::PrimaryExpression primary_expression compiler"
@@ -464,6 +466,7 @@ test_defs[KeyValueKind]="KeyValueKind key_value_kind arrays"
 test_defs[array_iterator]="array_iterator array_iterator arrays"
 test_defs[create_array_iterator]="create_array_iterator array_iterator::standard arrays"
 test_defs[array_constructor_function]="array_constructor_function array_constructor_function arrays"
+test_defs[array_species_create]="array_species_create array_species_create arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 

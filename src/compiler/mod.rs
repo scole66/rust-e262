@@ -2288,14 +2288,14 @@ impl Arguments {
                     // exit:
 
                     if fixed_len > 0 {
-                        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                        // A variable sized list always winds up being abrupt at this point.
+                        assert!(status.maybe_abrupt());
+                        let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                         chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
                         let idx = chunk.add_to_float_pool(fixed_len as f64)?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
-                        if let Some(mark) = exit {
-                            chunk.fixup(mark).expect("Jump too short to fail");
-                        }
+                        chunk.fixup(exit).expect("Jump too short to fail");
                     }
                 }
                 Ok(status)
