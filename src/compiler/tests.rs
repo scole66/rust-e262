@@ -3668,7 +3668,30 @@ mod variable_declaration {
     #[test_case("a=function(){}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full")]
     #[test_case("a=b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "izer compilation fails")]
     #[test_case("a=@@@", true, &[] => serr("out of range integral type conversion attempted"); "izer too big")]
-    #[test_case("[a]=b", true, &[] => panics "not yet implemented"; "pattern assignment")]
+    #[test_case("[a]=b", true, &[] => Ok((svec(&[
+        "STRING 0 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 27",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "STRING 1 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 15",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 11",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ]), true, false)); "pattern assignment")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).variable_declaration();
         let mut c = complex_filled_chunk("x", what);
@@ -4845,8 +4868,8 @@ mod binding_identifier {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("alpha", true, EnvUsage::UsePutValue, None => Ok((svec(&["STRING 0 (alpha)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/env/normal")]
-    #[test_case("alpha", false, EnvUsage::UsePutValue, None => Ok((svec(&["STRING 0 (alpha)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/env/normal")]
+    #[test_case("alpha", true, EnvUsage::UsePutValue, None => Ok((svec(&["STRING 0 (alpha)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "strict/env/normal")]
+    #[test_case("alpha", false, EnvUsage::UsePutValue, None => Ok((svec(&["STRING 0 (alpha)", "RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "non-strict/env/normal")]
     #[test_case("alpha", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["ILB 0 (alpha)"]), false, false)); "strict/no_dupes/normal")]
     #[test_case("alpha", false, EnvUsage::UseCurrentLexical, None => Ok((svec(&["ILB 0 (alpha)"]), false, false)); "non-strict/no_dupes/normal")]
     #[test_case("yield", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["ILB 0 (yield)"]), false, false)); "strict/no_dupes/yield")]
@@ -4878,15 +4901,96 @@ mod binding_element {
     use test_case::test_case;
 
     #[test_case("alpha", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
-        "EXTRACT_ARG", "STRING 0 (alpha)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"
+        "EXTRACT_ARG",
+        "STRING 0 (alpha)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "POP"
     ]), false, false)); "single name/strict")]
-    #[test_case("{alpha}", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["EXTRACT_ARG", "TODO"]), true, false)); "no-init pattern")]
-    #[test_case("{alpha}=beta", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["EXTRACT_ARG", "JUMP_NOT_UNDEF 10", "POP", "STRING 0 (beta)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 3", "UNWIND_LIST", "JUMP 1", "TODO"]), true, false)); "init pattern")]
-    #[test_case("{alpha}=3", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["EXTRACT_ARG", "JUMP_NOT_UNDEF 3", "POP", "FLOAT 0 (3)", "TODO"]), true, false)); "init by errorfree")]
+    #[test_case("{alpha}", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
+        "EXTRACT_ARG",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 0 (alpha)",
+        "STRING 0 (alpha)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (alpha)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "no-init pattern")]
+    #[test_case("{alpha}=beta", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
+        "EXTRACT_ARG",
+        "JUMP_NOT_UNDEF 10",
+        "POP",
+        "STRING 0 (beta)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 3",
+        "UNWIND_LIST",
+        "JUMP 33",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 1 (alpha)",
+        "STRING 1 (alpha)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 1 (alpha)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "init pattern")]
+    #[test_case("{alpha}=3", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
+        "EXTRACT_ARG",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (3)",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 0 (alpha)",
+        "STRING 0 (alpha)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (alpha)",
+        "FLOAT 1 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "init by errorfree")]
     #[test_case("{alpha}=beta", false, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no room")]
     #[test_case("{alhpa}=@@@", false, EnvUsage::UseCurrentLexical, None => serr("out of range integral type conversion attempted"); "initializer too large")]
     #[test_case("{alpha}=xxx", false, EnvUsage::UseCurrentLexical, Some(1) => serr("Out of room for strings in this compilation unit"); "almost no room")]
-    #[test_case("{alpha}=a", false, EnvUsage::UsePutValue, None => serr("out of range integral type conversion attempted"); "pattern too complex")]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,
@@ -4912,7 +5016,28 @@ mod binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&["TODO"]), true, false)); "simple")]
+    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "simple")]
     #[test_case("{a}", true, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no space")]
     fn compile_binding_initialization(
         src: &str,
@@ -4934,14 +5059,6 @@ mod binding_pattern {
             .map_err(|e| e.to_string())
     }
 
-    #[test]
-    fn compile_binding_initialization_coverage_special() {
-        let node = Maker::new("{a}").binding_pattern();
-        let mut c = Chunk::new("name");
-        node.compile_binding_initialization(&mut c, true, "{a}", EnvUsage::UsePutValue).unwrap();
-        assert_eq!(c.opcodes[0], Insn::ToDo as u16);
-        assert!(c.opcodes.len() >= 32768);
-    }
 }
 
 mod return_statement {
@@ -5372,8 +5489,8 @@ mod param_source {
     #[test_case("a", Kind::Formal, false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups/formal")]
     #[test_case("a", Kind::Formal, true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "strict/no-dups/formal")]
     #[test_case("a", Kind::Formal, false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "non-strict/no-dups/formal")]
-    #[test_case("a", Kind::Arrow, true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups/arrow")]
-    #[test_case("a", Kind::Arrow, false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "non-strict/dups/arrow")]
+    #[test_case("a", Kind::Arrow, true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "strict/dups/arrow")]
+    #[test_case("a", Kind::Arrow, false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "non-strict/dups/arrow")]
     #[test_case("a", Kind::Arrow, true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "strict/no-dups/arrow")]
     #[test_case("a", Kind::Arrow, false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "non-strict/no-dups/arrow")]
     #[test_case("a", Kind::AsyncArrowBinding, false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "async arrow binding")]
@@ -5441,9 +5558,9 @@ mod arrow_parameters {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a", true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "id/strict/dups")]
+    #[test_case("a", true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "id/strict/dups")]
     #[test_case("a", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "id/strict/no-dups")]
-    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "id/non-strict/dups")]
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]), false, false)); "id/non-strict/dups")]
     #[test_case("a", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "id/non-strict/no-dups")]
     #[test_case("(a)", true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "afp/strict/dups")]
     #[test_case("(a)", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "afp/strict/no-dups")]
@@ -5525,9 +5642,9 @@ mod unique_formal_parameters {
     }
 }
 
-#[test_case(true, EnvUsage::UsePutValue => svec(&["STRING 0 (simply_fascinating)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]); "strict/dups")]
+#[test_case(true, EnvUsage::UsePutValue => svec(&["STRING 0 (simply_fascinating)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]); "strict/dups")]
 #[test_case(true, EnvUsage::UseCurrentLexical => svec(&["ILB 0 (simply_fascinating)"]); "strict/no-dups")]
-#[test_case(false, EnvUsage::UsePutValue => svec(&["STRING 0 (simply_fascinating)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]); "non-strict/dups")]
+#[test_case(false, EnvUsage::UsePutValue => svec(&["STRING 0 (simply_fascinating)", "RESOLVE", "SWAP", "PUT_VALUE", "POP_PANIC"]); "non-strict/dups")]
 #[test_case(false, EnvUsage::UseCurrentLexical => svec(&["ILB 0 (simply_fascinating)"]); "non-strict/no-dups")]
 fn compile_initialize_bound_name(strict: bool, env: EnvUsage) -> Vec<String> {
     let mut c = Chunk::new("cibn");
@@ -5931,7 +6048,28 @@ mod catch_parameter {
     use test_case::test_case;
 
     #[test_case("a", true, &[] => Ok((svec(&["ILB 0 (a)"]), false, false)); "ident")]
-    #[test_case("{a}", true, &[] => Ok((svec(&["TODO"]), true, false)); "pattern")]
+    #[test_case("{a}", true, &[] => Ok((svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "pattern")]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,
@@ -6137,7 +6275,7 @@ mod catch {
     #[test_case("catch(e){0;}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
     #[test_case("catch({a}){x;}", true, &[] => panics "not yet implemented"; "binding maybe abrupt")]
     #[test_case("catch(e){0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "block compile fail")]
-    #[test_case("catch({e}){}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "binding init compile fails")]
+    #[test_case("catch({e=9n}){}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "binding init compile fails")]
     fn compile_catch_clause_evaluation(
         src: &str,
         strict: bool,
