@@ -434,3 +434,23 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     );
     process_ecmascript(&program).map_err(|e| e.to_string())
 }
+
+// ############# Random "it didn't work right" source text #############
+// This first pair is 4/23/2023: the stack is messed up for errors in binding patterns for function parameters
+// when errors happen
+#[test_case("function foo([{a=50, b, c}]) {
+                 return [a, b, c];
+             }
+             foo(1, 2, 3, 4, 5)"
+            => serr("Thrown: TypeError: object is not iterable")
+            ; "handle errors in function parameter binding patterns")]
+#[test_case("function foo([{a=50, b, c}] = [{a:-1,b:-2,c:-3}]) {
+                return [a, b, c];
+            }
+            foo(1, 2, 3, 4, 5)"
+           => serr("Thrown: TypeError: object is not iterable")
+           ; "handle errors in function parameter binding patterns with initializers")]
+fn code(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}

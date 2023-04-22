@@ -2081,13 +2081,14 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
                     if c == '(' {
                         let closing_idx = source[s.start_idx + 1..].find(')');
                         if let Some(idx) = closing_idx {
-                            let value = source[s.start_idx + 1..s.start_idx+1+idx].parse::<i64>();
+                            let value = source[s.start_idx + 1..s.start_idx + 1 + idx].parse::<i64>();
                             if let Ok(num) = value {
                                 Some((
                                     Token::Debug(DebugKind::Number(num)),
                                     Scanner {
                                         line: s.line,
-                                        column: s.column + source[s.start_idx..=s.start_idx+1+idx].chars().count() as u32,
+                                        column: s.column
+                                            + source[s.start_idx..=s.start_idx + 1 + idx].chars().count() as u32,
                                         start_idx: s.start_idx + 1 + idx + 1,
                                     },
                                 ))

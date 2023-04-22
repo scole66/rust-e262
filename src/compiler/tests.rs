@@ -5879,6 +5879,145 @@ mod single_name_binding {
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "non-strict/putvalue/no-initializer")]
+    #[test_case("a", true, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "strict/putvalue/no-initializer")]
+    #[test_case("a", false, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "non-strict/currentlex/no-initializer")]
+    #[test_case("a", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "strict/currentlex/no-initializer")]
+    #[test_case("a", false, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("a=0", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 18",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (0)",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "infallible initializer")]
+    #[test_case("a=() => 0", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 24",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 20",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 0 (a)",
+        "FUNC_IAE 0",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "named evaluation")]
+    #[test_case("a=b", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 24",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 20",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "izer ref")]
+    #[test_case("a=()=>0", false, EnvUsage::UsePutValue, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function stash full")]
+    #[test_case("a=1n", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "izer compile fails")]
+    #[test_case("a=@@@", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "izer jump too far")]
+    #[test_case("a=''+@@(20)", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "unwind1 jump too far")]
+    fn iterator_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).single_name_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
 }
 
 mod function_rest_parameter {

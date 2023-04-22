@@ -4915,10 +4915,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
     let mut exit = None;
     if status.maybe_abrupt() {
-        let close_jump = chunk.op_jump(Insn::JumpIfNormal);
-        chunk.op_plus_arg(Insn::Unwind, 1);
-        exit = Some(chunk.op_jump(Insn::Jump));
-        chunk.fixup(close_jump).expect("Jump too short to overflow");
+        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
     }
     chunk.op(Insn::FinishArgs);
     // Stack: func ...
@@ -5293,42 +5290,69 @@ impl BindingElement {
         match self {
             BindingElement::Single(single) => single.compile_binding_initialization(chunk, strict, text, env),
             BindingElement::Pattern(bp, None) => {
+                // start:                       N arg(n-1) ... arg(0)
+                //   EXTRACT_ARG                arg0 (n-1) arg(n-1) ... arg(1)
+                //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_ABRUPT unwind      [empty] (n-1) arg(n-1) ... arg(1)
+                //   POP
+                //   JUMP exit
+                // unwind:
+                //   UNWIND_LIST
+                // exit:
                 chunk.op(Insn::ExtractArg);
-                bp.compile_binding_initialization(chunk, strict, text, env)
+                let bp_status = bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let mut unwind = None;
+                if bp_status.maybe_abrupt() {
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::Pop);
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("Jump too short to fail");
+                    chunk.op(Insn::UnwindList);
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(bp_status)
             }
             BindingElement::Pattern(bp, Some(init)) => {
+                // start:                       N arg(n-1) ... arg(0)
+                //   EXTRACT_ARG                arg0 (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_NOT_UNDEF ok       undefined (n-1) arg(n-1) ... arg(1)
+                //   POP                        (n-1) arg(n-1) ... arg(1)
+                //   <init>                     ref/val/err (n-1) arg(n-1) ... arg(1)
+                //   GET_VALUE                  val/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_ABRUPT unwind      val (n-1) arg(n-1) ... arg(1)
+                // ok:                          val (n-1) arg(n-1) ... arg(1)
+                //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_NORMAL exit
+                // unwind:
+                //   UNWIND_LIST
+                // exit:                        ([empty] (n-1) arg(n-1) ... arg(1)) or err
+
                 chunk.op(Insn::ExtractArg);
-                // Stack arg0 n-1 arg[n-1] ... arg[1]
                 let mark = chunk.op_jump(Insn::JumpIfNotUndef);
-                // Stack undef n-1 arg[n-1] ... arg[1]
                 chunk.op(Insn::Pop);
-                // Stack n-1 arg[n-1] ... arg[1]
-                let status = init.compile(chunk, strict, text)?;
-                // Stack: ref/val/err n-1 arg[n-1] ... arg[1]
-                if status.maybe_ref() {
+                let izer_status = init.compile(chunk, strict, text)?;
+                if izer_status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                // Stack: val/err n-1 arg[n-1] ... arg[1]
-                let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    let close = chunk.op_jump(Insn::JumpIfNormal);
-                    // Stack: err n-1 arg[n-1] ... arg[1]
-                    chunk.op(Insn::UnwindList);
-                    // Stack: err
-                    let exit = Some(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(close).expect("Jump too short to overflow");
-                    exit
-                } else {
-                    None
-                };
-                chunk.fixup(mark)?;
-                // Stack: val n-1 arg[n-1] ... arg[1]
-                let status = bp.compile_binding_initialization(chunk, strict, text, env)?;
-                if let Some(&mark) = exit.as_ref() {
-                    chunk.fixup(mark)?;
+                let mut unwind = None;
+                if izer_status.maybe_abrupt() || izer_status.maybe_ref() {
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
-                // Stack: n-1 arg[n-1] ... arg[1]
-                // or Stack: err
-                Ok(AbruptResult::from(exit.is_some() || status.maybe_abrupt()))
+                chunk.fixup(mark)?;
+                let bp_status = bp.compile_binding_initialization(chunk, strict, text, env)?;
+                if bp_status.maybe_abrupt() || unwind.is_some() {
+                    let exit = chunk.op_jump(Insn::JumpIfNormal);
+                    if let Some(unwind) = unwind {
+                        chunk.fixup(unwind)?;
+                    }
+                    chunk.op(Insn::UnwindList);
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AbruptResult::from(
+                    izer_status.maybe_ref() || izer_status.maybe_abrupt() || bp_status.maybe_abrupt(),
+                ))
             }
         }
     }
@@ -5762,7 +5786,7 @@ impl SingleNameBinding {
                 let binding_id_val = bi.string_value();
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
                 let mut unwind1 = vec![];
-                let mut unwind2 = vec![];
+                let mut unwind2 = None;
                 chunk.op_plus_arg(Insn::String, binding_id);
                 chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                 unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -5781,7 +5805,7 @@ impl SingleNameBinding {
                         chunk.op(Insn::GetValue);
                     }
                     if status.maybe_ref() || status.maybe_abrupt() {
-                        unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     }
                     chunk.fixup(vok)?;
                 }
@@ -5794,10 +5818,10 @@ impl SingleNameBinding {
                 unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
                 chunk.op(Insn::Pop);
                 let exit = chunk.op_jump(Insn::Jump);
-                for mark in unwind2 {
-                    chunk.fixup(mark)?;
+                if let Some(mark) = unwind2 {
+                    chunk.fixup(mark).expect("Jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
                 for mark in unwind1 {
                     chunk.fixup(mark)?;
                 }
