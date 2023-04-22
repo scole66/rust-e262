@@ -203,6 +203,29 @@ pub fn ec_pop() -> Option<FullCompletion> {
     })
 }
 
+pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
+    AGENT.with(|agent| {
+        let mut ec_stack = agent.execution_context_stack.borrow_mut();
+        let ec = ec_stack.last_mut().ok_or_else(|| anyhow!("no execution context"))?;
+        let len = f64::try_from(ECMAScriptValue::try_from(
+            ec.stack
+                .pop()
+                .ok_or_else(|| anyhow!("empty application stack"))?
+                .map_err(|_| anyhow!("Unexpected abrupt completion"))?,
+        )?)? as usize;
+        let mut result = Vec::with_capacity(len);
+        for _ in 0..len {
+            result.push(ECMAScriptValue::try_from(
+                ec.stack
+                    .pop()
+                    .ok_or_else(|| anyhow!("empty application stack"))?
+                    .map_err(|_| anyhow!("Unexpected abrupt completion:"))?,
+            )?);
+        }
+        Ok(result)
+    })
+}
+
 pub fn ec_stack_len() -> usize {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
@@ -843,6 +866,19 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     assert!(len >= amt);
                     stack[len - amt..len].rotate_right(1);
                 }
+                Insn::RotateDownList => {
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let amt = chunk.opcodes[ec.pc] as usize;
+                    ec.pc += 1;
+                    let stack = &mut ec.stack;
+                    let len = stack.len();
+                    let list_len = f64::try_from(
+                        ECMAScriptValue::try_from(stack[len - 2].clone().expect("length should not be error"))
+                            .expect("length should be value"),
+                    )
+                    .expect("length must be a number") as usize;
+                    stack[len - list_len - amt - 2..len].rotate_right(1);
+                }
                 Insn::Ref | Insn::StrictRef => {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let strict = instruction == Insn::StrictRef;
@@ -869,6 +905,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     assert!(stack_size > 0);
                     ec.stack.truncate(stack_size - 1);
                 }
+                Insn::PopOrPanic => {
+                    let val = ec_pop().expect("stack should not be empty");
+                    if let Err(e) = val {
+                        panic!("Unhandled, unexpected error {e}");
+                    }
+                }
                 Insn::Swap => {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
@@ -888,6 +930,18 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("Top of stack must contain a list") as usize;
                     let item = ec.stack.remove(stack_size - list_len - 2);
                     ec.stack.push(item);
+                }
+                Insn::PopList => {
+                    let length = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop().expect("should be arguments").expect("should not be errors"),
+                        )
+                        .expect("length should be a value"),
+                    )
+                    .expect("length should be a number") as usize;
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let stack_size = ec.stack.len();
+                    ec.stack.truncate(stack_size - length);
                 }
                 Insn::InitializeReferencedBinding => {
                     let (value, lhs) = {
@@ -1140,6 +1194,30 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         Err(e) => Err(e),
                     };
                     agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
+                }
+                Insn::CopyDataPropsWithExclusions => {
+                    let exclusions = ec_pop_list()
+                        .expect("list should be on the stack")
+                        .into_iter()
+                        .map(|val| PropertyKey::try_from(val).expect("values should be property keys"))
+                        .collect::<Vec<_>>();
+                    let value = ECMAScriptValue::try_from(
+                        ec_pop().expect("source should be on the stack").expect("source should not be an error"),
+                    )
+                    .expect("source should be a value");
+                    let dest = Object::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop().expect("dest should be on the stack").expect("dest should not be an error"),
+                        )
+                        .expect("dest should be a value"),
+                    )
+                    .expect("dest should be an object");
+                    let result = copy_data_properties(&dest, value, &exclusions);
+                    let fc = match result {
+                        Ok(_) => Ok(NormalCompletion::from(dest)),
+                        Err(e) => Err(e),
+                    };
+                    ec_push(fc);
                 }
                 Insn::Dup => {
                     let idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
@@ -1750,6 +1828,234 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         Err(e) => ec_push(Err(e)),
                     }
                 }
+                Insn::IteratorDAEElision => {
+                    // The Elision form of IteratorDestructuringAssignmentEvaluation
+                    // Input on stack: <elision count as a float value> <iterator record>
+                    // Ouptut on stack: <iterator record>/err
+                    let mut count = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("IteratorDAEElision stack should include two items")
+                                .expect("elision count should not be an error"),
+                        )
+                        .expect("elision count shoud be a value"),
+                    )
+                    .expect("elision count should be a number value") as usize;
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("IteratorDAEElision stack should include two items")
+                        .expect("iterator record should not be an error")
+                        .try_into()
+                        .expect("completion should be an iterator record");
+                    // Elision : ,
+                    //  1. If iteratorRecord.[[Done]] is false, then
+                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //      c. ReturnIfAbrupt(next).
+                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
+                    //  2. Return unused.
+                    // Elision : Elision ,
+                    //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+                    //  2. If iteratorRecord.[[Done]] is false, then
+                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //      c. ReturnIfAbrupt(next).
+                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
+                    //  3. Return unused.
+                    let retval = loop {
+                        if count == 0 || ir.done.get() {
+                            break Ok(());
+                        }
+                        let next = ir.step();
+                        match next {
+                            Ok(None) => {
+                                ir.done.set(true);
+                            }
+                            Ok(Some(_)) => (),
+                            Err(e) => {
+                                ir.done.set(true);
+                                break Err(e);
+                            }
+                        }
+                        count -= 1;
+                    }
+                    .map(|()| NormalCompletion::from(ir));
+                    ec_push(retval);
+                }
+                Insn::EmbellishedIteratorStep => {
+                    // Input: on stack: an iterator record (ir)
+                    // Output: on stack: an output value (v), and the input ir, -or- one error
+                    //  1. Let v be undefined.
+                    //  2. If iteratorRecord.[[Done]] is false, then
+                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //      c. ReturnIfAbrupt(next).
+                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
+                    //      e. Else,
+                    //          i. Set v to Completion(IteratorValue(next)).
+                    //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //          iii. ReturnIfAbrupt(v).
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("EmbellishedIteratorStep stack should include an item")
+                        .expect("iterator record should not be an error")
+                        .try_into()
+                        .expect("completion should be an iterator record");
+                    match ir.done.get() {
+                        false => {
+                            let next = ir.step();
+                            match next {
+                                Err(e) => {
+                                    ir.done.set(true);
+                                    ec_push(Err(e));
+                                }
+                                Ok(None) => {
+                                    ir.done.set(true);
+                                    ec_push(Ok(NormalCompletion::from(ir)));
+                                    ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                                }
+                                Ok(Some(next)) => {
+                                    let v = iterator_value(&next);
+                                    match v {
+                                        Err(e) => {
+                                            ir.done.set(true);
+                                            ec_push(Err(e));
+                                        }
+                                        Ok(v) => {
+                                            ec_push(Ok(NormalCompletion::from(ir)));
+                                            ec_push(Ok(NormalCompletion::from(v)));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        true => {
+                            ec_push(Ok(NormalCompletion::from(ir)));
+                            ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                        }
+                    }
+                }
+                Insn::IteratorRest => {
+                    // Input: one stack argument, an iterator record
+                    // Output: two stack elements: an array object, followed by the iterator record
+                    //     or: one stack element: an error
+
+                    //  2. Let A be ! ArrayCreate(0).
+                    //  3. Let n be 0.
+                    //  4. Repeat,
+                    //      a. If iteratorRecord.[[Done]] is false, then
+                    //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+                    //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //          iii. ReturnIfAbrupt(next).
+                    //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+                    //      b. If iteratorRecord.[[Done]] is true, then
+                    //          i. Return (A, iteratorRecord).
+                    //      c. Let nextValue be Completion(IteratorValue(next)).
+                    //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                    //      e. ReturnIfAbrupt(nextValue).
+                    //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+                    //      g. Set n to n + 1.
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("IteratorRest stack should include an item")
+                        .expect("iterator record should not be an error")
+                        .try_into()
+                        .expect("completion should be an iterator record");
+                    let a = array_create(0, None).expect("0 should fit in ram");
+                    let mut n = 0;
+                    loop {
+                        if !ir.done.get() {
+                            match ir.step() {
+                                Ok(None) => {
+                                    ir.done.set(true);
+                                    ec_push(Ok(NormalCompletion::from(ir)));
+                                    ec_push(Ok(NormalCompletion::from(a)));
+                                    break;
+                                }
+                                Ok(Some(next)) => {
+                                    match iterator_value(&next) {
+                                        Ok(next_value) => {
+                                            create_data_property_or_throw(&a, format!("{n}"), next_value)
+                                                .expect("array property set should work");
+                                            n += 1;
+                                        }
+                                        Err(e) => {
+                                            ir.done.set(true);
+                                            ec_push(Err(e));
+                                            break;
+                                        }
+                                    };
+                                }
+                                Err(e) => {
+                                    ir.done.set(true);
+                                    ec_push(Err(e));
+                                    break;
+                                }
+                            };
+                        } else {
+                            ec_push(Ok(NormalCompletion::from(ir)));
+                            ec_push(Ok(NormalCompletion::from(a)));
+                            break;
+                        }
+                    }
+                }
+                Insn::RequireCoercible => {
+                    // Input: one stack argument, an ECMAScriptValue
+                    // Output: one stack completion: either the same input value, or an error.
+                    let val = ECMAScriptValue::try_from(
+                        ec_pop().expect("should be a stack argument").expect("argument should not be an error"),
+                    )
+                    .expect("argument should be a value");
+                    let result = require_object_coercible(&val);
+                    ec_push(match result {
+                        Ok(()) => Ok(val.into()),
+                        Err(e) => Err(e),
+                    });
+                }
+                Insn::GetSyncIterator => {
+                    // This instruction handles the step that looks like:
+                    //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                    //
+                    // Input on stack: that value.
+                    // Output on stack: the iterator record/abrupt completion.
+
+                    let value = ECMAScriptValue::try_from(
+                        ec_pop().expect("should be an argument").expect("should not be an error"),
+                    )
+                    .expect("argument should be a value");
+                    let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
+                    ec_push(result);
+                }
+                Insn::IteratorCloseIfNotDone => {
+                    // This instruction handles the step that looks like:
+                    //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+                    //  4. Return ? result.
+                    //
+                    // Input on stack: result iteratorRecord
+                    // Output result/err
+                    let result = ec_pop().expect("There should be 2 arguments");
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("there should be 2 arguments")
+                        .expect("iterator arg should not be an error")
+                        .try_into()
+                        .expect("arg should be an iterator record");
+                    let done = ir.done.get();
+                    let rval = if !done { iterator_close(&ir, result) } else { result };
+                    ec_push(rval.map(NormalCompletion::from));
+                }
+                Insn::GetV => {
+                    // input: key, base
+                    let prop_name = PropertyKey::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop().expect("should be 2 arguments").expect("args should not be errors"),
+                        )
+                        .expect("arg should be value"),
+                    )
+                    .expect("arg should be key");
+                    let base_val = ECMAScriptValue::try_from(
+                        ec_pop().expect("should be 2 arguments").expect("should not be errors"),
+                    )
+                    .expect("arg should be value");
+                    let result = getv(&base_val, &prop_name).map(NormalCompletion::from);
+                    ec_push(result);
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -1760,7 +2066,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 svr.map(|sv| match sv {
                     NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
                     NormalCompletion::Value(v) => v,
-                    NormalCompletion::Environment(..) => unreachable!(),
+                    NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(..) => unreachable!(),
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
@@ -1769,7 +2075,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
 
 fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) {
     let this_value = match &reference {
-        NormalCompletion::Empty | NormalCompletion::Environment(..) => unreachable!(),
+        NormalCompletion::IteratorRecord(_) | NormalCompletion::Empty | NormalCompletion::Environment(..) => {
+            unreachable!()
+        }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => unreachable!(),
@@ -1824,7 +2132,7 @@ fn prefix_decrement(expr: FullCompletion) -> FullCompletion {
 fn delete_ref(expr: FullCompletion) -> FullCompletion {
     let reference = expr?;
     match reference {
-        NormalCompletion::Environment(..) => unreachable!(),
+        NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(..) => unreachable!(),
         NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
         NormalCompletion::Reference(r) => match *r {
             Reference { base: Base::Unresolvable, .. } => Ok(true.into()),

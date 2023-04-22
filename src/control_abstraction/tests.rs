@@ -232,7 +232,7 @@ fn create_list_iterator_record() {
         ECMAScriptValue::from(20),
     ]);
     // done must be false...
-    assert!(!ir.done);
+    assert!(!ir.done.get());
     // next_method must be the appropriate intrinsic...
     assert_eq!(ir.next_method, intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext));
     // and iterator must be a generator object that returns the above list.
@@ -910,7 +910,7 @@ mod get_iterator_from_method {
                 (
                     get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
                     get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
-                    ir.done,
+                    ir.done.get(),
                 )
             })
             .map_err(unwind_any_error)
@@ -1004,7 +1004,7 @@ mod get_iterator {
                 (
                     get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
                     get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
-                    ir.done,
+                    ir.done.get(),
                 )
             })
             .map_err(unwind_any_error)
@@ -1215,7 +1215,7 @@ mod iterator_record {
     fn ir_with_throwing_done() -> IteratorRecord {
         let iterator = create_iterator_object_with_throwing_next();
         let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
-        IteratorRecord { iterator, next_method, done: false }
+        IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn instantly_done() -> IteratorRecord {
         create_list_iterator_record(vec![])
@@ -1276,7 +1276,7 @@ mod iterator_record {
     fn create_tracking_iterator_record() -> IteratorRecord {
         let iterator = create_tracking_iterator_with_return();
         let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
-        IteratorRecord { iterator, next_method, done: false }
+        IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn invalid_return(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Null)
@@ -1291,20 +1291,20 @@ mod iterator_record {
 
     #[test_case(|| super::super::super::create_list_iterator_record(vec![]), || Ok(ECMAScriptValue::from("normal")) => Ok((ECMAScriptValue::from("normal"), vec![])); "happy, no return")]
     #[test_case(create_tracking_iterator_record, || Ok(ECMAScriptValue::from("tracker")) => Ok((ECMAScriptValue::from("tracker"), svec(&["return(undefined)"]))); "happy, called return")]
-    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Ok(ECMAScriptValue::from("thshs")) => serr("TypeError: get called on DeadObject"); "get_method throws")]
-    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Err(create_type_error("goody")) => serr("TypeError: goody"); "get_method throws, but is overridden")]
-    #[test_case(|| IteratorRecord {iterator: create_iterator_with_broken_return(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: false}, || Ok(ECMAScriptValue::Undefined) => serr("TypeError: iterator return method returned non object"); "iterator's return method is invalid")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Ok(ECMAScriptValue::from("thshs")) => serr("TypeError: get called on DeadObject"); "get_method throws")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Err(create_type_error("goody")) => serr("TypeError: goody"); "get_method throws, but is overridden")]
+    #[test_case(|| IteratorRecord {iterator: create_iterator_with_broken_return(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Ok(ECMAScriptValue::Undefined) => serr("TypeError: iterator return method returned non object"); "iterator's return method is invalid")]
     fn close(
         make_ir: impl FnOnce() -> IteratorRecord,
         make_completion: impl FnOnce() -> Completion<ECMAScriptValue>,
     ) -> Result<(ECMAScriptValue, Vec<String>), String> {
         setup_test_agent();
         let ir = make_ir();
-        let completion = make_completion();
+        let completion = make_completion().map(NormalCompletion::from);
         let r = ir.close(completion).map_err(unwind_any_error)?;
         let tracker = Object::try_from(get(&ir.iterator, &"tracker".into()).unwrap());
         if tracker.is_err() {
-            return Ok((r, vec![]));
+            return Ok((r.try_into().unwrap(), vec![]));
         }
         let tracker = tracker.unwrap();
         let tracker_len = to_number(get(&tracker, &"length".into()).unwrap()).unwrap() as u64;
@@ -1313,7 +1313,7 @@ mod iterator_record {
             let item = get(&tracker, &format!("{idx}").into()).unwrap();
             tracks.push(format!("{item}"));
         }
-        Ok((r, tracks))
+        Ok((r.try_into().unwrap(), tracks))
     }
 }
 
@@ -1396,6 +1396,6 @@ fn iterator_close(
 ) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let ir = make_ir();
-    let completion = make_completion();
-    super::iterator_close(&ir, completion).map_err(unwind_any_error)
+    let completion = make_completion().map(NormalCompletion::from);
+    super::iterator_close(&ir, completion).map_err(unwind_any_error).map(|val| val.try_into().unwrap())
 }

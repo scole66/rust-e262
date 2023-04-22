@@ -264,7 +264,7 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
             }
         },
         NormalCompletion::Empty => Err(create_reference_error("Unresolvable Reference")),
-        NormalCompletion::Environment(_) => unreachable!(),
+        NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(_) => unreachable!(),
     }
 }
 
@@ -298,7 +298,7 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
     let v = v_completion?;
     let w = w_completion?;
     match v {
-        NormalCompletion::Environment(_) => unreachable!(),
+        NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(_) => unreachable!(),
         NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {

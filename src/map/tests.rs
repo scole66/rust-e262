@@ -150,7 +150,8 @@ mod add_entries_from_iterable {
         setup_test_agent();
         let (target, iterable, adder) = make_vals();
 
-        let res = super::add_entries_from_iterable(&target, &iterable, &adder).map_err(unwind_any_error)?;
+        let res =
+            super::add_entries_from_iterable(&target, &iterable, &adder).map_err(unwind_any_error)?.try_into().unwrap();
 
         let repr = match res {
             ECMAScriptValue::Undefined
