@@ -3686,23 +3686,22 @@ mod variable_declaration {
         "STRING 0 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 27",
+        "JUMP_IF_ABRUPT 25",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 24",
+        "JUMP_IF_ABRUPT 22",
         "DUP",
         "STRING 1 (a)",
         "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 15",
+        "JUMP_IF_ABRUPT 13",
         "SWAP",
         "ITER_STEP",
-        "JUMP_IF_ABRUPT 11",
+        "JUMP_IF_ABRUPT 9",
         "SWAP",
         "ROTATEDOWN 3",
         "PUT_VALUE",
-        "JUMP_IF_ABRUPT 5",
+        "JUMP_IF_ABRUPT 3",
         "POP",
-        "JUMP 4",
-        "UNWIND 1",
+        "JUMP 2",
         "UNWIND 1",
         "ITER_CLOSE_IF_NOT_DONE"
     ]), true, false)); "pattern assignment")]
@@ -4943,18 +4942,20 @@ mod binding_element {
         "FLOAT 0 (1)",
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
-        "EMPTY"
+        "EMPTY",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 1",
+        "UNWIND_LIST"
     ]), true, false)); "no-init pattern")]
     #[test_case("{alpha}=beta", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
         "EXTRACT_ARG",
-        "JUMP_NOT_UNDEF 10",
+        "JUMP_NOT_UNDEF 7",
         "POP",
         "STRING 0 (beta)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_NORMAL 3",
-        "UNWIND_LIST",
-        "JUMP 33",
+        "JUMP_IF_ABRUPT 35",
         "REQ_COER",
         "JUMP_IF_ABRUPT 30",
         "STRING 1 (alpha)",
@@ -4974,7 +4975,9 @@ mod binding_element {
         "FLOAT 0 (1)",
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
-        "EMPTY"
+        "EMPTY",
+        "JUMP_IF_NORMAL 1",
+        "UNWIND_LIST"
     ]), true, false)); "init pattern")]
     #[test_case("{alpha}=3", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
         "EXTRACT_ARG",
@@ -5000,7 +5003,9 @@ mod binding_element {
         "FLOAT 1 (1)",
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
-        "EMPTY"
+        "EMPTY",
+        "JUMP_IF_NORMAL 1",
+        "UNWIND_LIST"
     ]), true, false)); "init by errorfree")]
     #[test_case("{alpha}=beta", false, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no room")]
     #[test_case("{alhpa}=@@@", false, EnvUsage::UseCurrentLexical, None => serr("out of range integral type conversion attempted"); "initializer too large")]
