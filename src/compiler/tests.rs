@@ -5182,9 +5182,7 @@ mod compile_fdi {
         "JUMP 2",
         "IRB",
         "POP",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 3",
+        "JUMP_IF_ABRUPT 3",
         "FINISH_ARGS",
         "PNVEFL",
         "PNLEFV"
@@ -5392,9 +5390,7 @@ mod concise_body {
         "JUMP 2",
         "IRB",
         "POP",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 3",
+        "JUMP_IF_ABRUPT 3",
         "FINISH_ARGS",
         "PNVEFL",
         "SLETVE",
@@ -6049,11 +6045,88 @@ mod function_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function a(){}", true, &[] => Ok((svec(&["CUA", "CNSILB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/empty params")]
-    #[test_case("function a(q){}", true, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/simple params/strict")]
-    #[test_case("function a(q){}", false, &[] => Ok((svec(&["CPMLBM 0 (q)", "CMA", "CPMLB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "PNLE", "UNDEFINED", "END_FUNCTION"]), false, false)); "typical/simple params/non-strict")]
-    #[test_case("function a(q){'use strict';}", false, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "FINISH_ARGS", "STRING 2 (use strict)", "END_FUNCTION"]), false, false)); "typical/simple params/directive")]
-    #[test_case("function a(q=b){}", true, &[] => Ok((svec(&["CPMLBM 0 (q)", "CUA", "CNSILB 1 (arguments)", "ILB 1 (arguments)", "EXTRACT_ARG", "STRING 0 (q)", "STRICT_RESOLVE", "SWAP", "JUMP_NOT_UNDEF 12", "POP", "STRING 2 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 5", "UNWIND 1", "UNWIND_LIST", "JUMP 2", "IRB", "POP", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FINISH_ARGS", "PNVEFL", "SLETVE", "JUMP_IF_ABRUPT 1", "UNDEFINED", "END_FUNCTION"]), true, false)); "fallible instantiation")]
+    #[test_case("function a(){}", true, &[] => Ok((svec(&[
+        "CUA",
+        "CNSILB 0 (arguments)",
+        "ILB 0 (arguments)",
+        "FINISH_ARGS",
+        "UNDEFINED",
+        "END_FUNCTION"
+    ]), false, false)); "typical/empty params")]
+    #[test_case("function a(q){}", true, &[] => Ok((svec(&[
+        "CPMLBM 0 (q)",
+        "CUA",
+        "CNSILB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (q)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "POP",
+        "FINISH_ARGS",
+        "UNDEFINED",
+        "END_FUNCTION"
+    ]), false, false)); "typical/simple params/strict")]
+    #[test_case("function a(q){}", false, &[] => Ok((svec(&[
+        "CPMLBM 0 (q)",
+        "CMA",
+        "CPMLB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (q)",
+        "RESOLVE",
+        "SWAP",
+        "IRB",
+        "POP",
+        "FINISH_ARGS",
+        "PNLE",
+        "UNDEFINED",
+        "END_FUNCTION"
+    ]), false, false)); "typical/simple params/non-strict")]
+    #[test_case("function a(q){'use strict';}", false, &[] => Ok((svec(&[
+        "CPMLBM 0 (q)",
+        "CUA",
+        "CNSILB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (q)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "POP",
+        "FINISH_ARGS",
+        "STRING 2 (use strict)",
+        "END_FUNCTION"
+    ]), false, false)); "typical/simple params/directive")]
+    #[test_case("function a(q=b){}", true, &[] => Ok((svec(&[
+        "CPMLBM 0 (q)",
+        "CUA",
+        "CNSILB 1 (arguments)",
+        "ILB 1 (arguments)",
+        "EXTRACT_ARG",
+        "STRING 0 (q)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "JUMP_NOT_UNDEF 12",
+        "POP",
+        "STRING 2 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 5",
+        "UNWIND 1",
+        "UNWIND_LIST",
+        "JUMP 2",
+        "IRB",
+        "POP",
+        "JUMP_IF_ABRUPT 3",
+        "FINISH_ARGS",
+        "PNVEFL",
+        "SLETVE",
+        "JUMP_IF_ABRUPT 1",
+        "UNDEFINED",
+        "END_FUNCTION"
+    ]), true, false)); "fallible instantiation")]
     #[test_case("function a(q){}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "instantiation fails")]
     #[test_case("function a(){b;}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "statements fail")]
     #[test_case("function a(q=b){@@@;}", true, &[] => serr("out of range integral type conversion attempted"); "function too large")]
