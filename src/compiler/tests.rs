@@ -5058,7 +5058,6 @@ mod binding_pattern {
             })
             .map_err(|e| e.to_string())
     }
-
 }
 
 mod return_statement {
