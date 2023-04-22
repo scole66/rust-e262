@@ -1152,7 +1152,7 @@ impl fmt::Debug for CommonObjectData {
     }
 }
 
-struct ConciseObject<'a>(&'a Object);
+pub struct ConciseObject<'a>(&'a Object);
 impl<'a> fmt::Debug for ConciseObject<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.concise(f)

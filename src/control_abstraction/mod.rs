@@ -301,7 +301,7 @@ async fn list_iterator(
     Ok(ECMAScriptValue::Undefined)
 }
 
-fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
+pub fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     // CreateListIteratorRecord ( list )
     // The abstract operation CreateListIteratorRecord takes argument list (a List) and returns an
     // Iterator Record. It creates an Iterator (27.1.1.2) object record whose next method returns the
@@ -876,11 +876,20 @@ pub async fn generator_yield(
 // | [[NextMethod]] | a function object | The next method of the [[Iterator]] object.                         |
 // | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
 // +----------------+-------------------+---------------------------------------------------------------------+
-#[derive(Debug)]
 pub struct IteratorRecord {
     pub iterator: Object,
     pub next_method: Object,
     pub done: Cell<bool>,
+}
+
+impl fmt::Debug for IteratorRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IteratorRecord")
+            .field("iterator", &ConciseObject::from(&self.iterator))
+            .field("next_method", &ConciseObject::from(&self.next_method))
+            .field("done", &self.done)
+            .finish()
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -945,12 +954,20 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
 }
 
 impl IteratorRecord {
-    pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "IR(iter: ")?;
-        self.iterator.concise(f)?;
-        write!(f, "; next: ")?;
-        self.next_method.concise(f)?;
-        write!(f, "; {})", if self.done.get() { "DONE" } else { "unfinished" })
+    //pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    //    write!(f, "IR(iter: ")?;
+    //    self.iterator.concise(f)?;
+    //    write!(f, "; next: ")?;
+    //    self.next_method.concise(f)?;
+    //    write!(f, "; {})", if self.done.get() { "DONE" } else { "unfinished" })
+    //}
+    pub fn concise(&self) -> String {
+        format!(
+            "IR(iter: {:?}; next: {:?}; {}",
+            ConciseObject::from(&self.iterator),
+            ConciseObject::from(&self.next_method),
+            if self.done.get() { "DONE" } else { "unfinished" }
+        )
     }
 
     fn next(&self, value: Option<ECMAScriptValue>) -> Completion<Object> {

@@ -54,6 +54,8 @@ mod insn {
     #[test_case(Insn::SetPrototype => "SET_PROTO"; "SetPrototype instruction")]
     #[test_case(Insn::ToPropertyKey => "TO_KEY"; "ToPropertyKey instruction")]
     #[test_case(Insn::CopyDataProps => "COPY_DATA_PROPS"; "CopyDataProps instruction")]
+    #[test_case(Insn::CopyDataPropsWithExclusions => "COPY_DATAPROPS_WE"; "CopyDataPropsWithExclusions instruction")]
+    #[test_case(Insn::ToString => "TO_STRING"; "ToString instruction")]
     #[test_case(Insn::ToNumeric => "TO_NUMERIC"; "ToNumeric instruction")]
     #[test_case(Insn::Increment => "INCREMENT"; "Increment instruction")]
     #[test_case(Insn::Decrement => "DECREMENT"; "Decrement instruction")]
@@ -113,6 +115,7 @@ mod insn {
     #[test_case(Insn::EndFunction => "END_FUNCTION"; "EndFunction instruction")]
     #[test_case(Insn::Return => "RETURN"; "Return instruction")]
     #[test_case(Insn::UnwindList => "UNWIND_LIST"; "UnwindList instruction")]
+    #[test_case(Insn::AppendList => "APPEND_LIST"; "AppendList instruction")]
     #[test_case(Insn::PushNewVarEnvFromLex => "PNVEFL"; "PushNewVarEnvFromLex instruction")]
     #[test_case(Insn::PushNewLexEnvFromVar => "PNLEFV"; "PushNewLexEnvFromVar instruction")]
     #[test_case(Insn::SetLexEnvToVarEnv => "SLETVE"; "SetLexEnvToVarEnv instruction")]
@@ -131,10 +134,19 @@ mod insn {
     #[test_case(Insn::FinishArgs => "FINISH_ARGS"; "FinishArgs instruction")]
     #[test_case(Insn::ExtractThrownValue => "EXTRACT_THROW"; "ExtractThrownValue instruction")]
     #[test_case(Insn::SwapList => "SWAP_LIST"; "SwapList instruction")]
+    #[test_case(Insn::PopList => "POP_LIST"; "PopList instruction")]
     #[test_case(Insn::RequireConstructor => "REQ_CSTR"; "RequireConstructor instruction")]
     #[test_case(Insn::Construct => "CONSTRUCT"; "Construct instruction")]
     #[test_case(Insn::JumpNotThrow => "JUMP_NOT_THROW"; "JumpNotThrow instruction")]
     #[test_case(Insn::IteratorAccumulate => "ITERATOR_ACCUM"; "IteratorAccumulate instruction")]
+    #[test_case(Insn::IterateArguments => "ITER_ARGS"; "IterateArguments instruction")]
+    #[test_case(Insn::RequireCoercible => "REQ_COER"; "RequireCoercible instruction")]
+    #[test_case(Insn::GetSyncIterator => "GET_SYNC_ITER"; "GetSyncIterator instruction")]
+    #[test_case(Insn::IteratorCloseIfNotDone => "ITER_CLOSE_IF_NOT_DONE"; "IteratorCloseIfNotDone instruction")]
+    #[test_case(Insn::GetV => "GETV"; "GetV instruction")]
+    #[test_case(Insn::IteratorDAEElision => "IDAE_ELISION"; "IteratorDAEElision instruction")]
+    #[test_case(Insn::EmbellishedIteratorStep => "ITER_STEP"; "EmbellishedIteratorStep instruction")]
+    #[test_case(Insn::IteratorRest => "ITER_REST"; "IteratorRest instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -5751,6 +5763,122 @@ mod single_name_binding {
             })
             .map_err(|e| e.to_string())
     }
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "non-strict/putvalue/simple")]
+    #[test_case("a", true, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "strict/putvalue/simple")]
+    #[test_case("a", false, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "non-strict/uselex/simple")]
+    #[test_case("a", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "strict/uselex/simple")]
+    #[test_case("a", false, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    #[test_case("a=0", false, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (0)",
+        "IRB",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "infallible initializer")]
+    #[test_case("a=8n", false, EnvUsage::UseCurrentLexical, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "izer compile fails")]
+    #[test_case("a=() => 0", true, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 17",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 0 (a)",
+        "FUNC_IAE 0",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "named evaluation")]
+    #[test_case("a=() => 0", true, EnvUsage::UsePutValue, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "named compile fails")]
+    #[test_case("a=b", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 17",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "izer is a ref")]
+    #[test_case("a=@@@", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "izer too big")]
+    #[test_case("a=@@(12)", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "unwind2 jumps too far")]
+    fn keyed_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).single_name_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.keyed_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
 }
 
 mod function_rest_parameter {
@@ -6307,6 +6435,21 @@ mod elisions {
         let node = Maker::new(src).elision();
         let mut c = complex_filled_chunk("x", what);
         node.array_accumulation(&mut c)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case(",,", &[] => Ok((svec(&["FLOAT 0 (2)", "IDAE_ELISION"]), true)); "normal")]
+    #[test_case(",,", &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "float table full")]
+    fn iterator_destructuring_assignment_evaluation(
+        src: &str,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).elision();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_destructuring_assignment_evaluation(&mut c)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
             })

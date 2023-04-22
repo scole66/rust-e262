@@ -494,6 +494,15 @@ mod get_value {
         let result = get_value(Ok(NormalCompletion::from(reference))).unwrap();
         assert_eq!(result, value);
     }
+
+    #[test]
+    #[should_panic(expected = "Bad completion type for get_value")]
+    fn iter_record() {
+        setup_test_agent();
+        let ir = create_list_iterator_record(vec![1.into(), 2.into()]);
+        let completion = Ok(NormalCompletion::from(ir));
+        get_value(completion).unwrap();
+    }
 }
 
 mod put_value {
@@ -676,6 +685,15 @@ mod put_value {
 
         let from_env = der.get_binding_value(&key, true).unwrap();
         assert_eq!(from_env, value);
+    }
+
+    #[test]
+    #[should_panic(expected = "Bad completion type for put_value")]
+    fn iter_record() {
+        setup_test_agent();
+        let ir = create_list_iterator_record(vec![1.into(), 2.into()]);
+        let completion = Ok(NormalCompletion::from(ir));
+        put_value(completion, Ok(ECMAScriptValue::Undefined)).unwrap();
     }
 }
 

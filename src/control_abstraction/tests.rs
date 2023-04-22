@@ -1315,6 +1315,25 @@ mod iterator_record {
         }
         Ok((r.try_into().unwrap(), tracks))
     }
+
+    #[test_case(|| create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
+    fn debug(make_ir: impl FnOnce() -> IteratorRecord) -> String {
+        setup_test_agent();
+        let ir = make_ir();
+        format!("{ir:?}")
+    }
+
+    #[test_case(|| create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
+    #[test_case(|| {
+        let ir = create_list_iterator_record(vec![]);
+        ir.done.set(true);
+        ir
+    } => with |s| assert_ne!(s, ""); "completed iterator")]
+    fn concise(make_ir: impl FnOnce() -> IteratorRecord) -> String {
+        setup_test_agent();
+        let ir = make_ir();
+        ir.concise()
+    }
 }
 
 mod iterator_next {

@@ -759,7 +759,7 @@ fn literal_test_debugmark() {
     assert!(matches!(
         *lit,
         Literal::DebugLiteral {
-            val: 'H',
+            val: DebugKind::Char('H'),
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
     ));

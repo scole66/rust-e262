@@ -1000,6 +1000,7 @@ mod constructor {
 mod get_own_property_keys {
     use super::*;
     use test_case::test_case;
+    use itertools::Itertools;
 
     fn test_obj() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);

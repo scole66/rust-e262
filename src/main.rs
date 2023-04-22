@@ -181,14 +181,5 @@ fn main() {
     });
 }
 
-use itertools::Itertools;
-fn example() {
-    let mydigits = "012345";
-
-    for z in mydigits.chars().chunks(2).into_iter().map(|chunk| format!("{:?}", chunk.collect::<Vec<_>>())) {
-        println!("{:?}", z);
-    }
-}
-
 #[cfg(test)]
 mod tests;

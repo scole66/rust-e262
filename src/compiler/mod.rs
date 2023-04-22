@@ -880,47 +880,54 @@ impl PrimaryExpression {
 }
 
 #[cfg(test)]
-fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
+fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
     match *ch {
-        '@' => {
+        DebugKind::Char('@') => {
             // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
             for _ in 0..32768 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '3' => {
+        DebugKind::Char('3') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 3 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '4' => {
+        DebugKind::Char('4') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 4 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '9' => {
+        DebugKind::Char('9') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 50 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '!' => {
+        DebugKind::Number(num) => {
+            // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
+            for _ in 0..32768 - num {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
+        DebugKind::Char('!') => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
             chunk.op(Insn::False);
         }
-        '#' => {
+        DebugKind::Char('#') => {
             // Fill the float table.
             chunk.floats.resize(65536, 10.1);
             chunk.op(Insn::False);
         }
-        '$' => {
+        DebugKind::Char('$') => {
             // Fill the bigint table.
             chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
             chunk.op(Insn::False);
@@ -929,7 +936,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
     }
 }
 #[cfg(not(test))]
-fn compile_debug_lit(_: &mut Chunk, _: &char) {}
+fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) {}
 
 impl Literal {
     /// Generate the code for Literal
@@ -1076,7 +1083,7 @@ impl Elisions {
 
         // start:                      ir
         //   FLOAT count               count ir
-        //   ITER_DAE_ELISION          ir/err
+        //   IDAE_ELISION              ir/err
 
         let count_val = self.count as f64; // loss of accuracy for large values.
         let count = chunk.add_to_float_pool(count_val)?;
@@ -5332,7 +5339,7 @@ impl BindingElement {
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: KeyedBindingInitialization
         // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
         // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
@@ -5392,7 +5399,7 @@ impl BindingElement {
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -5566,7 +5573,7 @@ impl SingleNameBinding {
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: KeyedBindingInitialization
         // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
         // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
@@ -5660,17 +5667,16 @@ impl SingleNameBinding {
                 chunk.fixup(unwind2)?;
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 for mark in unwind1s {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).expect("jump shorter than unwind2, which was already successful");
                 }
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
         }
     }
 
-    #[allow(unused_variables)]
     pub fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
@@ -6071,15 +6077,14 @@ impl BindingProperty {
                 let name = chunk.add_to_string_pool(name_val)?;
                 let one = chunk.add_to_float_pool(1.0)?;
                 chunk.op_plus_arg(Insn::String, name);
-                let snb_status = snb.keyed_binding_initialization(chunk, strict, text, env)?;
-                let exit = if snb_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                snb.keyed_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 chunk.op_plus_arg(Insn::String, name);
                 chunk.op_plus_arg(Insn::Float, one);
-                if let Some(mark) = exit {
-                    chunk.fixup(mark).expect("jump too short to fail");
-                }
-                Ok(snb_status)
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AbruptResult::Maybe)
             }
             BindingProperty::Property(pn, be) => {
                 // BindingProperty : PropertyName : BindingElement

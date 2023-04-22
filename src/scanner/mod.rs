@@ -265,7 +265,7 @@ pub enum Token {
     RegularExpression(RegularExpressionData),
     PrivateIdentifier(IdentifierData),
     Error(String),
-    Debug(char),
+    Debug(DebugKind),
 }
 
 impl fmt::Display for Punctuator {
@@ -2078,10 +2078,31 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
             let c = source[s.start_idx..].chars().next();
             if let Some(c) = c {
                 if !is_whitespace(c) {
-                    Some((
-                        Token::Debug(c),
-                        Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
-                    ))
+                    if c == '(' {
+                        let closing_idx = source[s.start_idx + 1..].find(')');
+                        if let Some(idx) = closing_idx {
+                            let value = source[s.start_idx + 1..s.start_idx+1+idx].parse::<i64>();
+                            if let Ok(num) = value {
+                                Some((
+                                    Token::Debug(DebugKind::Number(num)),
+                                    Scanner {
+                                        line: s.line,
+                                        column: s.column + source[s.start_idx..=s.start_idx+1+idx].chars().count() as u32,
+                                        start_idx: s.start_idx + 1 + idx + 1,
+                                    },
+                                ))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some((
+                            Token::Debug(DebugKind::Char(c)),
+                            Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
+                        ))
+                    }
                 } else {
                     None
                 }

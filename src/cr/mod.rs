@@ -34,7 +34,7 @@ impl fmt::Display for NormalCompletion {
                 write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name)
             }
             NormalCompletion::Environment(x) => write!(f, "{:?}", x),
-            NormalCompletion::IteratorRecord(ir) => ir.concise(f),
+            NormalCompletion::IteratorRecord(ir) => f.write_str(&ir.concise()),
         }
     }
 }

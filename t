@@ -645,6 +645,11 @@ test_defs[ExecutionContext]="ExecutionContext execution_context execution_contex
 
 test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from_iterable map"
 
+test_defs[get_value]="get_value get_value reference"
+test_defs[put_value]="put_value put_value reference"
+
+test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
+
 if $everything; then
   names=("${!test_defs[@]}")
 fi
