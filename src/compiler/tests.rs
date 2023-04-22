@@ -4948,6 +4948,7 @@ mod binding_element {
         "JUMP 1",
         "UNWIND_LIST"
     ]), true, false)); "no-init pattern")]
+    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "string table full, no init")]
     #[test_case("{alpha}=beta", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
         "EXTRACT_ARG",
         "JUMP_NOT_UNDEF 7",
@@ -5010,6 +5011,7 @@ mod binding_element {
     #[test_case("{alpha}=beta", false, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no room")]
     #[test_case("{alhpa}=@@@", false, EnvUsage::UseCurrentLexical, None => serr("out of range integral type conversion attempted"); "initializer too large")]
     #[test_case("{alpha}=xxx", false, EnvUsage::UseCurrentLexical, Some(1) => serr("Out of room for strings in this compilation unit"); "almost no room")]
+    #[test_case("{alhpa=@@(39)}=a", false, EnvUsage::UsePutValue, None => serr("out of range integral type conversion attempted"); "pattern too large")]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,

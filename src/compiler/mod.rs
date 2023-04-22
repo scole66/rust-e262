@@ -4500,9 +4500,9 @@ impl CatchParameter {
             CatchParameter::Ident(node) => {
                 node.compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical).map(AbruptResult::from)
             }
-            CatchParameter::Pattern(node) => {
-                node.compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
-            }
+            CatchParameter::Pattern(node) => node
+                .compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
+                .map(AbruptResult::from),
         }
     }
 }
@@ -5300,19 +5300,14 @@ impl BindingElement {
                 //   UNWIND_LIST
                 // exit:
                 chunk.op(Insn::ExtractArg);
-                let bp_status = bp.compile_binding_initialization(chunk, strict, text, env)?;
-                let mut unwind = None;
-                if bp_status.maybe_abrupt() {
-                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
-                if let Some(unwind) = unwind {
-                    let exit = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(unwind).expect("Jump too short to fail");
-                    chunk.op(Insn::UnwindList);
-                    chunk.fixup(exit).expect("Jump too short to fail");
-                }
-                Ok(bp_status)
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(exit).expect("Jump too short to fail");
+                Ok(AbruptResult::Maybe)
             }
             BindingElement::Pattern(bp, Some(init)) => {
                 // start:                       N arg(n-1) ... arg(0)
@@ -5341,18 +5336,14 @@ impl BindingElement {
                     unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 chunk.fixup(mark)?;
-                let bp_status = bp.compile_binding_initialization(chunk, strict, text, env)?;
-                if bp_status.maybe_abrupt() || unwind.is_some() {
-                    let exit = chunk.op_jump(Insn::JumpIfNormal);
-                    if let Some(unwind) = unwind {
-                        chunk.fixup(unwind)?;
-                    }
-                    chunk.op(Insn::UnwindList);
-                    chunk.fixup(exit).expect("jump too short to fail");
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfNormal);
+                if let Some(unwind) = unwind {
+                    chunk.fixup(unwind)?;
                 }
-                Ok(AbruptResult::from(
-                    izer_status.maybe_ref() || izer_status.maybe_abrupt() || bp_status.maybe_abrupt(),
-                ))
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AbruptResult::Maybe)
             }
         }
     }
@@ -5840,7 +5831,7 @@ impl BindingPattern {
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
         // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
         // an abrupt completion.
@@ -5861,7 +5852,7 @@ impl BindingPattern {
                 obp.compile_binding_initialization(chunk, strict, text, env)?;
                 chunk.fixup(exit)?;
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             BindingPattern::Array(abp) => {
                 // BindingPattern : ArrayBindingPattern
@@ -5886,7 +5877,7 @@ impl BindingPattern {
                 chunk.op(Insn::IteratorCloseIfNotDone);
                 chunk.fixup(exit)?;
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
         }
     }
