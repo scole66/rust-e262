@@ -434,3 +434,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     );
     process_ecmascript(&program).map_err(|e| e.to_string())
 }
+
+// ############# Random "it didn't work right" source text #############
+// This first item is 4/23/2023: the stack is messed up for errors in function parameters
+#[test_case("function id(x=(()=>{throw 'howdy';})()) {
+        return x;
+    }
+    id()"
+    => serr("Thrown: howdy")
+    ; "handle errors in function parameter evaluation")]
+fn code(src: &str) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    process_ecmascript(src).map_err(|e| e.to_string())
+}
