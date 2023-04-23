@@ -6000,7 +6000,7 @@ impl BindingPropertyList {
             BindingPropertyList::Item(bp) => {
                 // BindingPropertyList : BindingProperty
                 //  1. Return ? PropertyBindingInitialization of BindingProperty with arguments value and environment.
-                bp.property_binding_initialization(chunk, strict, text, env)
+                bp.property_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
             }
             BindingPropertyList::List(bpl, bp) => {
                 // BindingPropertyList : BindingPropertyList , BindingProperty
@@ -6066,7 +6066,7 @@ impl BindingProperty {
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: PropertyBindingInitialization
         // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
         // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
@@ -6099,7 +6099,7 @@ impl BindingProperty {
                 chunk.op_plus_arg(Insn::Float, one);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             BindingProperty::Property(pn, be) => {
                 // BindingProperty : PropertyName : BindingElement
@@ -6125,22 +6125,18 @@ impl BindingProperty {
                     unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 chunk.op(Insn::Pop2Push3);
-                let be_status = be.keyed_binding_initialization(chunk, strict, text, env)?;
-                if be_status.maybe_abrupt() {
-                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                be.keyed_binding_initialization(chunk, strict, text, env)?;
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
                 chunk.op(Insn::Pop);
                 let one = chunk.add_to_float_pool(1.0)?;
                 chunk.op_plus_arg(Insn::Float, one);
-                if !unwinds.is_empty() {
-                    let exit = chunk.op_jump(Insn::Jump);
-                    for mark in unwinds {
-                        chunk.fixup(mark)?;
-                    }
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                    chunk.fixup(exit).expect("jump too short to fail");
+                let exit = chunk.op_jump(Insn::Jump);
+                for mark in unwinds {
+                    chunk.fixup(mark)?;
                 }
-                Ok((pn_status.maybe_abrupt() || be_status.maybe_abrupt()).into())
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
             }
         }
     }
