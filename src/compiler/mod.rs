@@ -4820,10 +4820,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
     let mut exit = None;
     if status.maybe_abrupt() {
-        let close_jump = chunk.op_jump(Insn::JumpIfNormal);
-        chunk.op_plus_arg(Insn::Unwind, 1);
-        exit = Some(chunk.op_jump(Insn::Jump));
-        chunk.fixup(close_jump).expect("Jump too short to overflow");
+        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
     }
     chunk.op(Insn::FinishArgs);
     // Stack: func ...
