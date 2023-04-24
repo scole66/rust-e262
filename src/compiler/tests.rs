@@ -7406,3 +7406,82 @@ mod arg_list_size_hint {
         a.clone()
     }
 }
+
+mod binding_property_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)"
+    ])); "item")]
+    #[test_case("a,b", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "DUP",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 32",
+        "SWAP_LIST",
+        "STRING 1 (b)",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 1 (b)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 7",
+        "APPEND_LIST",
+        "JUMP 5",
+        "UNWIND 1",
+        "JUMP 1",
+        "UNWIND_LIST"
+    ])); "list")]
+    #[test_case("a=1n,b", false, EnvUsage::UseCurrentLexical, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list compile fails")]
+    #[test_case("a,b=1n", false, EnvUsage::UseCurrentLexical, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "item compile fails")]
+    #[test_case("a,b=@@(36)", false, EnvUsage::UseCurrentLexical, &[] => serr("out of range integral type conversion attempted"); "unwind_value jump too long")]
+    fn property_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).binding_property_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.property_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}

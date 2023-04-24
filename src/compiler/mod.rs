@@ -5929,14 +5929,12 @@ impl ObjectBindingPattern {
                 //    EMPTY                                           [empty]
                 // exit:
 
-                let status = bpl.property_binding_initialization(chunk, strict, text, env)?;
-                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::PopList);
                 chunk.op(Insn::Empty);
-                if let Some(mark) = exit {
-                    chunk.fixup(mark).expect("Jump should be to short to fail");
-                }
-                Ok(status)
+                chunk.fixup(exit).expect("Jump should be to short to fail");
+                Ok(AbruptResult::Maybe)
             }
             ObjectBindingPattern::RestOnly { brp, .. } => {
                 // ObjectBindingPattern : { BindingRestProperty }
@@ -5968,16 +5966,14 @@ impl ObjectBindingPattern {
                 //   UNWIND 1                                       err
                 // exit:                                            [empty]/err
                 chunk.op(Insn::Dup);
-                let bpl_status = bpl.property_binding_initialization(chunk, strict, text, env)?;
-                let unwind = if bpl_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                let brp_status = brp.rest_binding_initialization(chunk, strict, text, env)?;
-                if let Some(mark) = unwind {
-                    let exit = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(mark)?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                    chunk.fixup(exit).expect("Jump too short to fail");
-                }
-                Ok((bpl_status.maybe_abrupt() || brp_status.maybe_abrupt()).into())
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                brp.rest_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("Jump too short to fail");
+                Ok(AbruptResult::Maybe)
             }
         }
     }
@@ -5990,7 +5986,7 @@ impl BindingPropertyList {
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: PropertyBindingInitialization
         // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
         // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
@@ -6000,7 +5996,7 @@ impl BindingPropertyList {
             BindingPropertyList::Item(bp) => {
                 // BindingPropertyList : BindingProperty
                 //  1. Return ? PropertyBindingInitialization of BindingProperty with arguments value and environment.
-                bp.property_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
+                bp.property_binding_initialization(chunk, strict, text, env)
             }
             BindingPropertyList::List(bpl, bp) => {
                 // BindingPropertyList : BindingPropertyList , BindingProperty
@@ -6027,33 +6023,24 @@ impl BindingPropertyList {
                 // exit:
 
                 chunk.op(Insn::Dup);
-                let bpl_status = bpl.property_binding_initialization(chunk, strict, text, env)?;
-                let unwind_value =
-                    if bpl_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind_value = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SwapList);
-                let bp_status = bp.property_binding_initialization(chunk, strict, text, env)?;
-                let unwind_list = if bp_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                bp.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::AppendList);
-                if unwind_value.is_some() || unwind_list.is_some() {
-                    let mut exits = vec![];
-                    exits.push(chunk.op_jump(Insn::Jump));
-                    if let Some(mark) = unwind_value {
-                        chunk.fixup(mark)?;
-                        chunk.op_plus_arg(Insn::Unwind, 1);
-                        if unwind_list.is_some() {
-                            exits.push(chunk.op_jump(Insn::Jump));
-                        }
-                    }
-                    if let Some(mark) = unwind_list {
-                        chunk.fixup(mark)?;
-                        chunk.op(Insn::UnwindList);
-                    }
-                    for mark in exits {
-                        chunk.fixup(mark).expect("jumps too short to overflow");
-                    }
+                let mut exits = vec![];
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind_value)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind_list).expect("jump too short to overflow");
+                chunk.op(Insn::UnwindList);
+                for mark in exits {
+                    chunk.fixup(mark).expect("jumps too short to overflow");
                 }
 
-                Ok((bp_status.maybe_abrupt() || bpl_status.maybe_abrupt()).into())
+                Ok(AlwaysAbruptResult)
             }
         }
     }
