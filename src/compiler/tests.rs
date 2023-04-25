@@ -3687,9 +3687,9 @@ mod variable_declaration {
         "STRING 0 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 25",
+        "JUMP_IF_ABRUPT 26",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 1 (a)",
         "STRICT_RESOLVE",
@@ -3704,8 +3704,35 @@ mod variable_declaration {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE"
     ]), true, false)); "pattern assignment")]
+    #[test_case("{a}={}", true, &[] => Ok((svec(&[
+        "OBJECT",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 30",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ]), true, false)); "pattern; infallible init")]
+    #[test_case("{a}=8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "init compile fails")]
+    #[test_case("{a=8n}=b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "pattern compile fails")]
+    #[test_case("{a=@@(37)}=b", true, &[] => serr("out of range integral type conversion attempted"); "pattern: exit fixup too large")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).variable_declaration();
         let mut c = complex_filled_chunk("x", what);
@@ -5162,12 +5189,12 @@ mod binding_element {
     ])); "single-name fall-thru")]
     #[test_case("[a]=[]", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
         "ITER_STEP",
-        "JUMP_IF_ABRUPT 36",
+        "JUMP_IF_ABRUPT 37",
         "JUMP_NOT_UNDEF 2",
         "POP",
         "ARRAY",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 0 (a)",
         "RESOLVE",
@@ -5182,6 +5209,7 @@ mod binding_element {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE",
         "JUMP_IF_ABRUPT 3",
         "POP",
@@ -5191,15 +5219,15 @@ mod binding_element {
     #[test_case("[a]=8n", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "izer compile fails")]
     #[test_case("[a]=b", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
         "ITER_STEP",
-        "JUMP_IF_ABRUPT 41",
+        "JUMP_IF_ABRUPT 42",
         "JUMP_NOT_UNDEF 7",
         "POP",
         "STRING 0 (b)",
         "RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 30",
+        "JUMP_IF_ABRUPT 31",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 1 (a)",
         "RESOLVE",
@@ -5214,6 +5242,7 @@ mod binding_element {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE",
         "JUMP_IF_ABRUPT 3",
         "POP",
@@ -5251,9 +5280,9 @@ mod binding_element {
     ])); "single-name fallthru")]
     #[test_case("[a]", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
         "GETV",
-        "JUMP_IF_ABRUPT 25",
+        "JUMP_IF_ABRUPT 26",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 0 (a)",
         "RESOLVE",
@@ -5268,19 +5297,20 @@ mod binding_element {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE"
     ])); "no-init/non-strict/putvalue")]
     #[test_case("[a]=b", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
         "GETV",
-        "JUMP_IF_ABRUPT 34",
+        "JUMP_IF_ABRUPT 35",
         "JUMP_NOT_UNDEF 7",
         "POP",
         "STRING 0 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 25",
+        "JUMP_IF_ABRUPT 26",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 1 (a)",
         "STRICT_RESOLVE",
@@ -5295,17 +5325,18 @@ mod binding_element {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE"
     ])); "initializer ref")]
     #[test_case("[a]=9n", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "izer compile fails")]
     #[test_case("[a]=0", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
         "GETV",
-        "JUMP_IF_ABRUPT 30",
+        "JUMP_IF_ABRUPT 31",
         "JUMP_NOT_UNDEF 3",
         "POP",
         "FLOAT 0 (0)",
         "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 22",
+        "JUMP_IF_ABRUPT 23",
         "DUP",
         "STRING 0 (a)",
         "RESOLVE",
@@ -5320,6 +5351,7 @@ mod binding_element {
         "POP",
         "JUMP 2",
         "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE"
     ])); "infallibe izer")]
     #[test_case("[a]=@@@", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "vok branch too large")]
