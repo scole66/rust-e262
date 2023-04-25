@@ -26,6 +26,7 @@ pub enum Insn {
     False,
     Zero,
     Empty,
+    EmptyIfNotError,
     Float,
     Bigint,
     GetValue,
@@ -165,6 +166,7 @@ impl fmt::Display for Insn {
             Insn::False => "FALSE",
             Insn::Zero => "ZERO",
             Insn::Empty => "EMPTY",
+            Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR",
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
@@ -5867,6 +5869,7 @@ impl BindingPattern {
                 //    JUMP_IF_ABRUPT exit    ir
                 //    DUP                    ir ir
                 //    <abp.ibi(env)>         ir/err ir
+                //    EMPTY_IF_NOT_ERR       [empty]/err ir
                 //    IR_CLOSE_IF_NOT_DONE   [empty]/err   (steps 3 & 4, above)
                 // exit:                     [empty]/err
 
@@ -5874,6 +5877,7 @@ impl BindingPattern {
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Dup);
                 abp.iterator_binding_initialization(chunk, strict, text, env)?;
+                chunk.op(Insn::EmptyIfNotError);
                 chunk.op(Insn::IteratorCloseIfNotDone);
                 chunk.fixup(exit)?;
 
@@ -5946,8 +5950,8 @@ impl ObjectBindingPattern {
                 //   ZERO                                        excludedNames value
                 //   brp.rest_binding_initialization(env)        [empty]/err
                 chunk.op(Insn::Zero);
-                let status = brp.rest_binding_initialization(chunk, strict, text, env)?;
-                Ok(status)
+                brp.rest_binding_initialization(chunk, strict, env)?;
+                Ok(AbruptResult::Maybe)
             }
             ObjectBindingPattern::ListRest { bpl, brp: Some(brp), .. } => {
                 // ObjectBindingPattern : { BindingPropertyList , BindingRestProperty }
@@ -5968,7 +5972,7 @@ impl ObjectBindingPattern {
                 chunk.op(Insn::Dup);
                 bpl.property_binding_initialization(chunk, strict, text, env)?;
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                brp.rest_binding_initialization(chunk, strict, text, env)?;
+                brp.rest_binding_initialization(chunk, strict, env)?;
                 let exit = chunk.op_jump(Insn::Jump);
                 chunk.fixup(unwind)?;
                 chunk.op_plus_arg(Insn::Unwind, 1);
@@ -6134,9 +6138,8 @@ impl BindingRestProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        _text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: RestBindingInitialization
         // The syntax-directed operation RestBindingInitialization takes arguments value (an ECMAScript language value),
         // environment (an Environment Record or undefined), and excludedNames (a List of property keys) and returns
@@ -6188,7 +6191,7 @@ impl BindingRestProperty {
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
         }
     }

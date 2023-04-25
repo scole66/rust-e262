@@ -654,6 +654,18 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::Empty => {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty))
                 }
+                Insn::EmptyIfNotError => {
+                    // if the top stack element is an error, don't change it. Otherwise, replace it with [empty]
+                    let completion = ec_pop().expect("There should be an argument on the stack");
+                    match completion {
+                        Ok(_) => {
+                            ec_push(Ok(NormalCompletion::Empty));
+                        }
+                        Err(_) => {
+                            ec_push(completion);
+                        }
+                    }
+                }
                 Insn::Undefined => {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Undefined.into()))
                 }

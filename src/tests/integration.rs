@@ -457,6 +457,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
             foo(1, 2, 3, 4, 5)"
 => serr("Thrown: TypeError: object is not iterable")
 ; "handle errors in function parameter binding patterns with initializers")]
+// 4/24/2023: if an array pattern had unfinished iterators, it would fail
+#[test_case("var [] = [];" => Ok(ECMAScriptValue::Undefined); "incomplete iterators finished")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

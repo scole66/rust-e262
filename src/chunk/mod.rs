@@ -177,6 +177,7 @@ impl Chunk {
             | Insn::True
             | Insn::False
             | Insn::Empty
+            | Insn::EmptyIfNotError
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue

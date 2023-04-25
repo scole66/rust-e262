@@ -32,6 +32,7 @@ mod insn {
     #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
     #[test_case(Insn::Zero => "ZERO"; "Zero instruction")]
     #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
+    #[test_case(Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR"; "EmptyIfNotError instruction")]
     #[test_case(Insn::PutValue => "PUT_VALUE"; "PutValue instruction")]
     #[test_case(Insn::Jump => "JUMP"; "Jump instruction")]
     #[test_case(Insn::JumpIfNormal => "JUMP_IF_NORMAL"; "JumpIfNormal instruction")]
@@ -7482,6 +7483,74 @@ mod binding_property_list {
         let mut c = complex_filled_chunk("x", what);
         node.property_binding_initialization(&mut c, strict, src, env)
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod binding_rest_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a", false, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 4",
+        "IRB",
+        "JUMP 3",
+        "UNWIND_LIST",
+        "UNWIND 1"
+    ])); "non-strict/lexical")]
+    #[test_case("...a", true, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 4",
+        "PUT_VALUE",
+        "JUMP 3",
+        "UNWIND_LIST",
+        "UNWIND 1"
+    ])); "strict/putvalue")]
+    #[test_case("...a", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    fn rest_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).binding_rest_property();
+        let mut c = complex_filled_chunk("x", what);
+        node.rest_binding_initialization(&mut c, strict, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod array_binding_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("[]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[]), false)); "empty array")]
+    fn iterator_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).array_binding_pattern();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_binding_initialization(&mut c, strict, src, env)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
             .map_err(|e| e.to_string())
     }
 }
