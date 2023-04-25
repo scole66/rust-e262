@@ -6260,7 +6260,7 @@ impl ArrayBindingPattern {
                 };
                 bre.iterator_binding_initialization(chunk, strict, text, env)?;
                 if let Some(exit) = exit {
-                    chunk.fixup(exit)?;
+                    chunk.fixup(exit).expect("jump too short to fail");
                 }
                 Ok(AbruptResult::Maybe)
             }

@@ -7571,6 +7571,45 @@ mod array_binding_pattern {
     use test_case::test_case;
 
     #[test_case("[]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[]), false)); "empty array")]
+    #[test_case("[,]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "IDAE_ELISION"
+    ]), true)); "elision only")]
+    #[test_case("[...a]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "rest only; typical")]
+    #[test_case("[,...a]", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "IDAE_ELISION",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "elision + rest; typical")]
+    #[test_case("[,...a]", true, EnvUsage::UsePutValue, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision compile fails")]
+    #[test_case("[,...a]", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest compile fails")]
     fn iterator_binding_initialization(
         src: &str,
         strict: bool,
