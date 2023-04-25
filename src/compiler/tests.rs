@@ -7610,6 +7610,120 @@ mod array_binding_pattern {
     ]), true)); "elision + rest; typical")]
     #[test_case("[,...a]", true, EnvUsage::UsePutValue, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision compile fails")]
     #[test_case("[,...a]", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest compile fails")]
+    #[test_case("[a]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list only")]
+    #[test_case("[a,]", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list-comma only")]
+    #[test_case("[a,,]", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 3",
+        "FLOAT 0 (1)",
+        "IDAE_ELISION"
+    ]), true)); "list-elision; valid")]
+    #[test_case("[a,,]", false, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list-elision; list compile fails")]
+    #[test_case("[a,,]", false, EnvUsage::UsePutValue, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-elision; elision compile fails")]
+    #[test_case("[a,...b]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list-rest; valid")]
+    #[test_case("[a,,...b]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 25",
+        "FLOAT 0 (1)",
+        "IDAE_ELISION",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "list-elision-rest; valid")]
+    #[test_case("[a=9n,...b]", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; list-compile fails")]
+    #[test_case("[a,,...b]", false, EnvUsage::UsePutValue, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-elision-rest; elision compile fails")]
+    #[test_case("[b,...a]", false, EnvUsage::UsePutValue, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-rest; rest compile fails")]
     fn iterator_binding_initialization(
         src: &str,
         strict: bool,

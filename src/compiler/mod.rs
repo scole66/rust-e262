@@ -6289,7 +6289,7 @@ impl ArrayBindingPattern {
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 let status = elision.iterator_destructuring_assignment_evaluation(chunk)?;
                 assert!(status.maybe_abrupt());
-                chunk.fixup(exit)?;
+                chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
             ArrayBindingPattern::ListRest { bel, elision, bre: Some(bre), .. } => {
@@ -6323,7 +6323,7 @@ impl ArrayBindingPattern {
                 let status = bre.iterator_binding_initialization(chunk, strict, text, env)?;
                 assert!(status.maybe_abrupt());
                 for mark in exits {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).expect("Jumps too short to fail");
                 }
                 Ok(AbruptResult::Maybe)
             }
