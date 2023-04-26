@@ -5460,7 +5460,7 @@ mod binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
+    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 30",
         "STRING 0 (a)",
@@ -5481,25 +5481,41 @@ mod binding_pattern {
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
         "EMPTY"
-    ]), true, false)); "simple")]
-    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no space")]
+    ])); "simple")]
+    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no space")]
+    #[test_case("{a=@@(34)}", true, EnvUsage::UseCurrentLexical, &[] => serr("out of range integral type conversion attempted"); "exit jump too far")]
+    #[test_case("[a]", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 23",
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ])); "array pattern; typical")]
+    #[test_case("[a=1n]", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "pattern compile fails")]
+    #[test_case("[a=@@(20)]", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "array: exit jump too far")]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,
         env: EnvUsage,
-        spots_avail: Option<usize>,
-    ) -> Result<(Vec<String>, bool, bool), String> {
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_pattern();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, env)
-            .map(|status| {
-                (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                    status.maybe_ref(),
-                )
-            })
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
