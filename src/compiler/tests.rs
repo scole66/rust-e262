@@ -7802,3 +7802,122 @@ mod binding_rest_element {
             .map_err(|e| e.to_string())
     }
 }
+
+mod binding_elision_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "element-only; typical")]
+    #[test_case(",a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "FLOAT 0 (1)",
+        "IDAE_ELISION",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "elision-element; typical")]
+    #[test_case(",a", false, EnvUsage::UsePutValue, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision compile fails")]
+    #[test_case(",a=9n", false, EnvUsage::UseCurrentLexical, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "binding element compile fails")]
+    #[test_case(",a=@@(24)", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "exit jump too far")]
+    fn iterator_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).binding_elision_element();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod binding_element_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "item only; typical")]
+    #[test_case("a,b", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "list, item; typical")]
+    #[test_case("a=1n,b", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list compile fails")]
+    #[test_case("a,b=1n", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "item compile fails")]
+    #[test_case("a,b=@@(24)", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "exit jump too far")]
+    fn iterator_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).binding_element_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
