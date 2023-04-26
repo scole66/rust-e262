@@ -2144,8 +2144,10 @@ fn prefix_decrement(expr: FullCompletion) -> FullCompletion {
 fn delete_ref(expr: FullCompletion) -> FullCompletion {
     let reference = expr?;
     match reference {
-        NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(..) => unreachable!(),
-        NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
+        NormalCompletion::IteratorRecord(_)
+        | NormalCompletion::Environment(..)
+        | NormalCompletion::Empty
+        | NormalCompletion::Value(_) => Ok(true.into()),
         NormalCompletion::Reference(r) => match *r {
             Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
             Reference { base: Base::Value(_), this_value: Some(_), .. } => {

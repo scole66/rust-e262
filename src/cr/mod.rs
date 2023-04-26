@@ -14,14 +14,20 @@ impl PartialEq for NormalCompletion {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Value(left), Self::Value(right)) => left == right,
+            (Self::Value(_), _) => false,
             (Self::Reference(left), Self::Reference(right)) => left == right,
+            (Self::Reference(_), _) => false,
             (Self::Environment(left), Self::Environment(right)) => {
                 //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
                 let left = &**left as *const dyn EnvironmentRecord as *const u8;
                 let right = &**right as *const dyn EnvironmentRecord as *const u8;
                 std::ptr::eq(left, right)
             }
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+            (Self::Environment(_), _) => false,
+            (Self::Empty, Self::Empty) => true,
+            (Self::Empty, _) => false,
+            (Self::IteratorRecord(left), Self::IteratorRecord(right)) => Rc::ptr_eq(left, right),
+            (Self::IteratorRecord(_), _) => false,
         }
     }
 }

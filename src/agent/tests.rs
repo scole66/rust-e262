@@ -268,6 +268,10 @@ mod agent {
     #[test_case(dead_ref => serr("TypeError: delete called on DeadObject"); "property ref delete errs")]
     #[test_case(ref_to_undefined => Ok(NormalCompletion::from(false)); "undefined ref")]
     #[test_case(dead_env => serr("TypeError: delete called on DeadObject"); "env ref delete errors")]
+    #[test_case(|| {
+        let ir = create_list_iterator_record(vec![1.into()]);
+        Ok(NormalCompletion::from(ir))
+    } => Ok(NormalCompletion::from(true)); "iterator record")]
     fn delete_ref(make_expr: fn() -> FullCompletion) -> Result<NormalCompletion, String> {
         setup_test_agent();
         let expr = make_expr();

@@ -963,7 +963,7 @@ impl IteratorRecord {
     //}
     pub fn concise(&self) -> String {
         format!(
-            "IR(iter: {:?}; next: {:?}; {}",
+            "IR(iter: {:?}; next: {:?}; {})",
             ConciseObject::from(&self.iterator),
             ConciseObject::from(&self.next_method),
             if self.done.get() { "DONE" } else { "unfinished" }
