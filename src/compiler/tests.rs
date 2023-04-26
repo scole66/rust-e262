@@ -7921,3 +7921,117 @@ mod binding_element_list {
             .map_err(|e| e.to_string())
     }
 }
+
+mod object_binding_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "POP",
+        "EMPTY"
+    ])); "empty pattern")]
+    #[test_case("{a}", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ])); "list-only; typical")]
+    #[test_case("{a,}", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 2",
+        "POP_LIST",
+        "EMPTY"
+    ])); "list-comma; typical")]
+    #[test_case("{...a}", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "ZERO",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 4",
+        "PUT_VALUE",
+        "JUMP 3",
+        "UNWIND_LIST",
+        "UNWIND 1"
+    ])); "rest-only; typical")]
+    #[test_case("{a,...b}", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "DUP",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP_IF_ABRUPT 21",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 4",
+        "PUT_VALUE",
+        "JUMP 3",
+        "UNWIND_LIST",
+        "UNWIND 1",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "list-rest; typical")]
+    #[test_case("{a}", false, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list-only; list compile fails")]
+    #[test_case("{...a}", false, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest-only; rest compile fails")]
+    #[test_case("{a=9n,...b}", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; list compile fails")]
+    #[test_case("{a,...b}", false, EnvUsage::UsePutValue, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-rest; rest compile fails")]
+    fn binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).object_binding_pattern();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}

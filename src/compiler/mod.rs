@@ -5974,7 +5974,7 @@ impl ObjectBindingPattern {
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 brp.rest_binding_initialization(chunk, strict, env)?;
                 let exit = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind)?;
+                chunk.fixup(unwind).expect("Jump too short to fail");
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("Jump too short to fail");
                 Ok(AbruptResult::Maybe)
