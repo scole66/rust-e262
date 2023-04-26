@@ -6556,14 +6556,12 @@ impl BindingRestElement {
                 chunk.op(Insn::IteratorRest);
                 let mut exits = vec![];
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                let status = bp.compile_binding_initialization(chunk, strict, text, env)?;
-                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
-                if let Some(mark) = unwind {
-                    exits.push(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(mark).expect("jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                }
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind).expect("jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }

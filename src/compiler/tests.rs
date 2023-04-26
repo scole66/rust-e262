@@ -7739,3 +7739,66 @@ mod array_binding_pattern {
             .map_err(|e| e.to_string())
     }
 }
+
+mod binding_rest_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a", false, EnvUsage::UsePutValue, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "id/non-strict/putvalue")]
+    #[test_case("...a", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "id/strict/currentlex")]
+    #[test_case("...a", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "id; string table full")]
+    #[test_case("...{}", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
+        "ITER_REST",
+        "JUMP_IF_ABRUPT 12",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "pattern; empty obj")]
+    #[test_case("...[a=@@(37)]", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "exit jump too far")]
+    #[test_case("...[a]", false, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "pattern compile fails")]
+    fn iterator_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).binding_rest_element();
+        let mut c = complex_filled_chunk("x", what);
+        node.iterator_binding_initialization(&mut c, strict, src, env)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}

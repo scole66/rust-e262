@@ -400,6 +400,8 @@ test_defs[process_ecmascript]="process_ecmascript process_ecmascript agent"
 test_defs[bigint_leftshift]="bigint_leftshift bigint_leftshift agent"
 test_defs[bigint_rightshift]="bigint_rightshift bigint_rightshift agent"
 test_defs[create_per_iteration_environment]="create_per_iteration_environment create_per_iteration_environment agent"
+test_defs[ec_pop_list]="ec_pop_list ec_pop_list agent"
+test_defs[begin_call_evaluation]="begin_call_evaluation begin_call_evaluation agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
@@ -657,6 +659,9 @@ test_defs[get_value]="get_value get_value reference"
 test_defs[put_value]="put_value put_value reference"
 
 test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
+
+test_defs[Token]="Token token scanner"
+test_defs[debug_token]="debug_token debug_token scanner"
 
 if $everything; then
   names=("${!test_defs[@]}")
