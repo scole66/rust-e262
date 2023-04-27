@@ -1483,3 +1483,24 @@ mod create_per_iteration_environment {
         Ok((name_of_env, bindings, outer_name, outer_bindings, prior_name, prior_bindings))
     }
 }
+
+mod ec_pop_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| () => serr("no execution context"); "no context")]
+    #[test_case(setup_test_agent => serr("empty application stack"); "empty stack")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok(0.into()))} => Ok(svec(&[])); "zero-length")]
+    #[test_case(|| { setup_test_agent(); ec_push(Err(create_type_error("sentinel")))} => serr("Unexpected abrupt completion"); "top of stack error")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok(NormalCompletion::Empty))} => serr("Not a language value!"); "not-language-value")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok("abcd".into()))} => serr("Value not an f64"); "not a number")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok(10.into()))} => serr("empty application stack"); "stack crash")]
+    #[test_case(|| { setup_test_agent(); ec_push(Err(create_type_error("sentinel"))); ec_push(Ok(1.into())); } => serr("Unexpected abrupt completion:"); "err in values")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok(NormalCompletion::Empty)); ec_push(Ok(1.into())); } => serr("Not a language value!"); "not-value in list")]
+    #[test_case(|| { setup_test_agent(); ec_push(Ok("abcd".into())); ec_push(Ok("efgh".into())); ec_push(Ok("ijkl".into())); ec_push(Ok(3.into())); } => Ok(svec(&["ijkl", "efgh", "abcd"])); "3-item list")]
+    fn call(setup: fn() -> ()) -> Result<Vec<String>, String> {
+        setup();
+
+        ec_pop_list().map(|v| v.into_iter().map(|r| format!("{r}")).collect::<Vec<_>>()).map_err(|e| format!("{e:?}"))
+    }
+}

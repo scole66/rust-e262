@@ -1949,6 +1949,7 @@ fn token_display() {
         ),
         "#bob"
     );
+    assert_eq!(format!("{}", Token::Debug(DebugKind::Char('!'))), "@@!");
 }
 #[test]
 fn token_ne() {
