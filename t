@@ -332,6 +332,7 @@ test_defs[SubstitutionTemplate]="SubstitutionTemplate substitution_template pars
 test_defs[TemplateSpans]="TemplateSpans template_spans parser::primary_expressions"
 test_defs[TemplateMiddleList]="TemplateMiddleList template_middle_list parser::primary_expressions"
 test_defs[ParenthesizedExpression]="ParenthesizedExpression parenthesized_expression parser::primary_expressions"
+test_defs[DebugKind]="DebugKind debug_kind parser::primary_expressions"
 test_defs[CoverParenthesizedExpressionAndArrowParameterList]="CoverParenthesizedExpressionAndArrowParameterList cover_parenthesized_expression_and_arrow_parameter_list parser::primary_expressions"
 test_defs[RelationalExpression]="RelationalExpression relational_expression parser::relational_operators"
 test_defs[ReturnStatement]="ReturnStatement return_statement parser::return_statement"
