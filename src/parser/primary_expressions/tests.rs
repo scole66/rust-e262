@@ -4007,3 +4007,25 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         Maker::new(src).cover_parenthesized_expression_and_arrow_parameter_list().location()
     }
 }
+
+mod debug_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(DebugKind::Char('a'), DebugKind::Char('a') => true; "equal")]
+    #[test_case(DebugKind::Number(13), DebugKind::Char('A') => false; "unequal")]
+    fn eq(left: DebugKind, right: DebugKind) -> bool {
+        left == right
+    }
+
+    #[test_case(DebugKind::Char('&') => with |s| assert_ne!(s, ""); "char type")]
+    fn debug(item: DebugKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(DebugKind::Char('%') => "%"; "char type")]
+    #[test_case(DebugKind::Number(67) => "(67)"; "number type")]
+    fn display(item: DebugKind) -> String {
+        format!("{item}")
+    }
+}
