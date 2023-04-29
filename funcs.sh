@@ -23,7 +23,7 @@ function tst() {
   rm -f res-*.profraw
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
-  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage $quiet -- --test-threads=1 "$@"
+  RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --bin res --profile coverage $quiet -- --test-threads=1 "$@"
   local covstatus=$?
   if [ $covstatus -eq 0 ]; then
     cargo profdata -- merge res-*.profraw --output="$output"

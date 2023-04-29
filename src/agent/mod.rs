@@ -2088,11 +2088,11 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
 fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) {
     let this_value = match &reference {
         NormalCompletion::IteratorRecord(_) | NormalCompletion::Empty | NormalCompletion::Environment(..) => {
-            unreachable!()
+            panic!("begin_call_evaluation called with non-value, non-ref \"this\"");
         }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
         NormalCompletion::Reference(r) => match &r.base {
-            Base::Unresolvable => unreachable!(),
+            Base::Unresolvable => panic!("begin_call_evaluation called with unresolvable ref"),
             Base::Environment(e) => {
                 e.with_base_object().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined)
             }

@@ -1504,3 +1504,76 @@ mod ec_pop_list {
         ec_pop_list().map(|v| v.into_iter().map(|r| format!("{r}")).collect::<Vec<_>>()).map_err(|e| format!("{e:?}"))
     }
 }
+
+mod begin_call_evaluation {
+    use super::*;
+    use test_case::test_case;
+
+    fn test_reporter(
+        this_value: ECMAScriptValue,
+        _new_target: Option<&Object>,
+        arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let my_this = match this_value {
+            ECMAScriptValue::Object(o) => get(&o, &"marker".into()).unwrap(),
+            _ => this_value,
+        };
+        let this_repr = String::from(to_string(my_this).unwrap());
+        let args_repr = arguments.iter().cloned().map(|val| String::from(to_string(val).unwrap())).join(",");
+        let total_repr = format!("this: {this_repr}; args: {args_repr}");
+        Ok(ECMAScriptValue::from(total_repr))
+    }
+
+    fn good_func() -> ECMAScriptValue {
+        ECMAScriptValue::from(create_builtin_function(
+            test_reporter,
+            false,
+            2.0,
+            "test_reporter".into(),
+            &[],
+            None,
+            None,
+            None,
+        ))
+    }
+
+    fn object_this() -> NormalCompletion {
+        let obj = ordinary_object_create(None, &[]);
+        set(&obj, "marker".into(), ECMAScriptValue::from("legitimate this"), true).unwrap();
+        let base = ECMAScriptValue::from(ordinary_object_create(None, &[]));
+        let r = Reference::new(Base::Value(base), "callee", true, Some(ECMAScriptValue::from(obj)));
+        NormalCompletion::from(r)
+    }
+
+    fn undef_this() -> NormalCompletion {
+        true.into()
+    }
+
+    fn unresolvable() -> NormalCompletion {
+        Reference::new(Base::Unresolvable, "callee", true, None).into()
+    }
+
+    fn with_env() -> NormalCompletion {
+        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(objproto), &[]);
+        create_data_property_or_throw(&obj, "marker", "with-object").unwrap();
+        let we = ObjectEnvironmentRecord::new(obj, true, None, "with_env test");
+        Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined, || NormalCompletion::Empty => panics "begin_call_evaluation called with non-value, non-ref \"this\""; "empty reference")]
+    #[test_case(good_func, object_this => Some("\"this: legitimate this; args: sentinel\"".into()); "this is object")]
+    #[test_case(good_func, undef_this => Some("\"this: undefined; args: sentinel\"".into()); "this is undefined")]
+    #[test_case(good_func, unresolvable => panics "begin_call_evaluation called with unresolvable ref"; "unresolvable reference")]
+    #[test_case(|| ECMAScriptValue::Undefined, object_this => Some("TypeError: not an object".into()); "non-object in function spot")]
+    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype).into(), object_this => Some("TypeError: not a function".into()); "non-function object in function spot")]
+    #[test_case(good_func, with_env => Some("\"this: with-object; args: sentinel\"".into()); "with-object")]
+    fn call(make_func: fn() -> ECMAScriptValue, make_this: fn() -> NormalCompletion) -> Option<String> {
+        setup_test_agent();
+        let func = make_func();
+        let reference = make_this();
+        begin_call_evaluation(func, reference, &[ECMAScriptValue::from("sentinel")]);
+
+        ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
+    }
+}
