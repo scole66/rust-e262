@@ -567,6 +567,7 @@ fn object_from_entries(
     };
     let adder = create_builtin_function(closure, false, 2.0, "".into(), &[], None, None, None);
     add_entries_from_iterable(&obj.into(), &iterable, &adder.into())
+        .map(|nc| nc.try_into().expect("outside the compiler, this should always return a value"))
 }
 
 fn object_get_own_property_descriptor(

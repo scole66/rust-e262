@@ -759,7 +759,7 @@ fn literal_test_debugmark() {
     assert!(matches!(
         *lit,
         Literal::DebugLiteral {
-            val: 'H',
+            val: DebugKind::Char('H'),
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
     ));
@@ -4005,5 +4005,27 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     #[test_case("   (z, ...{a=b})" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "exp rest pat; exp")]
     fn location(src: &str) -> Location {
         Maker::new(src).cover_parenthesized_expression_and_arrow_parameter_list().location()
+    }
+}
+
+mod debug_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(DebugKind::Char('a'), DebugKind::Char('a') => true; "equal")]
+    #[test_case(DebugKind::Number(13), DebugKind::Char('A') => false; "unequal")]
+    fn eq(left: DebugKind, right: DebugKind) -> bool {
+        left == right
+    }
+
+    #[test_case(DebugKind::Char('&') => with |s| assert_ne!(s, ""); "char type")]
+    fn debug(item: DebugKind) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(DebugKind::Char('%') => "%"; "char type")]
+    #[test_case(DebugKind::Number(67) => "(67)"; "number type")]
+    fn display(item: DebugKind) -> String {
+        format!("{item}")
     }
 }

@@ -138,8 +138,6 @@ test_defs[NeverAbruptRefResult]="NeverAbruptRefResult never_abrupt_ref_result co
 test_defs[CompilerFcnDef]="agent::FcnDef fcn_def compiler"
 test_defs[NameableProduction]="NameableProduction nameable_production compiler"
 test_defs[CompilerBindingIdentifier]="parser::identifiers::BindingIdentifier binding_identifier compiler"
-test_defs[CompilerBindingElement]="parser::declarations_and_variables::BindingElement binding_element compiler"
-test_defs[CompilerBindingPattern]="parser::declarations_and_variables::BindingPattern binding_pattern compiler"
 test_defs[CompilerReturnStatement]="parser::return_statement::ReturnStatement return_statement compiler"
 test_defs[CompilerFunctionExpression]="parser::function_definitions::FunctionExpression function_expression compiler"
 test_defs[CompilerFunctionExpression_instantiate_ordinary_function_expression]="parser::function_definitions::FunctionExpression::instantiate_ordinary_function_expression function_expression::instantiate_ordinary_function_expression compiler"
@@ -156,7 +154,17 @@ test_defs[CompilerUniqueFormalParameters]="parser::parameter_lists::UniqueFormal
 test_defs[compile_initialize_bound_name]="compile_initialize_bound_name compile_initialize_bound_name compiler"
 test_defs[CompilerFormalParameterList]="parser::parameter_lists::FormalParameterList formal_parameter_list compiler"
 test_defs[CompilerFormalParameter]="parser::parameter_lists::FormalParameter formal_parameter:: compiler"
+test_defs[CompilerBindingElement]="parser::declarations_and_variables::BindingElement binding_element compiler"
 test_defs[CompilerSingleNameBinding]="parser::declarations_and_variables::SingleNameBinding single_name_binding compiler"
+test_defs[CompilerBindingPattern]="parser::declarations_and_variables::BindingPattern binding_pattern compiler"
+test_defs[CompilerObjectBindingPattern]="parser::declarations_and_variables::ObjectBindingPattern object_binding_pattern compiler"
+test_defs[CompilerBindingPropertyList]="parser::declarations_and_variables::BindingPropertyList binding_property_list compiler"
+test_defs[CompilerBindingProperty]="parser::declarations_and_variables::BindingProperty binding_property compiler"
+test_defs[CompilerBindingRestProperty]="parser::declarations_and_variables::BindingRestProperty binding_rest_property compiler"
+test_defs[CompilerArrayBindingPattern]="parser::declarations_and_variables::ArrayBindingPattern array_binding_pattern compiler"
+test_defs[CompilerBindingElementList]="parser::declarations_and_variables::BindingElementList binding_element_list compiler"
+test_defs[CompilerBindingElisionElement]="parser::declarations_and_variables::BindingElisionElement binding_elision_element compiler"
+test_defs[CompilerBindingRestElement]="parser::declarations_and_variables::BindingRestElement binding_rest_element compiler"
 test_defs[CompilerFunctionRestParameter]="parser::parameter_lists::FunctionRestParameter function_rest_parameter compiler"
 test_defs[CompilerFunctionBody]="parser::function_definitions::FunctionBody function_body compiler"
 test_defs[CompilerFunctionStatementList]="parser::function_definitions::FunctionStatementList function_statement_list compiler"
@@ -324,6 +332,7 @@ test_defs[SubstitutionTemplate]="SubstitutionTemplate substitution_template pars
 test_defs[TemplateSpans]="TemplateSpans template_spans parser::primary_expressions"
 test_defs[TemplateMiddleList]="TemplateMiddleList template_middle_list parser::primary_expressions"
 test_defs[ParenthesizedExpression]="ParenthesizedExpression parenthesized_expression parser::primary_expressions"
+test_defs[DebugKind]="DebugKind debug_kind parser::primary_expressions"
 test_defs[CoverParenthesizedExpressionAndArrowParameterList]="CoverParenthesizedExpressionAndArrowParameterList cover_parenthesized_expression_and_arrow_parameter_list parser::primary_expressions"
 test_defs[RelationalExpression]="RelationalExpression relational_expression parser::relational_operators"
 test_defs[ReturnStatement]="ReturnStatement return_statement parser::return_statement"
@@ -392,6 +401,8 @@ test_defs[process_ecmascript]="process_ecmascript process_ecmascript agent"
 test_defs[bigint_leftshift]="bigint_leftshift bigint_leftshift agent"
 test_defs[bigint_rightshift]="bigint_rightshift bigint_rightshift agent"
 test_defs[create_per_iteration_environment]="create_per_iteration_environment create_per_iteration_environment agent"
+test_defs[ec_pop_list]="ec_pop_list ec_pop_list agent"
+test_defs[begin_call_evaluation]="begin_call_evaluation begin_call_evaluation agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
@@ -644,6 +655,14 @@ test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
 test_defs[ExecutionContext]="ExecutionContext execution_context execution_context"
 
 test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from_iterable map"
+
+test_defs[get_value]="get_value get_value reference"
+test_defs[put_value]="put_value put_value reference"
+
+test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
+
+test_defs[Token]="Token token scanner"
+test_defs[debug_token]="debug_token debug_token scanner"
 
 if $everything; then
   names=("${!test_defs[@]}")

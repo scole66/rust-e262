@@ -4,6 +4,7 @@ use genawaiter::{
     rc::{Co, Gen},
     Coroutine,
 };
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
@@ -300,7 +301,7 @@ async fn list_iterator(
     Ok(ECMAScriptValue::Undefined)
 }
 
-fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
+pub fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     // CreateListIteratorRecord ( list )
     // The abstract operation CreateListIteratorRecord takes argument list (a List) and returns an
     // Iterator Record. It creates an Iterator (27.1.1.2) object record whose next method returns the
@@ -322,7 +323,7 @@ fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     IteratorRecord {
         iterator,
         next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
-        done: false,
+        done: Cell::new(false),
     }
 }
 
@@ -876,9 +877,19 @@ pub async fn generator_yield(
 // | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
 // +----------------+-------------------+---------------------------------------------------------------------+
 pub struct IteratorRecord {
-    iterator: Object,
-    next_method: Object,
-    done: bool,
+    pub iterator: Object,
+    pub next_method: Object,
+    pub done: Cell<bool>,
+}
+
+impl fmt::Debug for IteratorRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IteratorRecord")
+            .field("iterator", &ConciseObject::from(&self.iterator))
+            .field("next_method", &ConciseObject::from(&self.next_method))
+            .field("done", &self.done)
+            .finish()
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -908,7 +919,7 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     let next_method = getv(&iterator, &"next".into())?;
     let iterator = Object::try_from(iterator).expect("iterator previously proved");
     let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
-    Ok(IteratorRecord { iterator, next_method, done: false })
+    Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
 }
 
 pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
@@ -943,6 +954,15 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
 }
 
 impl IteratorRecord {
+    pub fn concise(&self) -> String {
+        format!(
+            "IR(iter: {:?}; next: {:?}; {})",
+            ConciseObject::from(&self.iterator),
+            ConciseObject::from(&self.next_method),
+            if self.done.get() { "DONE" } else { "unfinished" }
+        )
+    }
+
     fn next(&self, value: Option<ECMAScriptValue>) -> Completion<Object> {
         // IteratorNext ( iteratorRecord [ , value ] )
         //
@@ -990,7 +1010,7 @@ impl IteratorRecord {
         }
     }
 
-    fn close(&self, completion: Completion<ECMAScriptValue>) -> Completion<ECMAScriptValue> {
+    fn close(&self, completion: FullCompletion) -> FullCompletion {
         // IteratorClose ( iteratorRecord, completion )
         // The abstract operation IteratorClose takes arguments iteratorRecord (an Iterator Record) and completion (a
         // Completion Record) and returns a Completion Record. It is used to notify an iterator that it should perform
@@ -1022,7 +1042,7 @@ impl IteratorRecord {
             return completion;
         }
         if matches!(inner_result, Err(AbruptCompletion::Throw { .. })) {
-            return inner_result;
+            return inner_result.map(NormalCompletion::from);
         }
         let value = inner_result.expect("result from call should be throw or value");
         if !value.is_object() {
@@ -1063,10 +1083,7 @@ pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Obje
     iterator_record.step()
 }
 
-pub fn iterator_close(
-    iterator_record: &IteratorRecord,
-    completion: Completion<ECMAScriptValue>,
-) -> Completion<ECMAScriptValue> {
+pub fn iterator_close(iterator_record: &IteratorRecord, completion: FullCompletion) -> FullCompletion {
     iterator_record.close(completion)
 }
 #[cfg(test)]

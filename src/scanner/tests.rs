@@ -1949,6 +1949,7 @@ fn token_display() {
         ),
         "#bob"
     );
+    assert_eq!(format!("{}", Token::Debug(DebugKind::Char('!'))), "@@!");
 }
 #[test]
 fn token_ne() {
@@ -2177,5 +2178,22 @@ mod char_range {
         let cloned = original.clone();
         assert_eq!(original.first, cloned.first);
         assert_eq!(original.last, cloned.last);
+    }
+}
+
+mod debug_token {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("bob" => None; "first char not match")]
+    #[test_case("@xx" => None; "second char not match")]
+    #[test_case("@@A" => Some((Token::Debug(DebugKind::Char('A')), Scanner{line: 1, column: 4, start_idx: 3})); "char token")]
+    #[test_case("@@ " => None; "@@-whitespace")]
+    #[test_case("@@(x" => None; "unclosed paren")]
+    #[test_case("@@(x)" => None; "not-a-number")]
+    #[test_case("@@(123)" => Some((Token::Debug(DebugKind::Number(123)), Scanner{line: 1, column: 8, start_idx: 7})); "number style")]
+    #[test_case("@@" => None; "length-2 string")]
+    fn call(src: &str) -> Option<(Token, Scanner)> {
+        debug_token(&Scanner::new(), src)
     }
 }

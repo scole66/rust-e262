@@ -26,6 +26,7 @@ pub enum Insn {
     False,
     Zero,
     Empty,
+    EmptyIfNotError,
     Float,
     Bigint,
     GetValue,
@@ -46,10 +47,12 @@ pub enum Insn {
     UpdateEmpty,
     Swap,
     Pop,
+    PopOrPanic,
     Pop2Push3,
     Dup,
     RotateUp,
     RotateDown,
+    RotateDownList,
     Unwind,
     UnwindList,
     AppendList,
@@ -78,6 +81,7 @@ pub enum Insn {
     SetPrototype,
     ToPropertyKey,
     CopyDataProps,
+    CopyDataPropsWithExclusions,
     ToString,
     ToNumeric,
     Increment,
@@ -133,10 +137,18 @@ pub enum Insn {
     FinishArgs,
     ExtractThrownValue,
     SwapList,
+    PopList,
     RequireConstructor,
     Construct,
     IteratorAccumulate,
     IterateArguments,
+    RequireCoercible,
+    GetSyncIterator,
+    IteratorCloseIfNotDone,
+    GetV,
+    IteratorDAEElision,
+    EmbellishedIteratorStep,
+    IteratorRest,
 }
 
 impl fmt::Display for Insn {
@@ -154,6 +166,7 @@ impl fmt::Display for Insn {
             Insn::False => "FALSE",
             Insn::Zero => "ZERO",
             Insn::Empty => "EMPTY",
+            Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR",
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
@@ -174,10 +187,12 @@ impl fmt::Display for Insn {
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
             Insn::Pop => "POP",
+            Insn::PopOrPanic => "POP_PANIC",
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Dup => "DUP",
             Insn::RotateUp => "ROTATEUP",
             Insn::RotateDown => "ROTATEDOWN",
+            Insn::RotateDownList => "ROTATEDOWN_LIST",
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
             Insn::AppendList => "APPEND_LIST",
@@ -206,6 +221,7 @@ impl fmt::Display for Insn {
             Insn::SetPrototype => "SET_PROTO",
             Insn::ToPropertyKey => "TO_KEY",
             Insn::CopyDataProps => "COPY_DATA_PROPS",
+            Insn::CopyDataPropsWithExclusions => "COPY_DATAPROPS_WE",
             Insn::ToString => "TO_STRING",
             Insn::ToNumeric => "TO_NUMERIC",
             Insn::Increment => "INCREMENT",
@@ -261,10 +277,18 @@ impl fmt::Display for Insn {
             Insn::FinishArgs => "FINISH_ARGS",
             Insn::ExtractThrownValue => "EXTRACT_THROW",
             Insn::SwapList => "SWAP_LIST",
+            Insn::PopList => "POP_LIST",
             Insn::RequireConstructor => "REQ_CSTR",
             Insn::Construct => "CONSTRUCT",
             Insn::IteratorAccumulate => "ITERATOR_ACCUM",
             Insn::IterateArguments => "ITER_ARGS",
+            Insn::RequireCoercible => "REQ_COER",
+            Insn::GetSyncIterator => "GET_SYNC_ITER",
+            Insn::IteratorCloseIfNotDone => "ITER_CLOSE_IF_NOT_DONE",
+            Insn::GetV => "GETV",
+            Insn::IteratorDAEElision => "IDAE_ELISION",
+            Insn::EmbellishedIteratorStep => "ITER_STEP",
+            Insn::IteratorRest => "ITER_REST",
         })
     }
 }
@@ -858,47 +882,54 @@ impl PrimaryExpression {
 }
 
 #[cfg(test)]
-fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
+fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
     match *ch {
-        '@' => {
+        DebugKind::Char('@') => {
             // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
             for _ in 0..32768 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '3' => {
+        DebugKind::Char('3') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 3 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '4' => {
+        DebugKind::Char('4') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 4 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '9' => {
+        DebugKind::Char('9') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 50 {
                 chunk.op(Insn::Nop);
             }
             chunk.op(Insn::False);
         }
-        '!' => {
+        DebugKind::Number(num) => {
+            // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
+            for _ in 0..32768 - num {
+                chunk.op(Insn::Nop);
+            }
+            chunk.op(Insn::False);
+        }
+        DebugKind::Char('!') => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
             chunk.op(Insn::False);
         }
-        '#' => {
+        DebugKind::Char('#') => {
             // Fill the float table.
             chunk.floats.resize(65536, 10.1);
             chunk.op(Insn::False);
         }
-        '$' => {
+        DebugKind::Char('$') => {
             // Fill the bigint table.
             chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
             chunk.op(Insn::False);
@@ -907,7 +938,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &char) {
     }
 }
 #[cfg(not(test))]
-fn compile_debug_lit(_: &mut Chunk, _: &char) {}
+fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) {}
 
 impl Literal {
     /// Generate the code for Literal
@@ -1024,6 +1055,44 @@ impl Elisions {
         chunk.fixup(exit).expect("Jump too short to fail");
 
         // Stack: (next_index array) or (err)
+        Ok(AlwaysAbruptResult)
+    }
+
+    pub fn iterator_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorDestructuringAssignmentEvaluation
+        // The syntax-directed operation IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an
+        // Iterator Record) and returns either a normal completion containing unused or an abrupt completion. It is
+        // defined piecewise over the following productions:
+
+        // Elision : ,
+        //  1. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  2. Return unused.
+        // Elision : Elision ,
+        //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  3. Return unused.
+
+        // start:                      ir
+        //   FLOAT count               count ir
+        //   IDAE_ELISION              ir/err
+
+        let count_val = self.count as f64; // loss of accuracy for large values.
+        let count = chunk.add_to_float_pool(count_val)?;
+        // have to store count on the stack, as it can easily overflow the u16 that is an instruction parameter
+        chunk.op_plus_arg(Insn::Float, count);
+        chunk.op(Insn::IteratorDAEElision);
+
         Ok(AlwaysAbruptResult)
     }
 }
@@ -3572,7 +3641,35 @@ impl VariableDeclaration {
                 }
                 Ok(AbruptResult::Maybe)
             }
-            VariableDeclaration::Pattern(_, _) => todo!(),
+            VariableDeclaration::Pattern(bp, init) => {
+                // VariableDeclaration : BindingPattern Initializer
+                //  1. Let rhs be ? Evaluation of Initializer.
+                //  2. Let rval be ? GetValue(rhs).
+                //  3. Return ? BindingInitialization of BindingPattern with arguments rval and undefined.
+
+                //   <initializer>                 rhs/err
+                //   GET_VALUE                     rval/err
+                //   JUMP_IF_ABRUPT exit           rval
+                //   <bp.binding_initialization>   result/err
+                // exit:
+
+                let status = init.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+
+                let bp_status = bp.compile_binding_initialization(chunk, strict, text, EnvUsage::UsePutValue)?;
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
+                }
+
+                Ok((status.maybe_abrupt() || status.maybe_ref() || bp_status.maybe_abrupt()).into())
+            }
         }
     }
 }
@@ -3794,8 +3891,8 @@ impl DoWhileStatement {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl ForStatement {
+    #[allow(clippy::too_many_arguments)]
     fn compile_for_body(
         chunk: &mut Chunk,
         strict: bool,
@@ -4405,9 +4502,9 @@ impl CatchParameter {
             CatchParameter::Ident(node) => {
                 node.compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical).map(AbruptResult::from)
             }
-            CatchParameter::Pattern(node) => {
-                node.compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
-            }
+            CatchParameter::Pattern(node) => node
+                .compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
+                .map(AbruptResult::from),
         }
     }
 }
@@ -5124,7 +5221,9 @@ fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage,
             chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
             chunk.op(Insn::Swap);
             chunk.op(Insn::PutValue);
-            chunk.op(Insn::Pop);
+            // The spec has this PutValue marked with '?'. But I can't figure out how to get there. If this panic
+            // happens, add a test!
+            chunk.op(Insn::PopOrPanic);
         }
         EnvUsage::UseCurrentLexical => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
     }
@@ -5193,42 +5292,227 @@ impl BindingElement {
         match self {
             BindingElement::Single(single) => single.compile_binding_initialization(chunk, strict, text, env),
             BindingElement::Pattern(bp, None) => {
+                // start:                       N arg(n-1) ... arg(0)
+                //   EXTRACT_ARG                arg0 (n-1) arg(n-1) ... arg(1)
+                //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_ABRUPT unwind      [empty] (n-1) arg(n-1) ... arg(1)
+                //   POP
+                //   JUMP exit
+                // unwind:
+                //   UNWIND_LIST
+                // exit:
                 chunk.op(Insn::ExtractArg);
-                bp.compile_binding_initialization(chunk, strict, text, env)
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(exit).expect("Jump too short to fail");
+                Ok(AbruptResult::Maybe)
             }
             BindingElement::Pattern(bp, Some(init)) => {
+                // start:                       N arg(n-1) ... arg(0)
+                //   EXTRACT_ARG                arg0 (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_NOT_UNDEF ok       undefined (n-1) arg(n-1) ... arg(1)
+                //   POP                        (n-1) arg(n-1) ... arg(1)
+                //   <init>                     ref/val/err (n-1) arg(n-1) ... arg(1)
+                //   GET_VALUE                  val/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_ABRUPT unwind      val (n-1) arg(n-1) ... arg(1)
+                // ok:                          val (n-1) arg(n-1) ... arg(1)
+                //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
+                //   JUMP_IF_NORMAL exit
+                // unwind:
+                //   UNWIND_LIST
+                // exit:                        ([empty] (n-1) arg(n-1) ... arg(1)) or err
+
                 chunk.op(Insn::ExtractArg);
-                // Stack arg0 n-1 arg[n-1] ... arg[1]
                 let mark = chunk.op_jump(Insn::JumpIfNotUndef);
-                // Stack undef n-1 arg[n-1] ... arg[1]
                 chunk.op(Insn::Pop);
-                // Stack n-1 arg[n-1] ... arg[1]
-                let status = init.compile(chunk, strict, text)?;
-                // Stack: ref/val/err n-1 arg[n-1] ... arg[1]
-                if status.maybe_ref() {
+                let izer_status = init.compile(chunk, strict, text)?;
+                if izer_status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                // Stack: val/err n-1 arg[n-1] ... arg[1]
-                let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    let close = chunk.op_jump(Insn::JumpIfNormal);
-                    // Stack: err n-1 arg[n-1] ... arg[1]
-                    chunk.op(Insn::UnwindList);
-                    // Stack: err
-                    let exit = Some(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(close).expect("Jump too short to overflow");
-                    exit
-                } else {
-                    None
-                };
+                let mut unwind = None;
+                if izer_status.maybe_abrupt() || izer_status.maybe_ref() {
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
                 chunk.fixup(mark)?;
-                // Stack: val n-1 arg[n-1] ... arg[1]
-                let status = bp.compile_binding_initialization(chunk, strict, text, env)?;
-                if let Some(&mark) = exit.as_ref() {
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfNormal);
+                if let Some(unwind) = unwind {
+                    chunk.fixup(unwind)?;
+                }
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AbruptResult::Maybe)
+            }
+        }
+    }
+
+    pub fn keyed_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: KeyedBindingInitialization
+        // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
+        // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // NOTE: When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //       assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //       In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //       multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            BindingElement::Single(snb) => {
+                // BindingElement : SingleNameBinding
+                //  1. Return ? KeyedBindingInitialization of SingleNameBinding with arguments value, environment, and
+                //     propertyName.
+                snb.keyed_binding_initialization(chunk, strict, text, env)
+            }
+            BindingElement::Pattern(bp, izer) => {
+                // BindingElement : BindingPattern Initializeropt
+                //  1. Let v be ? GetV(value, propertyName).
+                //  2. If Initializer is present and v is undefined, then
+                //      a. Let defaultValue be ? Evaluation of Initializer.
+                //      b. Set v to ? GetValue(defaultValue).
+                //  3. Return ? BindingInitialization of BindingPattern with arguments v and environment.
+
+                // start:                         propertyName value
+                //   GETV                         v/err
+                //   JUMP_IF_ABRUPT exit          v
+                // --- if Initializer
+                //   JUMP_IF_NOT_UNDEF vok        undefined
+                //   POP
+                //   <izer>                       defaultValue/err
+                //   GET_VALUE                    v/err
+                //   JUMP_IF_ABRUPT exit          v
+                // vok:
+                // ---
+                //   <bp.binding_initialization(env)>  [empty]/err
+                // exit:
+
+                chunk.op(Insn::GetV);
+                let mut exits = vec![];
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                if let Some(izer) = izer {
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
+                    chunk.op(Insn::Pop);
+                    let status = izer.compile(chunk, strict, text)?;
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_abrupt() || status.maybe_ref() {
+                        exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.fixup(vok)?;
+                }
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                for mark in exits {
                     chunk.fixup(mark)?;
                 }
-                // Stack: n-1 arg[n-1] ... arg[1]
-                // or Stack: err
-                Ok(AbruptResult::from(exit.is_some() || status.maybe_abrupt()))
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            BindingElement::Single(snb) => {
+                // BindingElement : SingleNameBinding
+                //  1. Return ? IteratorBindingInitialization of SingleNameBinding with arguments iteratorRecord and
+                //     environment.
+                snb.iterator_binding_initialization(chunk, strict, text, env)
+            }
+            BindingElement::Pattern(bp, izer) => {
+                // BindingElement : BindingPattern Initializeropt
+                //  1. Let v be undefined.
+                //  2. If iteratorRecord.[[Done]] is false, then
+                //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+                //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      c. ReturnIfAbrupt(next).
+                //      d. If next is false, set iteratorRecord.[[Done]] to true.
+                //      e. Else,
+                //          i. Set v to Completion(IteratorValue(next)).
+                //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(v).
+                //  3. If Initializer is present and v is undefined, then
+                //      a. Let defaultValue be ? Evaluation of Initializer.
+                //      b. Set v to ? GetValue(defaultValue).
+                //  4. Return ? BindingInitialization of BindingPattern with arguments v and environment.
+
+                // start:                        ir
+                //   IR_STEP                     err or (v ir)
+                //   JUMP_IF_ABRUPT exit         v ir
+                // -- if initializer is present --
+                //   JUMP_IF_NOT_UNDEF no_init   undef ir
+                //   POP                         ir
+                //   <izer>                      ref/err ir
+                //   GET_VALUE                   v/err ir
+                //   JUMP_IF_ABRUPT unwind       v ir
+                // no_init:                      v ir
+                // --
+                //   <bp.bi(env)>                [empty]/err ir
+                //   JUMP_IF_ABRUPT unwind       [empty] ir
+                //   POP                         ir
+                //   JUMP exit
+                // unwind:                       err ir
+                //   UNWIND 1                    err
+                // exit:                         ir/err
+
+                chunk.op(Insn::EmbellishedIteratorStep);
+                let mut exits = vec![];
+                let mut unwinds = vec![];
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                if let Some(izer) = izer {
+                    let no_init = chunk.op_jump(Insn::JumpIfNotUndef);
+                    chunk.op(Insn::Pop);
+                    let status = izer.compile(chunk, strict, text)?;
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_abrupt() || status.maybe_ref() {
+                        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.fixup(no_init)?;
+                }
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Pop);
+                exits.push(chunk.op_jump(Insn::Jump));
+                for mark in unwinds {
+                    chunk.fixup(mark)?;
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                for mark in exits {
+                    chunk.fixup(mark)?;
+                }
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -5299,10 +5583,311 @@ impl SingleNameBinding {
 
         Ok(AbruptResult::from(exit.is_some()))
     }
+
+    pub fn keyed_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: KeyedBindingInitialization
+        // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
+        // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            SingleNameBinding::Id(id, izer) => {
+                // SingleNameBinding : BindingIdentifier Initializeropt
+                //  1. Let bindingId be StringValue of BindingIdentifier.
+                //  2. Let lhs be ? ResolveBinding(bindingId, environment).
+                //  3. Let v be ? GetV(value, propertyName).
+                //  4. If Initializer is present and v is undefined, then
+                //      a. If IsAnonymousFunctionDefinition(Initializer) is true, then
+                //          i. Set v to ? NamedEvaluation of Initializer with argument bindingId.
+                //      b. Else,
+                //          i. Let defaultValue be ? Evaluation of Initializer.
+                //          ii. Set v to ? GetValue(defaultValue).
+                //  5. If environment is undefined, return ? PutValue(lhs, v).
+                //  6. Return ? InitializeReferencedBinding(lhs, v).
+
+                // start:                         propertyName value
+                //    STRING bindingId            bindingId propertyName value
+                //    RESOLVE/STRICT_RESOLVE      lhs/err propertyName value
+                //    JUMP_IF_ABRUPT unwind2      lhs propertyName value
+                //    ROTATE_DOWN 3               propertyName value lhs
+                //    GETV                        v/err lhs
+                //    JUMP_IF_ABRUPT unwind1      v lhs
+                //    --- initializer + anonymous
+                //    JUMP_IF_NOT_UNDEFINED vok   undefined lhs
+                //    POP                         lhs
+                //    STRING bindingId            bindingId lhs
+                //    <init.named_evaluation>     v/err lhs
+                //    JUMP_IF_ABRUPT unwind1      v lhs
+                //    ---
+                //    --- initializer but not anonymous
+                //    JUMP_IF_NOT_UNDEFINED vok   undefined lhs
+                //    POP                         lhs
+                //    <init>                      vRef/err lhs
+                //    GET_VALUE                   v/err lhs
+                //    JUMP_IF_ABRUPT unwind1      v lhs
+                //    ---
+                // vok:                           v lhs
+                //    --- EnvUsage:PutValue
+                //    PUT_VALUE                   [empty]/err
+                //    ---
+                //    --- EnvUsage::Current
+                //    IRB                         [empty]/err
+                //    ---
+                //    JUMP exit
+                // unwind2:
+                //    UNWIND 1
+                // unwind1:
+                //    UNWIND 1
+                // exit:
+                let binding_id_val = id.string_value();
+                let binding_id = chunk.add_to_string_pool(binding_id_val)?;
+                chunk.op_plus_arg(Insn::String, binding_id);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op_plus_arg(Insn::RotateDown, 3);
+                chunk.op(Insn::GetV);
+                let mut unwind1s = vec![];
+                unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                if let Some(izer) = izer {
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
+                    chunk.op(Insn::Pop);
+                    let status = if let Some(np) = izer.anonymous_function_definition() {
+                        np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(binding_id))?
+                    } else {
+                        izer.compile(chunk, strict, text)?
+                    };
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_ref() || status.maybe_abrupt() {
+                        unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.fixup(vok)?;
+                }
+                chunk.op(match env {
+                    EnvUsage::UsePutValue => Insn::PutValue,
+                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                });
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind2)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                for mark in unwind1s {
+                    chunk.fixup(mark).expect("jump shorter than unwind2, which was already successful");
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            SingleNameBinding::Id(bi, izer) => {
+                // SingleNameBinding : BindingIdentifier Initializeropt
+                //  1. Let bindingId be StringValue of BindingIdentifier.
+                //  2. Let lhs be ? ResolveBinding(bindingId, environment).
+                //  3. Let v be undefined.
+                //  4. If iteratorRecord.[[Done]] is false, then
+                //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+                //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      c. ReturnIfAbrupt(next).
+                //      d. If next is false, set iteratorRecord.[[Done]] to true.
+                //      e. Else,
+                //          i. Set v to Completion(IteratorValue(next)).
+                //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(v).
+                //  5. If Initializer is present and v is undefined, then
+                //      a. If IsAnonymousFunctionDefinition(Initializer) is true, then
+                //          i. Set v to ? NamedEvaluation of Initializer with argument bindingId.
+                //      b. Else,
+                //          i. Let defaultValue be ? Evaluation of Initializer.
+                //          ii. Set v to ? GetValue(defaultValue).
+                //  6. If environment is undefined, return ? PutValue(lhs, v).
+                //  7. Return ? InitializeReferencedBinding(lhs, v).
+
+                // start:                         ir
+                //    STRING bindingId            bindingId ir
+                //    RESOLVE/STRICT_RESOLVE      lhs/err ir
+                //    JUMP_IF_ABRUPT unwind       lhs ir
+                //    SWAP                        ir lhs
+                //    ITER_STEP                   (err or (v ir)) lhs
+                //    JUMP_IF_ABRUPT unwind       v ir lhs
+                // --- if Initializer + anonymous
+                //    JUMP_IF_NOT_UNDEF vok       undefined ir lhs
+                //    POP                         ir lhs
+                //    <init.named_evaluation>     v/err ir lhs
+                //    JUMP_IF_ABRUPT unwind2      v ir lhs
+                // -- else if initializer + not anonymous
+                //    JUMP_IF_NOT_UNDEFINED vok   undefined ir lhs
+                //    POP                         ir lhs
+                //    <init>                      vRef/err ir lhs
+                //    GET_VALUE                   v/err ir lhs
+                //    JUMP_IF_ABRUPT unwind2      v ir lhs
+                // --
+                // vok:                           v ir lhs
+                //    SWAP                        ir v lhs
+                //    ROTATE_DOWN 3               v lhs ir
+                //    --- EnvUsage:PutValue
+                //    PUT_VALUE                   [empty]/err ir
+                //    ---
+                //    --- EnvUsage::Current
+                //    IRB                         [empty]/err ir
+                //    ---
+                //    JUMP_IF_ABRUPT unwind1      [empty] ir
+                //    POP                         ir
+                //    JUMP exit
+                // unwind2:                       err ir lhs
+                //    UNWIND 1                    err lhs
+                // unwind1:                       err lhs/ir
+                //    UNWIND 1                    err
+                // exit:                          ir/err
+
+                let binding_id_val = bi.string_value();
+                let binding_id = chunk.add_to_string_pool(binding_id_val)?;
+                let mut unwind1 = vec![];
+                let mut unwind2 = None;
+                chunk.op_plus_arg(Insn::String, binding_id);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::EmbellishedIteratorStep);
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                if let Some(izer) = izer {
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
+                    chunk.op(Insn::Pop);
+                    let status = if let Some(np) = izer.anonymous_function_definition() {
+                        np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(binding_id))?
+                    } else {
+                        izer.compile(chunk, strict, text)?
+                    };
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_ref() || status.maybe_abrupt() {
+                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.fixup(vok)?;
+                }
+                chunk.op(Insn::Swap);
+                chunk.op_plus_arg(Insn::RotateDown, 3);
+                chunk.op(match env {
+                    EnvUsage::UsePutValue => Insn::PutValue,
+                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                });
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Pop);
+                let exit = chunk.op_jump(Insn::Jump);
+                if let Some(mark) = unwind2 {
+                    chunk.fixup(mark).expect("Jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                }
+                for mark in unwind1 {
+                    chunk.fixup(mark)?;
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
 }
 
 impl BindingPattern {
-    #[allow(unused_variables)]
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
+        // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
+        // an abrupt completion.
+        match self {
+            BindingPattern::Object(obp) => {
+                // BindingPattern : ObjectBindingPattern
+                //  1. Perform ? RequireObjectCoercible(value).
+                //  2. Return ? BindingInitialization of ObjectBindingPattern with arguments value and environment.
+
+                // start:                   value
+                //   REQ_COER               value/err
+                //   JUMP_IF_ABRUPT exit    value
+                //   <obp.bi(env)>          empty/err
+                // exit:                    empty/err
+
+                chunk.op(Insn::RequireCoercible);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                obp.compile_binding_initialization(chunk, strict, text, env)?;
+                chunk.fixup(exit)?;
+
+                Ok(AlwaysAbruptResult)
+            }
+            BindingPattern::Array(abp) => {
+                // BindingPattern : ArrayBindingPattern
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. Let result be Completion(IteratorBindingInitialization of ArrayBindingPattern with arguments
+                //     iteratorRecord and environment).
+                //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+                //  4. Return ? result.
+
+                // start:                    value
+                //    GET_SYNC_ITER          ir/err
+                //    JUMP_IF_ABRUPT exit    ir
+                //    DUP                    ir ir
+                //    <abp.ibi(env)>         ir/err ir
+                //    EMPTY_IF_NOT_ERR       [empty]/err ir
+                //    IR_CLOSE_IF_NOT_DONE   [empty]/err   (steps 3 & 4, above)
+                // exit:                     [empty]/err
+
+                chunk.op(Insn::GetSyncIterator);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup);
+                abp.iterator_binding_initialization(chunk, strict, text, env)?;
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.fixup(exit)?;
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl ObjectBindingPattern {
     pub fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
@@ -5310,15 +5895,679 @@ impl BindingPattern {
         text: &str,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
-        // Something to make errors, for coverage. Remove when real impl happens.
-        chunk.add_to_string_pool("nothing but nonsense".into())?;
-        chunk.op(Insn::ToDo);
-        if env == EnvUsage::UsePutValue {
-            for _ in 0..32768 {
-                chunk.op(Insn::Nop);
+        // Runtime Semantics: BindingInitialization
+        // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
+        // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
+        // an abrupt completion.
+        //
+        // NOTE | undefined is passed for environment to indicate that a PutValue operation should be used to assign the
+        //      | initialization value. This is the case for var statements and formal parameter lists of some
+        //      | non-strict functions (See 10.2.11). In those cases a lexical binding is hoisted and preinitialized
+        //      | prior to evaluation of its initializer.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            ObjectBindingPattern::Empty { .. } => {
+                // ObjectBindingPattern : { }
+                //  1. Return unused.
+
+                // start:           value
+                //   POP
+                //   EMPTY          empty
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::Empty);
+                Ok(AbruptResult::Never)
+            }
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                // ObjectBindingPattern :
+                //      { BindingPropertyList }
+                //      { BindingPropertyList , }
+                //  1. Perform ? PropertyBindingInitialization of BindingPropertyList with arguments value and
+                //     environment.
+                //  2. Return unused.
+
+                // start:                                             value
+                //    <bpl.property_binding_initialization(env)>      list/err
+                //    JUMP_IF_ABRUPT exit                             list
+                //    POP_LIST
+                //    EMPTY                                           [empty]
+                // exit:
+
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::PopList);
+                chunk.op(Insn::Empty);
+                chunk.fixup(exit).expect("Jump should be to short to fail");
+                Ok(AbruptResult::Maybe)
+            }
+            ObjectBindingPattern::RestOnly { brp, .. } => {
+                // ObjectBindingPattern : { BindingRestProperty }
+                //  1. Let excludedNames be a new empty List.
+                //  2. Return ? RestBindingInitialization of BindingRestProperty with arguments value, environment, and
+                //     excludedNames.
+
+                // start:                                        value
+                //   ZERO                                        excludedNames value
+                //   brp.rest_binding_initialization(env)        [empty]/err
+                chunk.op(Insn::Zero);
+                brp.rest_binding_initialization(chunk, strict, env)?;
+                Ok(AbruptResult::Maybe)
+            }
+            ObjectBindingPattern::ListRest { bpl, brp: Some(brp), .. } => {
+                // ObjectBindingPattern : { BindingPropertyList , BindingRestProperty }
+                //  1. Let excludedNames be ? PropertyBindingInitialization of BindingPropertyList with arguments value
+                //     and environment.
+                //  2. Return ? RestBindingInitialization of BindingRestProperty with arguments value, environment, and
+                //     excludedNames.
+
+                // start:                                           value
+                //   DUP                                            value value
+                //   <bpl.property_binding_initialization(env)>     excludedNames/err value
+                //   JUMP_IF_ABRUPT unwind                          excludedNames value
+                //   <brp.rest_binding_initialization(env)          [empty]/err
+                //   JUMP exit
+                // unwind:                                          err value
+                //   UNWIND 1                                       err
+                // exit:                                            [empty]/err
+                chunk.op(Insn::Dup);
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                brp.rest_binding_initialization(chunk, strict, env)?;
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("Jump too short to fail");
+                Ok(AbruptResult::Maybe)
             }
         }
-        Ok(AbruptResult::Maybe)
+    }
+}
+
+impl BindingPropertyList {
+    pub fn property_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: PropertyBindingInitialization
+        // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
+        // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
+        // a List of property keys or an abrupt completion. It collects a list of all bound property names. It is
+        // defined piecewise over the following productions:
+        match self {
+            BindingPropertyList::Item(bp) => {
+                // BindingPropertyList : BindingProperty
+                //  1. Return ? PropertyBindingInitialization of BindingProperty with arguments value and environment.
+                bp.property_binding_initialization(chunk, strict, text, env)
+            }
+            BindingPropertyList::List(bpl, bp) => {
+                // BindingPropertyList : BindingPropertyList , BindingProperty
+                //  1. Let boundNames be ? PropertyBindingInitialization of BindingPropertyList with arguments value and
+                //     environment.
+                //  2. Let nextNames be ? PropertyBindingInitialization of BindingProperty with arguments value and
+                //     environment.
+                //  3. Return the list-concatenation of boundNames and nextNames.
+
+                // start:                                        value
+                //   DUP                                         value value
+                //   <bpl.property_binding_initialization(env)>  boundNames/err value
+                //   JUMP_IF_ABRUPT unwind_value                 boundNames value
+                //   SWAP_LIST                                   value boundNames
+                //   <bp.property_binding_initialization(env)>   nextNames/err boundNames
+                //   JUMP_IF_ABRUPT unwind_list                  nextNames boundNames
+                //   APPEND_LIST                                 allNames
+                //   JUMP exit
+                // unwind_value:
+                //   UNWIND 1
+                //   JUMP exit
+                // unwind_list:
+                //   UNWIND_LIST
+                // exit:
+
+                chunk.op(Insn::Dup);
+                bpl.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind_value = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::SwapList);
+                bp.property_binding_initialization(chunk, strict, text, env)?;
+                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::AppendList);
+                let mut exits = vec![];
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind_value)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind_list).expect("jump too short to overflow");
+                chunk.op(Insn::UnwindList);
+                for mark in exits {
+                    chunk.fixup(mark).expect("jumps too short to overflow");
+                }
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl BindingProperty {
+    pub fn property_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: PropertyBindingInitialization
+        // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
+        // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
+        // a List of property keys or an abrupt completion. It collects a list of all bound property names. It is
+        // defined piecewise over the following productions:
+        match self {
+            BindingProperty::Single(snb) => {
+                // BindingProperty : SingleNameBinding
+                //  1. Let name be the sole element of the BoundNames of SingleNameBinding.
+                //  2. Perform ? KeyedBindingInitialization of SingleNameBinding with arguments value, environment, and
+                //     name.
+                //  3. Return « name ».
+
+                // start:                    value
+                //    STRING name            name value
+                //    <snb.keyed_binding_initialization(env)>    [empty]/err
+                //    JUMP_IF_ABRUPT exit    [empty]
+                //    POP
+                //    STRING name            name
+                //    FLOAT 1                1 name (i.e.: the output list)
+                // exit:
+                let name_val = snb.bound_names().pop().expect("snb should have exactly one bound name");
+                let name = chunk.add_to_string_pool(name_val)?;
+                let one = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::String, name);
+                snb.keyed_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                chunk.op_plus_arg(Insn::String, name);
+                chunk.op_plus_arg(Insn::Float, one);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+            BindingProperty::Property(pn, be) => {
+                // BindingProperty : PropertyName : BindingElement
+                //  1. Let P be ? Evaluation of PropertyName.
+                //  2. Perform ? KeyedBindingInitialization of BindingElement with arguments value, environment, and P.
+                //  3. Return « P ».
+
+                // start:                                     value
+                //   <pn>                                     P/err value
+                //   JUMP_IF_ABRUPT unwind                    P value
+                //   POP2PUSH3                                P value P
+                //   <be.keyed_binding_initialization(env)    [empty]/err P
+                //   JUMP_IF_ABRUPT unwind                    [empty] P
+                //   POP                                      P
+                //   FLOAT 1                                  1 P (i.e.: the output list)
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
+                // exit:
+                let pn_status = pn.compile(chunk, strict, text)?;
+                let mut unwinds = vec![];
+                if pn_status.maybe_abrupt() {
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::Pop2Push3);
+                be.keyed_binding_initialization(chunk, strict, text, env)?;
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Pop);
+                let one = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, one);
+                let exit = chunk.op_jump(Insn::Jump);
+                for mark in unwinds {
+                    chunk.fixup(mark)?;
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl BindingRestProperty {
+    pub fn rest_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: RestBindingInitialization
+        // The syntax-directed operation RestBindingInitialization takes arguments value (an ECMAScript language value),
+        // environment (an Environment Record or undefined), and excludedNames (a List of property keys) and returns
+        // either a normal completion containing unused or an abrupt completion. It is defined piecewise over the
+        // following productions:
+        match self {
+            BindingRestProperty::Id(bi) => {
+                // BindingRestProperty : ... BindingIdentifier
+                //  1. Let lhs be ? ResolveBinding(StringValue of BindingIdentifier, environment).
+                //  2. Let restObj be OrdinaryObjectCreate(%Object.prototype%).
+                //  3. Perform ? CopyDataProperties(restObj, value, excludedNames).
+                //  4. If environment is undefined, return ? PutValue(lhs, restObj).
+                //  5. Return ? InitializeReferencedBinding(lhs, restObj).
+
+                // start:                                excludedNames value
+                //   STRING bindingId                    bindingId excludedNames value
+                //   RESOLVE/STRICT_RESOLVE              lhs/err excludedNames value
+                //   JUMP_IF_ABRUPT unwind_list_plus_1   lhs excludedNames value
+                //   ROTATE_DNLIST 1                     excludedNames value lhs
+                //   OBJECT                              restObj excludedNames value lhs
+                //   ROTATE_DNLIST 1                     excludedNames value restObj lhs
+                //   COPY_DATAPROPS_WE                   restObj/err lhs
+                //   JUMP_IF_ABRUPT unwind_1
+                //   PUT_VALUE/IRB                       [empty]/err
+                //   JUMP exit
+                // unwind_list_plus_1:
+                //   UNWIND_LIST
+                // unwind_1:
+                //   UNWIND 1
+                // exit:
+                let binding_id_val = bi.string_value();
+                let binding_id = chunk.add_to_string_pool(binding_id_val)?;
+                chunk.op_plus_arg(Insn::String, binding_id);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                let unwind_list_plus_1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op_plus_arg(Insn::RotateDownList, 1);
+                chunk.op(Insn::Object);
+                chunk.op_plus_arg(Insn::RotateDownList, 1);
+                chunk.op(Insn::CopyDataPropsWithExclusions);
+                let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(match env {
+                    EnvUsage::UsePutValue => Insn::PutValue,
+                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                });
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind_list_plus_1).expect("jump too short to fail");
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(unwind_1).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl ArrayBindingPattern {
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            ArrayBindingPattern::RestOnly { elision: None, bre: None, .. } => {
+                // ArrayBindingPattern : [ ]
+                //  1. Return unused.
+
+                // start:            ir
+
+                Ok(AbruptResult::Never)
+            }
+            ArrayBindingPattern::RestOnly { elision: Some(elision), bre: None, .. } => {
+                // ArrayBindingPattern : [ Elision ]
+                //  1. Return ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+
+                // start:             ir
+                //   <elision.idae>   ir/err
+                elision.iterator_destructuring_assignment_evaluation(chunk).map(AbruptResult::from)
+            }
+            ArrayBindingPattern::RestOnly { elision, bre: Some(bre), .. } => {
+                // ArrayBindingPattern : [ Elisionopt BindingRestElement ]
+                //  1. If Elision is present, then
+                //      a. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+                //  2. Return ? IteratorBindingInitialization of BindingRestElement with arguments iteratorRecord and
+                //     environment.
+
+                // start:                   ir
+                // --- if elision
+                //   <elision.idae>         ir/err
+                //   JUMP_IF_ABRUPT exit    ir
+                // ---
+                //   <bre.ibi(env)>         ir/err
+                // exit:
+
+                let exit = if let Some(elision) = elision {
+                    let status = elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                    assert!(status.maybe_abrupt());
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                bre.iterator_binding_initialization(chunk, strict, text, env)?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayBindingPattern::ListOnly { bel, .. }
+            | ArrayBindingPattern::ListRest { bel, elision: None, bre: None, .. } => {
+                // ArrayBindingPattern : [ BindingElementList ]
+                // ArrayBindingPattern : [ BindingElementList , ]
+                //  1. Return ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
+                //     environment.
+                bel.iterator_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
+            }
+            ArrayBindingPattern::ListRest { bel, elision: Some(elision), bre: None, .. } => {
+                // ArrayBindingPattern : [ BindingElementList , Elision ]
+                //  1. Perform ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
+                //     environment.
+                //  2. Return ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+
+                // start:                     ir
+                //   <bel.ibi(env)>           ir/err
+                //   JUMP_IF_ABRUPT exit      ir
+                //   <elision.idae>           ir/err
+                // exit:
+
+                let status = bel.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let status = elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                assert!(status.maybe_abrupt());
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayBindingPattern::ListRest { bel, elision, bre: Some(bre), .. } => {
+                // ArrayBindingPattern : [ BindingElementList , Elisionopt BindingRestElement ]
+                //  1. Perform ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
+                //     environment.
+                //  2. If Elision is present, then
+                //      a. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+                //  3. Return ? IteratorBindingInitialization of BindingRestElement with arguments iteratorRecord and
+                //     environment.
+
+                // start:                     ir
+                //   <bel.ibi(env)>           ir/error
+                //   JUMP_IF_ABRUPT exit      ir
+                // -- elision present --
+                //   <elision.idae>           ir/error
+                //   JUMP_IF_ABRUPT exit      ir
+                // --
+                //   <bre.ibi(env)>           ir/error
+                // exit:
+
+                let status = bel.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                let mut exits = vec![];
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                if let Some(elisions) = elision {
+                    let status = elisions.iterator_destructuring_assignment_evaluation(chunk)?;
+                    assert!(status.maybe_abrupt());
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let status = bre.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                for mark in exits {
+                    chunk.fixup(mark).expect("Jumps too short to fail");
+                }
+                Ok(AbruptResult::Maybe)
+            }
+        }
+    }
+}
+
+impl BindingElementList {
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            BindingElementList::Item(bee) => {
+                // BindingElementList : BindingElisionElement
+                //  1. Return ? IteratorBindingInitialization of BindingElisionElement with arguments iteratorRecord and
+                //     environment.
+                bee.iterator_binding_initialization(chunk, strict, text, env)
+            }
+            BindingElementList::List(bel, bee) => {
+                // BindingElementList : BindingElementList , BindingElisionElement
+                //  1. Perform ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
+                //     environment.
+                //  2. Return ? IteratorBindingInitialization of BindingElisionElement with arguments iteratorRecord and
+                //     environment.
+
+                // start:                     ir
+                //   <bel.ibi(env)>           ir/err
+                //   JUMP_IF_ABRUPT exit      ir
+                //   <bee.ibi(env)>           ir/err
+                // exit:
+
+                let status = bel.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let status = bee.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                chunk.fixup(exit)?;
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl BindingElisionElement {
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            BindingElisionElement::Element(None, be) => {
+                // BindingElisionElement : BindingElement
+                //  1. Return ? IteratorBindingInitialization of BindingElement with arguments iteratorRecord and
+                //     environment.
+                be.iterator_binding_initialization(chunk, strict, text, env)
+            }
+            BindingElisionElement::Element(Some(elision), be) => {
+                // BindingElisionElement : Elision BindingElement
+                //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+                //  2. Return ? IteratorBindingInitialization of BindingElement with arguments iteratorRecord and
+                //     environment.
+
+                // start:                     ir
+                //   <elision.idae>           ir/err
+                //   JUMP_IF_ABRUPT exit      ir
+                //   <be.ibi(env)>            ir/err
+                // exit:
+
+                elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let status = be.iterator_binding_initialization(chunk, strict, text, env)?;
+                assert!(status.maybe_abrupt());
+                chunk.fixup(exit)?;
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl BindingRestElement {
+    pub fn iterator_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorBindingInitialization
+        // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
+        // Record) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing unused or an abrupt completion.
+        //
+        // (scole: switching this to returning a normal completion containing the iterator record or an abrupt
+        // completion.)
+        //
+        // NOTE | When undefined is passed for environment it indicates that a PutValue operation should be used to
+        //      | assign the initialization value. This is the case for formal parameter lists of non-strict functions.
+        //      | In that case the formal parameter bindings are preinitialized in order to deal with the possibility of
+        //      | multiple parameters with the same name.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            BindingRestElement::Identifier(bi, _) => {
+                // BindingRestElement : ... BindingIdentifier
+                //  1. Let lhs be ? ResolveBinding(StringValue of BindingIdentifier, environment).
+                //  2. Let A be ! ArrayCreate(0).
+                //  3. Let n be 0.
+                //  4. Repeat,
+                //      a. If iteratorRecord.[[Done]] is false, then
+                //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+                //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(next).
+                //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+                //      b. If iteratorRecord.[[Done]] is true, then
+                //          i. If environment is undefined, return ? PutValue(lhs, A).
+                //          ii. Return ? InitializeReferencedBinding(lhs, A).
+                //      c. Let nextValue be Completion(IteratorValue(next)).
+                //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      e. ReturnIfAbrupt(nextValue).
+                //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+                //      g. Set n to n + 1.
+
+                // start                                 ir
+                //   STRING bindingId                    bindingId ir
+                //   STRICT_RESOLVE/RESOLVE              lhs/err ir
+                //   JUMP_IF_ABRUPT unwind               lhs ir
+                //   SWAP                                ir lhs
+                //   ITER_REST                           (A ir)/err lhs
+                //   JUMP_IF_ABRUPT unwind               A ir lhs
+                //   SWAP                                ir A lhs
+                //   ROTATE_DOWN 3                       A lhs ir
+                //   PUT_VALUE/IRB                       [empty]/err ir
+                //   JUMP_IF_ABRUPT unwind               [empty] ir
+                //   POP                                 ir
+                //   JUMP exit
+                // unwind:                               err ir
+                //   UNWIND 1                            err
+                // exit:                                 ir/err
+
+                let binding_id_val = bi.string_value();
+                let binding_id = chunk.add_to_string_pool(binding_id_val)?;
+                chunk.op_plus_arg(Insn::String, binding_id);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                let mut unwinds = vec![];
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::IteratorRest);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Swap);
+                chunk.op_plus_arg(Insn::RotateDown, 3);
+                chunk.op(match env {
+                    EnvUsage::UsePutValue => Insn::PutValue,
+                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                });
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op(Insn::Pop);
+                let exit = chunk.op_jump(Insn::Jump);
+                for mark in unwinds {
+                    chunk.fixup(mark).expect("Jumps too short to fail");
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+            BindingRestElement::Pattern(bp, _) => {
+                // BindingRestElement : ... BindingPattern
+                //  1. Let A be ! ArrayCreate(0).
+                //  2. Let n be 0.
+                //  3. Repeat,
+                //      a. If iteratorRecord.[[Done]] is false, then
+                //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+                //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(next).
+                //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+                //      b. If iteratorRecord.[[Done]] is true, then
+                //          i. Return ? BindingInitialization of BindingPattern with arguments A and environment.
+                //      c. Let nextValue be Completion(IteratorValue(next)).
+                //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      e. ReturnIfAbrupt(nextValue).
+                //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+                //      g. Set n to n + 1.
+
+                // start                                 ir
+                //   ITER_REST                           (A ir)/err
+                //   JUMP_IF_ABRUPT exit                 A ir
+                //   <bp.binding_initialization(env)>    [empty]/err ir
+                //   JUMP_IF_ABRUPT unwind               [empty] ir
+                //   POP                                 ir
+                //   JUMP exit
+                // unwind:                               err ir
+                //   UNWIND 1                            err
+                // exit:                                 ir/err
+
+                chunk.op(Insn::IteratorRest);
+                let mut exits = vec![];
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(unwind).expect("jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                for mark in exits {
+                    chunk.fixup(mark)?;
+                }
+                Ok(AlwaysAbruptResult)
+            }
+        }
     }
 }
 

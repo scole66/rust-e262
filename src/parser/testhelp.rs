@@ -349,6 +349,12 @@ impl<'a> Maker<'a> {
             .unwrap()
             .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`BindingRestProperty`] parse node.
+    pub fn binding_rest_property(self) -> Rc<BindingRestProperty> {
+        BindingRestProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`BitwiseANDExpression`] parse node.
     pub fn bitwise_and_expression(self) -> Rc<BitwiseANDExpression> {
         BitwiseANDExpression::parse(

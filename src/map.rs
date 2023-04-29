@@ -11,7 +11,7 @@ pub fn add_entries_from_iterable(
     target: &ECMAScriptValue,
     iterable: &ECMAScriptValue,
     adder: &ECMAScriptValue,
-) -> Completion<ECMAScriptValue> {
+) -> FullCompletion {
     // AddEntriesFromIterable ( target, iterable, adder )
     // The abstract operation AddEntriesFromIterable takes arguments target (an Object), iterable (an
     // ECMAScript language value, but not undefined or null), and adder (a function object) and returns either
@@ -36,7 +36,7 @@ pub fn add_entries_from_iterable(
     let iterator_record = get_iterator(iterable, IteratorKind::Sync)?;
     loop {
         match iterator_step(&iterator_record)? {
-            None => break Ok(target.clone()),
+            None => break Ok(NormalCompletion::from(target.clone())),
             Some(next) => {
                 let next_item = iterator_value(&next)?;
                 match next_item {

@@ -2303,12 +2303,27 @@ impl Numeric {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum DebugKind {
+    Char(char),
+    Number(i64),
+}
+
+impl fmt::Display for DebugKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DebugKind::Char(c) => c.fmt(f),
+            DebugKind::Number(n) => write!(f, "({n})"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Literal {
     NullLiteral { location: Location },
     BooleanLiteral { val: bool, location: Location },
     NumericLiteral { val: Numeric, location: Location },
     StringLiteral { val: StringToken, location: Location },
-    DebugLiteral { val: char, location: Location },
+    DebugLiteral { val: DebugKind, location: Location },
 }
 
 impl fmt::Display for Literal {

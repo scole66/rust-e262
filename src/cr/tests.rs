@@ -1,6 +1,7 @@
 use super::*;
 use crate::tests::*;
 use num::BigInt;
+use regex::Regex;
 use std::rc::Rc;
 use test_case::test_case;
 
@@ -10,7 +11,34 @@ mod normal_completion {
 
     #[test_case(NormalCompletion::Empty, NormalCompletion::Value(ECMAScriptValue::Undefined) => false; "not equal")]
     #[test_case(NormalCompletion::Value(ECMAScriptValue::from(78.0)), NormalCompletion::Value(ECMAScriptValue::from(78)) => true; "equal")]
+    #[test_case(NormalCompletion::from(67), NormalCompletion::Empty => false; "value vs empty")]
+    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
+                NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None)))
+                => true; "ref-equal")]
+    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
+                NormalCompletion::from(10)
+                => false; "ref-notequal")]
     fn eq(left: NormalCompletion, right: NormalCompletion) -> bool {
+        left == right
+    }
+
+    fn global_env() -> NormalCompletion {
+        let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        NormalCompletion::Environment(global_env)
+    }
+    fn iterator_record() -> NormalCompletion {
+        let ir = create_list_iterator_record(vec![]);
+        NormalCompletion::from(ir)
+    }
+
+    #[test_case(global_env, global_env => true; "matching env")]
+    #[test_case(global_env, iterator_record => false; "env no match")]
+    #[test_case(iterator_record, iterator_record => false; "both ir, but not the same one")]
+    #[test_case(iterator_record, || NormalCompletion::Empty => false; "ir no match")]
+    fn eq2(make_left: fn() -> NormalCompletion, make_right: fn() -> NormalCompletion) -> bool {
+        setup_test_agent();
+        let left = make_left();
+        let right = make_right();
         left == right
     }
 
@@ -46,6 +74,9 @@ mod normal_completion {
         #[test_case(Rc::new(BigInt::from(12)) => NormalCompletion::Value(ECMAScriptValue::from(BigInt::from(12))); "bigint")]
         #[test_case(BigInt::from(27) => NormalCompletion::Value(ECMAScriptValue::from(BigInt::from(27))); "bigint, no rc")]
         #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
+        #[test_case(23_i64 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from i64")]
+        #[test_case(23_u32 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from u32")]
+
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
         }
@@ -60,6 +91,35 @@ mod normal_completion {
                 assert_eq!(result, obj);
             } else {
                 panic!("Improper NC construction")
+            }
+        }
+
+        #[test]
+        fn iterator_record() {
+            setup_test_agent();
+            let ir = create_list_iterator_record(vec![]);
+            let next = ir.next_method.clone();
+            let obj = ir.iterator.clone();
+            let done = ir.done.get();
+
+            let nc = NormalCompletion::from(ir);
+            if let NormalCompletion::IteratorRecord(recovered) = nc {
+                assert_eq!(recovered.next_method, next);
+                assert_eq!(recovered.iterator, obj);
+                assert_eq!(recovered.done.get(), done);
+            } else {
+                panic!("NormalCompletion::Iterator(_) expected");
+            }
+        }
+
+        #[test]
+        fn rc_iterator_record() {
+            setup_test_agent();
+            let ir = Rc::new(create_list_iterator_record(vec![]));
+
+            let nc = NormalCompletion::from(Rc::clone(&ir));
+            if let NormalCompletion::IteratorRecord(recovered) = nc {
+                assert!(Rc::ptr_eq(&recovered, &ir));
             }
         }
     }
@@ -132,6 +192,28 @@ mod normal_completion {
     #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
     fn display(n: NormalCompletion) -> String {
         format!("{n}")
+    }
+
+    fn make_regex_validator(regex: &str) -> impl Fn(String) + '_ {
+        move |actual: String| {
+            let re = Regex::new(regex).unwrap();
+            assert!(re.is_match(&actual))
+        }
+    }
+
+    #[test_case(|| NormalCompletion::from(create_list_iterator_record(vec![]))
+            => using make_regex_validator(r"^IR\(iter: <Object [0-9]+>; next: <Object [0-9]+>; unfinished\)$")
+            ; "iterator record")]
+    #[test_case(|| {
+            let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+            NormalCompletion::Environment(global_env)
+        }
+        => "GlobalEnvironmentRecord(realm-global)"
+        ; "environment record")]
+    fn display_constructed(make_nc: fn() -> NormalCompletion) -> String {
+        setup_test_agent();
+        let nc = make_nc();
+        format!("{nc}")
     }
 }
 

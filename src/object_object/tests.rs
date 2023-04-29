@@ -999,6 +999,7 @@ mod constructor {
 
 mod get_own_property_keys {
     use super::*;
+    use itertools::Itertools;
     use test_case::test_case;
 
     fn test_obj() -> ECMAScriptValue {

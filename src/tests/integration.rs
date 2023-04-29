@@ -438,11 +438,27 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
-        return x;
-    }
-    id()"
+                return x;
+            }
+            id()"
     => serr("Thrown: howdy")
     ; "handle errors in function parameter evaluation")]
+// This next pair is 4/23/2023: the stack is messed up for errors in binding patterns for function parameters
+// when errors happen
+#[test_case("function foo([{a=50, b, c}]) {
+                return [a, b, c];
+            }
+            foo(1, 2, 3, 4, 5)"
+=> serr("Thrown: TypeError: object is not iterable")
+; "handle errors in function parameter binding patterns")]
+#[test_case("function foo([{a=50, b, c}] = [{a:-1,b:-2,c:-3}]) {
+               return [a, b, c];
+            }
+            foo(1, 2, 3, 4, 5)"
+=> serr("Thrown: TypeError: object is not iterable")
+; "handle errors in function parameter binding patterns with initializers")]
+// 4/24/2023: if an array pattern had unfinished iterators, it would fail
+#[test_case("var [] = [];" => Ok(ECMAScriptValue::Undefined); "incomplete iterators finished")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -147,6 +147,7 @@ impl Chunk {
             Insn::Unwind
             | Insn::RotateUp
             | Insn::RotateDown
+            | Insn::RotateDownList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression => {
@@ -169,12 +170,14 @@ impl Chunk {
             | Insn::SetPrototype
             | Insn::ToPropertyKey
             | Insn::CopyDataProps
+            | Insn::CopyDataPropsWithExclusions
             | Insn::This
             | Insn::Null
             | Insn::Undefined
             | Insn::True
             | Insn::False
             | Insn::Empty
+            | Insn::EmptyIfNotError
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue
@@ -184,6 +187,7 @@ impl Chunk {
             | Insn::UpdateEmpty
             | Insn::Swap
             | Insn::Pop
+            | Insn::PopOrPanic
             | Insn::Pop2Push3
             | Insn::Dup
             | Insn::ToString
@@ -234,12 +238,20 @@ impl Chunk {
             | Insn::AppendList
             | Insn::ExtractThrownValue
             | Insn::SwapList
+            | Insn::PopList
             | Insn::RequireConstructor
             | Insn::Construct
             | Insn::Object
             | Insn::Array
             | Insn::IteratorAccumulate
-            | Insn::IterateArguments => (1, format!("    {insn}")),
+            | Insn::IterateArguments
+            | Insn::RequireCoercible
+            | Insn::GetSyncIterator
+            | Insn::IteratorCloseIfNotDone
+            | Insn::GetV
+            | Insn::IteratorDAEElision
+            | Insn::EmbellishedIteratorStep
+            | Insn::IteratorRest => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
