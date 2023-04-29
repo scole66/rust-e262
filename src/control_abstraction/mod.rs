@@ -954,13 +954,6 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
 }
 
 impl IteratorRecord {
-    //pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    //    write!(f, "IR(iter: ")?;
-    //    self.iterator.concise(f)?;
-    //    write!(f, "; next: ")?;
-    //    self.next_method.concise(f)?;
-    //    write!(f, "; {})", if self.done.get() { "DONE" } else { "unfinished" })
-    //}
     pub fn concise(&self) -> String {
         format!(
             "IR(iter: {:?}; next: {:?}; {})",
