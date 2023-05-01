@@ -1664,6 +1664,16 @@ impl ForDeclaration {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.binding.early_errors(errs, strict);
     }
+
+    pub fn is_destructuring(&self) -> bool {
+        // Static Semantics: IsDestructuring
+        // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+
+        // ForDeclaration : LetOrConst ForBinding
+        //  1. Return IsDestructuring of ForBinding.
+        self.binding.is_destructuring()
+    }
 }
 
 // ForBinding[Yield, Await] :
@@ -1788,6 +1798,24 @@ impl ForBinding {
         match self {
             ForBinding::Identifier(id) => id.early_errors(errs, strict),
             ForBinding::Pattern(pat) => pat.early_errors(errs, strict),
+        }
+    }
+
+    pub fn is_destructuring(&self) -> bool {
+        // Static Semantics: IsDestructuring
+        // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        match self {
+            ForBinding::Identifier(_) => {
+                // ForBinding : BindingIdentifier
+                //  1. Return false.
+                false
+            }
+            ForBinding::Pattern(_) => {
+                // ForBinding : BindingPattern
+                //  1. Return true.
+                true
+            }
         }
     }
 }

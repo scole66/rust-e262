@@ -892,7 +892,7 @@ impl fmt::Debug for IteratorRecord {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum IteratorKind {
     Sync,
     Async,

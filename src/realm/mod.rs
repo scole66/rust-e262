@@ -17,6 +17,7 @@ pub enum IntrinsicId {
     ErrorPrototype,
     EvalError,
     EvalErrorPrototype,
+    ForInIteratorPrototype,
     Function,
     FunctionPrototype,
     IteratorPrototype,
@@ -245,6 +246,7 @@ impl Intrinsics {
             IntrinsicId::ErrorPrototype => &self.error_prototype,
             IntrinsicId::EvalError => &self.eval_error,
             IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
+            IntrinsicId::ForInIteratorPrototype => &self.for_in_iterator_prototype,
             IntrinsicId::Function => &self.function,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
             IntrinsicId::IteratorPrototype => &self.iterator_prototype,
@@ -288,6 +290,7 @@ impl Intrinsics {
             o if o == &self.error_prototype => Some(IntrinsicId::ErrorPrototype),
             o if o == &self.eval_error => Some(IntrinsicId::EvalError),
             o if o == &self.eval_error_prototype => Some(IntrinsicId::EvalErrorPrototype),
+            o if o == &self.for_in_iterator_prototype => Some(IntrinsicId::ForInIteratorPrototype),
             o if o == &self.function => Some(IntrinsicId::Function),
             o if o == &self.function_prototype => Some(IntrinsicId::FunctionPrototype),
             o if o == &self.iterator_prototype => Some(IntrinsicId::IteratorPrototype),
@@ -448,6 +451,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_iterator_prototype(&realm_rec);
     provision_generator_function_intrinsics(&realm_rec);
     provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
 
     add_restricted_function_properties(&function_prototype, realm_rec);
 }

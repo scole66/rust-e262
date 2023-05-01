@@ -37,6 +37,7 @@ pub enum Insn {
     JumpIfFalse,
     JumpIfTrue,
     JumpIfNotNullish,
+    JumpIfNullish,
     JumpPopIfTrue,
     JumpPopIfFalse,
     JumpIfNotUndef,
@@ -84,6 +85,7 @@ pub enum Insn {
     CopyDataPropsWithExclusions,
     ToString,
     ToNumeric,
+    ToObject,
     Increment,
     Decrement,
     PreIncrement,
@@ -144,11 +146,16 @@ pub enum Insn {
     IterateArguments,
     RequireCoercible,
     GetSyncIterator,
+    IteratorClose,
     IteratorCloseIfNotDone,
+    IteratorNext,
+    IteratorResultComplete,
+    IteratorResultToValue,
     GetV,
     IteratorDAEElision,
     EmbellishedIteratorStep,
     IteratorRest,
+    EnumerateObjectProperties,
 }
 
 impl fmt::Display for Insn {
@@ -177,6 +184,7 @@ impl fmt::Display for Insn {
             Insn::JumpIfFalse => "JUMP_IF_FALSE",
             Insn::JumpIfTrue => "JUMP_IF_TRUE",
             Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH",
+            Insn::JumpIfNullish => "JUMP_NULLISH",
             Insn::JumpPopIfTrue => "JUMPPOP_TRUE",
             Insn::JumpPopIfFalse => "JUMPPOP_FALSE",
             Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
@@ -224,6 +232,7 @@ impl fmt::Display for Insn {
             Insn::CopyDataPropsWithExclusions => "COPY_DATAPROPS_WE",
             Insn::ToString => "TO_STRING",
             Insn::ToNumeric => "TO_NUMERIC",
+            Insn::ToObject => "TO_OBJECT",
             Insn::Increment => "INCREMENT",
             Insn::Decrement => "DECREMENT",
             Insn::PreDecrement => "PRE_DECREMENT",
@@ -284,11 +293,16 @@ impl fmt::Display for Insn {
             Insn::IterateArguments => "ITER_ARGS",
             Insn::RequireCoercible => "REQ_COER",
             Insn::GetSyncIterator => "GET_SYNC_ITER",
+            Insn::IteratorClose => "ITER_CLOSE",
             Insn::IteratorCloseIfNotDone => "ITER_CLOSE_IF_NOT_DONE",
+            Insn::IteratorNext => "ITER_NEXT",
+            Insn::IteratorResultComplete => "IRES_COMPLETE",
+            Insn::IteratorResultToValue => "IRES_TOVAL",
             Insn::GetV => "GETV",
             Insn::IteratorDAEElision => "IDAE_ELISION",
             Insn::EmbellishedIteratorStep => "ITER_STEP",
             Insn::IteratorRest => "ITER_REST",
+            Insn::EnumerateObjectProperties => "ENUM_PROPS",
         })
     }
 }
@@ -3747,7 +3761,7 @@ impl IterationStatement {
             IterationStatement::DoWhile(dws) => dws.do_while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::While(ws) => ws.while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::For(f) => f.compile_for_loop(chunk, strict, text, label_set),
-            IterationStatement::ForInOf(_) => todo!(),
+            IterationStatement::ForInOf(f) => f.for_in_of_evaluation(chunk, strict, text, label_set),
         }
     }
 }
@@ -4205,6 +4219,617 @@ impl ForStatement {
 
                 Ok(AbruptResult::Maybe)
             }
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+enum IterationKind {
+    Enumerate,
+    Iterate,
+    AsyncIterate,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+enum LHSKind {
+    Assignment,
+    VarBinding,
+    LexicalBinding,
+}
+
+enum ForInOfExpr<'a> {
+    Expression(&'a Rc<Expression>),
+    AssignmentExpression(&'a Rc<AssignmentExpression>),
+}
+
+impl<'a> From<&'a Rc<Expression>> for ForInOfExpr<'a> {
+    fn from(value: &'a Rc<Expression>) -> Self {
+        Self::Expression(value)
+    }
+}
+
+impl<'a> From<&'a Rc<AssignmentExpression>> for ForInOfExpr<'a> {
+    fn from(value: &'a Rc<AssignmentExpression>) -> Self {
+        Self::AssignmentExpression(value)
+    }
+}
+
+impl<'a> ForInOfExpr<'a> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            ForInOfExpr::Expression(exp) => exp.compile(chunk, strict, text),
+            ForInOfExpr::AssignmentExpression(ae) => ae.compile(chunk, strict, text),
+        }
+    }
+}
+
+enum ForInOfLHSExpr<'a> {
+    LeftHandSideExpression(&'a Rc<LeftHandSideExpression>),
+    AssignmentPattern(&'a Rc<AssignmentPattern>),
+    ForBinding(&'a Rc<ForBinding>),
+    ForDeclaration(&'a Rc<ForDeclaration>),
+}
+
+impl<'a> From<&'a Rc<LeftHandSideExpression>> for ForInOfLHSExpr<'a> {
+    fn from(value: &'a Rc<LeftHandSideExpression>) -> Self {
+        Self::LeftHandSideExpression(value)
+    }
+}
+
+impl<'a> From<&'a Rc<AssignmentPattern>> for ForInOfLHSExpr<'a> {
+    fn from(value: &'a Rc<AssignmentPattern>) -> Self {
+        Self::AssignmentPattern(value)
+    }
+}
+
+impl<'a> From<&'a Rc<ForBinding>> for ForInOfLHSExpr<'a> {
+    fn from(value: &'a Rc<ForBinding>) -> Self {
+        Self::ForBinding(value)
+    }
+}
+
+impl<'a> From<&'a Rc<ForDeclaration>> for ForInOfLHSExpr<'a> {
+    fn from(value: &'a Rc<ForDeclaration>) -> Self {
+        Self::ForDeclaration(value)
+    }
+}
+
+impl<'a> ForInOfLHSExpr<'a> {
+    fn is_destructuring(&self) -> bool {
+        match self {
+            ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.is_destructuring(),
+            ForInOfLHSExpr::AssignmentPattern(ap) => ap.is_destructuring(),
+            ForInOfLHSExpr::ForBinding(fb) => fb.is_destructuring(),
+            ForInOfLHSExpr::ForDeclaration(fd) => fd.is_destructuring(),
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn destructuring_assignment_pattern(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+
+    #[allow(unused_variables)]
+    fn binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        // Runtime Semantics: Evaluation
+        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
+        match self {
+            ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.compile(chunk, strict, text),
+            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
+            ForInOfLHSExpr::ForBinding(_) => todo!(),
+            ForInOfLHSExpr::ForDeclaration(_) => todo!(),
+        }
+    }
+    #[allow(unused_variables)]
+    fn for_declaration_binding_instantiation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    fn for_declaration_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+    fn bound_names(&self) -> Vec<JSString> {
+        todo!()
+    }
+}
+
+impl ForInOfStatement {
+    fn for_in_of_head_evaluation(
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        uninitialized_bound_names: &[JSString],
+        exp: ForInOfExpr,
+        kind: IterationKind,
+    ) -> anyhow::Result<AbruptResult> {
+        // ForIn/OfHeadEvaluation ( uninitializedBoundNames, expr, iterationKind )
+        // The abstract operation ForIn/OfHeadEvaluation takes arguments uninitializedBoundNames (a List of
+        // Strings), expr (an Expression Parse Node or an AssignmentExpression Parse Node), and iterationKind
+        // (enumerate, iterate, or async-iterate) and returns either a normal completion containing an
+        // Iterator Record or an abrupt completion. It performs the following steps when called:
+        //
+        //  1. Let oldEnv be the running execution context's LexicalEnvironment.
+        //  2. If uninitializedBoundNames is not empty, then
+        //      a. Assert: uninitializedBoundNames has no duplicate entries.
+        //      b. Let newEnv be NewDeclarativeEnvironment(oldEnv).
+        //      c. For each String name of uninitializedBoundNames, do
+        //          i. Perform ! newEnv.CreateMutableBinding(name, false).
+        //      d. Set the running execution context's LexicalEnvironment to newEnv.
+        //  3. Let exprRef be Completion(Evaluation of expr).
+        //  4. Set the running execution context's LexicalEnvironment to oldEnv.
+        //  5. Let exprValue be ? GetValue(? exprRef).
+        //  6. If iterationKind is enumerate, then
+        //      a. If exprValue is either undefined or null, then
+        //          i. Return Completion Record { [[Type]]: break, [[Value]]: empty, [[Target]]: empty }.
+        //      b. Let obj be ! ToObject(exprValue).
+        //      c. Let iterator be EnumerateObjectProperties(obj).
+        //      d. Let nextMethod be ! GetV(iterator, "next").
+        //      e. Return the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]:
+        //         false }.
+        //  7. Else,
+        //      a. Assert: iterationKind is either iterate or async-iterate.
+        //      b. If iterationKind is async-iterate, let iteratorKind be async.
+        //      c. Else, let iteratorKind be sync.
+        //      d. Return ? GetIterator(exprValue, iteratorKind).
+
+        // start:
+        // --- If uninitialized_bound_names ---
+        //   PNLE
+        //   --- for each "name" of those names
+        //   CPMLB <name>
+        //   ---
+        // ---
+        //   <expr>                    exprRef/err
+        // --- if uninitialized_bound_names ---
+        //   PLE
+        // ---
+        //   GET_VALUE                 exprVal/err
+        //   JUMP_IF_ABRUPT exit       exprVal
+        // --- if iteration_kind == enumerate
+        //   JUMP_IF_NULLISH break
+        //   TO_OBJECT                 obj
+        //   ENUMERATE_OBJ_PROPS       ir
+        //   JUMP exit
+        // break:                      undef/null
+        //   POP
+        //   BREAK                     break
+        // exit:
+        // --- else if iteration_kind == iterate
+        //   GET_SYNC_ITERATOR         ir/err
+        // exit:
+        // -- else if iteration_kind == async-iterate
+        //   GET_ASYNC_ITERATOR        ir/err
+        // exit:
+
+        let exp_status = if !uninitialized_bound_names.is_empty() {
+            chunk.op(Insn::PushNewLexEnv);
+            for name in uninitialized_bound_names.iter().cloned() {
+                let idx = chunk.add_to_string_pool(name)?;
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+            }
+            let exp_status = exp.compile(chunk, strict, text)?;
+            chunk.op(Insn::PopLexEnv);
+            exp_status
+        } else {
+            exp.compile(chunk, strict, text)?
+        };
+        if exp_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let mut exits = vec![];
+        if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
+            exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        let status = match kind {
+            IterationKind::Enumerate => {
+                let break_tgt = chunk.op_jump(Insn::JumpIfNullish);
+                chunk.op(Insn::ToObject);
+                chunk.op(Insn::EnumerateObjectProperties);
+                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.fixup(break_tgt).expect("jump too short to fail");
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::Break);
+                AbruptResult::from(exp_status.maybe_abrupt() || exp_status.maybe_ref())
+            }
+            IterationKind::Iterate => {
+                chunk.op(Insn::GetSyncIterator);
+                AbruptResult::Maybe
+            }
+            IterationKind::AsyncIterate => {
+                chunk.op(Insn::ToDo);
+                AbruptResult::Maybe
+            }
+        };
+        for exit in exits {
+            chunk.fixup(exit).expect("Jumps too short to fail");
+        }
+        Ok(status)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn for_in_of_body_evaluation(
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        lhs: ForInOfLHSExpr,
+        stmt: &Rc<Statement>,
+        i_kind: IterationKind,
+        l_kind: LHSKind,
+        label_set: &[JSString],
+        iterator_kind: IteratorKind,
+    ) -> anyhow::Result<AbruptResult> {
+        // ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] )
+        // The abstract operation ForIn/OfBodyEvaluation takes arguments lhs (a Parse Node), stmt (a Statement
+        // Parse Node), iteratorRecord (an Iterator Record), iterationKind (enumerate or iterate), lhsKind
+        // (assignment, varBinding, or lexicalBinding), and labelSet (a List of Strings) and optional argument
+        // iteratorKind (sync or async) and returns either a normal completion containing an ECMAScript
+        // language value or an abrupt completion. It performs the following steps when called:
+        //
+        //  1. If iteratorKind is not present, set iteratorKind to sync.
+        //  2. Let oldEnv be the running execution context's LexicalEnvironment.
+        //  3. Let V be undefined.
+        //  4. Let destructuring be IsDestructuring of lhs.
+        //  5. If destructuring is true and lhsKind is assignment, then
+        //      a. Assert: lhs is a LeftHandSideExpression.
+        //      b. Let assignmentPattern be the AssignmentPattern that is covered by lhs.
+        //  6. Repeat,
+        //      a. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        //      b. If iteratorKind is async, set nextResult to ? Await(nextResult).
+        //      c. If nextResult is not an Object, throw a TypeError exception.
+        //      d. Let done be ? IteratorComplete(nextResult).
+        //      e. If done is true, return V.
+        //      f. Let nextValue be ? IteratorValue(nextResult).
+        //      g. If lhsKind is either assignment or varBinding, then
+        //          i. If destructuring is true, then
+        //              1. If lhsKind is assignment, then
+        //                  a. Let status be Completion(DestructuringAssignmentEvaluation of assignmentPattern
+        //                     with argument nextValue).
+        //              2. Else,
+        //                  a. Assert: lhsKind is varBinding.
+        //                  b. Assert: lhs is a ForBinding.
+        //                  c. Let status be Completion(BindingInitialization of lhs with arguments nextValue
+        //                     and undefined).
+        //          ii. Else,
+        //              1. Let lhsRef be Completion(Evaluation of lhs). (It may be evaluated repeatedly.)
+        //              2. If lhsRef is an abrupt completion, then
+        //                  a. Let status be lhsRef.
+        //              3. Else,
+        //                  a. Let status be Completion(PutValue(lhsRef.[[Value]], nextValue)).
+        //      h. Else,
+        //          i. Assert: lhsKind is lexicalBinding.
+        //          ii. Assert: lhs is a ForDeclaration.
+        //          iii. Let iterationEnv be NewDeclarativeEnvironment(oldEnv).
+        //          iv. Perform ForDeclarationBindingInstantiation of lhs with argument iterationEnv.
+        //          v. Set the running execution context's LexicalEnvironment to iterationEnv.
+        //          vi. If destructuring is true, then
+        //              1. Let status be Completion(ForDeclarationBindingInitialization of lhs with arguments
+        //                 nextValue and iterationEnv).
+        //          vii. Else,
+        //              1. Assert: lhs binds a single name.
+        //              2. Let lhsName be the sole element of BoundNames of lhs.
+        //              3. Let lhsRef be ! ResolveBinding(lhsName).
+        //              4. Let status be Completion(InitializeReferencedBinding(lhsRef, nextValue)).
+        //      i. If status is an abrupt completion, then
+        //          i. Set the running execution context's LexicalEnvironment to oldEnv.
+        //          ii. If iteratorKind is async, return ? AsyncIteratorClose(iteratorRecord, status).
+        //          iii. If iterationKind is enumerate, then
+        //              1. Return ? status.
+        //          iv. Else,
+        //              1. Assert: iterationKind is iterate.
+        //              2. Return ? IteratorClose(iteratorRecord, status).
+        //      j. Let result be Completion(Evaluation of stmt).
+        //      k. Set the running execution context's LexicalEnvironment to oldEnv.
+        //      l. If LoopContinues(result, labelSet) is false, then
+        //          i. If iterationKind is enumerate, then
+        //              1. Return ? UpdateEmpty(result, V).
+        //          ii. Else,
+        //              1. Assert: iterationKind is iterate.
+        //              2. Set status to Completion(UpdateEmpty(result, V)).
+        //              3. If iteratorKind is async, return ? AsyncIteratorClose(iteratorRecord, status).
+        //              4. Return ? IteratorClose(iteratorRecord, status).
+        //      m. If result.[[Value]] is not empty, set V to result.[[Value]].
+
+        // start:                              iter_record
+        //   UNDEFINED                         v iter_record
+        // top:                                v iter_record
+        //   SWAP                              iter_record v
+        // --- if iteratorKind != ASYNC
+        //   ITER_NEXT_SYNC                    next_result/err iter_record v
+        // --- else
+        //   ITER_NEXT_ASYNC
+        // ---
+        //   JUMP_IF_ABRUPT unwind2                   next_result iter_record v
+        //   IRES_COMPLETE                            done/err next_result iter_record v
+        //   JUMP_IF_ABRUPT unwind3                   done next_result iter_record v
+        //   JUMPPOP_IF_TRUE pop2_exit                next_result iter_record v
+        //   IRES_TO_VALUE                            value/err iter_record v
+        //   JUMP_IF_ABRUPT unwind2                   value iter_record v
+        // --- if destructuring && lhsKind == assignment
+        //   <lhs.destructuring_assignment_pattern>   status iter_record v
+        // --- else if destructuring && lhsKind == varBinding
+        //   <lhs.binding_initialization(putvalue)>   status iter_record v
+        // --- else if lhsKind == assignment || lhsKind == varBinding
+        //   <lhs.execute>                            lhsRef/err value iter_record v
+        //   JUMP_IF_ABRUPT inner_unwind              lhsRef value iter_record v
+        //   SWAP                                     value lhsRef iter_record v
+        //   PUT_VALUE                                status iter_record v
+        // lhs_calc_done:                             status iter_record v
+        // --- else (lhsKind == lexicalBinding)
+        //   PNLE                                     value iter_record v
+        //   <lhs.for_declaration_binding_instantiation> value iter_record v
+        // ---
+        // --- if destructuring && lhsKind == lexicalBinding
+        //   <lhs.for_declaration_binding_initialization> status iter_record v
+        // --- if !destructuring && lhsKind == lexicalBinding
+        //   STRING lhs.bound_names()[0]              name value iter_record v
+        //   RESOLVE/STRICT_RESOLVE                   ref value iter_record v
+        //   IRB                                      status iter_record v
+        // ---
+        //   JUMP_IF_NORMAL statements                err iter_record v
+        // --- if lhsKind == lexicalBinding
+        //   POP_LEX_ENV
+        // ---
+        // --- if iteratorKind == Async
+        //   ROTATE_UP 3                              v err iter_record
+        //   POP                                      err iter_record
+        //   ASYNC_ITER_CLOSE                         status
+        //   JUMP exit
+        // ---
+        // --- if iterationKind == Enumerate
+        //   JUMP unwind2
+        // --- else (iterationKind == Iterate)
+        //   ROTATE_UP 3                              v err iter_record
+        //   POP                                      err iter_record
+        //   ITER_CLOSE                               status
+        //   JUMP exit
+        // ---
+        // --- if !destructuring && [assignment, varBinding].contains(lhsKind)
+        // inner_unwind:                              err value iter_record v
+        //   UNWIND 1                                 status iter_record v
+        //   JUMP lhs_calc_done
+        // ---
+        // statements:                                status iter_record v
+        //   POP                                      iter_record v
+        //   SWAP                                     v iter_record
+        //   <stmt.evaluate>                          result v iter_record
+        // --- if lhsKind == lexicalBinding
+        //   POP_LEX_ENV
+        // ---
+        //   LOOP_CONT label_set                      true/false result v iter_record
+        //   JUMPPOP_IF_FALSE loop_termination        result v iter_record
+        //   COALESCE                                 v iter_record
+        //   JUMP top
+        // loop_termination:                          result v iter_record
+        //   UPDATE_EMPTY                             status iter_record
+        // --- if iterationKind == Enumerate
+        //   UNWIND 1                                 status
+        //   JUMP exit
+        // --- else
+        //   --- if iteratorKind == Async
+        //   ASYNC_ITER_CLOSE                         status
+        //   --- else
+        //   ITER_CLOSE                               status
+        //   ---
+        //   JUMP exit
+        // ---
+        // pop2_exit:
+        //   POP
+        //   POP
+        //   JUMP exit
+        // unwind3:
+        //   UNWIND 1
+        // unwind2:
+        //   UNWIND 2
+        // exit:
+
+        let destructuring = lhs.is_destructuring();
+
+        chunk.op(Insn::Undefined);
+        let top = chunk.pos();
+        chunk.op(Insn::Swap);
+        chunk.op(match iterator_kind {
+            IteratorKind::Sync => Insn::IteratorNext,
+            IteratorKind::Async => Insn::ToDo, // Insn::AsyncIteratorNext
+        });
+        let mut unwind2s = vec![];
+        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        chunk.op(Insn::IteratorResultComplete);
+        let unwind3 = chunk.op_jump(Insn::JumpIfAbrupt);
+        let pop2_exit = chunk.op_jump(Insn::JumpPopIfTrue);
+        chunk.op(Insn::IteratorResultToValue);
+        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+
+        let mut lhs_assignment_spots = None;
+
+        match (destructuring, l_kind) {
+            (true, LHSKind::Assignment) => {
+                lhs.destructuring_assignment_pattern(chunk, strict, text)?;
+            }
+            (true, LHSKind::VarBinding) => {
+                lhs.binding_initialization(chunk, strict, text, EnvUsage::UsePutValue)?;
+            }
+            (false, LHSKind::Assignment) | (false, LHSKind::VarBinding) => {
+                lhs.compile(chunk, strict, text)?;
+                let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::PutValue);
+                let lhs_calc_done = chunk.pos();
+                lhs_assignment_spots = Some((inner_unwind, lhs_calc_done));
+            }
+            (_, LHSKind::LexicalBinding) => {
+                chunk.op(Insn::PushNewLexEnv);
+                lhs.for_declaration_binding_instantiation(chunk, strict, text)?;
+                if destructuring {
+                    lhs.for_declaration_binding_initialization(chunk, strict, text)?;
+                } else {
+                    let mut bn = lhs.bound_names();
+                    let name = chunk.add_to_string_pool(bn.pop().expect("should be exactly one name"))?;
+                    chunk.op_plus_arg(Insn::String, name);
+                    chunk.op(match strict {
+                        true => Insn::StrictResolve,
+                        false => Insn::Resolve,
+                    });
+                    chunk.op(Insn::InitializeReferencedBinding);
+                }
+            }
+        }
+        let statements = chunk.op_jump(Insn::JumpIfNormal);
+        if l_kind == LHSKind::LexicalBinding {
+            chunk.op(Insn::PopLexEnv);
+        }
+        let mut exits = vec![];
+        match (iterator_kind, i_kind) {
+            (IteratorKind::Async, _) | (_, IterationKind::AsyncIterate) => {
+                chunk.op_plus_arg(Insn::RotateUp, 3);
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::ToDo); // ASYNC_ITER_CLOSE
+                exits.push(chunk.op_jump(Insn::Jump));
+            }
+            (IteratorKind::Sync, IterationKind::Enumerate) => {
+                unwind2s.push(chunk.op_jump(Insn::Jump));
+            }
+            (IteratorKind::Sync, IterationKind::Iterate) => {
+                chunk.op_plus_arg(Insn::RotateUp, 3);
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::IteratorClose);
+                exits.push(chunk.op_jump(Insn::Jump));
+            }
+        }
+
+        if let Some((inner_unwind, lhs_calc_done)) = lhs_assignment_spots {
+            chunk.fixup(inner_unwind)?;
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_jump_back(Insn::Jump, lhs_calc_done)?;
+        }
+
+        chunk.fixup(statements)?;
+        chunk.op(Insn::Pop);
+        chunk.op(Insn::Swap);
+        stmt.compile(chunk, strict, text)?;
+        if l_kind == LHSKind::LexicalBinding {
+            chunk.op(Insn::PopLexEnv);
+        }
+        let lsid = chunk.add_to_string_set_pool(label_set)?;
+        chunk.op_plus_arg(Insn::LoopContinues, lsid);
+        let loop_termination = chunk.op_jump(Insn::JumpPopIfFalse);
+        chunk.op(Insn::CoalesceValue);
+        chunk.op_jump_back(Insn::Jump, top)?;
+
+        chunk.fixup(loop_termination).expect("jump too short to fail");
+        chunk.op(Insn::UpdateEmpty);
+        match (iterator_kind, i_kind) {
+            (_, IterationKind::Enumerate) => {
+                chunk.op_plus_arg(Insn::Unwind, 1);
+            }
+            (IteratorKind::Async, _) => {
+                chunk.op(Insn::ToDo); // ASYNC_ITER_CLOSE
+            }
+            (IteratorKind::Sync, _) => {
+                chunk.op(Insn::IteratorClose);
+            }
+        }
+        exits.push(chunk.op_jump(Insn::Jump));
+
+        chunk.fixup(pop2_exit)?;
+        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop);
+        exits.push(chunk.op_jump(Insn::Jump));
+
+        chunk.fixup(unwind3)?;
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        for unwind2 in unwind2s {
+            chunk.fixup(unwind2)?;
+        }
+        chunk.op_plus_arg(Insn::Unwind, 2);
+        chunk.op_plus_arg(Insn::Unwind, 2);
+        for exit in exits {
+            chunk.fixup(exit)?;
+        }
+        Ok(AbruptResult::Maybe)
+    }
+
+    #[allow(unused_variables)]
+    pub fn for_in_of_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        label_set: &[JSString],
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: ForInOfLoopEvaluation
+        // The syntax-directed operation ForInOfLoopEvaluation takes argument labelSet (a List of Strings) and
+        // returns either a normal completion containing an ECMAScript language value or an abrupt completion.
+        // It is defined piecewise over the following productions:
+        match self {
+            ForInOfStatement::In(lhs, exp, stmt, _) => {
+                // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
+                //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
+                //     enumerate, assignment, labelSet).
+
+                // start:
+                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
+                //   JUMP_IF_ABRUPT exit
+                //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
+                // exit:
+                let head_status =
+                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
+                let mut exit = None;
+                if head_status.maybe_abrupt() {
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let body_status = Self::for_in_of_body_evaluation(
+                    chunk,
+                    strict,
+                    text,
+                    lhs.into(),
+                    stmt,
+                    IterationKind::Enumerate,
+                    LHSKind::Assignment,
+                    label_set,
+                    IteratorKind::Sync,
+                )?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+            }
+            ForInOfStatement::DestructuringIn(_, _, _, _) => todo!(),
+            ForInOfStatement::VarIn(_, _, _, _) => todo!(),
+            ForInOfStatement::LexIn(_, _, _, _) => todo!(),
+            ForInOfStatement::Of(_, _, _, _) => todo!(),
+            ForInOfStatement::DestructuringOf(_, _, _, _) => todo!(),
+            ForInOfStatement::VarOf(_, _, _, _) => todo!(),
+            ForInOfStatement::LexOf(_, _, _, _) => todo!(),
+            ForInOfStatement::AwaitOf(_, _, _, _) => todo!(),
+            ForInOfStatement::DestructuringAwaitOf(_, _, _, _) => todo!(),
+            ForInOfStatement::AwaitVarOf(_, _, _, _) => todo!(),
+            ForInOfStatement::AwaitLexOf(_, _, _, _) => todo!(),
         }
     }
 }

@@ -688,6 +688,10 @@ impl AssignmentPattern {
             AssignmentPattern::Array(ary) => ary.early_errors(errs, strict),
         }
     }
+
+    pub fn is_destructuring(&self) -> bool {
+        true
+    }
 }
 
 /// A parse node for _[ObjectAssignmentPattern][1]_

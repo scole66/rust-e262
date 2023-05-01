@@ -457,6 +457,38 @@ impl MemberExpression {
             _ => false,
         }
     }
+
+    pub fn is_destructuring(&self) -> bool {
+        // Static Semantics: IsDestructuring
+        // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        match self {
+            MemberExpression::PrimaryExpression(pe) => {
+                // MemberExpression : PrimaryExpression
+                //  1. If PrimaryExpression is either an ObjectLiteral or an ArrayLiteral, return true.
+                //  2. Return false.
+                matches!(pe.as_ref(), PrimaryExpression::ArrayLiteral { .. } | PrimaryExpression::ObjectLiteral { .. })
+            }
+            MemberExpression::Expression(_, _, _)
+            | MemberExpression::IdentifierName(_, _, _)
+            | MemberExpression::TemplateLiteral(_, _)
+            | MemberExpression::SuperProperty(_)
+            | MemberExpression::MetaProperty(_)
+            | MemberExpression::NewArguments(_, _, _)
+            | MemberExpression::PrivateId(_, _, _) => {
+                // MemberExpression :
+                //      MemberExpression [ Expression ]
+                //      MemberExpression . IdentifierName
+                //      MemberExpression TemplateLiteral
+                //      SuperProperty
+                //      MetaProperty
+                //      new MemberExpression Arguments
+                //      MemberExpression . PrivateIdentifier
+                //  1. Return false.
+                false
+            }
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -1279,6 +1311,24 @@ impl NewExpression {
             _ => false,
         }
     }
+
+    pub fn is_destructuring(&self) -> bool {
+        // Static Semantics: IsDestructuring
+        // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        match self {
+            NewExpression::MemberExpression(me) => {
+                // NewExpression : MemberExpression
+                //  1. Return IsDestructuring of MemberExpression.
+                me.is_destructuring()
+            }
+            NewExpression::NewExpression(_, _) => {
+                // NewExpression : new NewExpression
+                //  1. Return false.
+                false
+            }
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -2055,6 +2105,26 @@ impl LeftHandSideExpression {
         match self {
             LeftHandSideExpression::New(node) => node.is_named_function(),
             _ => false,
+        }
+    }
+
+    pub fn is_destructuring(&self) -> bool {
+        // Static Semantics: IsDestructuring
+        // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        match self {
+            LeftHandSideExpression::New(ne) => {
+                // LeftHandSideExpression : NewExpression
+                //  1. Return IsDestructuring of NewExpression.
+                ne.is_destructuring()
+            }
+            LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => {
+                // LeftHandSideExpression :
+                //      CallExpression
+                //      OptionalExpression
+                //  1. Return false.
+                false
+            }
         }
     }
 }
