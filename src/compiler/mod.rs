@@ -755,7 +755,9 @@ impl NameableProduction {
             NameableProduction::Function(child) => {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
             }
-            NameableProduction::Generator(_) => todo!(),
+            NameableProduction::Generator(generator) => {
+                generator.named_evaluation(chunk, strict, text, id).map(CompilerStatusFlags::from)
+            },
             NameableProduction::AsyncFunction(_) => todo!(),
             NameableProduction::AsyncGenerator(_) => todo!(),
             NameableProduction::Class(_) => todo!(),
@@ -7363,6 +7365,40 @@ impl FunctionStatementList {
                 Ok(NeverAbruptRefResult.into())
             }
         }
+    }
+}
+
+impl GeneratorExpression {
+    #[allow(unused_variables)]
+    fn instantiate_generator_function_expression(&self, chunk: &mut Chunk, strict: bool, text: &str, id: NameLoc) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: InstantiateGeneratorFunctionExpression
+        // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
+        // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
+        // 
+        // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
+        //  1. If name is not present, set name to "".
+        //  2. Let env be the LexicalEnvironment of the running execution context.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  4. Let sourceText be the source text matched by GeneratorExpression.
+        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, non-lexical-this, env, privateEnv).
+        //  6. Perform SetFunctionName(closure, name).
+        //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  9. Return closure.
+        todo!()
+    }
+
+    fn named_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str, id: NameLoc) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: NamedEvaluation
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion. It is defined
+        // piecewise over the following productions:
+        
+        // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
+        //  1. Return InstantiateGeneratorFunctionExpression of GeneratorExpression with argument name.
+        self.instantiate_generator_function_expression(chunk, strict, text, id)
     }
 }
 
