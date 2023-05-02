@@ -4322,7 +4322,12 @@ impl<'a> ForInOfLHSExpr<'a> {
         text: &str,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
-        todo!()
+        match self {
+            ForInOfLHSExpr::LeftHandSideExpression(_) => todo!(),
+            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
+            ForInOfLHSExpr::ForBinding(fb) => fb.binding_initialization(chunk, strict, text, env),
+            ForInOfLHSExpr::ForDeclaration(_) => todo!(),
+        }
     }
     #[allow(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
@@ -4331,7 +4336,7 @@ impl<'a> ForInOfLHSExpr<'a> {
         match self {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.compile(chunk, strict, text),
             ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
-            ForInOfLHSExpr::ForBinding(_) => todo!(),
+            ForInOfLHSExpr::ForBinding(fb) => fb.compile(chunk, strict, text),
             ForInOfLHSExpr::ForDeclaration(_) => todo!(),
         }
     }
@@ -4852,7 +4857,40 @@ impl ForInOfStatement {
                 }
                 Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
             }
-            ForInOfStatement::VarIn(_, _, _, _) => todo!(),
+            ForInOfStatement::VarIn(fb, exp, stmt, _) => {
+                // ForInOfStatement : for ( var ForBinding in Expression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
+                //  2. Return ? ForIn/OfBodyEvaluation(ForBinding, Statement, keyResult, enumerate, varBinding,
+                //     labelSet).
+
+                // start:
+                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
+                //   JUMP_IF_ABRUPT exit
+                //   <body_eval(fb, stmt, ENUMERATE, VARBINDING, label_set)
+                // exit:
+
+                let head_status =
+                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
+                let mut exit = None;
+                if head_status.maybe_abrupt() {
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let body_status = Self::for_in_of_body_evaluation(
+                    chunk,
+                    strict,
+                    text,
+                    fb.into(),
+                    stmt,
+                    IterationKind::Enumerate,
+                    LHSKind::VarBinding,
+                    label_set,
+                    IteratorKind::Sync,
+                )?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+            }
             ForInOfStatement::LexIn(_, _, _, _) => todo!(),
             ForInOfStatement::Of(_, _, _, _) => todo!(),
             ForInOfStatement::DestructuringOf(_, _, _, _) => todo!(),
@@ -4862,6 +4900,45 @@ impl ForInOfStatement {
             ForInOfStatement::DestructuringAwaitOf(_, _, _, _) => todo!(),
             ForInOfStatement::AwaitVarOf(_, _, _, _) => todo!(),
             ForInOfStatement::AwaitLexOf(_, _, _, _) => todo!(),
+        }
+    }
+}
+
+impl ForBinding {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        // Runtime Semantics: Evaluation
+        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
+        match self {
+            ForBinding::Identifier(ident) => ident.compile(chunk, strict),
+            ForBinding::Pattern(pat) => pat.compile(chunk, strict, text),
+        }
+    }
+
+    fn binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: BindingInitialization
+        // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
+        // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
+        // an abrupt completion.
+        //
+        // NOTE undefined is passed for environment to indicate that a PutValue operation should be used to assign the
+        // initialization value. This is the case for var statements and formal parameter lists of some non-strict
+        // functions (See 10.2.11). In those cases a lexical binding is hoisted and preinitialized prior to evaluation
+        // of its initializer.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            ForBinding::Identifier(ident) => {
+                ident.compile_binding_initialization(chunk, strict, env).map(AbruptResult::from)
+            }
+            ForBinding::Pattern(pat) => {
+                pat.compile_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
+            }
         }
     }
 }
@@ -5904,6 +5981,30 @@ impl BindingIdentifier {
         compile_initialize_bound_name(chunk, strict, env, id_idx);
         Ok(NeverAbruptRefResult)
     }
+
+    fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        // Runtime Semantics: Evaluation
+        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
+
+        // Runtime Semantics: Evaluation
+        // BindingIdentifier :
+        //      Identifier
+        //      yield
+        //      await
+        //  1. Let bindingId be StringValue of BindingIdentifier.
+        //  2. Return ? ResolveBinding(bindingId).
+        let binding_id = chunk.add_to_string_pool(match self {
+            BindingIdentifier::Identifier { identifier, .. } => identifier.string_value(),
+            BindingIdentifier::Yield { .. } => "yield".into(),
+            BindingIdentifier::Await { .. } => "await".into(),
+        })?;
+        chunk.op_plus_arg(Insn::String, binding_id);
+        chunk.op(match strict {
+            true => Insn::StrictResolve,
+            false => Insn::Resolve,
+        });
+        Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
+    }
 }
 
 impl FormalParameterList {
@@ -6541,6 +6642,14 @@ impl BindingPattern {
                 Ok(AlwaysAbruptResult)
             }
         }
+    }
+
+    #[allow(unused_variables)]
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        // Runtime Semantics: Evaluation
+        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
+
+        todo!()
     }
 }
 
