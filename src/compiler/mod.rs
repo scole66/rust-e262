@@ -4340,14 +4340,18 @@ impl<'a> ForInOfLHSExpr<'a> {
             ForInOfLHSExpr::ForDeclaration(_) => todo!(),
         }
     }
-    #[allow(unused_variables)]
-    fn for_declaration_binding_instantiation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
+    fn for_declaration_binding_instantiation(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        // Runtime Semantics: ForDeclarationBindingInstantiation
+        // The syntax-directed operation ForDeclarationBindingInstantiation takes argument environment (a Declarative
+        // Environment Record) and returns unused.
+        //
+        // It is defined piecewise over the following productions:
+        match self {
+            ForInOfLHSExpr::ForDeclaration(fd) => fd.for_declaration_binding_instantiation(chunk),
+            ForInOfLHSExpr::LeftHandSideExpression(_)
+            | ForInOfLHSExpr::AssignmentPattern(_)
+            | ForInOfLHSExpr::ForBinding(_) => panic!("Invalid parse node for ForDeclarationBindingInstantiation"),
+        }
     }
     #[allow(unused_variables)]
     fn for_declaration_binding_initialization(
@@ -4359,7 +4363,14 @@ impl<'a> ForInOfLHSExpr<'a> {
         todo!()
     }
     fn bound_names(&self) -> Vec<JSString> {
-        todo!()
+        // Static Semantics: BoundNames
+        // The syntax-directed operation BoundNames takes no arguments and returns a List of Strings.
+        match self {
+            ForInOfLHSExpr::LeftHandSideExpression(_) => todo!(),
+            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
+            ForInOfLHSExpr::ForBinding(fb) => fb.bound_names(),
+            ForInOfLHSExpr::ForDeclaration(fd) => fd.bound_names(),
+        }
     }
 }
 
@@ -4593,6 +4604,7 @@ impl ForInOfStatement {
         // --- if !destructuring && lhsKind == lexicalBinding
         //   STRING lhs.bound_names()[0]              name value iter_record v
         //   RESOLVE/STRICT_RESOLVE                   ref value iter_record v
+        //   SWAP                                     value ref iter_record v
         //   IRB                                      status iter_record v
         // ---
         //   JUMP_IF_NORMAL statements                err iter_record v
@@ -4688,7 +4700,7 @@ impl ForInOfStatement {
             }
             (_, LHSKind::LexicalBinding) => {
                 chunk.op(Insn::PushNewLexEnv);
-                lhs.for_declaration_binding_instantiation(chunk, strict, text)?;
+                lhs.for_declaration_binding_instantiation(chunk)?;
                 if destructuring {
                     lhs.for_declaration_binding_initialization(chunk, strict, text)?;
                 } else {
@@ -4699,6 +4711,7 @@ impl ForInOfStatement {
                         true => Insn::StrictResolve,
                         false => Insn::Resolve,
                     });
+                    chunk.op(Insn::Swap);
                     chunk.op(Insn::InitializeReferencedBinding);
                 }
             }
@@ -4790,117 +4803,91 @@ impl ForInOfStatement {
         // The syntax-directed operation ForInOfLoopEvaluation takes argument labelSet (a List of Strings) and
         // returns either a normal completion containing an ECMAScript language value or an abrupt completion.
         // It is defined piecewise over the following productions:
-        match self {
+        let (lhs, iterator_kind, iteration_kind, exp, stmt) = match self {
             ForInOfStatement::In(lhs, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
                 //     enumerate, assignment, labelSet).
-
-                // start:
-                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
-                //   JUMP_IF_ABRUPT exit
-                //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
-                // exit:
-                let head_status =
-                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
-                let mut exit = None;
-                if head_status.maybe_abrupt() {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
-                let body_status = Self::for_in_of_body_evaluation(
-                    chunk,
-                    strict,
-                    text,
-                    lhs.into(),
-                    stmt,
-                    IterationKind::Enumerate,
-                    LHSKind::Assignment,
-                    label_set,
-                    IteratorKind::Sync,
-                )?;
-                if let Some(exit) = exit {
-                    chunk.fixup(exit)?;
-                }
-                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+                (lhs.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::DestructuringIn(ap, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
                 //     enumerate, assignment, labelSet).
-
-                // start:
-                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
-                //   JUMP_IF_ABRUPT exit
-                //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
-                // exit:
-                let head_status =
-                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
-                let mut exit = None;
-                if head_status.maybe_abrupt() {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
-                let body_status = Self::for_in_of_body_evaluation(
-                    chunk,
-                    strict,
-                    text,
-                    ap.into(),
-                    stmt,
-                    IterationKind::Enumerate,
-                    LHSKind::Assignment,
-                    label_set,
-                    IteratorKind::Sync,
-                )?;
-                if let Some(exit) = exit {
-                    chunk.fixup(exit)?;
-                }
-                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+                (ap.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::VarIn(fb, exp, stmt, _) => {
                 // ForInOfStatement : for ( var ForBinding in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(ForBinding, Statement, keyResult, enumerate, varBinding,
                 //     labelSet).
-
-                // start:
-                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
-                //   JUMP_IF_ABRUPT exit
-                //   <body_eval(fb, stmt, ENUMERATE, VARBINDING, label_set)
-                // exit:
-
-                let head_status =
-                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
-                let mut exit = None;
-                if head_status.maybe_abrupt() {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
-                let body_status = Self::for_in_of_body_evaluation(
-                    chunk,
-                    strict,
-                    text,
-                    fb.into(),
-                    stmt,
-                    IterationKind::Enumerate,
-                    LHSKind::VarBinding,
-                    label_set,
-                    IteratorKind::Sync,
-                )?;
-                if let Some(exit) = exit {
-                    chunk.fixup(exit)?;
-                }
-                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+                (fb.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
-            ForInOfStatement::LexIn(_, _, _, _) => todo!(),
-            ForInOfStatement::Of(_, _, _, _) => todo!(),
-            ForInOfStatement::DestructuringOf(_, _, _, _) => todo!(),
-            ForInOfStatement::VarOf(_, _, _, _) => todo!(),
-            ForInOfStatement::LexOf(_, _, _, _) => todo!(),
+            ForInOfStatement::LexIn(fd, exp, stmt, _) => {
+                // ForInOfStatement : for ( ForDeclaration in Expression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(BoundNames of ForDeclaration, Expression, enumerate).
+                //  2. Return ? ForIn/OfBodyEvaluation(ForDeclaration, Statement, keyResult, enumerate, lexicalBinding,
+                //     labelSet).
+                (ForInOfLHSExpr::from(fd), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
+            }
+            ForInOfStatement::Of(lhs, exp, stmt, _) => {
+                // ForInOfStatement : for ( LeftHandSideExpression of AssignmentExpression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », AssignmentExpression, iterate).
+                //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult, iterate,
+                //     assignment, labelSet).
+                (lhs.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+            }
+            ForInOfStatement::DestructuringOf(lhs, exp, stmt, _) => {
+                // ForInOfStatement : for ( LeftHandSideExpression of AssignmentExpression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », AssignmentExpression, iterate).
+                //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult, iterate,
+                //     assignment, labelSet).
+                (lhs.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+            }
+            ForInOfStatement::VarOf(fb, exp, stmt, _) => {
+                (fb.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+            }
+            ForInOfStatement::LexOf(fd, exp, stmt, _) => {
+                (fd.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+            }
             ForInOfStatement::AwaitOf(_, _, _, _) => todo!(),
             ForInOfStatement::DestructuringAwaitOf(_, _, _, _) => todo!(),
             ForInOfStatement::AwaitVarOf(_, _, _, _) => todo!(),
             ForInOfStatement::AwaitLexOf(_, _, _, _) => todo!(),
+        };
+        // start:
+        //   <head_eval([], exp, ENUMERATE)>        keyresult/err
+        //   JUMP_IF_ABRUPT exit
+        //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
+        // exit:
+        let head_status = Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp, iteration_kind)?;
+        let mut exit = None;
+        if head_status.maybe_abrupt() {
+            exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }
+        let lhs_kind = match lhs {
+            ForInOfLHSExpr::LeftHandSideExpression(_) => LHSKind::Assignment,
+            ForInOfLHSExpr::AssignmentPattern(_) => LHSKind::Assignment,
+            ForInOfLHSExpr::ForBinding(_) => LHSKind::VarBinding,
+            ForInOfLHSExpr::ForDeclaration(_) => LHSKind::LexicalBinding,
+        };
+        let body_status = Self::for_in_of_body_evaluation(
+            chunk,
+            strict,
+            text,
+            lhs,
+            stmt,
+            iteration_kind,
+            lhs_kind,
+            label_set,
+            iterator_kind,
+        )?;
+        if let Some(exit) = exit {
+            chunk.fixup(exit)?;
+        }
+        Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
     }
 }
 
@@ -4940,6 +4927,32 @@ impl ForBinding {
                 pat.compile_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
             }
         }
+    }
+}
+
+impl ForDeclaration {
+    fn for_declaration_binding_instantiation(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        // Runtime Semantics: ForDeclarationBindingInstantiation
+        // The syntax-directed operation ForDeclarationBindingInstantiation takes argument environment (a Declarative
+        // Environment Record) and returns unused. It is defined piecewise over the following productions:
+
+        // ForDeclaration : LetOrConst ForBinding
+        //  1. For each element name of the BoundNames of ForBinding, do
+        //      a. If IsConstantDeclaration of LetOrConst is true, then
+        //          i. Perform ! environment.CreateImmutableBinding(name, true).
+        //      b. Else,
+        //          i. Perform ! environment.CreateMutableBinding(name, false).
+        //  2. Return unused.
+        let insn = match self.loc.is_constant_declaration() {
+            true => Insn::CreateStrictImmutableLexBinding,
+            false => Insn::CreatePermanentMutableLexBinding,
+        };
+        for name_val in self.binding.bound_names() {
+            let name = chunk.add_to_string_pool(name_val)?;
+            chunk.op_plus_arg(insn, name);
+        }
+
+        Ok(NeverAbruptRefResult)
     }
 }
 

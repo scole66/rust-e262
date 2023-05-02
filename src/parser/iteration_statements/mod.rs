@@ -1579,8 +1579,8 @@ where
 //      LetOrConst ForBinding[?Yield, ?Await]
 #[derive(Debug)]
 pub struct ForDeclaration {
-    loc: LetOrConst,
-    binding: Rc<ForBinding>,
+    pub loc: LetOrConst,
+    pub binding: Rc<ForBinding>,
     location: Location,
 }
 
