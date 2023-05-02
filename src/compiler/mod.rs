@@ -4819,7 +4819,39 @@ impl ForInOfStatement {
                 }
                 Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
             }
-            ForInOfStatement::DestructuringIn(_, _, _, _) => todo!(),
+            ForInOfStatement::DestructuringIn(ap, exp, stmt, _) => {
+                // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
+                //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
+                //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
+                //     enumerate, assignment, labelSet).
+
+                // start:
+                //   <head_eval([], exp, ENUMERATE)>        keyresult/err
+                //   JUMP_IF_ABRUPT exit
+                //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
+                // exit:
+                let head_status =
+                    Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp.into(), IterationKind::Enumerate)?;
+                let mut exit = None;
+                if head_status.maybe_abrupt() {
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let body_status = Self::for_in_of_body_evaluation(
+                    chunk,
+                    strict,
+                    text,
+                    ap.into(),
+                    stmt,
+                    IterationKind::Enumerate,
+                    LHSKind::Assignment,
+                    label_set,
+                    IteratorKind::Sync,
+                )?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+            }
             ForInOfStatement::VarIn(_, _, _, _) => todo!(),
             ForInOfStatement::LexIn(_, _, _, _) => todo!(),
             ForInOfStatement::Of(_, _, _, _) => todo!(),

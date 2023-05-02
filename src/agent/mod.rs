@@ -2080,13 +2080,58 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec_push(rval.map(NormalCompletion::from));
                 }
                 Insn::IteratorNext => {
-                    todo!()
+                    // This instruction handles the steps that look like:
+                    //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+                    //  2. If nextResult is not an Object, throw a TypeError exception.
+                    //
+                    // Input on stack: iteratorRecord
+                    // Output:         nextResult/err iteratorRecord
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("there should be an argument")
+                        .expect("iterator arg should not be an error")
+                        .try_into()
+                        .expect("arg should be an iterator record");
+                    let next_method = ECMAScriptValue::from(ir.next_method.clone());
+                    let iterator = ECMAScriptValue::from(ir.iterator.clone());
+                    let next_result = call(&next_method, &iterator, &[]);
+
+                    let result = match next_result {
+                        Ok(val) => match val {
+                            ECMAScriptValue::Object(_) => Ok(val),
+                            _ => Err(create_type_error("Iterator Result must be an object")),
+                        },
+                        Err(_) => next_result,
+                    };
+                    ec_push(Ok(NormalCompletion::from(ir)));
+                    ec_push(result.map(NormalCompletion::from));
                 }
                 Insn::IteratorResultComplete => {
-                    todo!()
+                    // This instruction handles the steps that look like:
+                    //  1. Let done be ? IteratorComplete(nextResult).
+                    //
+                    // Input on stack: nextResult (an iterator result object)
+                    // Output: done/err nextResult (the result is not consumed)
+
+                    let next_result = Object::try_from(
+                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
+                    )
+                    .expect("and should be an object");
+                    let done = iterator_complete(&next_result);
+                    ec_push(Ok(next_result.into()));
+                    ec_push(done.map(NormalCompletion::from));
                 }
                 Insn::IteratorResultToValue => {
-                    todo!()
+                    // This instruction handles the steps that look like:
+                    //  1. Let nextValue be ? IteratorValue(nextResult).
+                    //
+                    // Input on stack: nextResult (an iterator result object)
+                    // Output: value/err (the nextResult is consumed)
+                    let next_result = Object::try_from(
+                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
+                    )
+                    .expect("and should be an object");
+                    let value = iterator_value(&next_result);
+                    ec_push(value.map(NormalCompletion::from));
                 }
                 Insn::GetV => {
                     // input: key, base
@@ -3328,6 +3373,9 @@ impl ObjectInterface for ForInIteratorObject {
     }
     fn id(&self) -> usize {
         self.common.borrow().objid
+    }
+    fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
+        Some(self)
     }
 
     // [[GetPrototypeOf]] ( )
