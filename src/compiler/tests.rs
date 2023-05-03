@@ -4092,7 +4092,53 @@ mod iteration_statement {
         "COALESCE",
         "JUMP -4"
     ]), false, false)); "for stmt")]
-    #[test_case("for(a in b);", &[], true, None => panics "not yet implemented"; "for-in stmt")]
+    #[test_case("for(a in b);", &[], true, None => Ok((svec(&[
+        "STRING 0 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "JUMP_IF_ABRUPT 53",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 44",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 39",
+        "JUMPPOP_TRUE 33",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 36",
+        "STRING 1 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 6",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "JUMP 25",
+        "UNWIND 1",
+        "JUMP -8",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -37",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 10",
+        "POP",
+        "POP",
+        "JUMP 6",
+        "UNWIND 1",
+        "UNWIND 2",
+        "UNWIND 2"
+    ]), true, false)); "for-in stmt")]
     fn loop_compile(
         src: &str,
         labels: &[&str],
@@ -8049,5 +8095,24 @@ mod object_binding_pattern {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
+    }
+}
+
+mod lhs_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(LHSKind::Assignment, LHSKind::LexicalBinding => false; "not equal")]
+    #[test_case(LHSKind::VarBinding, LHSKind::VarBinding => true; "equal")]
+    fn eq(left: LHSKind, right: LHSKind) -> bool {
+        left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = LHSKind::VarBinding;
+        let alternate = item.clone();
+        assert!(item == alternate);
     }
 }

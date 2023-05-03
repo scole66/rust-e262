@@ -4495,7 +4495,6 @@ impl ForInOfStatement {
         lhs: ForInOfLHSExpr,
         stmt: &Rc<Statement>,
         i_kind: IterationKind,
-        l_kind: LHSKind,
         label_set: &[JSString],
         iterator_kind: IteratorKind,
     ) -> anyhow::Result<AbruptResult> {
@@ -4665,6 +4664,12 @@ impl ForInOfStatement {
         // exit:
 
         let destructuring = lhs.is_destructuring();
+        let l_kind = match lhs {
+            ForInOfLHSExpr::LeftHandSideExpression(_) => LHSKind::Assignment,
+            ForInOfLHSExpr::AssignmentPattern(_) => LHSKind::Assignment,
+            ForInOfLHSExpr::ForBinding(_) => LHSKind::VarBinding,
+            ForInOfLHSExpr::ForDeclaration(_) => LHSKind::LexicalBinding,
+        };
 
         chunk.op(Insn::Undefined);
         let top = chunk.pos();
@@ -4867,23 +4872,8 @@ impl ForInOfStatement {
         if head_status.maybe_abrupt() {
             exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }
-        let lhs_kind = match lhs {
-            ForInOfLHSExpr::LeftHandSideExpression(_) => LHSKind::Assignment,
-            ForInOfLHSExpr::AssignmentPattern(_) => LHSKind::Assignment,
-            ForInOfLHSExpr::ForBinding(_) => LHSKind::VarBinding,
-            ForInOfLHSExpr::ForDeclaration(_) => LHSKind::LexicalBinding,
-        };
-        let body_status = Self::for_in_of_body_evaluation(
-            chunk,
-            strict,
-            text,
-            lhs,
-            stmt,
-            iteration_kind,
-            lhs_kind,
-            label_set,
-            iterator_kind,
-        )?;
+        let body_status =
+            Self::for_in_of_body_evaluation(chunk, strict, text, lhs, stmt, iteration_kind, label_set, iterator_kind)?;
         if let Some(exit) = exit {
             chunk.fixup(exit)?;
         }
