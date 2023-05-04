@@ -5006,11 +5006,7 @@ mod binding_identifier {
         "RESOLVE"
     ]), true, true)); "non-strict await")]
     #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
-    fn compile(
-        src: &str,
-        strict: bool,
-        what: &[(Fillable, usize)],
-    ) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).yield_ok(false).await_ok(false).binding_identifier();
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict)
@@ -8156,5 +8152,23 @@ mod lhs_kind {
         let item = LHSKind::VarBinding;
         let alternate = item.clone();
         assert!(item == alternate);
+    }
+}
+
+mod for_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("let a", &[] => Ok(svec(&["CPMLB 0 (a)"])); "mutable")]
+    #[test_case("const a", &[] => Ok(svec(&["CSILB 0 (a)"])); "immutable")]
+    #[test_case("let [a,b,c]", &[] => Ok(svec(&["CPMLB 0 (a)", "CPMLB 1 (b)", "CPMLB 2 (c)"])); "multiple mutable")]
+    #[test_case("let []", &[] => Ok(svec(&[])); "no identifiers at all")]
+    #[test_case("let oops", &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    fn for_declaration_binding_instantiation(src: &str, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).for_declaration();
+        let mut c = complex_filled_chunk("x", what);
+        node.for_declaration_binding_instantiation(&mut c)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
     }
 }

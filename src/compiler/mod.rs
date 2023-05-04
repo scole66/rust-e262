@@ -4336,7 +4336,7 @@ impl<'a> ForInOfLHSExpr<'a> {
         match self {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.compile(chunk, strict, text),
             ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
-            ForInOfLHSExpr::ForBinding(fb) => fb.compile(chunk, strict, text),
+            ForInOfLHSExpr::ForBinding(fb) => fb.compile(chunk, strict),
             ForInOfLHSExpr::ForDeclaration(_) => todo!(),
         }
     }
@@ -4882,12 +4882,12 @@ impl ForInOfStatement {
 }
 
 impl ForBinding {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         // Runtime Semantics: Evaluation
         // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
         match self {
             ForBinding::Identifier(ident) => ident.compile(chunk, strict),
-            ForBinding::Pattern(pat) => pat.compile(chunk, strict, text),
+            ForBinding::Pattern(_) => panic!("Patterns not expected to compile."),
         }
     }
 
@@ -6645,14 +6645,6 @@ impl BindingPattern {
                 Ok(AlwaysAbruptResult)
             }
         }
-    }
-
-    #[allow(unused_variables)]
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        // Runtime Semantics: Evaluation
-        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
-
-        todo!()
     }
 }
 
