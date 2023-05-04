@@ -1389,6 +1389,14 @@ mod iterator_kind {
     fn eq(a: IteratorKind, b: IteratorKind) -> bool {
         a.eq(&b)
     }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let a = IteratorKind::Sync;
+        let b = a.clone();
+        assert!(a == b);
+    }
 }
 
 #[test_case(|| super::super::create_iter_result_object(ECMAScriptValue::from("test"), true) => Ok(true); "normal, done")]

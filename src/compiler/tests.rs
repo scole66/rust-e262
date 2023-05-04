@@ -4988,6 +4988,41 @@ mod binding_identifier {
             })
             .map_err(|e| e.to_string())
     }
+
+    #[test_case("a", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE"
+    ]), true, true)); "strict identifier")]
+    #[test_case("a", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE"
+    ]), true, true)); "non-strict identifier")]
+    #[test_case("yield", false, &[] => Ok((svec(&[
+        "STRING 0 (yield)",
+        "RESOLVE"
+    ]), true, true)); "non-strict yield")]
+    #[test_case("await", false, &[] => Ok((svec(&[
+        "STRING 0 (await)",
+        "RESOLVE"
+    ]), true, true)); "non-strict await")]
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    fn compile(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).yield_ok(false).await_ok(false).binding_identifier();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
 }
 
 mod binding_element {
