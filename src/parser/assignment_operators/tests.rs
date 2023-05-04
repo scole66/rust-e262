@@ -704,6 +704,11 @@ mod assignment_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).assignment_pattern().location()
     }
+
+    #[test_case("[]" => true; "is a pattern")]
+    fn is_destructuring(src: &str) -> bool {
+        Maker::new(src).assignment_pattern().is_destructuring()
+    }
 }
 
 mod object_assignment_pattern {

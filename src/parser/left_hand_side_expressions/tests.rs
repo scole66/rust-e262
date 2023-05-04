@@ -498,6 +498,20 @@ mod member_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).member_expression().location()
     }
+
+    #[test_case("[a]" => true; "ArrayLiteral")]
+    #[test_case("{a}" => true; "ObjectLiteral")]
+    #[test_case("1" => false; "other literal")]
+    #[test_case("a[1]" => false; "MemberExpression [ Expression ]")]
+    #[test_case("a.b" => false; "MemberExpression . IdentifierName")]
+    #[test_case("a`${b}`" => false; "template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta")]
+    #[test_case("new a(b)" => false; "new me")]
+    #[test_case("a.#b" => false; "private id")]
+    fn is_destructuring(src: &str) -> bool {
+        Maker::new(src).member_expression().is_destructuring()
+    }
 }
 
 // SUPER PROPERTY
@@ -1262,6 +1276,13 @@ mod new_expression {
     #[test_case("new a" => None; "other new expr")]
     fn identifier_ref(src: &str) -> Option<String> {
         Maker::new(src).new_expression().identifier_ref().map(|id| id.to_string())
+    }
+
+    #[test_case("1" => false; "literal")]
+    #[test_case("new a" => false; "other new expr")]
+    #[test_case("[a]" => true; "destructuring")]
+    fn is_destructuring(src: &str) -> bool {
+        Maker::new(src).new_expression().is_destructuring()
     }
 }
 
@@ -2862,5 +2883,13 @@ mod left_hand_side_expression {
     #[test_case("function bob(){}" => true; "function")]
     fn is_named_function(src: &str) -> bool {
         Maker::new(src).left_hand_side_expression().is_named_function()
+    }
+
+    #[test_case("1" => false; "literal")]
+    #[test_case("[a]" => true; "destructuring")]
+    #[test_case("a()" => false; "call expression")]
+    #[test_case("a?.b" => false; "optional expression")]
+    fn is_destructuring(src: &str) -> bool {
+        Maker::new(src).left_hand_side_expression().is_destructuring()
     }
 }
