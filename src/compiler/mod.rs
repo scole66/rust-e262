@@ -3098,7 +3098,6 @@ impl ConditionalExpression {
 }
 
 impl AssignmentExpression {
-    #[allow(unused_assignments)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict, text),
@@ -3252,10 +3251,98 @@ impl AssignmentExpression {
             AssignmentExpression::LandAssignment(_, _) => todo!(),
             AssignmentExpression::LorAssignment(_, _) => todo!(),
             AssignmentExpression::CoalAssignment(_, _) => todo!(),
-            AssignmentExpression::Destructuring(_, _) => todo!(),
+            AssignmentExpression::Destructuring(ap, ae) => {
+                //  2. Let assignmentPattern be the AssignmentPattern that is covered by LeftHandSideExpression.
+                //  3. Let rref be ? Evaluation of AssignmentExpression.
+                //  4. Let rval be ? GetValue(rref).
+                //  5. Perform ? DestructuringAssignmentEvaluation of assignmentPattern with argument rval.
+                //  6. Return rval.
+
+                // start:
+                //   <ae.evaluate>           rref/err
+                //   GET_VALUE               rval/err
+                //   JUMP_IF_ABRUPT exit     rval
+                //   <ap.destructuring_assignment_evaluation>  val/err
+                // exit:
+                let expr_status = ae.compile(chunk, strict, text)?;
+                let mut exit = None;
+                if expr_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let pattern_status = ap.destructuring_assignment_evaluation(chunk, strict, text)?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok(CompilerStatusFlags::new()
+                    .abrupt(expr_status.maybe_abrupt() || expr_status.maybe_ref() || pattern_status.maybe_abrupt()))
+            }
         }
     }
 }
+
+impl AssignmentPattern {
+    fn destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: DestructuringAssignmentEvaluation
+        // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
+        // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
+        // piecewise over the following productions:
+        match self {
+            AssignmentPattern::Object(oap) => oap.destructuring_assignment_evaluation(chunk, strict, text),
+            AssignmentPattern::Array(aap) => aap.destructuring_assignment_evaluation(chunk, strict, text),
+        }
+    }
+}
+
+impl ObjectAssignmentPattern {
+    #[allow(unused_variables)]
+    fn destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: DestructuringAssignmentEvaluation
+        // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
+        // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
+        // piecewise over the following productions:
+        match self {
+            ObjectAssignmentPattern::Empty { .. } => todo!(),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => todo!(),
+            ObjectAssignmentPattern::ListOnly { apl, .. } |
+            ObjectAssignmentPattern::ListRest { apl, arp: None, .. }=> todo!(),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => todo!(),
+        }
+    }
+}
+
+impl ArrayAssignmentPattern {
+    #[allow(unused_variables)]
+    fn destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: DestructuringAssignmentEvaluation
+        // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
+        // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
+        // piecewise over the following productions:
+        match self {
+            ArrayAssignmentPattern::RestOnly { elision, are, location } => todo!(),
+            ArrayAssignmentPattern::ListOnly { ael, location } => todo!(),
+            ArrayAssignmentPattern::ListRest { ael, elision, are, location } => todo!(),
+        }
+    }
+}
+
 
 impl Expression {
     #[allow(unused_variables)]
