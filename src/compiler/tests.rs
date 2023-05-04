@@ -28,6 +28,7 @@ mod insn {
     #[test_case(Insn::JumpIfFalse => "JUMP_IF_FALSE"; "JumpIfFalse instruction")]
     #[test_case(Insn::JumpIfTrue => "JUMP_IF_TRUE"; "JumpIfTrue instruction")]
     #[test_case(Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH"; "JumpIfNotNullish instruction")]
+    #[test_case(Insn::JumpIfNullish => "JUMP_NULLISH"; "JumpIfNullish instruction")]
     #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty instruction")]
     #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
     #[test_case(Insn::Zero => "ZERO"; "Zero instruction")]
@@ -148,6 +149,12 @@ mod insn {
     #[test_case(Insn::IteratorDAEElision => "IDAE_ELISION"; "IteratorDAEElision instruction")]
     #[test_case(Insn::EmbellishedIteratorStep => "ITER_STEP"; "EmbellishedIteratorStep instruction")]
     #[test_case(Insn::IteratorRest => "ITER_REST"; "IteratorRest instruction")]
+    #[test_case(Insn::ToObject => "TO_OBJECT"; "ToObject instruction")]
+    #[test_case(Insn::IteratorClose => "ITER_CLOSE"; "IteratorClose instruction")]
+    #[test_case(Insn::IteratorNext => "ITER_NEXT"; "IteratorNext instruction")]
+    #[test_case(Insn::IteratorResultComplete => "IRES_COMPLETE"; "IteratorResultComplete instruction")]
+    #[test_case(Insn::IteratorResultToValue => "IRES_TOVAL"; "IteratorResultToValue instruction")]
+    #[test_case(Insn::EnumerateObjectProperties => "ENUM_PROPS"; "EnumerateObjectProperties instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
