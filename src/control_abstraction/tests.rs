@@ -1,7 +1,6 @@
 use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
-use ahash::AHashMap;
 use test_case::test_case; // todo move svec to top level test utils
 
 #[test]

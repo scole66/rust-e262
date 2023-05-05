@@ -76,61 +76,114 @@ fn intrinsic_id_clone() {
     assert_eq!(id1, id2);
 }
 
-#[test]
-fn intrinsics_debug() {
-    setup_test_agent();
-    assert_ne!(format!("{:?}", Intrinsics::new()), "")
-}
+mod intrinsics {
+    use super::*;
+    use test_case::test_case;
 
-#[test]
-fn intrinsics_get() {
-    setup_test_agent();
-    let realm_ptr = current_realm_record().unwrap();
-    let realm = realm_ptr.borrow();
-    let intrinsics = &realm.intrinsics;
-    assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
-    assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
-    assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
-    assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
-    assert_eq!(intrinsics.get(IntrinsicId::ErrorPrototype), intrinsics.error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
-    assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::Function), intrinsics.function);
-    assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::IteratorPrototype), intrinsics.iterator_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunction), intrinsics.generator_function);
-    assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunctionPrototype), intrinsics.generator_function_prototype);
-    assert_eq!(
-        intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototype),
-        intrinsics.generator_function_prototype_prototype
-    );
-    assert_eq!(
-        intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
-        intrinsics.generator_function_prototype_prototype_next
-    );
-    assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
-    assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
-    assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototypeToString), intrinsics.object_prototype_to_string);
-    assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);
-    assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
-    assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::String), intrinsics.string);
-    assert_eq!(intrinsics.get(IntrinsicId::StringPrototype), intrinsics.string_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
-    assert_eq!(intrinsics.get(IntrinsicId::SymbolPrototype), intrinsics.symbol_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::SyntaxError), intrinsics.syntax_error);
-    assert_eq!(intrinsics.get(IntrinsicId::SyntaxErrorPrototype), intrinsics.syntax_error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::ThrowTypeError), intrinsics.throw_type_error);
-    assert_eq!(intrinsics.get(IntrinsicId::TypeError), intrinsics.type_error);
-    assert_eq!(intrinsics.get(IntrinsicId::TypeErrorPrototype), intrinsics.type_error_prototype);
-    assert_eq!(intrinsics.get(IntrinsicId::URIError), intrinsics.uri_error);
-    assert_eq!(intrinsics.get(IntrinsicId::URIErrorPrototype), intrinsics.uri_error_prototype);
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        assert_ne!(format!("{:?}", Intrinsics::new()), "")
+    }
+
+    #[test]
+    fn get() {
+        setup_test_agent();
+        let realm_ptr = current_realm_record().unwrap();
+        let realm = realm_ptr.borrow();
+        let intrinsics = &realm.intrinsics;
+        assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
+        assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
+        assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
+        assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
+        assert_eq!(intrinsics.get(IntrinsicId::ErrorPrototype), intrinsics.error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
+        assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::ForInIteratorPrototype), intrinsics.for_in_iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Function), intrinsics.function);
+        assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::IteratorPrototype), intrinsics.iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunction), intrinsics.generator_function);
+        assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunctionPrototype), intrinsics.generator_function_prototype);
+        assert_eq!(
+            intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototype),
+            intrinsics.generator_function_prototype_prototype
+        );
+        assert_eq!(
+            intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+            intrinsics.generator_function_prototype_prototype_next
+        );
+        assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
+        assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
+        assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototypeToString), intrinsics.object_prototype_to_string);
+        assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);
+        assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
+        assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::String), intrinsics.string);
+        assert_eq!(intrinsics.get(IntrinsicId::StringPrototype), intrinsics.string_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
+        assert_eq!(intrinsics.get(IntrinsicId::SymbolPrototype), intrinsics.symbol_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::SyntaxError), intrinsics.syntax_error);
+        assert_eq!(intrinsics.get(IntrinsicId::SyntaxErrorPrototype), intrinsics.syntax_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::ThrowTypeError), intrinsics.throw_type_error);
+        assert_eq!(intrinsics.get(IntrinsicId::TypeError), intrinsics.type_error);
+        assert_eq!(intrinsics.get(IntrinsicId::TypeErrorPrototype), intrinsics.type_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::URIError), intrinsics.uri_error);
+        assert_eq!(intrinsics.get(IntrinsicId::URIErrorPrototype), intrinsics.uri_error_prototype);
+    }
+
+    #[test_case(|| intrinsic(IntrinsicId::Array) => Some(IntrinsicId::Array); "id: Array")]
+    #[test_case(|| intrinsic(IntrinsicId::ArrayPrototype) => Some(IntrinsicId::ArrayPrototype); "id: ArrayPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::ArrayPrototypeValues) => Some(IntrinsicId::ArrayPrototypeValues); "id: ArrayPrototypeValues")]
+    #[test_case(|| intrinsic(IntrinsicId::ArrayIteratorPrototype) => Some(IntrinsicId::ArrayIteratorPrototype); "id: ArrayIteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Boolean) => Some(IntrinsicId::Boolean); "id: Boolean")]
+    #[test_case(|| intrinsic(IntrinsicId::BooleanPrototype) => Some(IntrinsicId::BooleanPrototype); "id: BooleanPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Error) => Some(IntrinsicId::Error); "id: Error")]
+    #[test_case(|| intrinsic(IntrinsicId::ErrorPrototype) => Some(IntrinsicId::ErrorPrototype); "id: ErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::EvalError) => Some(IntrinsicId::EvalError); "id: EvalError")]
+    #[test_case(|| intrinsic(IntrinsicId::EvalErrorPrototype) => Some(IntrinsicId::EvalErrorPrototype); "id: EvalErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::ForInIteratorPrototype) => Some(IntrinsicId::ForInIteratorPrototype); "id: ForInIteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Function) => Some(IntrinsicId::Function); "id: Function")]
+    #[test_case(|| intrinsic(IntrinsicId::FunctionPrototype) => Some(IntrinsicId::FunctionPrototype); "id: FunctionPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::IteratorPrototype) => Some(IntrinsicId::IteratorPrototype); "id: IteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::GeneratorFunction) => Some(IntrinsicId::GeneratorFunction); "id: GeneratorFunction")]
+    #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototype) => Some(IntrinsicId::GeneratorFunctionPrototype); "id: GeneratorFunctionPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype) => Some(IntrinsicId::GeneratorFunctionPrototypePrototype); "id: GeneratorFunctionPrototypePrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext) => Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext); "id: GeneratorFunctionPrototypePrototypeNext")]
+    #[test_case(|| intrinsic(IntrinsicId::Number) => Some(IntrinsicId::Number); "id: Number")]
+    #[test_case(|| intrinsic(IntrinsicId::NumberPrototype) => Some(IntrinsicId::NumberPrototype); "id: NumberPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Object) => Some(IntrinsicId::Object); "id: Object")]
+    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype) => Some(IntrinsicId::ObjectPrototype); "id: ObjectPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototypeToString) => Some(IntrinsicId::ObjectPrototypeToString); "id: ObjectPrototypeToString")]
+    #[test_case(|| intrinsic(IntrinsicId::RangeError) => Some(IntrinsicId::RangeError); "id: RangeError")]
+    #[test_case(|| intrinsic(IntrinsicId::RangeErrorPrototype) => Some(IntrinsicId::RangeErrorPrototype); "id: RangeErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::ReferenceError) => Some(IntrinsicId::ReferenceError); "id: ReferenceError")]
+    #[test_case(|| intrinsic(IntrinsicId::ReferenceErrorPrototype) => Some(IntrinsicId::ReferenceErrorPrototype); "id: ReferenceErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::String) => Some(IntrinsicId::String); "id: String")]
+    #[test_case(|| intrinsic(IntrinsicId::StringPrototype) => Some(IntrinsicId::StringPrototype); "id: StringPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Symbol) => Some(IntrinsicId::Symbol); "id: Symbol")]
+    #[test_case(|| intrinsic(IntrinsicId::SymbolPrototype) => Some(IntrinsicId::SymbolPrototype); "id: SymbolPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::SyntaxError) => Some(IntrinsicId::SyntaxError); "id: SyntaxError")]
+    #[test_case(|| intrinsic(IntrinsicId::SyntaxErrorPrototype) => Some(IntrinsicId::SyntaxErrorPrototype); "id: SyntaxErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::ThrowTypeError) => Some(IntrinsicId::ThrowTypeError); "id: ThrowTypeError")]
+    #[test_case(|| intrinsic(IntrinsicId::TypeError) => Some(IntrinsicId::TypeError); "id: TypeError")]
+    #[test_case(|| intrinsic(IntrinsicId::TypeErrorPrototype) => Some(IntrinsicId::TypeErrorPrototype); "id: TypeErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::URIError) => Some(IntrinsicId::URIError); "id: URIError")]
+    #[test_case(|| intrinsic(IntrinsicId::URIErrorPrototype) => Some(IntrinsicId::URIErrorPrototype); "id: URIErrorPrototype")]
+    #[test_case(|| ordinary_object_create(None, &[]) => None; "not an intrinsic")]
+    fn which(make_object: fn() -> Object) -> Option<IntrinsicId> {
+        setup_test_agent();
+        let obj = make_object();
+        let realm_ref = current_realm_record().unwrap();
+        let realm = realm_ref.borrow();
+        realm.intrinsics.which(&obj)
+    }
 }
 
 #[test]

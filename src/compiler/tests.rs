@@ -8220,7 +8220,43 @@ mod for_binding {
         "UNWIND 1",
         "EMPTY_IF_NOT_ERR",
         "ITER_CLOSE_IF_NOT_DONE"
-    ]), true)); "pattern, non-strict, lexical")]
+    ]), true)); "pattern, strict, lexical")]
+    #[test_case("[a,b]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 45",
+        "DUP",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ]), true)); "pattern, non-strict, putvalue")]
+    #[test_case("a", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "err from id compile")]
+    #[test_case("[a]", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "err from pattern compile")]
     fn binding_initialization(
         src: &str,
         strict: bool,
@@ -8232,6 +8268,24 @@ mod for_binding {
         node.binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("a", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true)); "strict ident")]
+    #[test_case("a", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE"]), true, true)); "non-strict ident")]
+    #[test_case("[a]", false, &[] => panics "Patterns not expected to compile."; "pattern")]
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "id compile fails")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).for_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
             })
             .map_err(|e| e.to_string())
     }

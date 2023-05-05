@@ -1577,3 +1577,74 @@ mod begin_call_evaluation {
         ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
     }
 }
+
+mod for_in_iterator_object {
+    use super::*;
+
+    #[test]
+    fn to_for_in_iterator() {
+        setup_test_agent();
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None).unwrap();
+        let o = ForInIteratorObject::object(Some(proto), a);
+
+        assert_eq!(o.o.to_for_in_iterator().unwrap().id(), o.o.id());
+    }
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None).unwrap();
+        let o = ForInIteratorObject::object(Some(proto), a);
+        assert_ne!(format!("{o:?}"), "");
+    }
+
+    fn make() -> Object {
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None);
+        let o = ForInIteratorObject::object(Some(proto), a.unwrap());
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        o
+    }
+
+    default_uses_ordinary_get_prototype_of_test!();
+    default_get_prototype_of_test!(ForInIteratorPrototype);
+    default_set_prototype_of_test!();
+    default_is_extensible_test!();
+    default_prevent_extensions_test!();
+    default_get_own_property_test!();
+    default_define_own_property_test!();
+    default_has_property_test!();
+    default_set_test!();
+    default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
+    default_delete_test!();
+    default_own_property_keys_test!();
+    default_id_test!();
+    false_function!(is_arguments_object);
+    false_function!(is_array_object);
+    false_function!(is_boolean_object);
+    false_function!(is_callable_obj);
+    false_function!(is_date_object);
+    false_function!(is_error_object);
+    false_function!(is_generator_object);
+    false_function!(is_number_object);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
+    false_function!(is_regexp_object);
+    false_function!(is_string_object);
+    false_function!(is_symbol_object);
+    none_function!(to_arguments_object);
+    none_function!(to_array_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_builtin_function_obj);
+    none_function!(to_callable_obj);
+    none_function!(to_constructable);
+    none_function!(to_error_obj);
+    none_function!(to_function_obj);
+    none_function!(to_generator_object);
+    none_function!(to_number_obj);
+    none_function!(to_string_obj);
+    none_function!(to_symbol_obj);
+}
