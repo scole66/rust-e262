@@ -8172,3 +8172,67 @@ mod for_declaration {
             .map_err(|e| e.to_string())
     }
 }
+
+mod for_binding {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "SWAP",
+        "PUT_VALUE",
+        "POP_PANIC"
+    ]), false)); "identifier, nonstrict, putvalue")]
+    #[test_case("a", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "ILB 0 (a)"
+    ]), false)); "identifier, strict, lexical")]
+    #[test_case("[a,b]", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 45",
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ]), true)); "pattern, non-strict, lexical")]
+    fn binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).for_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.binding_initialization(&mut c, strict, src, env)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
