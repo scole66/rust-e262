@@ -8290,3 +8290,15 @@ mod for_binding {
             .map_err(|e| e.to_string())
     }
 }
+
+mod iteration_kind {
+    use super::*;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = IterationKind::Enumerate;
+        let copy = item.clone();
+        assert!(matches!(copy, IterationKind::Enumerate));
+    }
+}
