@@ -183,7 +183,6 @@ test_defs[CompilerTemplateMiddleList]="parser::primary_expressions::TemplateMidd
 test_defs[evaluate_property_access_with_expression_key]="evaluate_property_access_with_expression_key member_expression compiler"
 test_defs[evaluate_property_access_with_identifier_key]="evaluate_property_access_with_identifier_key member_expression compiler"
 test_defs[IterationKind]="IterationKind iteration_kind compiler"
-test_defs[LHSKind]="LHSKind lhs_kind compiler"
 test_defs[ForInOfExpr]="ForInOfExpr for_in_of_expr compiler"
 test_defs[ForInOfLHSExpr]="ForInOfLHSExpr for_in_of_lhs_expr compiler"
 test_defs[CompilerForInOfStatement]="parser::iteration_statements::ForInOfStatement for_in_of_statement compiler"

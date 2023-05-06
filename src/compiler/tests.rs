@@ -8136,25 +8136,6 @@ mod object_binding_pattern {
     }
 }
 
-mod lhs_kind {
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(LHSKind::Assignment, LHSKind::LexicalBinding => false; "not equal")]
-    #[test_case(LHSKind::VarBinding, LHSKind::VarBinding => true; "equal")]
-    fn eq(left: LHSKind, right: LHSKind) -> bool {
-        left == right
-    }
-
-    #[test]
-    #[allow(clippy::clone_on_copy)]
-    fn clone() {
-        let item = LHSKind::VarBinding;
-        let alternate = item.clone();
-        assert!(item == alternate);
-    }
-}
-
 mod for_declaration {
     use super::*;
     use test_case::test_case;
@@ -8300,5 +8281,132 @@ mod iteration_kind {
         let item = IterationKind::Enumerate;
         let copy = item.clone();
         assert!(matches!(copy, IterationKind::Enumerate));
+    }
+}
+
+mod for_in_of_expr {
+    use super::*;
+    use test_case::test_case;
+
+    mod from {
+        use super::*;
+
+        #[test]
+        fn assignment_expression() {
+            let ae = Maker::new("a=10").assignment_expression();
+            let fioe = ForInOfExpr::from(&ae);
+            if let ForInOfExpr::AssignmentExpression(result) = fioe {
+                assert!(Rc::ptr_eq(&ae, result));
+            } else {
+                panic!("Poorly formed ForInOfExpr");
+            }
+        }
+
+        #[test]
+        fn expression() {
+            let exp = Maker::new("89").expression();
+            let fioe = ForInOfExpr::from(&exp);
+            if let ForInOfExpr::Expression(result) = fioe {
+                assert!(Rc::ptr_eq(&exp, result));
+            } else {
+                panic!("Poorly formed ForInOfExpr");
+            }
+        }
+    }
+
+    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[]
+            => Ok((svec(&["FLOAT 0 (90)"]), false, false))
+            ; "strict, non-fallible assignment expression")]
+    #[test_case("a", &Maker::new("a").expression(), true, &[]
+            => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true))
+            ; "strict, fallible expression")]
+    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[(Fillable::Float, 0)]
+            => serr("Out of room for floats in this compilation unit")
+            ; "ae compile fails")]
+    #[test_case("a", &Maker::new("a").expression(), true, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
+            ; "expression compile fails")]
+    fn compile<'a>(
+        src: &str,
+        item: impl Into<ForInOfExpr<'a>>,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = item.into();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod for_in_of_lhs_expr {
+    use super::*;
+    use test_case::test_case;
+
+    mod from {
+        use super::*;
+
+        #[test]
+        fn left_hand_side_expression() {
+            let node = Maker::new("a").left_hand_side_expression();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::LeftHandSideExpression(lhs) = fiole {
+                assert!(Rc::ptr_eq(lhs, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn assignment_pattern() {
+            let node = Maker::new("[a]").assignment_pattern();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::AssignmentPattern(ap) = fiole {
+                assert!(Rc::ptr_eq(ap, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn for_binding() {
+            let node = Maker::new("[a]").for_binding();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::ForBinding(fb) = fiole {
+                assert!(Rc::ptr_eq(fb, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn for_declaration() {
+            let node = Maker::new("const a").for_declaration();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::ForDeclaration(fd) = fiole {
+                assert!(Rc::ptr_eq(fd, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+    }
+
+    #[test_case(&Maker::new("a").left_hand_side_expression() => false; "lhs: not destructuring")]
+    #[test_case(&Maker::new("{a}").left_hand_side_expression() => true; "lhs: destructuring")]
+    #[test_case(&Maker::new("[a]").assignment_pattern() => true; "assignment pattern")]
+    #[test_case(&Maker::new("a").for_binding() => false; "ForBinding; not destr")]
+    #[test_case(&Maker::new("[a]").for_binding() => true; "ForBinding: destructuring")]
+    #[test_case(&Maker::new("let a").for_declaration() => false; "ForDeclaration: not destructuring")]
+    #[test_case(&Maker::new("let [a]").for_declaration() => true; "ForDeclaration: destructuring")]
+    fn is_destructuring<'a>(item: impl Into<ForInOfLHSExpr<'a>>) -> bool {
+        let node = item.into();
+        node.is_destructuring()
     }
 }

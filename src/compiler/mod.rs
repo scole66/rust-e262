@@ -4230,13 +4230,6 @@ enum IterationKind {
     AsyncIterate,
 }
 
-#[derive(Copy, Clone, PartialEq)]
-enum LHSKind {
-    Assignment,
-    VarBinding,
-    LexicalBinding,
-}
-
 enum ForInOfExpr<'a> {
     Expression(&'a Rc<Expression>),
     AssignmentExpression(&'a Rc<AssignmentExpression>),
@@ -4301,75 +4294,6 @@ impl<'a> ForInOfLHSExpr<'a> {
             ForInOfLHSExpr::AssignmentPattern(ap) => ap.is_destructuring(),
             ForInOfLHSExpr::ForBinding(fb) => fb.is_destructuring(),
             ForInOfLHSExpr::ForDeclaration(fd) => fd.is_destructuring(),
-        }
-    }
-
-    #[allow(unused_variables)]
-    fn destructuring_assignment_pattern(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
-    }
-
-    #[allow(unused_variables)]
-    fn binding_initialization(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-        env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
-        match self {
-            ForInOfLHSExpr::LeftHandSideExpression(_) => todo!(),
-            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
-            ForInOfLHSExpr::ForBinding(fb) => fb.binding_initialization(chunk, strict, text, env),
-            ForInOfLHSExpr::ForDeclaration(_) => todo!(),
-        }
-    }
-    #[allow(unused_variables)]
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        // Runtime Semantics: Evaluation
-        // The syntax-directed operation Evaluation takes no arguments and returns a Completion Record.
-        match self {
-            ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.compile(chunk, strict, text),
-            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
-            ForInOfLHSExpr::ForBinding(fb) => fb.compile(chunk, strict),
-            ForInOfLHSExpr::ForDeclaration(_) => todo!(),
-        }
-    }
-    fn for_declaration_binding_instantiation(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
-        // Runtime Semantics: ForDeclarationBindingInstantiation
-        // The syntax-directed operation ForDeclarationBindingInstantiation takes argument environment (a Declarative
-        // Environment Record) and returns unused.
-        //
-        // It is defined piecewise over the following productions:
-        match self {
-            ForInOfLHSExpr::ForDeclaration(fd) => fd.for_declaration_binding_instantiation(chunk),
-            ForInOfLHSExpr::LeftHandSideExpression(_)
-            | ForInOfLHSExpr::AssignmentPattern(_)
-            | ForInOfLHSExpr::ForBinding(_) => panic!("Invalid parse node for ForDeclarationBindingInstantiation"),
-        }
-    }
-    #[allow(unused_variables)]
-    fn for_declaration_binding_initialization(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
-    }
-    fn bound_names(&self) -> Vec<JSString> {
-        // Static Semantics: BoundNames
-        // The syntax-directed operation BoundNames takes no arguments and returns a List of Strings.
-        match self {
-            ForInOfLHSExpr::LeftHandSideExpression(_) => todo!(),
-            ForInOfLHSExpr::AssignmentPattern(_) => todo!(),
-            ForInOfLHSExpr::ForBinding(fb) => fb.bound_names(),
-            ForInOfLHSExpr::ForDeclaration(fd) => fd.bound_names(),
         }
     }
 }
@@ -4664,12 +4588,6 @@ impl ForInOfStatement {
         // exit:
 
         let destructuring = lhs.is_destructuring();
-        let l_kind = match lhs {
-            ForInOfLHSExpr::LeftHandSideExpression(_) => LHSKind::Assignment,
-            ForInOfLHSExpr::AssignmentPattern(_) => LHSKind::Assignment,
-            ForInOfLHSExpr::ForBinding(_) => LHSKind::VarBinding,
-            ForInOfLHSExpr::ForDeclaration(_) => LHSKind::LexicalBinding,
-        };
 
         chunk.op(Insn::Undefined);
         let top = chunk.pos();
@@ -4688,14 +4606,25 @@ impl ForInOfStatement {
 
         let mut lhs_assignment_spots = None;
 
-        match (destructuring, l_kind) {
-            (true, LHSKind::Assignment) => {
+        match lhs {
+            ForInOfLHSExpr::AssignmentPattern(lhs) => {
+                assert!(destructuring);
                 lhs.destructuring_assignment_pattern(chunk, strict, text)?;
             }
-            (true, LHSKind::VarBinding) => {
-                lhs.binding_initialization(chunk, strict, text, EnvUsage::UsePutValue)?;
+            ForInOfLHSExpr::ForBinding(fb) => {
+                if destructuring {
+                    fb.binding_initialization(chunk, strict, text, EnvUsage::UsePutValue)?;
+                } else {
+                    fb.compile(chunk, strict)?;
+                    let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                    chunk.op(Insn::Swap);
+                    chunk.op(Insn::PutValue);
+                    let lhs_calc_done = chunk.pos();
+                    lhs_assignment_spots = Some((inner_unwind, lhs_calc_done));
+                }
             }
-            (false, LHSKind::Assignment) | (false, LHSKind::VarBinding) => {
+            ForInOfLHSExpr::LeftHandSideExpression(lhs) => {
+                assert!(!destructuring);
                 lhs.compile(chunk, strict, text)?;
                 let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Swap);
@@ -4703,7 +4632,7 @@ impl ForInOfStatement {
                 let lhs_calc_done = chunk.pos();
                 lhs_assignment_spots = Some((inner_unwind, lhs_calc_done));
             }
-            (_, LHSKind::LexicalBinding) => {
+            ForInOfLHSExpr::ForDeclaration(lhs) => {
                 chunk.op(Insn::PushNewLexEnv);
                 lhs.for_declaration_binding_instantiation(chunk)?;
                 if destructuring {
@@ -4722,7 +4651,7 @@ impl ForInOfStatement {
             }
         }
         let statements = chunk.op_jump(Insn::JumpIfNormal);
-        if l_kind == LHSKind::LexicalBinding {
+        if matches!(lhs, ForInOfLHSExpr::ForDeclaration(_)) {
             chunk.op(Insn::PopLexEnv);
         }
         let mut exits = vec![];
@@ -4754,7 +4683,7 @@ impl ForInOfStatement {
         chunk.op(Insn::Pop);
         chunk.op(Insn::Swap);
         stmt.compile(chunk, strict, text)?;
-        if l_kind == LHSKind::LexicalBinding {
+        if matches!(lhs, ForInOfLHSExpr::ForDeclaration(_)) {
             chunk.op(Insn::PopLexEnv);
         }
         let lsid = chunk.add_to_string_set_pool(label_set)?;
@@ -4943,6 +4872,28 @@ impl ForDeclaration {
         }
 
         Ok(NeverAbruptRefResult)
+    }
+
+    #[allow(unused_variables)]
+    fn for_declaration_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+}
+
+impl AssignmentPattern {
+    #[allow(unused_variables)]
+    fn destructuring_assignment_pattern(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
     }
 }
 
