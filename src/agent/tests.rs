@@ -1697,7 +1697,49 @@ mod for_in_iterator_prototype_next {
     use super::*;
     use test_case::test_case;
 
+    fn make_busy_object() -> ECMAScriptValue {
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        create_data_property_or_throw(&object_proto, "proto_prop", 67).unwrap();
+        create_data_property_or_throw(&object_proto, "masked", 0).unwrap();
+        let object = ordinary_object_create(Some(object_proto), &[]);
+        create_data_property_or_throw(&object, "on_object", 999).unwrap();
+        create_data_property_or_throw(&object, wks(WksId::ToStringTag), "TestObject").unwrap();
+        create_data_property_or_throw(&object, "masked", 99).unwrap();
+        create_for_in_iterator(object).into()
+    }
+    fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
+        Ok(vec!["one".into(), "two".into(), "three".into()])
+    }
+    fn lyingkeys() -> ECMAScriptValue {
+        let o = AdaptableObject::object(AdaptableMethods {
+            own_property_keys_override: Some(lying_ownprops),
+            ..Default::default()
+        });
+        create_for_in_iterator(o).into()
+    }
+    fn gop_failure(this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        if *key != "sequoia".into() || !to_boolean(this.get(&"primed".into(), &ECMAScriptValue::Undefined).unwrap()) {
+            Ok(ordinary_get_own_property(this, key))
+        } else {
+            Err(create_type_error("[[GetOwnProperty]] fails"))
+        }
+    }
+    fn get_own_property_failure() -> ECMAScriptValue {
+        let o = AdaptableObject::object(AdaptableMethods {
+            get_own_property_override: Some(gop_failure),
+            ..Default::default()
+        });
+        create_data_property_or_throw(&o, "sequoia", 0).unwrap();
+        create_data_property_or_throw(&o, "primed", true).unwrap();
+        create_for_in_iterator(o).into()
+    }
+
     #[test_case(|| create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
+    #[test_case(|| create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
+    #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
+    #[test_case(get_own_property_failure => serr("TypeError: [[GetOwnProperty]] fails"); "get_own_property fails")]
+    #[test_case(|| create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
     fn call(make_this: fn() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let this = make_this();
