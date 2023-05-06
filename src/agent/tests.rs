@@ -1648,3 +1648,67 @@ mod for_in_iterator_object {
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 }
+
+mod for_in_iterator_internals {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+        let item = ForInIteratorInternals {
+            object: obj,
+            object_was_visited: false,
+            visited_keys: vec![],
+            remaining_keys: vec![],
+        };
+        assert_ne!(format!("{item:?}"), "");
+    }
+}
+
+#[test]
+fn create_for_in_iterator() {
+    setup_test_agent();
+    let proto = intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(Some(proto), &[]);
+
+    let fii = super::create_for_in_iterator(obj.clone());
+    let fii_obj = fii.o.to_for_in_iterator().expect("object should be f-i iterator");
+    let internals = fii_obj.internals.borrow();
+
+    assert_eq!(internals.object, obj);
+    assert!(!internals.object_was_visited);
+    assert!(internals.visited_keys.is_empty());
+    assert!(internals.remaining_keys.is_empty());
+}
+
+#[test]
+fn provision_for_in_iterator_prototype() {
+    setup_test_agent();
+
+    let fiip = intrinsic(IntrinsicId::ForInIteratorPrototype);
+    let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
+
+    assert_eq!(fiip.o.get_prototype_of().unwrap().unwrap(), iterator_proto);
+    func_validation(fiip.o.get_own_property(&"next".into()).unwrap().unwrap(), "next", 0);
+}
+
+mod for_in_iterator_prototype_next {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    fn call(make_this: fn() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let this = make_this();
+        let mut result = vec![];
+        loop {
+            let ir = for_in_iterator_prototype_next(this.clone(), None, &[]).map_err(unwind_any_error)?;
+            let iro = Object::try_from(ir).unwrap();
+            if iterator_complete(&iro).unwrap() {
+                return Ok(result);
+            }
+            result.push(iterator_value(&iro).unwrap());
+        }
+    }
+}
