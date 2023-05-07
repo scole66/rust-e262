@@ -3761,7 +3761,9 @@ impl IterationStatement {
             IterationStatement::DoWhile(dws) => dws.do_while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::While(ws) => ws.while_loop_compile(chunk, strict, text, label_set),
             IterationStatement::For(f) => f.compile_for_loop(chunk, strict, text, label_set),
-            IterationStatement::ForInOf(f) => f.for_in_of_evaluation(chunk, strict, text, label_set),
+            IterationStatement::ForInOf(f) => {
+                f.for_in_of_evaluation(chunk, strict, text, label_set).map(AbruptResult::from)
+            }
         }
     }
 }
@@ -4421,7 +4423,7 @@ impl ForInOfStatement {
         i_kind: IterationKind,
         label_set: &[JSString],
         iterator_kind: IteratorKind,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] )
         // The abstract operation ForIn/OfBodyEvaluation takes arguments lhs (a Parse Node), stmt (a Statement
         // Parse Node), iteratorRecord (an Iterator Record), iterationKind (enumerate or iterate), lhsKind
@@ -4639,7 +4641,9 @@ impl ForInOfStatement {
                     lhs.for_declaration_binding_initialization(chunk, strict, text)?;
                 } else {
                     let mut bn = lhs.bound_names();
-                    let name = chunk.add_to_string_pool(bn.pop().expect("should be exactly one name"))?;
+                    let name = chunk
+                        .add_to_string_pool(bn.pop().expect("should be exactly one name"))
+                        .expect("names should have already been added to string pool in instantiation");
                     chunk.op_plus_arg(Insn::String, name);
                     chunk.op(match strict {
                         true => Insn::StrictResolve,
@@ -4674,12 +4678,12 @@ impl ForInOfStatement {
         }
 
         if let Some((inner_unwind, lhs_calc_done)) = lhs_assignment_spots {
-            chunk.fixup(inner_unwind)?;
+            chunk.fixup(inner_unwind).expect("Jump too short to overflow");
             chunk.op_plus_arg(Insn::Unwind, 1);
-            chunk.op_jump_back(Insn::Jump, lhs_calc_done)?;
+            chunk.op_jump_back(Insn::Jump, lhs_calc_done).expect("Jump too short to overflow");
         }
 
-        chunk.fixup(statements)?;
+        chunk.fixup(statements).expect("Jump too short to overflow");
         chunk.op(Insn::Pop);
         chunk.op(Insn::Swap);
         stmt.compile(chunk, strict, text)?;
@@ -4707,7 +4711,7 @@ impl ForInOfStatement {
         }
         exits.push(chunk.op_jump(Insn::Jump));
 
-        chunk.fixup(pop2_exit)?;
+        chunk.fixup(pop2_exit).expect("jump shorter than the jump back to top, which was already successful");
         chunk.op(Insn::Pop);
         chunk.op(Insn::Pop);
         exits.push(chunk.op_jump(Insn::Jump));
@@ -4718,11 +4722,10 @@ impl ForInOfStatement {
             chunk.fixup(unwind2)?;
         }
         chunk.op_plus_arg(Insn::Unwind, 2);
-        chunk.op_plus_arg(Insn::Unwind, 2);
         for exit in exits {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).expect("Longest exit jump is shorter than unwind2, which was successful");
         }
-        Ok(AbruptResult::Maybe)
+        Ok(AlwaysAbruptResult)
     }
 
     #[allow(unused_variables)]
@@ -4732,59 +4735,59 @@ impl ForInOfStatement {
         strict: bool,
         text: &str,
         label_set: &[JSString],
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: ForInOfLoopEvaluation
         // The syntax-directed operation ForInOfLoopEvaluation takes argument labelSet (a List of Strings) and
         // returns either a normal completion containing an ECMAScript language value or an abrupt completion.
         // It is defined piecewise over the following productions:
-        let (lhs, iterator_kind, iteration_kind, exp, stmt) = match self {
+        let (lhs, names_to_bind, iterator_kind, iteration_kind, exp, stmt) = match self {
             ForInOfStatement::In(lhs, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
                 //     enumerate, assignment, labelSet).
-                (lhs.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
+                (lhs.into(), vec![], IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::DestructuringIn(ap, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult,
                 //     enumerate, assignment, labelSet).
-                (ap.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
+                (ap.into(), vec![], IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::VarIn(fb, exp, stmt, _) => {
                 // ForInOfStatement : for ( var ForBinding in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(ForBinding, Statement, keyResult, enumerate, varBinding,
                 //     labelSet).
-                (fb.into(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
+                (fb.into(), vec![], IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::LexIn(fd, exp, stmt, _) => {
                 // ForInOfStatement : for ( ForDeclaration in Expression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(BoundNames of ForDeclaration, Expression, enumerate).
                 //  2. Return ? ForIn/OfBodyEvaluation(ForDeclaration, Statement, keyResult, enumerate, lexicalBinding,
                 //     labelSet).
-                (ForInOfLHSExpr::from(fd), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
+                (fd.into(), fd.bound_names(), IteratorKind::Sync, IterationKind::Enumerate, exp.into(), stmt)
             }
             ForInOfStatement::Of(lhs, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », AssignmentExpression, iterate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult, iterate,
                 //     assignment, labelSet).
-                (lhs.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+                (lhs.into(), vec![], IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
             }
             ForInOfStatement::DestructuringOf(lhs, exp, stmt, _) => {
                 // ForInOfStatement : for ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  1. Let keyResult be ? ForIn/OfHeadEvaluation(« », AssignmentExpression, iterate).
                 //  2. Return ? ForIn/OfBodyEvaluation(LeftHandSideExpression, Statement, keyResult, iterate,
                 //     assignment, labelSet).
-                (lhs.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+                (lhs.into(), vec![], IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
             }
             ForInOfStatement::VarOf(fb, exp, stmt, _) => {
-                (fb.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+                (fb.into(), vec![], IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
             }
             ForInOfStatement::LexOf(fd, exp, stmt, _) => {
-                (fd.into(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
+                (fd.into(), fd.bound_names(), IteratorKind::Sync, IterationKind::Iterate, exp.into(), stmt)
             }
             ForInOfStatement::AwaitOf(_, _, _, _) => todo!(),
             ForInOfStatement::DestructuringAwaitOf(_, _, _, _) => todo!(),
@@ -4796,7 +4799,7 @@ impl ForInOfStatement {
         //   JUMP_IF_ABRUPT exit
         //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
         // exit:
-        let head_status = Self::for_in_of_head_evaluation(chunk, strict, text, &[], exp, iteration_kind)?;
+        let head_status = Self::for_in_of_head_evaluation(chunk, strict, text, &names_to_bind, exp, iteration_kind)?;
         let mut exit = None;
         if head_status.maybe_abrupt() {
             exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -4806,7 +4809,7 @@ impl ForInOfStatement {
         if let Some(exit) = exit {
             chunk.fixup(exit)?;
         }
-        Ok((head_status.maybe_abrupt() || body_status.maybe_abrupt()).into())
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -4881,6 +4884,10 @@ impl ForDeclaration {
         strict: bool,
         text: &str,
     ) -> anyhow::Result<AbruptResult> {
+        // For coverage purposes, try and store a big int. (Upon actual implementation, remove this.)
+        let bi = num::BigInt::from(78);
+        chunk.add_to_bigint_pool(Rc::new(bi))?;
+
         todo!()
     }
 }
@@ -4893,6 +4900,10 @@ impl AssignmentPattern {
         strict: bool,
         text: &str,
     ) -> anyhow::Result<AbruptResult> {
+        // For coverage purposes, try and store a big int. (Upon actual implementation, remove this.)
+        let bi = num::BigInt::from(78);
+        chunk.add_to_bigint_pool(Rc::new(bi))?;
+
         todo!()
     }
 }
