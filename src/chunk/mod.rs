@@ -192,6 +192,7 @@ impl Chunk {
             | Insn::Dup
             | Insn::ToString
             | Insn::ToNumeric
+            | Insn::ToObject
             | Insn::Increment
             | Insn::Decrement
             | Insn::PreIncrement
@@ -247,11 +248,16 @@ impl Chunk {
             | Insn::IterateArguments
             | Insn::RequireCoercible
             | Insn::GetSyncIterator
+            | Insn::IteratorClose
             | Insn::IteratorCloseIfNotDone
+            | Insn::IteratorNext
+            | Insn::IteratorResultComplete
+            | Insn::IteratorResultToValue
             | Insn::GetV
             | Insn::IteratorDAEElision
             | Insn::EmbellishedIteratorStep
-            | Insn::IteratorRest => (1, format!("    {insn}")),
+            | Insn::IteratorRest
+            | Insn::EnumerateObjectProperties => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
@@ -260,6 +266,7 @@ impl Chunk {
             | Insn::JumpPopIfFalse
             | Insn::JumpPopIfTrue
             | Insn::JumpIfNotNullish
+            | Insn::JumpIfNullish
             | Insn::JumpIfNotUndef
             | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;

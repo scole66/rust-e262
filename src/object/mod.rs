@@ -1012,6 +1012,9 @@ pub trait ObjectInterface: Debug {
     fn to_string_obj(&self) -> Option<&StringObject> {
         None
     }
+    fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
@@ -1463,6 +1466,11 @@ pub enum InternalSlotName {
     PrivateMethods,
     ClassFieldInitializerName,
     IsClassConstructor,
+    // For In Iterator
+    Object,
+    ObjectWasVisited,
+    VisitedKeys,
+    RemainingKeys,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1512,6 +1520,12 @@ pub const GENERATOR_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::GeneratorState,
     InternalSlotName::GeneratorContext,
     InternalSlotName::GeneratorBrand,
+];
+pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Object,
+    InternalSlotName::ObjectWasVisited,
+    InternalSlotName::VisitedKeys,
+    InternalSlotName::RemainingKeys,
 ];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {

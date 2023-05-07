@@ -766,6 +766,8 @@ macro_rules! default_get_own_property_test {
 #[macro_export]
 macro_rules! default_define_own_property_test {
     () => {
+        use ahash::AHashMap;
+
         #[test_case::test_case(
                             PotentialPropertyDescriptor::new()
                                 .value(ECMAScriptValue::from(67))

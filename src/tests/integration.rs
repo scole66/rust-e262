@@ -459,6 +459,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 ; "handle errors in function parameter binding patterns with initializers")]
 // 4/24/2023: if an array pattern had unfinished iterators, it would fail
 #[test_case("var [] = [];" => Ok(ECMAScriptValue::Undefined); "incomplete iterators finished")]
+#[test_case("var v = 1; for (let v of [v]) ;" => serr("Thrown: ReferenceError: Binding not initialized"); "let decl doesn't see outer scope")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

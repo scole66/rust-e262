@@ -28,6 +28,7 @@ mod insn {
     #[test_case(Insn::JumpIfFalse => "JUMP_IF_FALSE"; "JumpIfFalse instruction")]
     #[test_case(Insn::JumpIfTrue => "JUMP_IF_TRUE"; "JumpIfTrue instruction")]
     #[test_case(Insn::JumpIfNotNullish => "JUMP_NOT_NULLISH"; "JumpIfNotNullish instruction")]
+    #[test_case(Insn::JumpIfNullish => "JUMP_NULLISH"; "JumpIfNullish instruction")]
     #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty instruction")]
     #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
     #[test_case(Insn::Zero => "ZERO"; "Zero instruction")]
@@ -148,6 +149,12 @@ mod insn {
     #[test_case(Insn::IteratorDAEElision => "IDAE_ELISION"; "IteratorDAEElision instruction")]
     #[test_case(Insn::EmbellishedIteratorStep => "ITER_STEP"; "EmbellishedIteratorStep instruction")]
     #[test_case(Insn::IteratorRest => "ITER_REST"; "IteratorRest instruction")]
+    #[test_case(Insn::ToObject => "TO_OBJECT"; "ToObject instruction")]
+    #[test_case(Insn::IteratorClose => "ITER_CLOSE"; "IteratorClose instruction")]
+    #[test_case(Insn::IteratorNext => "ITER_NEXT"; "IteratorNext instruction")]
+    #[test_case(Insn::IteratorResultComplete => "IRES_COMPLETE"; "IteratorResultComplete instruction")]
+    #[test_case(Insn::IteratorResultToValue => "IRES_TOVAL"; "IteratorResultToValue instruction")]
+    #[test_case(Insn::EnumerateObjectProperties => "ENUM_PROPS"; "EnumerateObjectProperties instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -4092,7 +4099,52 @@ mod iteration_statement {
         "COALESCE",
         "JUMP -4"
     ]), false, false)); "for stmt")]
-    #[test_case("for(a in b);", &[], true, None => panics "not yet implemented"; "for-in stmt")]
+    #[test_case("for(a in b);", &[], true, None => Ok((svec(&[
+        "STRING 0 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "JUMP_IF_ABRUPT 51",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 44",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 39",
+        "JUMPPOP_TRUE 33",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 36",
+        "STRING 1 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 6",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "JUMP 25",
+        "UNWIND 1",
+        "JUMP -8",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -37",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+    ]), true, false)); "for-in stmt")]
     fn loop_compile(
         src: &str,
         labels: &[&str],
@@ -4926,6 +4978,37 @@ mod binding_identifier {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile_binding_initialization(&mut c, strict, env)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("a", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE"
+    ]), true, true)); "strict identifier")]
+    #[test_case("a", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE"
+    ]), true, true)); "non-strict identifier")]
+    #[test_case("yield", false, &[] => Ok((svec(&[
+        "STRING 0 (yield)",
+        "RESOLVE"
+    ]), true, true)); "non-strict yield")]
+    #[test_case("await", false, &[] => Ok((svec(&[
+        "STRING 0 (await)",
+        "RESOLVE"
+    ]), true, true)); "non-strict await")]
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).yield_ok(false).await_ok(false).binding_identifier();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict)
             .map(|status| {
                 (
                     c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8049,5 +8132,1133 @@ mod object_binding_pattern {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
+    }
+}
+
+mod for_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("let a", &[] => Ok(svec(&["CPMLB 0 (a)"])); "mutable")]
+    #[test_case("const a", &[] => Ok(svec(&["CSILB 0 (a)"])); "immutable")]
+    #[test_case("let [a,b,c]", &[] => Ok(svec(&["CPMLB 0 (a)", "CPMLB 1 (b)", "CPMLB 2 (c)"])); "multiple mutable")]
+    #[test_case("let []", &[] => Ok(svec(&[])); "no identifiers at all")]
+    #[test_case("let oops", &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
+    fn for_declaration_binding_instantiation(src: &str, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).for_declaration();
+        let mut c = complex_filled_chunk("x", what);
+        node.for_declaration_binding_instantiation(&mut c)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("let [a,b,c]", true, &[] => panics "not yet implemented"; "pattern")]
+    #[test_case("let [a]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "temporary coverage hack")]
+    fn for_declaration_binding_initialization(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).for_declaration();
+        let mut c = complex_filled_chunk("x", what);
+        node.for_declaration_binding_initialization(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod for_binding {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "SWAP",
+        "PUT_VALUE",
+        "POP_PANIC"
+    ]), false)); "identifier, nonstrict, putvalue")]
+    #[test_case("a", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "ILB 0 (a)"
+    ]), false)); "identifier, strict, lexical")]
+    #[test_case("[a,b]", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 45",
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "IRB",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ]), true)); "pattern, strict, lexical")]
+    #[test_case("[a,b]", false, EnvUsage::UsePutValue, &[] => Ok((svec(&[
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 45",
+        "DUP",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 20",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 9",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE"
+    ]), true)); "pattern, non-strict, putvalue")]
+    #[test_case("a", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "err from id compile")]
+    #[test_case("[a]", true, EnvUsage::UsePutValue, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "err from pattern compile")]
+    fn binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).for_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.binding_initialization(&mut c, strict, src, env)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("a", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true)); "strict ident")]
+    #[test_case("a", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE"]), true, true)); "non-strict ident")]
+    #[test_case("[a]", false, &[] => panics "Patterns not expected to compile."; "pattern")]
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "id compile fails")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).for_binding();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod iteration_kind {
+    use super::*;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = IterationKind::Enumerate;
+        let copy = item.clone();
+        assert!(matches!(copy, IterationKind::Enumerate));
+    }
+}
+
+mod for_in_of_expr {
+    use super::*;
+    use test_case::test_case;
+
+    mod from {
+        use super::*;
+
+        #[test]
+        fn assignment_expression() {
+            let ae = Maker::new("a=10").assignment_expression();
+            let fioe = ForInOfExpr::from(&ae);
+            if let ForInOfExpr::AssignmentExpression(result) = fioe {
+                assert!(Rc::ptr_eq(&ae, result));
+            } else {
+                panic!("Poorly formed ForInOfExpr");
+            }
+        }
+
+        #[test]
+        fn expression() {
+            let exp = Maker::new("89").expression();
+            let fioe = ForInOfExpr::from(&exp);
+            if let ForInOfExpr::Expression(result) = fioe {
+                assert!(Rc::ptr_eq(&exp, result));
+            } else {
+                panic!("Poorly formed ForInOfExpr");
+            }
+        }
+    }
+
+    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[]
+            => Ok((svec(&["FLOAT 0 (90)"]), false, false))
+            ; "strict, non-fallible assignment expression")]
+    #[test_case("a", &Maker::new("a").expression(), true, &[]
+            => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true))
+            ; "strict, fallible expression")]
+    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[(Fillable::Float, 0)]
+            => serr("Out of room for floats in this compilation unit")
+            ; "ae compile fails")]
+    #[test_case("a", &Maker::new("a").expression(), true, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
+            ; "expression compile fails")]
+    fn compile<'a>(
+        src: &str,
+        item: impl Into<ForInOfExpr<'a>>,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool, bool), String> {
+        let node = item.into();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                    status.maybe_ref(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod for_in_of_lhs_expr {
+    use super::*;
+    use test_case::test_case;
+
+    mod from {
+        use super::*;
+
+        #[test]
+        fn left_hand_side_expression() {
+            let node = Maker::new("a").left_hand_side_expression();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::LeftHandSideExpression(lhs) = fiole {
+                assert!(Rc::ptr_eq(lhs, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn assignment_pattern() {
+            let node = Maker::new("[a]").assignment_pattern();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::AssignmentPattern(ap) = fiole {
+                assert!(Rc::ptr_eq(ap, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn for_binding() {
+            let node = Maker::new("[a]").for_binding();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::ForBinding(fb) = fiole {
+                assert!(Rc::ptr_eq(fb, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+
+        #[test]
+        fn for_declaration() {
+            let node = Maker::new("const a").for_declaration();
+            let fiole = ForInOfLHSExpr::from(&node);
+            if let ForInOfLHSExpr::ForDeclaration(fd) = fiole {
+                assert!(Rc::ptr_eq(fd, &node));
+            } else {
+                panic!("Bad conversion to ForInOfLHSExpr");
+            }
+        }
+    }
+
+    #[test_case(&Maker::new("a").left_hand_side_expression() => false; "lhs: not destructuring")]
+    #[test_case(&Maker::new("{a}").left_hand_side_expression() => true; "lhs: destructuring")]
+    #[test_case(&Maker::new("[a]").assignment_pattern() => true; "assignment pattern")]
+    #[test_case(&Maker::new("a").for_binding() => false; "ForBinding; not destr")]
+    #[test_case(&Maker::new("[a]").for_binding() => true; "ForBinding: destructuring")]
+    #[test_case(&Maker::new("let a").for_declaration() => false; "ForDeclaration: not destructuring")]
+    #[test_case(&Maker::new("let [a]").for_declaration() => true; "ForDeclaration: destructuring")]
+    fn is_destructuring<'a>(item: impl Into<ForInOfLHSExpr<'a>>) -> bool {
+        let node = item.into();
+        node.is_destructuring()
+    }
+}
+
+mod assignment_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{a}", true, &[] => panics "not yet implemented"; "anything")]
+    #[test_case("{a}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "temporary coverage hack")]
+    fn destructuring_assignment_pattern(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).assignment_pattern();
+        let mut c = complex_filled_chunk("x", what);
+        node.destructuring_assignment_pattern(&mut c, strict, src)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_ref()))
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+mod for_in_of_statement {
+    use super::*;
+    use test_case::test_case;
+
+    enum ForInOfExprKind {
+        Expression,
+        AssignmentExpression,
+    }
+    enum ForInOfExprBinding {
+        Expression(Rc<Expression>),
+        AssignmentExpression(Rc<AssignmentExpression>),
+    }
+
+    #[test_case("i=0", true, &[], ForInOfExprKind::Expression, IterationKind::Iterate, &[] => Ok((svec(&[
+        "STRING 0 (i)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (0)",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+        "JUMP_IF_ABRUPT 1",
+        "GET_SYNC_ITER"
+    ]), true)); "expression/strict/iterate")]
+    #[test_case("i", false, &[], ForInOfExprKind::AssignmentExpression, IterationKind::Enumerate, &[] => Ok((svec(&[
+        "STRING 0 (i)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK"
+    ]), true)); "ass-exp/non-strict/enumerate")]
+    #[test_case("obj", false, &["item"], ForInOfExprKind::Expression, IterationKind::Enumerate, &[] => Ok((svec(&[
+        "PNLE",
+        "CPMLB 0 (item)",
+        "STRING 1 (obj)",
+        "RESOLVE",
+        "PLE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK"
+    ]), true)); "expression/non-strict/enumerate/has_ids")]
+    #[test_case("obj", false, &["item"], ForInOfExprKind::Expression, IterationKind::Enumerate, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "has_ids + string table full")]
+    #[test_case("9n", false, &["item"], ForInOfExprKind::Expression, IterationKind::Enumerate, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "has_ids + compile fails")]
+    #[test_case("9n", false, &[], ForInOfExprKind::Expression, IterationKind::Enumerate, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "no ids + compile fails")]
+    #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::Iterate, &[] => Ok((svec(&["OBJECT", "GET_SYNC_ITER"]), true)); "infallible object/iterate")]
+    #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::Enumerate, &[] => Ok((svec(&["OBJECT", "JUMP_NULLISH 4", "TO_OBJECT", "ENUM_PROPS", "JUMP 2", "POP", "BREAK"]), false)); "infallible object/enumerate")]
+    #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::AsyncIterate, &[] => Ok((svec(&["OBJECT", "TODO"]), true)); "infallible object/async iterate")]
+    fn for_in_of_head_evaluation(
+        src: &str,
+        strict: bool,
+        names: &[&str],
+        exp: ForInOfExprKind,
+        iter: IterationKind,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let maker = Maker::new(src);
+        let binding = match exp {
+            ForInOfExprKind::Expression => ForInOfExprBinding::Expression(maker.expression()),
+            ForInOfExprKind::AssignmentExpression => {
+                ForInOfExprBinding::AssignmentExpression(maker.assignment_expression())
+            }
+        };
+        let node = match &binding {
+            ForInOfExprBinding::Expression(exp) => ForInOfExpr::from(exp),
+            ForInOfExprBinding::AssignmentExpression(ae) => ForInOfExpr::from(ae),
+        };
+        let mut c = complex_filled_chunk("x", what);
+        let uninitialized_bound_names = names.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+        ForInOfStatement::for_in_of_head_evaluation(&mut c, strict, src, &uninitialized_bound_names, node, iter)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("for (item in thing) ;", false, &[], &[] => Ok(svec(&[
+        "STRING 0 (thing)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "JUMP_IF_ABRUPT 51",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 44",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 39",
+        "JUMPPOP_TRUE 33",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 36",
+        "STRING 1 (item)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 6",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "JUMP 25",
+        "UNWIND 1",
+        "JUMP -8",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -37",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+    ])); "assignment style/non-strict")]
+    #[test_case("for (var item in thing) ;", true, &[], &[] => Ok(svec(&[
+        "STRING 0 (thing)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "JUMP_IF_ABRUPT 51",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 44",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 39",
+        "JUMPPOP_TRUE 33",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 36",
+        "STRING 1 (item)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 6",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "JUMP 25",
+        "UNWIND 1",
+        "JUMP -8",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -37",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+        ])); "var binding style/strict")]
+    #[test_case("for ([a,b,c] in thing) ;", false, &[], &[] => panics "not yet implemented"; "destructuring style/non-strict")]
+    #[test_case("for (let item in thing) ;", true, &[], &[] => Ok(svec(&[
+        "PNLE",
+        "CPMLB 0 (item)",
+        "STRING 1 (thing)",
+        "STRICT_RESOLVE",
+        "PLE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 8",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "JUMP_IF_ABRUPT 50",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 43",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 38",
+        "JUMPPOP_TRUE 32",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 35",
+        "PNLE",
+        "CPMLB 0 (item)",
+        "STRING 0 (item)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "JUMP_IF_NORMAL 3",
+        "PLE",
+        "JUMP 22",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "PLE",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -36",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+        ])); "let declaration style/strict")]
+    #[test_case("for (item of thing) ;", false, &[], &[] => Ok(svec(&[
+        "STRING 0 (thing)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 54",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 47",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 42",
+        "JUMPPOP_TRUE 36",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 39",
+        "STRING 1 (item)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 10",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 10",
+        "ROTATEUP 3",
+        "POP",
+        "ITER_CLOSE",
+        "JUMP 26",
+        "UNWIND 1",
+        "JUMP -12",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -41",
+        "UPDATE_EMPTY",
+        "ITER_CLOSE",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+        ])); "assignment style/non-strict/enumerate")]
+    #[test_case("for ([item] of thing) ;", false, &[], &[] => panics "not yet implemented"; "destructuring style/non-strict/enumerate")]
+    #[test_case("for (var item of thing) ;", true, &[], &[] => Ok(svec(&[
+        "STRING 0 (thing)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 54",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 47",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 42",
+        "JUMPPOP_TRUE 36",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 39",
+        "STRING 1 (item)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 10",
+        "SWAP",
+        "PUT_VALUE",
+        "JUMP_IF_NORMAL 10",
+        "ROTATEUP 3",
+        "POP",
+        "ITER_CLOSE",
+        "JUMP 26",
+        "UNWIND 1",
+        "JUMP -12",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -41",
+        "UPDATE_EMPTY",
+        "ITER_CLOSE",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+    ])); "var decl/strict/of-style")]
+    #[test_case("for (let item of thing) ;", true, &[], &[] => Ok(svec(&[
+        "PNLE",
+        "CPMLB 0 (item)",
+        "STRING 1 (thing)",
+        "STRICT_RESOLVE",
+        "PLE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 53",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 46",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 41",
+        "JUMPPOP_TRUE 35",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 38",
+        "PNLE",
+        "CPMLB 0 (item)",
+        "STRING 0 (item)",
+        "STRICT_RESOLVE",
+        "SWAP",
+        "IRB",
+        "JUMP_IF_NORMAL 7",
+        "PLE",
+        "ROTATEUP 3",
+        "POP",
+        "ITER_CLOSE",
+        "JUMP 23",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "PLE",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -40",
+        "UPDATE_EMPTY",
+        "ITER_CLOSE",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+    ])); "let decl/strict/of-style")]
+    #[test_case("for await (item of thing);", true, &[], &[] => panics "not yet implemented"; "await style: assignment")]
+    #[test_case("for await ([item] of thing);", true, &[], &[] => panics "not yet implemented"; "await style: destructuring")]
+    #[test_case("for await (var item of thing);", true, &[], &[] => panics "not yet implemented"; "await style: for binding")]
+    #[test_case("for await (let item of thing);", true, &[], &[] => panics "not yet implemented"; "await style: for declaration")]
+    #[test_case("for (x in 8n);", false, &[], &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "head compile fails")]
+    #[test_case("for (x in thing) 8n;", false, &[], &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "body compile fails")]
+    #[test_case("for (x in thing) @@(51);", false, &[], &[] => serr("out of range integral type conversion attempted"); "body too large")]
+    #[test_case("for (let x in {});", false, &[], &[] => Ok(svec(&[
+        "PNLE",
+        "CPMLB 0 (x)",
+        "OBJECT",
+        "PLE",
+        "JUMP_NULLISH 4",
+        "TO_OBJECT",
+        "ENUM_PROPS",
+        "JUMP 2",
+        "POP",
+        "BREAK",
+        "UNDEFINED",
+        "SWAP",
+        "ITER_NEXT",
+        "JUMP_IF_ABRUPT 43",
+        "IRES_COMPLETE",
+        "JUMP_IF_ABRUPT 38",
+        "JUMPPOP_TRUE 32",
+        "IRES_TOVAL",
+        "JUMP_IF_ABRUPT 35",
+        "PNLE",
+        "CPMLB 0 (x)",
+        "STRING 0 (x)",
+        "RESOLVE",
+        "SWAP",
+        "IRB",
+        "JUMP_IF_NORMAL 3",
+        "PLE",
+        "JUMP 22",
+        "POP",
+        "SWAP",
+        "EMPTY",
+        "PLE",
+        "LOOP_CONT []",
+        "JUMPPOP_FALSE 3",
+        "COALESCE",
+        "JUMP -36",
+        "UPDATE_EMPTY",
+        "UNWIND 1",
+        "JUMP 8",
+        "POP",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 2"
+    ])); "all infallible")]
+    fn for_in_of_evaluation(
+        src: &str,
+        strict: bool,
+        labels: &[&str],
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).for_in_of_statement();
+        let mut c = complex_filled_chunk("x", what);
+        let label_set = labels.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+        node.for_in_of_evaluation(&mut c, strict, src, &label_set)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+
+    enum LHSKind {
+        Assignment,
+        Destructuring,
+        VarBinding,
+        LexicalBinding,
+    }
+    enum LHSBinding {
+        Assignment(Rc<LeftHandSideExpression>),
+        Destructuring(Rc<AssignmentPattern>),
+        VarBinding(Rc<ForBinding>),
+        LexicalBinding(Rc<ForDeclaration>),
+    }
+
+    #[test_case("item", true, LHSKind::Assignment, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 47",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 42",
+                "JUMPPOP_TRUE 36",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 39",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 10",
+                "SWAP",
+                "PUT_VALUE",
+                "JUMP_IF_NORMAL 10",
+                "ROTATEUP 3",
+                "POP",
+                "ITER_CLOSE",
+                "JUMP 26",
+                "UNWIND 1",
+                "JUMP -12",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -41",
+                "UPDATE_EMPTY",
+                "ITER_CLOSE",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for item of / strict / sync")]
+    #[test_case("item", true, LHSKind::Assignment, ";", IterationKind::AsyncIterate, &[], IteratorKind::Async, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "TODO",
+                "JUMP_IF_ABRUPT 47",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 42",
+                "JUMPPOP_TRUE 36",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 39",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 10",
+                "SWAP",
+                "PUT_VALUE",
+                "JUMP_IF_NORMAL 10",
+                "ROTATEUP 3",
+                "POP",
+                "TODO",
+                "JUMP 26",
+                "UNWIND 1",
+                "JUMP -12",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -41",
+                "UPDATE_EMPTY",
+                "TODO",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for await item of / strict / async")]
+    #[test_case("[item]", true, LHSKind::Destructuring, ";", IterationKind::Enumerate, &[], IteratorKind::Sync, &[]
+            => panics "not yet implemented"
+            ; "for [item] in / strict / sync")]
+    #[test_case("[item]", true, LHSKind::Destructuring, ";", IterationKind::Enumerate, &[], IteratorKind::Sync, &[(Fillable::BigInt, 0)]
+            => serr("Out of room for big ints in this compilation unit")
+            ; "for [item] in / destructuring fails")]
+    #[test_case("item", true, LHSKind::VarBinding, ";", IterationKind::Enumerate, &[], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 44",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 39",
+                "JUMPPOP_TRUE 33",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 36",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 6",
+                "SWAP",
+                "PUT_VALUE",
+                "JUMP_IF_NORMAL 6",
+                "JUMP 25",
+                "UNWIND 1",
+                "JUMP -8",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -37",
+                "UPDATE_EMPTY",
+                "UNWIND 1",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for var item in / strict / sync")]
+    #[test_case("[item]", true, LHSKind::VarBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 62",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 57",
+                "JUMPPOP_TRUE 51",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 54",
+                "GET_SYNC_ITER",
+                "JUMP_IF_ABRUPT 23",
+                "DUP",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 13",
+                "SWAP",
+                "ITER_STEP",
+                "JUMP_IF_ABRUPT 9",
+                "SWAP",
+                "ROTATEDOWN 3",
+                "PUT_VALUE",
+                "JUMP_IF_ABRUPT 3",
+                "POP",
+                "JUMP 2",
+                "UNWIND 1",
+                "EMPTY_IF_NOT_ERR",
+                "ITER_CLOSE_IF_NOT_DONE",
+                "JUMP_IF_NORMAL 6",
+                "ROTATEUP 3",
+                "POP",
+                "ITER_CLOSE",
+                "JUMP 22",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -56",
+                "UPDATE_EMPTY",
+                "ITER_CLOSE",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for var [item] of / strict / sync")]
+    #[test_case("[item=8n]", true, LHSKind::VarBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::BigInt, 0)]
+            => serr("Out of room for big ints in this compilation unit")
+            ; "for var [item] of / destructuring compile fails")]
+    #[test_case("item", true, LHSKind::VarBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
+            ; "for var item of / binding compile fails")]
+    #[test_case("item", true, LHSKind::Assignment, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
+            ; "for item of / binding compile fails")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 46",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 41",
+                "JUMPPOP_TRUE 35",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 38",
+                "PNLE",
+                "CPMLB 0 (item)",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "SWAP",
+                "IRB",
+                "JUMP_IF_NORMAL 7",
+                "PLE",
+                "ROTATEUP 3",
+                "POP",
+                "ITER_CLOSE",
+                "JUMP 23",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "PLE",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -40",
+                "UPDATE_EMPTY",
+                "ITER_CLOSE",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for let item of / strict / sync")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
+            ; "for let item of / binding instantiation fails")]
+    #[test_case("let [destructure]", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => panics "not yet implemented"
+            ; "for let [destructure] of / strict / sync ")]
+    #[test_case("let [destructure]", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::BigInt, 0)]
+            => serr("Out of room for big ints in this compilation unit")
+            ; "for let [destructure] of / binding initialization fails ")] //4639
+    #[test_case("let item", false, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 46",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 41",
+                "JUMPPOP_TRUE 35",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 38",
+                "PNLE",
+                "CPMLB 0 (item)",
+                "STRING 0 (item)",
+                "RESOLVE",
+                "SWAP",
+                "IRB",
+                "JUMP_IF_NORMAL 7",
+                "PLE",
+                "ROTATEUP 3",
+                "POP",
+                "ITER_CLOSE",
+                "JUMP 23",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "PLE",
+                "LOOP_CONT []",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -40",
+                "UPDATE_EMPTY",
+                "ITER_CLOSE",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "for let item of / non-strict / sync")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, "8n;", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::BigInt, 0)]
+            => serr("Out of room for big ints in this compilation unit")
+            ; "statement compile fails")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &["lbl1", "lbl2"], IteratorKind::Sync, &[]
+            => Ok(svec(&[
+                "UNDEFINED",
+                "SWAP",
+                "ITER_NEXT",
+                "JUMP_IF_ABRUPT 46",
+                "IRES_COMPLETE",
+                "JUMP_IF_ABRUPT 41",
+                "JUMPPOP_TRUE 35",
+                "IRES_TOVAL",
+                "JUMP_IF_ABRUPT 38",
+                "PNLE",
+                "CPMLB 0 (item)",
+                "STRING 0 (item)",
+                "STRICT_RESOLVE",
+                "SWAP",
+                "IRB",
+                "JUMP_IF_NORMAL 7",
+                "PLE",
+                "ROTATEUP 3",
+                "POP",
+                "ITER_CLOSE",
+                "JUMP 23",
+                "POP",
+                "SWAP",
+                "EMPTY",
+                "PLE",
+                "LOOP_CONT [lbl1, lbl2]",
+                "JUMPPOP_FALSE 3",
+                "COALESCE",
+                "JUMP -40",
+                "UPDATE_EMPTY",
+                "ITER_CLOSE",
+                "JUMP 8",
+                "POP",
+                "POP",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 2"
+            ]))
+            ; "with legit label set")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &["lbl1", "lbl2"], IteratorKind::Sync, &[(Fillable::StringSet, 0)]
+            => serr("Out of room for string sets in this compilation unit")
+            ; "string set table full")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, "@@@;", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => serr("out of range integral type conversion attempted")
+            ; "jump back too far")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, "@@(41);", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => serr("out of range integral type conversion attempted")
+            ; "unwind3 jump too far")]
+    #[test_case("let item", true, LHSKind::LexicalBinding, "@@(46);", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
+            => serr("out of range integral type conversion attempted")
+            ; "longest unwind2 jump too far")]
+    fn for_in_of_body_evaluation(
+        lhs_src: &str,
+        strict: bool,
+        lhs_kind: LHSKind,
+        stmt_src: &str,
+        iteration_kind: IterationKind,
+        labels: &[&str],
+        iterator_kind: IteratorKind,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let lhs_maker = Maker::new(lhs_src);
+        let binding = match lhs_kind {
+            LHSKind::Assignment => LHSBinding::Assignment(lhs_maker.left_hand_side_expression()),
+            LHSKind::Destructuring => LHSBinding::Destructuring(lhs_maker.assignment_pattern()),
+            LHSKind::VarBinding => LHSBinding::VarBinding(lhs_maker.for_binding()),
+            LHSKind::LexicalBinding => LHSBinding::LexicalBinding(lhs_maker.for_declaration()),
+        };
+        let node = match &binding {
+            LHSBinding::Assignment(item) => ForInOfLHSExpr::from(item),
+            LHSBinding::Destructuring(item) => ForInOfLHSExpr::from(item),
+            LHSBinding::VarBinding(item) => ForInOfLHSExpr::from(item),
+            LHSBinding::LexicalBinding(item) => ForInOfLHSExpr::from(item),
+        };
+        let label_set = labels.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+        let mut c = complex_filled_chunk("x", what);
+        let stmt = Maker::new(stmt_src).statement();
+
+        ForInOfStatement::for_in_of_body_evaluation(
+            &mut c,
+            strict,
+            "",
+            node,
+            &stmt,
+            iteration_kind,
+            &label_set,
+            iterator_kind,
+        )
+        .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+        .map_err(|e| e.to_string())
     }
 }

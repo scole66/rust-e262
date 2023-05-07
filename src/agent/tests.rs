@@ -1577,3 +1577,180 @@ mod begin_call_evaluation {
         ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
     }
 }
+
+mod for_in_iterator_object {
+    use super::*;
+
+    #[test]
+    fn to_for_in_iterator() {
+        setup_test_agent();
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None).unwrap();
+        let o = ForInIteratorObject::object(Some(proto), a);
+
+        assert_eq!(o.o.to_for_in_iterator().unwrap().id(), o.o.id());
+    }
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None).unwrap();
+        let o = ForInIteratorObject::object(Some(proto), a);
+        assert_ne!(format!("{o:?}"), "");
+    }
+
+    fn make() -> Object {
+        let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
+        let a = array_create(0, None);
+        let o = ForInIteratorObject::object(Some(proto), a.unwrap());
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        o
+    }
+
+    default_uses_ordinary_get_prototype_of_test!();
+    default_get_prototype_of_test!(ForInIteratorPrototype);
+    default_set_prototype_of_test!();
+    default_is_extensible_test!();
+    default_prevent_extensions_test!();
+    default_get_own_property_test!();
+    default_define_own_property_test!();
+    default_has_property_test!();
+    default_set_test!();
+    default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
+    default_delete_test!();
+    default_own_property_keys_test!();
+    default_id_test!();
+    false_function!(is_arguments_object);
+    false_function!(is_array_object);
+    false_function!(is_boolean_object);
+    false_function!(is_callable_obj);
+    false_function!(is_date_object);
+    false_function!(is_error_object);
+    false_function!(is_generator_object);
+    false_function!(is_number_object);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
+    false_function!(is_regexp_object);
+    false_function!(is_string_object);
+    false_function!(is_symbol_object);
+    none_function!(to_arguments_object);
+    none_function!(to_array_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_builtin_function_obj);
+    none_function!(to_callable_obj);
+    none_function!(to_constructable);
+    none_function!(to_error_obj);
+    none_function!(to_function_obj);
+    none_function!(to_generator_object);
+    none_function!(to_number_obj);
+    none_function!(to_string_obj);
+    none_function!(to_symbol_obj);
+}
+
+mod for_in_iterator_internals {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+        let item = ForInIteratorInternals {
+            object: obj,
+            object_was_visited: false,
+            visited_keys: vec![],
+            remaining_keys: vec![],
+        };
+        assert_ne!(format!("{item:?}"), "");
+    }
+}
+
+#[test]
+fn create_for_in_iterator() {
+    setup_test_agent();
+    let proto = intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(Some(proto), &[]);
+
+    let fii = super::create_for_in_iterator(obj.clone());
+    let fii_obj = fii.o.to_for_in_iterator().expect("object should be f-i iterator");
+    let internals = fii_obj.internals.borrow();
+
+    assert_eq!(internals.object, obj);
+    assert!(!internals.object_was_visited);
+    assert!(internals.visited_keys.is_empty());
+    assert!(internals.remaining_keys.is_empty());
+}
+
+#[test]
+fn provision_for_in_iterator_prototype() {
+    setup_test_agent();
+
+    let fiip = intrinsic(IntrinsicId::ForInIteratorPrototype);
+    let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
+
+    assert_eq!(fiip.o.get_prototype_of().unwrap().unwrap(), iterator_proto);
+    func_validation(fiip.o.get_own_property(&"next".into()).unwrap().unwrap(), "next", 0);
+}
+
+mod for_in_iterator_prototype_next {
+    use super::*;
+    use test_case::test_case;
+
+    fn make_busy_object() -> ECMAScriptValue {
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        create_data_property_or_throw(&object_proto, "proto_prop", 67).unwrap();
+        create_data_property_or_throw(&object_proto, "masked", 0).unwrap();
+        let object = ordinary_object_create(Some(object_proto), &[]);
+        create_data_property_or_throw(&object, "on_object", 999).unwrap();
+        create_data_property_or_throw(&object, wks(WksId::ToStringTag), "TestObject").unwrap();
+        create_data_property_or_throw(&object, "masked", 99).unwrap();
+        create_for_in_iterator(object).into()
+    }
+    fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
+        Ok(vec!["one".into(), "two".into(), "three".into()])
+    }
+    fn lyingkeys() -> ECMAScriptValue {
+        let o = AdaptableObject::object(AdaptableMethods {
+            own_property_keys_override: Some(lying_ownprops),
+            ..Default::default()
+        });
+        create_for_in_iterator(o).into()
+    }
+    fn gop_failure(this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        if *key != "sequoia".into() || !to_boolean(this.get(&"primed".into(), &ECMAScriptValue::Undefined).unwrap()) {
+            Ok(ordinary_get_own_property(this, key))
+        } else {
+            Err(create_type_error("[[GetOwnProperty]] fails"))
+        }
+    }
+    fn get_own_property_failure() -> ECMAScriptValue {
+        let o = AdaptableObject::object(AdaptableMethods {
+            get_own_property_override: Some(gop_failure),
+            ..Default::default()
+        });
+        create_data_property_or_throw(&o, "sequoia", 0).unwrap();
+        create_data_property_or_throw(&o, "primed", true).unwrap();
+        create_for_in_iterator(o).into()
+    }
+
+    #[test_case(|| create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
+    #[test_case(|| create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
+    #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
+    #[test_case(get_own_property_failure => serr("TypeError: [[GetOwnProperty]] fails"); "get_own_property fails")]
+    #[test_case(|| create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
+    fn call(make_this: fn() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
+        setup_test_agent();
+        let this = make_this();
+        let mut result = vec![];
+        loop {
+            let ir = for_in_iterator_prototype_next(this.clone(), None, &[]).map_err(unwind_any_error)?;
+            let iro = Object::try_from(ir).unwrap();
+            if iterator_complete(&iro).unwrap() {
+                return Ok(result);
+            }
+            result.push(iterator_value(&iro).unwrap());
+        }
+    }
+}

@@ -892,7 +892,7 @@ impl fmt::Debug for IteratorRecord {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum IteratorKind {
     Sync,
     Async,
@@ -1056,7 +1056,7 @@ fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue
     iterator_record.next(value)
 }
 
-fn iterator_complete(iter_result: &Object) -> Completion<bool> {
+pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     // IteratorComplete ( iterResult )
     //
     // The abstract operation IteratorComplete takes argument iterResult (an

@@ -781,7 +781,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         }
                     }
                 }
-                Insn::JumpIfNotNullish => {
+                Insn::JumpIfNotNullish | Insn::JumpIfNullish => {
                     let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
@@ -790,7 +790,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         ec.stack[stack_idx].clone().expect("Nullish Jumps may only be used with Normal completions"),
                     )
                     .expect("Nullish Jumps may only be used with Values");
-                    if val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null {
+                    let should_jump = (instruction != Insn::JumpIfNotNullish)
+                        ^ (val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null);
+                    if should_jump {
                         if jump >= 0 {
                             ec.pc += jump as usize;
                         } else {
@@ -1252,6 +1254,16 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let nc_val = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let val: ECMAScriptValue = nc_val.try_into().unwrap();
                     let result = to_numeric(val).map(NormalCompletion::from);
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
+                }
+                Insn::ToObject => {
+                    let nc_val = agent.execution_context_stack.borrow_mut()[index]
+                        .stack
+                        .pop()
+                        .expect("ToObject should have a stack parameter")
+                        .expect("ToObject's parameter should not be an error");
+                    let val: ECMAScriptValue = nc_val.try_into().expect("ToObject's parameter should be a value");
+                    let result = to_object(val).map(NormalCompletion::from);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Increment => {
@@ -2035,6 +2047,21 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
                     ec_push(result);
                 }
+                Insn::IteratorClose => {
+                    // This instruction handles the steps that look like:
+                    //  1. Return ? IteratorClose(iteratorRecord, status).
+
+                    // Input on the stack: status iteratorRecord
+                    // Ouptut on stack: the operation's result (which might be the input status)
+                    let status = ec_pop().expect("There should be 2 arguments");
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("there should be 2 arguments")
+                        .expect("iterator arg should not be an error")
+                        .try_into()
+                        .expect("arg should be an iterator record");
+                    let result = iterator_close(&ir, status);
+                    ec_push(result);
+                }
                 Insn::IteratorCloseIfNotDone => {
                     // This instruction handles the step that looks like:
                     //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
@@ -2052,6 +2079,60 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let rval = if !done { iterator_close(&ir, result) } else { result };
                     ec_push(rval.map(NormalCompletion::from));
                 }
+                Insn::IteratorNext => {
+                    // This instruction handles the steps that look like:
+                    //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+                    //  2. If nextResult is not an Object, throw a TypeError exception.
+                    //
+                    // Input on stack: iteratorRecord
+                    // Output:         nextResult/err iteratorRecord
+                    let ir: Rc<IteratorRecord> = ec_pop()
+                        .expect("there should be an argument")
+                        .expect("iterator arg should not be an error")
+                        .try_into()
+                        .expect("arg should be an iterator record");
+                    let next_method = ECMAScriptValue::from(ir.next_method.clone());
+                    let iterator = ECMAScriptValue::from(ir.iterator.clone());
+                    let next_result = call(&next_method, &iterator, &[]);
+
+                    let result = match next_result {
+                        Ok(val) => match val {
+                            ECMAScriptValue::Object(_) => Ok(val),
+                            _ => Err(create_type_error("Iterator Result must be an object")),
+                        },
+                        Err(_) => next_result,
+                    };
+                    ec_push(Ok(NormalCompletion::from(ir)));
+                    ec_push(result.map(NormalCompletion::from));
+                }
+                Insn::IteratorResultComplete => {
+                    // This instruction handles the steps that look like:
+                    //  1. Let done be ? IteratorComplete(nextResult).
+                    //
+                    // Input on stack: nextResult (an iterator result object)
+                    // Output: done/err nextResult (the result is not consumed)
+
+                    let next_result = Object::try_from(
+                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
+                    )
+                    .expect("and should be an object");
+                    let done = iterator_complete(&next_result);
+                    ec_push(Ok(next_result.into()));
+                    ec_push(done.map(NormalCompletion::from));
+                }
+                Insn::IteratorResultToValue => {
+                    // This instruction handles the steps that look like:
+                    //  1. Let nextValue be ? IteratorValue(nextResult).
+                    //
+                    // Input on stack: nextResult (an iterator result object)
+                    // Output: value/err (the nextResult is consumed)
+                    let next_result = Object::try_from(
+                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
+                    )
+                    .expect("and should be an object");
+                    let value = iterator_value(&next_result);
+                    ec_push(value.map(NormalCompletion::from));
+                }
                 Insn::GetV => {
                     // input: key, base
                     let prop_name = PropertyKey::try_from(
@@ -2067,6 +2148,24 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("arg should be value");
                     let result = getv(&base_val, &prop_name).map(NormalCompletion::from);
                     ec_push(result);
+                }
+                Insn::EnumerateObjectProperties => {
+                    // input: an object
+                    // output: an iterator record set up to iterate over the properties of that object
+                    let obj = Object::try_from(
+                        ECMAScriptValue::try_from(
+                            ec_pop()
+                                .expect("EnumerateObjectProperties should have an argument")
+                                .expect("That argument should not be an error"),
+                        )
+                        .expect("That argument should be a language value"),
+                    )
+                    .expect("That value should be an object");
+                    let iterator = create_for_in_iterator(obj);
+                    let next = Object::try_from(get(&iterator, &"next".into()).expect("next method should exist"))
+                        .expect("next method should be an object");
+                    let ir = IteratorRecord { iterator, next_method: next, done: Cell::new(false) };
+                    ec_push(Ok(NormalCompletion::from(ir)));
                 }
             }
         }
@@ -3233,6 +3332,284 @@ pub fn create_per_iteration_environment(per_iteration_bindings: &AHashSet<JSStri
         });
     }
     Ok(())
+}
+
+#[derive(Debug)]
+struct ForInIteratorInternals {
+    object: Object,
+    object_was_visited: bool,
+    visited_keys: Vec<PropertyKey>,
+    remaining_keys: Vec<PropertyKey>,
+}
+
+#[derive(Debug)]
+pub struct ForInIteratorObject {
+    common: RefCell<CommonObjectData>,
+    internals: RefCell<ForInIteratorInternals>,
+}
+
+impl ForInIteratorObject {
+    fn object(proto: Option<Object>, obj: Object) -> Object {
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
+                internals: RefCell::new(ForInIteratorInternals {
+                    object: obj,
+                    object_was_visited: false,
+                    visited_keys: Vec::new(),
+                    remaining_keys: Vec::new(),
+                }),
+            }),
+        }
+    }
+}
+
+impl ObjectInterface for ForInIteratorObject {
+    fn common_object_data(&self) -> &RefCell<CommonObjectData> {
+        &self.common
+    }
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
+        true
+    }
+    fn id(&self) -> usize {
+        self.common.borrow().objid
+    }
+    fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
+        Some(self)
+    }
+
+    // [[GetPrototypeOf]] ( )
+    //
+    // The [[GetPrototypeOf]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    //  1. Return ! OrdinaryGetPrototypeOf(O).
+    fn get_prototype_of(&self) -> Completion<Option<Object>> {
+        Ok(ordinary_get_prototype_of(self))
+    }
+
+    // [[SetPrototypeOf]] ( V )
+    //
+    // The [[SetPrototypeOf]] internal method of an ordinary object O takes argument V (an Object or null). It performs
+    // the following steps when called:
+    //
+    //  1. Return ! OrdinarySetPrototypeOf(O, V).
+    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
+        Ok(ordinary_set_prototype_of(self, obj))
+    }
+
+    // [[IsExtensible]] ( )
+    //
+    // The [[IsExtensible]] internal method of an ordinary object O takes no arguments. It performs the following steps
+    // when called:
+    //
+    //  1. Return ! OrdinaryIsExtensible(O).
+    fn is_extensible(&self) -> Completion<bool> {
+        Ok(ordinary_is_extensible(self))
+    }
+
+    // [[PreventExtensions]] ( )
+    //
+    // The [[PreventExtensions]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    //  1. Return ! OrdinaryPreventExtensions(O).
+    fn prevent_extensions(&self) -> Completion<bool> {
+        Ok(ordinary_prevent_extensions(self))
+    }
+
+    // [[GetOwnProperty]] ( P )
+    //
+    // The [[GetOwnProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ! OrdinaryGetOwnProperty(O, P).
+    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        Ok(ordinary_get_own_property(self, key))
+    }
+
+    // [[DefineOwnProperty]] ( P, Desc )
+    //
+    // The [[DefineOwnProperty]] internal method of an ordinary object O takes arguments P (a property key) and Desc (a
+    // Property Descriptor). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
+    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+        ordinary_define_own_property(self, key, desc)
+    }
+
+    // [[HasProperty]] ( P )
+    //
+    // The [[HasProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ? OrdinaryHasProperty(O, P).
+    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_has_property(self, key)
+    }
+
+    // [[Get]] ( P, Receiver )
+    //
+    // The [[Get]] internal method of an ordinary object O takes arguments P (a property key) and Receiver (an
+    // ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinaryGet(O, P, Receiver).
+    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        ordinary_get(self, key, receiver)
+    }
+
+    // [[Set]] ( P, V, Receiver )
+    //
+    // The [[Set]] internal method of an ordinary object O takes arguments P (a property key), V (an ECMAScript language
+    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Return ? OrdinarySet(O, P, V, Receiver).
+    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+        ordinary_set(self, key, v, receiver)
+    }
+
+    // [[Delete]] ( P )
+    //
+    // The [[Delete]] internal method of an ordinary object O takes argument P (a property key). It performs the
+    // following steps when called:
+    //
+    //  1. Return ? OrdinaryDelete(O, P).
+    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
+        ordinary_delete(self, key)
+    }
+
+    // [[OwnPropertyKeys]] ( )
+    //
+    // The [[OwnPropertyKeys]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    // 1. Return ! OrdinaryOwnPropertyKeys(O).
+    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(self))
+    }
+}
+
+impl<'a> From<&'a ForInIteratorObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a ForInIteratorObject) -> Self {
+        obj
+    }
+}
+
+fn create_for_in_iterator(obj: Object) -> Object {
+    let prototype = intrinsic(IntrinsicId::ForInIteratorPrototype);
+    ForInIteratorObject::object(Some(prototype), obj)
+}
+
+pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+    // The %ForInIteratorPrototype% Object
+    //
+    //  * has properties that are inherited by all For-In Iterator Objects.
+    //  * is an ordinary object.
+    //  * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
+    //  * is never directly accessible to ECMAScript code.
+
+    let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
+    let for_in_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &for_in_iterator_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+    prototype_function!(for_in_iterator_prototype_next, "next", 0.0);
+
+    realm.borrow_mut().intrinsics.for_in_iterator_prototype = for_in_iterator_prototype;
+}
+
+fn for_in_iterator_prototype_next(
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // %ForInIteratorPrototype%.next ( )
+    //  1. Let O be the this value.
+    //  2. Assert: O is an Object.
+    //  3. Assert: O has all of the internal slots of a For-In Iterator Instance (14.7.5.10.3).
+    //  4. Let object be O.[[Object]].
+    //  5. Repeat,
+    //      a. If O.[[ObjectWasVisited]] is false, then
+    //          i. Let keys be ? object.[[OwnPropertyKeys]]().
+    //          ii. For each element key of keys, do
+    //              1. If key is a String, then
+    //                  a. Append key to O.[[RemainingKeys]].
+    //          iii. Set O.[[ObjectWasVisited]] to true.
+    //      b. Repeat, while O.[[RemainingKeys]] is not empty,
+    //          i. Let r be the first element of O.[[RemainingKeys]].
+    //          ii. Remove the first element from O.[[RemainingKeys]].
+    //          iii. If there does not exist an element v of O.[[VisitedKeys]] such that SameValue(r, v) is
+    //               true, then
+    //              1. Let desc be ? object.[[GetOwnProperty]](r).
+    //              2. If desc is not undefined, then
+    //                  a. Append r to O.[[VisitedKeys]].
+    //                  b. If desc.[[Enumerable]] is true, return CreateIterResultObject(r, false).
+    //      c. Set object to ? object.[[GetPrototypeOf]]().
+    //      d. Set O.[[Object]] to object.
+    //      e. Set O.[[ObjectWasVisited]] to false.
+    //      f. If object is null, return CreateIterResultObject(undefined, true).
+    let binding = Object::try_from(this_value).expect("this value should be an object");
+    let o = binding.o.to_for_in_iterator().expect("object should be f-i iterator");
+    let mut internals = o.internals.borrow_mut();
+    let mut object = internals.object.clone();
+    loop {
+        if !internals.object_was_visited {
+            let mut remaining = object
+                .o
+                .own_property_keys()?
+                .into_iter()
+                .filter(|key| matches!(key, &PropertyKey::String(_)))
+                .collect::<Vec<_>>();
+            remaining.reverse();
+            internals.remaining_keys = remaining;
+            internals.object_was_visited = true;
+        }
+        while let Some(r) = internals.remaining_keys.pop() {
+            if !internals.visited_keys.contains(&r) {
+                if let Some(desc) = object.o.get_own_property(&r)? {
+                    internals.visited_keys.push(r.clone());
+                    if desc.enumerable {
+                        return Ok(create_iter_result_object(r.into(), false).into());
+                    }
+                }
+            }
+        }
+        let parent = object.o.get_prototype_of()?;
+        match parent {
+            Some(parent) => {
+                internals.object = parent;
+                object = internals.object.clone();
+                internals.object_was_visited = false;
+            }
+            None => {
+                return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
+            }
+        }
+    }
 }
 
 #[cfg(test)]
