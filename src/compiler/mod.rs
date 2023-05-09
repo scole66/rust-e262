@@ -3437,7 +3437,7 @@ impl AssignmentPropertyList {
         // completion. It collects a list of all destructured property keys. It is defined piecewise over the following
         // productions:
         //
-        // Our API: 
+        // Our API:
         //    input:       value
         //    output:      key_list/err value
         match self {
@@ -3445,7 +3445,7 @@ impl AssignmentPropertyList {
                 // AssignmentPropertyList : AssignmentProperty
                 //  1. Return ? PropertyDestructuringAssignmentEvaluation of AssignmentProperty with argument value.
                 item.property_destructuring_assignment_evaluation(chunk, strict, text)
-            },
+            }
             AssignmentPropertyList::List(list, item) => {
                 // AssignmentPropertyList : AssignmentPropertyList , AssignmentProperty
                 //  1. Let propertyNames be ? PropertyDestructuringAssignmentEvaluation of AssignmentPropertyList with
@@ -3465,7 +3465,7 @@ impl AssignmentPropertyList {
                 //   JUMP exit
                 // unwind_deep_list:                                           err value property_names
                 //   POP_OUT_LIST 3                                            err value
-                // exit: 
+                // exit:
                 list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
                 let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SwapList);
@@ -3479,14 +3479,19 @@ impl AssignmentPropertyList {
                 chunk.fixup(exit1)?;
                 chunk.fixup(exit2).expect("Jump too short to fail");
                 Ok(())
-            },
+            }
         }
     }
 }
 
 impl AssignmentProperty {
     #[allow(unused_variables)]
-    fn property_destructuring_assignment_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<()> {
+    fn property_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<()> {
         todo!()
     }
 }
