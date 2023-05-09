@@ -1692,6 +1692,24 @@ pub fn define_property_or_throw(
     }
 }
 
+pub fn delete_property_or_throw(obj: &Object, p: &PropertyKey) -> Completion<()> {
+    // DeletePropertyOrThrow ( O, P )
+    // The abstract operation DeletePropertyOrThrow takes arguments O (an Object) and P (a property key) and
+    // returns either a normal completion containing unused or a throw completion. It is used to remove a
+    // specific own property of an object. It throws an exception if the property is not configurable. It
+    // performs the following steps when called:
+    //
+    //  1. Let success be ? O.[[Delete]](P).
+    //  2. If success is false, throw a TypeError exception.
+    //  3. Return unused.
+    let success = obj.o.delete(p)?;
+    if !success {
+        Err(create_type_error(format!("Property could not be deleted")))
+    } else {
+        Ok(())
+    }
+}
+
 // GetMethod ( V, P )
 //
 // The abstract operation GetMethod takes arguments V (an ECMAScript language value) and P (a property key). It is used
