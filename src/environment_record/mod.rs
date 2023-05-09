@@ -458,7 +458,7 @@ impl fmt::Debug for ObjectEnvironmentRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
             f.debug_struct("ObjectEnvironmentRecord")
-                .field("binding_object", &self.binding_object)
+                .field("binding_object", &ConciseObject::from(&self.binding_object))
                 .field("is_with_environment", &self.is_with_environment)
                 .field("outer_env", &self.outer_env)
                 .field("name", &self.name)
@@ -999,7 +999,7 @@ impl fmt::Debug for GlobalEnvironmentRecord {
         if f.alternate() {
             f.debug_struct("GlobalEnvironmentRecord")
                 .field("object_record", &self.object_record)
-                .field("global_this_value", &self.global_this_value)
+                .field("global_this_value", &ConciseObject::from(&self.global_this_value))
                 .field("declarative_record", &self.declarative_record)
                 .field("var_names", &self.var_names)
                 .field("name", &self.name)

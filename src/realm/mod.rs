@@ -333,7 +333,6 @@ impl fmt::Debug for Intrinsics {
     }
 }
 
-#[derive(Debug)]
 pub struct Realm {
     // NOTE NOTE NOTE NOTE: Realm is a circular structure. The function objects in the Intrinsics field each have their
     // own Realm pointer, which points back to this structure. They _should_ be weak pointers, because of that, except
@@ -348,6 +347,16 @@ pub struct Realm {
     pub global_object: Option<Object>,
     pub global_env: Option<Rc<GlobalEnvironmentRecord>>,
     // TemplateMap: later, when needed
+}
+
+impl fmt::Debug for Realm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Realm")
+            .field("intrinsics", &self.intrinsics)
+            .field("global_object", &ConciseOptionalObject::from(&self.global_object))
+            .field("global_env", &self.global_env)
+            .finish()
+    }
 }
 
 // CreateRealm ( )

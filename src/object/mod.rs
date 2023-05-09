@@ -1166,7 +1166,7 @@ impl<'a> From<&'a Object> for ConciseObject<'a> {
         Self(source)
     }
 }
-struct ConciseOptionalObject<'a>(&'a Option<Object>);
+pub struct ConciseOptionalObject<'a>(&'a Option<Object>);
 impl<'a> fmt::Debug for ConciseOptionalObject<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.as_ref() {

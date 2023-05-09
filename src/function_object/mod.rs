@@ -44,6 +44,12 @@ pub enum BodySource {
     ConciseBody(Rc<ConciseBody>),
     AsyncConciseBody(Rc<AsyncConciseBody>),
 }
+pub struct ConciseBodySource<'a>(&'a BodySource);
+impl<'a> fmt::Debug for ConciseBodySource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl From<Rc<FunctionBody>> for BodySource {
     fn from(src: Rc<FunctionBody>) -> Self {
@@ -185,6 +191,13 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
+}
+
+pub struct ConciseParamSource<'a>(&'a ParamSource);
+impl<'a> fmt::Debug for ConciseParamSource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
 }
 
 impl fmt::Display for ParamSource {
@@ -356,7 +369,6 @@ impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
     }
 }
 
-#[derive(Debug)]
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
     private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -375,6 +387,29 @@ pub struct FunctionObjectData {
     class_field_initializer_name: ClassName,
     is_class_constructor: bool,
     is_constructor: bool,
+}
+impl fmt::Debug for FunctionObjectData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FunctionObjectData")
+            .field("environment", &self.environment)
+            .field("private_environment", &self.private_environment)
+            .field("formal_parameters", &ConciseParamSource(&self.formal_parameters))
+            .field("ecmascript_code", &ConciseBodySource(&self.ecmascript_code))
+            .field("compiled", &ConciseChunk(&self.compiled))
+            .field("constructor_kind", &self.constructor_kind)
+            .field("realm", &self.realm)
+            .field("script_or_module", &self.script_or_module)
+            .field("this_mode", &self.this_mode)
+            .field("strict", &self.strict)
+            .field("home_object", &ConciseOptionalObject::from(&self.home_object))
+            .field("source_text", &self.source_text)
+            .field("fields", &self.fields)
+            .field("private_methods", &self.private_methods)
+            .field("class_field_initializer_name", &self.class_field_initializer_name)
+            .field("is_class_constructor", &self.is_class_constructor)
+            .field("is_constructor", &self.is_constructor)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
