@@ -57,6 +57,8 @@ pub enum Insn {
     Unwind,
     UnwindList,
     AppendList,
+    SwapDeepList,
+    PopOutList,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -204,6 +206,8 @@ impl fmt::Display for Insn {
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
             Insn::AppendList => "APPEND_LIST",
+            Insn::SwapDeepList => "SWAP_DEEP_LIST",
+            Insn::PopOutList => "POP_OUT_LIST",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -3262,7 +3266,7 @@ impl AssignmentExpression {
                 //   <ae.evaluate>           rref/err
                 //   GET_VALUE               rval/err
                 //   JUMP_IF_ABRUPT exit     rval
-                //   <ap.destructuring_assignment_evaluation>  val/err
+                //   <ap.destructuring_assignment_evaluation>  rval/err
                 // exit:
                 let expr_status = ae.compile(chunk, strict, text)?;
                 let mut exit = None;
@@ -3294,8 +3298,12 @@ impl AssignmentPattern {
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
         // piecewise over the following productions:
+        //
+        // Our changes: rather than returning unused/err, we return value/err (the input value, unchanged).
         match self {
-            AssignmentPattern::Object(oap) => oap.destructuring_assignment_evaluation(chunk, strict, text),
+            AssignmentPattern::Object(oap) => {
+                oap.destructuring_assignment_evaluation(chunk, strict, text).map(AbruptResult::from)
+            }
             AssignmentPattern::Array(aap) => aap.destructuring_assignment_evaluation(chunk, strict, text),
         }
     }
@@ -3308,18 +3316,190 @@ impl ObjectAssignmentPattern {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
         // piecewise over the following productions:
+        //
+        // Our changes: rather than returning unused/err, we return value/err (the input value, unchanged).
         match self {
-            ObjectAssignmentPattern::Empty { .. } => todo!(),
-            ObjectAssignmentPattern::RestOnly { arp, .. } => todo!(),
-            ObjectAssignmentPattern::ListOnly { apl, .. } |
-            ObjectAssignmentPattern::ListRest { apl, arp: None, .. }=> todo!(),
-            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => todo!(),
+            ObjectAssignmentPattern::Empty { .. } => {
+                // ObjectAssignmentPattern : { }
+                // 1. Perform ? RequireObjectCoercible(value).
+                // 2. Return unused.
+
+                // start:             value
+                //   REQ_COER         value/err
+                // exit:
+                chunk.op(Insn::RequireCoercible);
+                Ok(AlwaysAbruptResult)
+            }
+            ObjectAssignmentPattern::RestOnly { arp, .. } => {
+                // ObjectAssignmentPattern : { AssignmentRestProperty }
+                //  1. Perform ? RequireObjectCoercible(value).
+                //  2. Let excludedNames be a new empty List.
+                //  3. Return ? RestDestructuringAssignmentEvaluation of AssignmentRestProperty with arguments value and
+                //     excludedNames.
+
+                // start:                                               value
+                //   REQ_COER                                           value/err
+                //   JUMP_IF_ABRUPT exit                                value
+                //   ZERO                                               excludedNames value
+                //   <arp.rest_destructuring_assignment_evaluation>     value/err
+                // exit:
+
+                chunk.op(Insn::RequireCoercible);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Zero);
+                arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.fixup(exit)?;
+                Ok(AlwaysAbruptResult)
+            }
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => {
+                // ObjectAssignmentPattern :
+                //      { AssignmentPropertyList }
+                //      { AssignmentPropertyList , }
+                //  1. Perform ? RequireObjectCoercible(value).
+                //  2. Perform ? PropertyDestructuringAssignmentEvaluation of AssignmentPropertyList with argument
+                //     value.
+                //  3. Return unused.
+
+                // start:                                                value
+                //   REQ_COER                                            value/err
+                //   JUMP_IF_ABRUPT exit                                 value
+                //   <apl.property_destructuring_assignment_evaluation>  excludedNames/err value
+                //   JUMP_IF_ABRUPT unwind                               excludedNames value
+                //   POP_LIST                                            value
+                //   JUMP exit
+                // unwind:                                               err value
+                //   UNWIND 1                                            err
+                // exit:
+
+                chunk.op(Insn::RequireCoercible);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::PopList);
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit)?;
+                chunk.fixup(exit2).expect("Jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
+                // ObjectAssignmentPattern : { AssignmentPropertyList , AssignmentRestProperty }
+                //  1. Perform ? RequireObjectCoercible(value).
+                //  2. Let excludedNames be ? PropertyDestructuringAssignmentEvaluation of AssignmentPropertyList with
+                //     argument value.
+                //  3. Return ? RestDestructuringAssignmentEvaluation of AssignmentRestProperty with arguments value and
+                //     excludedNames.
+
+                // start:                                                value
+                //   REQ_COER                                            value/err
+                //   JUMP_IF_ABRUPT exit                                 value
+                //   <apl.property_destructuring_assignment_evaluation>  excludedNames/err value
+                //   JUMP_IF_ABRUPT unwind                               exclucedNames value
+                //   <arp.rest_destructuring_assignment_evaluation>      value/err
+                //   JUMP exit
+                // unwind:                                               err value
+                //   UNWIND 1                                            err
+                // exit:
+                chunk.op(Insn::RequireCoercible);
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit1)?;
+                chunk.fixup(exit2).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
         }
+    }
+}
+
+impl AssignmentPropertyList {
+    #[allow(unused_variables)]
+    fn property_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<()> {
+        // Runtime Semantics: PropertyDestructuringAssignmentEvaluation
+        // The syntax-directed operation PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript
+        // language value) and returns either a normal completion containing a List of property keys or an abrupt
+        // completion. It collects a list of all destructured property keys. It is defined piecewise over the following
+        // productions:
+        //
+        // Our API: 
+        //    input:       value
+        //    output:      key_list/err value
+        match self {
+            AssignmentPropertyList::Item(item) => {
+                // AssignmentPropertyList : AssignmentProperty
+                //  1. Return ? PropertyDestructuringAssignmentEvaluation of AssignmentProperty with argument value.
+                item.property_destructuring_assignment_evaluation(chunk, strict, text)
+            },
+            AssignmentPropertyList::List(list, item) => {
+                // AssignmentPropertyList : AssignmentPropertyList , AssignmentProperty
+                //  1. Let propertyNames be ? PropertyDestructuringAssignmentEvaluation of AssignmentPropertyList with
+                //     argument value.
+                //  2. Let nextNames be ? PropertyDestructuringAssignmentEvaluation of AssignmentProperty with argument
+                //     value.
+                //  3. Return the list-concatenation of propertyNames and nextNames.
+
+                // start:                                                      value
+                //   <list.property_destructuring_assignment_evaluation>       property_names/err value
+                //   JUMP_IF_ABRUPT exit                                       property_names value
+                //   SWAP_LIST                                                 value property_names
+                //   <item.property_destructuring_assignment_evaluation>       next_names/err value property_names
+                //   JUMP_IF_ABRUPT unwind_deep_list                           next_names value property_names
+                //   SWAP_DEEP_LIST                                            next_names property_names value
+                //   APPEND_LIST                                               all_names value
+                //   JUMP exit
+                // unwind_deep_list:                                           err value property_names
+                //   POP_OUT_LIST 3                                            err value
+                // exit: 
+                list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::SwapList);
+                item.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind_deep_list = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::SwapDeepList);
+                chunk.op(Insn::AppendList);
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::PopOutList, 3);
+                chunk.fixup(exit1)?;
+                chunk.fixup(exit2).expect("Jump too short to fail");
+                Ok(())
+            },
+        }
+    }
+}
+
+impl AssignmentProperty {
+    #[allow(unused_variables)]
+    fn property_destructuring_assignment_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<()> {
+        todo!()
+    }
+}
+
+impl AssignmentRestProperty {
+    #[allow(unused_variables)]
+    fn rest_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<()> {
+        todo!()
     }
 }
 
@@ -3342,7 +3522,6 @@ impl ArrayAssignmentPattern {
         }
     }
 }
-
 
 impl Expression {
     #[allow(unused_variables)]

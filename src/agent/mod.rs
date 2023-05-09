@@ -932,6 +932,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec.stack.swap(stack_size - 1, stack_size - 2);
                 }
                 Insn::SwapList => {
+                    // Input: LIST ITEM
+                    // Output: ITEM LIST
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
                     assert!(stack_size >= 2);
@@ -956,6 +958,16 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
                     ec.stack.truncate(stack_size - length);
+                }
+                Insn::PopOutList => {
+                    // Input: item1 ... item(n-1) LIST
+                    // Output: item1 ... item(n-1)
+                    todo!()
+                }
+                Insn::SwapDeepList => {
+                    // Input: LIST_A item LIST_B
+                    // Output: LIST_A LIST_B item
+                    todo!()
                 }
                 Insn::InitializeReferencedBinding => {
                     let (value, lhs) = {

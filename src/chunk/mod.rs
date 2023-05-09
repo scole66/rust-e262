@@ -148,6 +148,7 @@ impl Chunk {
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
+            | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression => {
@@ -239,6 +240,7 @@ impl Chunk {
             | Insn::AppendList
             | Insn::ExtractThrownValue
             | Insn::SwapList
+            | Insn::SwapDeepList
             | Insn::PopList
             | Insn::RequireConstructor
             | Insn::Construct
