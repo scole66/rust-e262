@@ -962,12 +962,52 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::PopOutList => {
                     // Input: item1 ... item(n-1) LIST
                     // Output: item1 ... item(n-1)
-                    todo!()
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let skip = chunk.opcodes[ec.pc] as usize;
+                    ec.pc += 1;
+                    let stack_size = ec.stack.len();
+                    let list_len = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec.stack[stack_size - skip - 1].clone().expect("list len should not be an error"),
+                        )
+                        .expect("list len should be a value"),
+                    )
+                    .expect("length should be a number") as usize;
+                    //   SL-1   SL-2   SL-3  SL-4   SL-5   SL-6
+                    //   item1  item2   3    listx  listy  listz
+                    //   skip = 2;
+                    //   list_len = 3;
+                    ec.stack[stack_size - list_len - skip - 1..stack_size].rotate_left(list_len + 1);
+                    // truncate is: stack_size - list_len - 1
+                    ec.stack.truncate(stack_size - list_len - 1);
                 }
                 Insn::SwapDeepList => {
                     // Input: LIST_A item LIST_B
                     // Output: LIST_A LIST_B item
-                    todo!()
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let stack_size = ec.stack.len();
+                    let a_len = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec.stack[stack_size - 1].clone().expect("list len should not be an error"),
+                        )
+                        .expect("list len should be a value"),
+                    )
+                    .expect("length should be a number") as usize;
+                    let b_len = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            ec.stack[stack_size - 1 - (a_len + 1) - 1]
+                                .clone()
+                                .expect("list len should not be an error"),
+                        )
+                        .expect("list len should be a value"),
+                    )
+                    .expect("length should be a number") as usize;
+
+                    // 3 l2 l1 l0 item 6 n5 n4 n3 n2 n1 n0
+                    // =>
+                    // 3 l2 l1 l0 6 n5 n4 n3 n2 n1 n0 item
+                    // that's a rotate in the (item list_b) sub-slice
+                    ec.stack[stack_size - a_len - b_len - 3..stack_size - a_len - 1].rotate_right(1);
                 }
                 Insn::InitializeReferencedBinding => {
                     let (value, lhs) = {

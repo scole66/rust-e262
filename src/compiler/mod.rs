@@ -3379,14 +3379,19 @@ impl ObjectAssignmentPattern {
 
                 chunk.op(Insn::RequireCoercible);
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let apl_status = apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let mut unwind = None;
+                if apl_status.maybe_abrupt() {
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
                 chunk.op(Insn::PopList);
-                let exit2 = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                if let Some(unwind) = unwind {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("Jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit2).expect("Jump too short to fail");
+                }
                 chunk.fixup(exit)?;
-                chunk.fixup(exit2).expect("Jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
             ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
@@ -3409,14 +3414,19 @@ impl ObjectAssignmentPattern {
                 // exit:
                 chunk.op(Insn::RequireCoercible);
                 let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let apl_status = apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let mut unwind = None;
+                if apl_status.maybe_abrupt() {
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let exit2 = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind)?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                if let Some(unwind) = unwind {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit2).expect("jump too short to fail");
+                }
                 chunk.fixup(exit1)?;
-                chunk.fixup(exit2).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
         }
@@ -3424,13 +3434,12 @@ impl ObjectAssignmentPattern {
 }
 
 impl AssignmentPropertyList {
-    #[allow(unused_variables)]
     fn property_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation
         // The syntax-directed operation PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript
         // language value) and returns either a normal completion containing a List of property keys or an abrupt
@@ -3466,33 +3475,196 @@ impl AssignmentPropertyList {
                 // unwind_deep_list:                                           err value property_names
                 //   POP_OUT_LIST 3                                            err value
                 // exit:
-                list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                let list_status = list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let mut exit1 = None;
+                if list_status.maybe_abrupt() {
+                    exit1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
                 chunk.op(Insn::SwapList);
-                item.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let unwind_deep_list = chunk.op_jump(Insn::JumpIfAbrupt);
+                let item_status = item.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let mut unwind_deep_list = None;
+                if item_status.maybe_abrupt() {
+                    unwind_deep_list = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
                 chunk.op(Insn::SwapDeepList);
                 chunk.op(Insn::AppendList);
-                let exit2 = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::PopOutList, 3);
-                chunk.fixup(exit1)?;
-                chunk.fixup(exit2).expect("Jump too short to fail");
-                Ok(())
+                if let Some(unwind_deep_list) = unwind_deep_list {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
+                    chunk.op_plus_arg(Insn::PopOutList, 3);
+                    chunk.fixup(exit2).expect("Jump too short to fail");
+                }
+                if let Some(exit1) = exit1 {
+                    chunk.fixup(exit1)?;
+                }
+                Ok((list_status.maybe_abrupt() || item_status.maybe_abrupt()).into())
             }
         }
     }
 }
 
 impl AssignmentProperty {
-    #[allow(unused_variables)]
     fn property_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<()> {
-        todo!()
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: PropertyDestructuringAssignmentEvaluation The syntax-directed operation
+        // PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript language value) and returns
+        // either a normal completion containing a List of property keys or an abrupt completion. It collects a list of
+        // all destructured property keys. It is defined piecewise over the following productions:
+        //
+        // Our change: don't consume the value
+        // Input:   value
+        // Output:  key_names/err value
+
+        match self {
+            AssignmentProperty::Ident(ident, izer) => {
+                // AssignmentProperty : IdentifierReference Initializeropt
+                //  1. Let P be StringValue of IdentifierReference.
+                //  2. Let lref be ? ResolveBinding(P).
+                //  3. Let v be ? GetV(value, P).
+                //  4. If Initializeropt is present and v is undefined, then
+                //      a. If IsAnonymousFunctionDefinition(Initializer) is true, then
+                //          i. Set v to ? NamedEvaluation of Initializer with argument P.
+                //      b. Else,
+                //          i. Let defaultValue be ? Evaluation of Initializer.
+                //          ii. Set v to ? GetValue(defaultValue).
+                //  5. Perform ? PutValue(lref, v).
+                //  6. Return « P ».
+
+                // start:                                                      value
+                //   STRING p                                                  name value
+                //   RESOLVE/STRICT_RESOLVE                                    lref/err value
+                //   JUMP_IF_ABRUPT exit                                       lref value
+                //   SWAP                                                      value lref
+                //   POP2PUSH3                                                 value lref value
+                //   STRING p                                                  name value lref value
+                //   GETV                                                      v/err lref value
+                //   JUMP_IF_ABRUPT unwind                                     v lref value
+                // --- Some(izer)
+                //   JUMP_NOT_UNDEF v_ok                                       undefined lref value
+                //   POP                                                       lref value
+                //   --- if IsAnonymousFunctionDefinition
+                //   <izer.named_evaluation(p)>                                v/err lref value
+                //   JUMP_IF_ABRUPT unwind                                     v lref value
+                //   --- else
+                //   <izer>                                                    val/ref/err lref value
+                //   GET_VALUE                                                 v/err lref value
+                //   JUMP_IF_ABRUPT unwind                                     v lref value
+                //   ---
+                // v_ok:
+                // ---
+                //   PUT_VALUE                                                 [empty]/err value
+                //   JUMP_IF_ABRUPT exit                                       [empty] value
+                //   POP                                                       value
+                //   STRING p                                                  name value
+                //   FLOAT 1                                                   name_list value
+                //   JUMP exit
+                // unwind:                                                     err lref value
+                //   UNWIND 1                                                  err value
+                // exit:
+                let p_value = ident.string_value();
+                let p = chunk.add_to_string_pool(p_value)?;
+                chunk.op_plus_arg(Insn::String, p);
+                chunk.op(match strict {
+                    true => Insn::StrictResolve,
+                    false => Insn::Resolve,
+                });
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::Pop2Push3);
+                chunk.op_plus_arg(Insn::String, p);
+                chunk.op(Insn::GetV);
+                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
+
+                let mut unwind2 = None;
+                if let Some(izer) = izer {
+                    let v_ok = chunk.op_jump(Insn::JumpIfNotUndef);
+                    chunk.op(Insn::Pop);
+                    let status = if let Some(np) = izer.anonymous_function_definition() {
+                        np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(p))?
+                    } else {
+                        izer.compile(chunk, strict, text)?
+                    };
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    if status.maybe_abrupt() || status.maybe_ref() {
+                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.fixup(v_ok)?;
+                }
+
+                chunk.op(Insn::PutValue);
+                let exit2 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                chunk.op_plus_arg(Insn::String, p);
+                let one = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, one);
+                let exit3 = chunk.op_jump(Insn::Jump);
+
+                chunk.fixup(unwind1)?;
+                if let Some(unwind2) = unwind2 {
+                    chunk.fixup(unwind2).expect("jump too short to fail");
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+
+                chunk.fixup(exit1)?;
+                chunk.fixup(exit2).expect("jump too short to fail");
+                chunk.fixup(exit3).expect("jump too short to fail");
+                Ok(AbruptResult::Maybe)
+            }
+            AssignmentProperty::Property(prop_name, ae) => {
+                // AssignmentProperty : PropertyName : AssignmentElement
+                //  1. Let name be ? Evaluation of PropertyName.
+                //  2. Perform ? KeyedDestructuringAssignmentEvaluation of AssignmentElement with arguments value and
+                //     name.
+                //  3. Return « name ».
+
+                // start:                                                      value
+                //   DUP                                                       value value
+                //   <prop_name>                                               name/err value value
+                //   JUMP_IF_ABRUPT unwind                                     name value value
+                //   POP2PUSH3                                                 name value name value
+                //   <ae.keyed_destruction_assignment_evaluation>              [empty]/err name value
+                //   JUMP_IF_ABRUPT unwind                                     [empty] name value
+                //   POP                                                       name value
+                //   FLOAT 1                                                   name_list value
+                //   JUMP exit
+                // unwind:                                                     err name value
+                //   UNWIND 1                                                  err value
+                // exit:
+
+                chunk.op(Insn::Dup);
+                let status = prop_name.compile(chunk, strict, text)?;
+                let mut unwind1 = None;
+                if status.maybe_abrupt() {
+                    unwind1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::Pop2Push3);
+                let ae_status = ae.keyed_destruction_assignment_evaluation(chunk, strict, text)?;
+                let mut unwind2 = None;
+                if ae_status.maybe_abrupt() {
+                    unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                chunk.op(Insn::Pop);
+                let one = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, one);
+                if unwind1.is_some() || unwind2.is_some() {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    if let Some(unwind) = unwind1 {
+                        chunk.fixup(unwind)?;
+                    }
+                    if let Some(unwind) = unwind2 {
+                        chunk.fixup(unwind).expect("Jump too short to fail");
+                    }
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok((status.maybe_abrupt() || ae_status.maybe_abrupt()).into())
+            }
+        }
     }
 }
 
@@ -3504,6 +3676,53 @@ impl AssignmentRestProperty {
         strict: bool,
         text: &str,
     ) -> anyhow::Result<()> {
+        // Runtime Semantics: RestDestructuringAssignmentEvaluation
+        // The syntax-directed operation RestDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
+        // language value) and excludedNames (a List of property keys) and returns either a normal completion containing
+        // unused or an abrupt completion. It is defined piecewise over the following productions:
+        //
+        // Our API:
+        // Input:    excludedNames value
+        // Output:   value/err (the input value, unchanged)
+        // 
+        // AssignmentRestProperty : ... DestructuringAssignmentTarget
+        //  1. Let lref be ? Evaluation of DestructuringAssignmentTarget.
+        //  2. Let restObj be OrdinaryObjectCreate(%Object.prototype%).
+        //  3. Perform ? CopyDataProperties(restObj, value, excludedNames).
+        //  4. Return ? PutValue(lref, restObj).
+
+        // start:                                         excluded_names value
+        //   DUP_AFTER_LIST                               excluded_names value value
+        //   <dat>                                        lref/err excluded_names value value
+        //   JUMP_IF_ABRUPT unwind_list_plus_2            lref excluded_names value value
+        //   ROTATE_DNLIST 1                              excluded_names value lref value
+        //   OBJECT                                       rest_obj excluded_names value lref value
+        //   ROTATE_DNLIST 1                              excluded_names value rest_obj lref value
+        //   COPY_DATAPROPS_WE                            rest_obj/err lref value
+        //   JUMP_IF_ABRUPT unwind_2                      rest_obj lref value
+        //   PUT_VALUE                                    [empty]/err value
+        //   JUMP_IF_ABRUPT unwind_1                      [empty] value
+        //   POP                                          value
+        //   JUMP exit
+        // unwind_list_plus_2:                            err excluded_names value value
+        //   UNWIND_LIST                                  err value value
+        // unwind_2:
+        //   UNWIND 1                                     err value
+        // unwind_1:
+        //   UNWIND 1                                     err
+        // exit:
+        todo!()
+    }
+}
+
+impl AssignmentElement {
+    #[allow(unused_variables)]
+    fn keyed_destruction_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
         todo!()
     }
 }
