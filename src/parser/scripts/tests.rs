@@ -1,6 +1,6 @@
 use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::*;
+use crate::prettyprint::pp_testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 
@@ -49,6 +49,7 @@ mod var_scope_decl {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
         let copy = vsd.clone();

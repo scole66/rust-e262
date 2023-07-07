@@ -24,6 +24,7 @@ fn data_property_eq() {
     }
 }
 #[test]
+#[allow(clippy::redundant_clone)]
 fn data_property_clone() {
     let p1 = DataProperty { value: ECMAScriptValue::from("blue"), writable: true };
     let p2 = p1.clone();
@@ -56,6 +57,7 @@ fn accessor_property_eq() {
     }
 }
 #[test]
+#[allow(clippy::redundant_clone)]
 fn accessor_property_clone() {
     let p1 = AccessorProperty { get: ECMAScriptValue::from(10), set: ECMAScriptValue::from("a") };
     let p2 = p1.clone();
@@ -91,6 +93,7 @@ fn property_kind_eq() {
     }
 }
 #[test]
+#[allow(clippy::redundant_clone)]
 fn property_kind_clone() {
     let pk1 = PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true });
     let pk2 = pk1.clone();
@@ -164,6 +167,7 @@ mod property_descriptor {
         }
     }
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let p1 = PropertyDescriptor {
             property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
@@ -415,6 +419,7 @@ fn potential_property_descriptor_partialeq() {
     }
 }
 #[test]
+#[allow(clippy::redundant_clone)]
 fn potential_property_descriptor_clone() {
     let ppd1 = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::from(true)),

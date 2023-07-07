@@ -1822,6 +1822,7 @@ mod string_token {
             .has_legacy_octal_escapes());
     }
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let s1 = StringToken { value: "blue".into(), delimiter: StringDelimiter::Double, raw: None };
         let s2 = s1.clone();
