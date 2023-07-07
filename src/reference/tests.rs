@@ -19,6 +19,7 @@ mod base {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone_with_environment() {
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let base = Base::Environment(env);
@@ -256,6 +257,7 @@ mod reference {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let r = Reference {
             base: Base::Unresolvable,
@@ -268,6 +270,7 @@ mod reference {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn eq() {
         let r1 = Reference {
             base: Base::Unresolvable,

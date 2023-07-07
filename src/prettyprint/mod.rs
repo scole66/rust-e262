@@ -91,7 +91,7 @@ pub trait PrettyPrint {
 }
 
 #[cfg(test)]
-pub mod testhelp;
+pub mod pp_testhelp;
 
 #[cfg(test)]
 pub mod tests;

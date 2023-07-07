@@ -1,6 +1,6 @@
 use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::*;
+use crate::prettyprint::pp_testhelp::*;
 
 mod debugger_statement {
     use super::*;
