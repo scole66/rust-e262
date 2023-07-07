@@ -231,3 +231,16 @@ mod agent {
         })
     }
 }
+
+mod concise_script {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let script = Maker::new("10;").script();
+        let cs = ConciseScript(script.as_ref());
+        let result = format!("{cs:#?}");
+        assert_eq!(result.lines().collect::<Vec<_>>().len(), 1);
+    }
+}

@@ -391,7 +391,7 @@ pub struct FunctionObjectData {
 impl fmt::Debug for FunctionObjectData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FunctionObjectData")
-            .field("environment", &self.environment)
+            .field("environment", &ConciselyPrintedEnvironmentRecord(Rc::clone(&self.environment)))
             .field("private_environment", &self.private_environment)
             .field("formal_parameters", &ConciseParamSource(&self.formal_parameters))
             .field("ecmascript_code", &ConciseBodySource(&self.ecmascript_code))

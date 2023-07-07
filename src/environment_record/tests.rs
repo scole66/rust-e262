@@ -2133,3 +2133,16 @@ mod private_environment_record {
         }
     }
 }
+
+mod concisely_printed_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let env = DeclarativeEnvironmentRecord::new(None, "test-sentinel");
+        let cper = ConciselyPrintedEnvironmentRecord(Rc::new(env));
+        let repr = format!("{cper:#?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+}

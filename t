@@ -446,6 +446,9 @@ test_defs[FunctionEnvironmentRecord_name]="FunctionEnvironmentRecord@Environment
 test_defs[FunctionEnvironmentRecord_binding_names]="FunctionEnvironmentRecord@EnvironmentRecord::binding_names function_environment_record::binding_names environment_record"
 test_defs[FunctionEnvironmentRecord_get_super_base]="FunctionEnvironmentRecord::get_super_base function_environment_record::get_super_base environment_record"
 test_defs[FunctionEnvironmentRecord_new]="FunctionEnvironmentRecord::new function_environment_record::new environment_record"
+test_defs[ConciselyPrintedEnvironmentRecord]="ConciselyPrintedEnvironmentRecord concisely_printed_environment_record environment_record"
+test_defs[ConciseGlobalEnvironmentRecord]="ConciseGlobalEnvironmentRecord concise_global_environment_record environment_record"
+test_defs[ConciseOptionalGlobalEnvironmentRecord]="ConciseOptionalGlobalEnvironmentRecord concise_optional_global_environment_record environment_record"
 
 test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance object"
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
@@ -462,10 +465,12 @@ test_defs[ImmutablePrototypeExoticObject_own_property_keys]="ImmutablePrototypeE
 test_defs[length_of_array_like]="length_of_array_like length_of_array_like object"
 test_defs[Object_is_typed_array]="Object::is_typed_array object::is_typed_array object"
 test_defs[test_integrity_level]="test_integrity_level test_integrity_level object"
+test_defs[ConciseOptionalObject]="ConciseOptionalObject concise_optional_object object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
 test_defs[StashedFunctionData]="StashedFunctionData stashed_function_data chunk"
+test_defs[ConciseChunk]="ConciseChunk concise_chunk chunk"
 
 test_defs[ParameterMap]="ParameterMap parameter_map arguments_object"
 test_defs[ArgumentsObject]="ArgumentsObject arguments_object arguments_object"
@@ -478,6 +483,7 @@ test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInte
 
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
+test_defs[Realm]="Realm realm realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
@@ -528,6 +534,8 @@ test_defs[FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object]=
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
 test_defs[FunctionObject_own_property_keys]="FunctionObject@ObjectInterface::own_property_keys function_object::own_property_keys function_object"
 test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object"
+test_defs[ConciseBodySource]="ConciseBodySource concise_body_source function_object"
+test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 
@@ -667,6 +675,7 @@ test_defs[iterator_close]="iterator_close iterator_close control_abstraction"
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
 test_defs[ExecutionContext]="ExecutionContext execution_context execution_context"
+test_defs[ConciseScript]="ConciseScript concise_script execution_context"
 
 test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from_iterable map"
 

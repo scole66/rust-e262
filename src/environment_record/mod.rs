@@ -124,6 +124,14 @@ pub trait EnvironmentRecord: Debug {
     }
     fn name(&self) -> String;
     fn binding_names(&self) -> Vec<JSString>;
+    fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+}
+
+pub struct ConciselyPrintedEnvironmentRecord(pub Rc<dyn EnvironmentRecord>);
+impl fmt::Debug for ConciselyPrintedEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.concise(f)
+    }
 }
 
 // Declarative Environment Records
@@ -192,8 +200,7 @@ impl fmt::Debug for DeclarativeEnvironmentRecord {
                 .field("name", &self.name)
                 .finish()
         } else {
-            let name = &self.name;
-            write!(f, "DeclarativeEnvironmentRecord({name})")
+            self.concise(f)
         }
     }
 }
@@ -403,6 +410,11 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn binding_names(&self) -> Vec<JSString> {
         self.bindings.borrow().keys().cloned().collect()
     }
+
+    fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = &self.name;
+        write!(f, "DeclarativeEnvironmentRecord({name})")
+    }
 }
 
 impl DeclarativeEnvironmentRecord {
@@ -464,8 +476,7 @@ impl fmt::Debug for ObjectEnvironmentRecord {
                 .field("name", &self.name)
                 .finish()
         } else {
-            let name = &self.name;
-            write!(f, "ObjectEnvironmentRecord({name})")
+            self.concise(f)
         }
     }
 }
@@ -674,6 +685,11 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
             .map(|key| JSString::try_from(key).unwrap())
             .collect()
     }
+
+    fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = &self.name;
+        write!(f, "ObjectEnvironmentRecord({name})")
+    }
 }
 
 impl ObjectEnvironmentRecord {
@@ -751,8 +767,7 @@ impl fmt::Debug for FunctionEnvironmentRecord {
                 .field("name", &self.name)
                 .finish()
         } else {
-            let name = &self.name;
-            write!(f, "FunctionEnvironmentRecord({name})")
+            self.concise(f)
         }
     }
 }
@@ -858,6 +873,11 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
 
     fn binding_names(&self) -> Vec<JSString> {
         self.base.binding_names()
+    }
+
+    fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = &self.name;
+        write!(f, "FunctionEnvironmentRecord({name})")
     }
 }
 
@@ -1005,8 +1025,23 @@ impl fmt::Debug for GlobalEnvironmentRecord {
                 .field("name", &self.name)
                 .finish()
         } else {
-            let name = &self.name;
-            write!(f, "GlobalEnvironmentRecord({name})")
+            self.concise(f)
+        }
+    }
+}
+
+pub struct ConciseGlobalEnvironmentRecord<'a>(pub &'a GlobalEnvironmentRecord);
+impl<'a> fmt::Debug for ConciseGlobalEnvironmentRecord<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.concise(f)
+    }
+}
+pub struct ConciseOptionalGlobalEnvironmentRecord(pub Option<Rc<GlobalEnvironmentRecord>>);
+impl fmt::Debug for ConciseOptionalGlobalEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(env) => ConciseGlobalEnvironmentRecord(env).fmt(f),
+            None => write!(f, "None"),
         }
     }
 }
@@ -1259,6 +1294,11 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
         let mut result = self.lex_decls();
         result.extend(self.var_decls());
         result
+    }
+
+    fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = &self.name;
+        write!(f, "GlobalEnvironmentRecord({name})")
     }
 }
 
