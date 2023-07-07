@@ -410,6 +410,7 @@ mod stashed_function_data {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
         let fd = Maker::new(src).function_declaration();
@@ -427,6 +428,7 @@ mod stashed_function_data {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn eq() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
         let fd = Maker::new(src).function_declaration();

@@ -85,6 +85,7 @@ fn equality_test_01() {
 }
 
 #[test]
+#[allow(clippy::redundant_clone)]
 fn clone_test() {
     let s1 = JSString::from("crocodile");
     let s2 = s1.clone();
