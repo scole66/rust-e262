@@ -630,7 +630,7 @@ where
                 }
                 if let Some(o) = oo {
                     let mut data = o.into().common_object_data().borrow_mut();
-                    let mut pd = data.properties.get_mut(&p.unwrap()).unwrap();
+                    let pd = data.properties.get_mut(&p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
                     }

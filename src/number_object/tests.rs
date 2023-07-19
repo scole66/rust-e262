@@ -334,7 +334,7 @@ fn number_constructor_throws() {
     });
     {
         let mut cod = number_constructor.o.common_object_data().borrow_mut();
-        let mut prop = cod.properties.get_mut(&PropertyKey::from("prototype")).unwrap();
+        let prop = cod.properties.get_mut(&PropertyKey::from("prototype")).unwrap();
         prop.property = new_prop;
     }
 

@@ -737,7 +737,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpIfFalse | Insn::JumpIfTrue => {
-                    let mut execution_context = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let execution_context = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[execution_context.pc] as i16;
                     execution_context.pc += 1;
                     let stack_idx = execution_context.stack.len() - 1;
@@ -759,7 +759,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpPopIfFalse | Insn::JumpPopIfTrue => {
-                    let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let bool_val = bool::from(
@@ -782,7 +782,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpIfNotNullish | Insn::JumpIfNullish => {
-                    let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
@@ -801,7 +801,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpIfNotUndef => {
-                    let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
@@ -818,7 +818,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::JumpNotThrow => {
-                    let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     let stack_idx = ec.stack.len() - 1;
@@ -833,7 +833,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::Jump => {
-                    let mut ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     if jump >= 0 {
