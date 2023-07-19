@@ -1040,7 +1040,7 @@ mod array_constructor_function {
                 let array_function = Some(intrinsic(IntrinsicId::Array));
                 AGENT.with(|agent| {
                     let mut stack = agent.execution_context_stack.borrow_mut();
-                    let mut ec = stack.last_mut().unwrap();
+                    let ec = stack.last_mut().unwrap();
                     ec.function = array_function;
                 });
                 None
