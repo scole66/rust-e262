@@ -3684,7 +3684,7 @@ impl AssignmentRestProperty {
         // Our API:
         // Input:    excludedNames value
         // Output:   value/err (the input value, unchanged)
-        // 
+        //
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  1. Let lref be ? Evaluation of DestructuringAssignmentTarget.
         //  2. Let restObj be OrdinaryObjectCreate(%Object.prototype%).
@@ -3728,7 +3728,6 @@ impl AssignmentElement {
 }
 
 impl ArrayAssignmentPattern {
-    #[allow(unused_variables)]
     fn destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -3739,11 +3738,225 @@ impl ArrayAssignmentPattern {
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
         // piecewise over the following productions:
+        //
+        // Our changes: rather than returning unused/err, we return value/err (the input value, unchanged).
         match self {
-            ArrayAssignmentPattern::RestOnly { elision, are, location } => todo!(),
-            ArrayAssignmentPattern::ListOnly { ael, location } => todo!(),
-            ArrayAssignmentPattern::ListRest { ael, elision, are, location } => todo!(),
+            ArrayAssignmentPattern::RestOnly { elision: None, are: None, .. } => {
+                // ArrayAssignmentPattern : [ ]
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. Return ? IteratorClose(iteratorRecord, NormalCompletion(unused)).
+
+                // start                    value
+                //   DUP                    value value
+                //   GET_SYNC_ITERATOR      ir/err value
+                //   JUMP_IF_ABRUPT unwind  ir value
+                //   EMPTY                  [empty] ir value
+                //   ITERATOR_CLOSE         [empty]/err value
+                //   JUMP_IF_ABRUPT unwind  [empty] value
+                //   POP                    value
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
+                // exit:
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator);
+                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Empty);
+                chunk.op(Insn::IteratorClose);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind1).expect("jump too short to fail");
+                chunk.fixup(unwind2).expect("jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayAssignmentPattern::RestOnly { elision: Some(elision), are: None, .. } => {
+                // ArrayAssignmentPattern : [ Elision ]
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. Let result be Completion(IteratorDestructuringAssignmentEvaluation of Elision with argument
+                //     iteratorRecord).
+                //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+                //  4. Return result.
+
+                // start:                            value
+                //   DUP                             value value
+                //   GET_SYNC_ITERATOR               ir/err value
+                //   JUMP_IF_ABRUPT unwind           ir value
+                //   DUP                             ir ir value
+                //   <elision.iterator_destructuring_assignment_evaluation> ir/err ir value
+                //   EMPTY_IF_NOT_ERR                [empty]/err ir value
+                //   IR_CLOSE_IF_NOT_DONE            [empty]/err value
+                //   UPDATE_EMPTY                    value/err
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
+                // exit:
+
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup);
+                elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayAssignmentPattern::RestOnly { elision, are: Some(are), .. } => {
+                // ArrayAssignmentPattern : [ Elisionopt AssignmentRestElement ]
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. If Elision is present, then
+                //      a. Let status be Completion(IteratorDestructuringAssignmentEvaluation of Elision with argument
+                //         iteratorRecord).
+                //      b. If status is an abrupt completion, then
+                //          i. Assert: iteratorRecord.[[Done]] is true.
+                //          ii. Return ? status.
+                //  3. Let result be Completion(IteratorDestructuringAssignmentEvaluation of AssignmentRestElement with
+                //     argument iteratorRecord).
+                //  4. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+                //  5. Return result.
+
+                // start:                                                    value
+                //   DUP                                                     value value
+                //   GET_SYNC_ITER                                           ir/err value
+                //   JUMP_IF_ABRUPT unwind                                   ir value
+                //   DUP                                                     ir ir value
+                // --- if elision
+                //   <elision.iterator_destructuring_assignment_evaluation>  ir/err ir value
+                //   JUMP_IF_ABRUPT unwind2                                  ir ir value
+                // ---
+                //   <are.iterator_destructuring_assignment_evaluation>      ir/err ir value
+                //   EMPTY_IF_NOT_ERR                                        [empty]/err ir value
+                //   IR_CLOSE_IF_NOT_DONE                                    [empty]/err value
+                //   UPDATE_EMPTY                                            value/err
+                //   JUMP exit
+                // unwind2:                                                  err ir value
+                //   UNWIND 1                                                err value
+                // unwind:                                                   err value
+                //   UNWIND 1                                                err
+                // exit:                                                     value/err
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup);
+                let mut unwind2 = None;
+                if let Some(elision) = elision {
+                    elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                    unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                are.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+                if let Some(unwind2) = unwind2 {
+                    chunk.fixup(unwind2)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                }
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayAssignmentPattern::ListOnly { ael, .. } => {
+                // ArrayAssignmentPattern : [ AssignmentElementList ]
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. Let result be Completion(IteratorDestructuringAssignmentEvaluation of AssignmentElementList with
+                //     argument iteratorRecord).
+                //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+                //  4. Return result.
+
+                // start:                                                    value
+                //   DUP                                                     value value
+                //   GET_SYNC_ITER                                           ir/err value
+                //   JUMP_IF_ABRUPT unwind                                   ir value
+                //   DUP                                                     ir ir value
+                //   <ael.iterator_destructuring_assignment_evaluation>      ir/err ir value
+                //   EMPTY_IF_NOT_ERR                                        [empty]/err ir value
+                //   IR_CLOSE_IF_NOT_DONE                                    [empty]/err value
+                //   UPDATE_EMPTY                                            value/err
+                //   JUMP exit
+                // unwind:                                                   err value
+                //   UNWIND 1                                                err
+                // exit:                                                     value/err
+
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup);
+                ael.iterator_destructuring_assignment_expression(chunk, strict, text)?;
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AbruptResult::Maybe)
+            }
+            ArrayAssignmentPattern::ListRest { ael, elision, are, .. } => {
+                // ArrayAssignmentPattern : [ AssignmentElementList , Elisionopt AssignmentRestElementopt ]
+                //  1. Let iteratorRecord be ? GetIterator(value, sync).
+                //  2. Let status be Completion(IteratorDestructuringAssignmentEvaluation of AssignmentElementList with
+                //     argument iteratorRecord).
+                //  3. If status is an abrupt completion, then
+                //      a. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, status).
+                //      b. Return ? status.
+                //  4. If Elision is present, then
+                //      a. Set status to Completion(IteratorDestructuringAssignmentEvaluation of Elision with argument
+                //         iteratorRecord).
+                //      b. If status is an abrupt completion, then
+                //          i. Assert: iteratorRecord.[[Done]] is true.
+                //          ii. Return ? status.
+                //  5. If AssignmentRestElement is present, then
+                //      a. Set status to Completion(IteratorDestructuringAssignmentEvaluation of AssignmentRestElement
+                //         with argument iteratorRecord).
+                //  6. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, status).
+                //  7. Return ? status.
+
+                // start:                                                    value
+                //   DUP                                                     value value
+                //   GET_SYNC_ITER                                           ir/err value
+                //   JUMP_IF_ABRUPT unwind                                   ir value
+                //   DUP                                                     ir ir value
+                //   <ael.iterator_destructuring_assignment_evaluation>      ir/err ir value
+                
+                todo!()
+            }
         }
+    }
+}
+
+impl AssignmentRestElement {
+    #[allow(unused_variables)]
+    pub fn iterator_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
+    }
+}
+
+impl AssignmentElementList {
+    #[allow(unused_variables)]
+    pub fn iterator_destructuring_assignment_expression(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AbruptResult> {
+        todo!()
     }
 }
 
