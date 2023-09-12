@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use super::*;
 use ahash::AHashSet;
 use anyhow::anyhow;
@@ -51,6 +53,7 @@ pub enum Insn {
     PopOrPanic,
     Pop2Push3,
     Dup,
+    DupAfterList,
     RotateUp,
     RotateDown,
     RotateDownList,
@@ -200,6 +203,7 @@ impl fmt::Display for Insn {
             Insn::PopOrPanic => "POP_PANIC",
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Dup => "DUP",
+            Insn::DupAfterList => "DUP_AFTER_LIST",
             Insn::RotateUp => "ROTATEUP",
             Insn::RotateDown => "ROTATEDOWN",
             Insn::RotateDownList => "ROTATEDOWN_LIST",
@@ -3293,7 +3297,7 @@ impl AssignmentPattern {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
@@ -3301,9 +3305,7 @@ impl AssignmentPattern {
         //
         // Our changes: rather than returning unused/err, we return value/err (the input value, unchanged).
         match self {
-            AssignmentPattern::Object(oap) => {
-                oap.destructuring_assignment_evaluation(chunk, strict, text).map(AbruptResult::from)
-            }
+            AssignmentPattern::Object(oap) => oap.destructuring_assignment_evaluation(chunk, strict, text),
             AssignmentPattern::Array(aap) => aap.destructuring_assignment_evaluation(chunk, strict, text),
         }
     }
@@ -3628,7 +3630,7 @@ impl AssignmentProperty {
                 //   <prop_name>                                               name/err value value
                 //   JUMP_IF_ABRUPT unwind                                     name value value
                 //   POP2PUSH3                                                 name value name value
-                //   <ae.keyed_destruction_assignment_evaluation>              [empty]/err name value
+                //   <ae.keyed_destructuring_assignment_evaluation>            [empty]/err name value
                 //   JUMP_IF_ABRUPT unwind                                     [empty] name value
                 //   POP                                                       name value
                 //   FLOAT 1                                                   name_list value
@@ -3644,7 +3646,7 @@ impl AssignmentProperty {
                     unwind1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 chunk.op(Insn::Pop2Push3);
-                let ae_status = ae.keyed_destruction_assignment_evaluation(chunk, strict, text)?;
+                let ae_status = ae.keyed_destructuring_assignment_evaluation(chunk, strict, text)?;
                 let mut unwind2 = None;
                 if ae_status.maybe_abrupt() {
                     unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -3669,13 +3671,12 @@ impl AssignmentProperty {
 }
 
 impl AssignmentRestProperty {
-    #[allow(unused_variables)]
     fn rest_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: RestDestructuringAssignmentEvaluation
         // The syntax-directed operation RestDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
         // language value) and excludedNames (a List of property keys) and returns either a normal completion containing
@@ -3710,20 +3711,31 @@ impl AssignmentRestProperty {
         //   UNWIND 1                                     err value
         // unwind_1:
         //   UNWIND 1                                     err
-        // exit:
-        todo!()
-    }
-}
+        // exit:                                          value/err
 
-impl AssignmentElement {
-    #[allow(unused_variables)]
-    fn keyed_destruction_assignment_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
+        chunk.op(Insn::DupAfterList);
+        let dat_status = self.0.compile(chunk, strict, text)?;
+        let unwind_list_plus_2 = if dat_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op_plus_arg(Insn::RotateDownList, 1);
+        chunk.op(Insn::Object);
+        chunk.op_plus_arg(Insn::RotateDownList, 1);
+        chunk.op(Insn::CopyDataPropsWithExclusions);
+        let unwind_2 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::PutValue);
+        let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Pop);
+        let exit = chunk.op_jump(Insn::Jump);
+        if let Some(unwind_list_plus_2) = unwind_list_plus_2 {
+            chunk.fixup(unwind_list_plus_2)?;
+            chunk.op(Insn::UnwindList);
+        }
+        chunk.fixup(unwind_2).expect("jump too short to fail");
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.fixup(unwind_1).expect("jump too short to fail");
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.fixup(exit).expect("jump too short to fail");
+
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -3733,7 +3745,7 @@ impl ArrayAssignmentPattern {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
@@ -3770,7 +3782,7 @@ impl ArrayAssignmentPattern {
                 chunk.fixup(unwind2).expect("jump too short to fail");
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             ArrayAssignmentPattern::RestOnly { elision: Some(elision), are: None, .. } => {
                 // ArrayAssignmentPattern : [ Elision ]
@@ -3807,7 +3819,7 @@ impl ArrayAssignmentPattern {
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             ArrayAssignmentPattern::RestOnly { elision, are: Some(are), .. } => {
                 // ArrayAssignmentPattern : [ Elisionopt AssignmentRestElement ]
@@ -3864,7 +3876,7 @@ impl ArrayAssignmentPattern {
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             ArrayAssignmentPattern::ListOnly { ael, .. } => {
                 // ArrayAssignmentPattern : [ AssignmentElementList ]
@@ -3892,7 +3904,7 @@ impl ArrayAssignmentPattern {
                 chunk.op(Insn::GetSyncIterator);
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Dup);
-                ael.iterator_destructuring_assignment_expression(chunk, strict, text)?;
+                ael.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
                 chunk.op(Insn::EmptyIfNotError);
                 chunk.op(Insn::IteratorCloseIfNotDone);
                 chunk.op(Insn::UpdateEmpty);
@@ -3901,7 +3913,7 @@ impl ArrayAssignmentPattern {
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             ArrayAssignmentPattern::ListRest { ael, elision, are, .. } => {
                 // ArrayAssignmentPattern : [ AssignmentElementList , Elisionopt AssignmentRestElementopt ]
@@ -3929,8 +3941,72 @@ impl ArrayAssignmentPattern {
                 //   JUMP_IF_ABRUPT unwind                                   ir value
                 //   DUP                                                     ir ir value
                 //   <ael.iterator_destructuring_assignment_evaluation>      ir/err ir value
-                
-                todo!()
+                //   JUMP_IF_NORMAL after_list                               status ir value  [status is abrupt]
+                //   IR_CLOSE_IF_NOT_DONE                                    status/err value
+                //   JUMP unwind
+                // after_list:                                               ir ir value  [status = [empty]]
+                // ----- elision present -----
+                //   <elision.iterator_destructuring_assignment_evaluation>  ir/err ir value
+                //   JUMP_IF_ABRUPT unwind2                                  ir ir value  [status = [empty]]
+                // -----
+                // ----- AssignmentRestElement present -----
+                //   <are.iterator_destructuring_assignment_evaluation>      ir/err ir value [status = [empty]/err]
+                // -----
+                // _:                                                        ir/err ir value [status = [empty]/err]
+                //   EMPTY_IF_NOT_ERR                                        [empty]/err ir value
+                //   IR_CLOSE_IF_NOT_DONE                                    [empty]/err value
+                //   UPDATE_EMPTY                                            value/err
+                //   JUMP exit
+                // ----- elision present -----
+                // unwind2:                                                  err ir value
+                //   UNWIND 1                                                err value
+                // -----
+                // unwind:                                                   err value
+                //   UNWIND 1                                                err
+                // exit:                                                     value/err
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup);
+                let ael_status = ael.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind_alt = if ael_status.maybe_abrupt() {
+                    let after_list = chunk.op_jump(Insn::JumpIfNormal);
+                    chunk.op(Insn::IteratorCloseIfNotDone);
+                    let unwind_alt = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(after_list).expect("Jump too short to fail");
+                    Some(unwind_alt)
+                } else {
+                    None
+                };
+
+                let unwind2 = if let Some(elision) = elision.as_ref() {
+                    elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+
+                if let Some(are) = are.as_ref() {
+                    are.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                }
+
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+
+                if let Some(unwind2) = unwind2 {
+                    chunk.fixup(unwind2)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                }
+                chunk.fixup(unwind)?;
+                if let Some(unwind) = unwind_alt {
+                    chunk.fixup(unwind)?;
+                }
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("Jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -3943,25 +4019,551 @@ impl AssignmentRestElement {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
+        // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
+        // completion.)
+        //
+        // AssignmentRestElement : ... DestructuringAssignmentTarget
+        //
+        //  1. If DestructuringAssignmentTarget is neither an ObjectLiteral nor an ArrayLiteral, then a. Let lref be ?
+        //      Evaluation of DestructuringAssignmentTarget.
+        //  2. Let A be ! ArrayCreate(0).
+        //  3. Let n be 0.
+        //  4. Repeat, while iteratorRecord.[[Done]] is false,
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, then
+        //          i. Set iteratorRecord.[[Done]] to true.
+        //      e. Else,
+        //          i. Let nextValue be Completion(IteratorValue(next)).
+        //          ii. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(nextValue).
+        //          iv. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+        //          v. Set n to n + 1.
+        //  5. If DestructuringAssignmentTarget is neither an ObjectLiteral nor an ArrayLiteral, then
+        //      a. Return ? PutValue(lref, A).
+        //  6. Let nestedAssignmentPattern be the AssignmentPattern that is covered by DestructuringAssignmentTarget.
+        //  7. Return ? DestructuringAssignmentEvaluation of nestedAssignmentPattern with argument A.
+
+        // start:                                    ir
+        //   --- not a/o literal
+        //   <dat.evaluate>                          lref/err ir
+        //   JUMP_IF_ABRUPT unwind                   lref ir
+        //   SWAP                                    ir lref
+        //   ---                                     ir lref/--
+        //   ITER_REST                               (A ir)/err lref/--
+        //   --- not a/o literal
+        //   JUMP_IF_ABRUPT unwind                   A ir lref
+        //   ROTATE_UP 3                             lref A ir
+        //   SWAP                                    A lref ir
+        //   PUT_VALUE                               [empty]/err ir
+        //   -- else
+        //   JUMP_IF_ABRUPT exit                     A ir
+        //   <dat.ap.destructuring_assignment_evaluation>  A/err ir
+        //   EMPTY_IF_NOT_ERROR                      [empty]/err ir
+        //   ---
+        //   UPDATE_EMPTY                            ir/err
+        //   JUMP exit
+        // unwind:                                   err ir/lref
+        //   UNWIND 1                                err
+        // exit:                                     ir/err
+
+        match self.0.as_ref() {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => {
+                let status = lhse.compile(chunk, strict, text)?;
+                let unwind_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::IteratorRest);
+                let unwind_b = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op_plus_arg(Insn::RotateUp, 3);
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::PutValue);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+                if let Some(unwind_a) = unwind_a {
+                    chunk.fixup(unwind_a).expect("jump too short to fail");
+                }
+                chunk.fixup(unwind_b).expect("jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
+            DestructuringAssignmentTarget::AssignmentPattern(ap) => {
+                chunk.op(Insn::IteratorRest);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                ap.destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::UpdateEmpty);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short fo fail");
+                Ok(AlwaysAbruptResult)
+            }
+        }
     }
 }
 
 impl AssignmentElementList {
+    pub fn iterator_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
+        // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
+        // completion.)
+        //
+
+        match self {
+            AssignmentElementList::Item(item) => {
+                // AssignmentElementList : AssignmentElisionElement
+                //  1. Return ? IteratorDestructuringAssignmentEvaluation of AssignmentElisionElement with argument
+                //     iteratorRecord.
+                item.iterator_destructuring_assignment_evaluation(chunk, strict, text)
+            }
+            AssignmentElementList::List(list, item) => {
+                // AssignmentElementList : AssignmentElementList , AssignmentElisionElement
+                //  1. Perform ? IteratorDestructuringAssignmentEvaluation of AssignmentElementList with argument
+                //     iteratorRecord.
+                //  2. Return ? IteratorDestructuringAssignmentEvaluation of AssignmentElisionElement with argument
+                //     iteratorRecord.
+
+                // start:                                                 ir
+                //   <list.iterator_destructuring_assignment_evaluation>   ir/err
+                //   JUMP_IF_ABRUPT exit                                  ir
+                //   <item.iterator_destructuring_assignment_evaluation>   ir/err
+                //   exit:
+                list.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                item.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.fixup(exit)?;
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl AssignmentElisionElement {
+    pub fn iterator_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
+        // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
+        // completion.)
+        //
+        match &self.elisions {
+            Some(elision) => {
+                // AssignmentElisionElement : Elision AssignmentElement
+                //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+                //  2. Return ? IteratorDestructuringAssignmentEvaluation of AssignmentElement with argument
+                //     iteratorRecord.
+                // start:                                                     ir
+                //   <elision.iterator_destructuring_assignment_evaluation>   ir/err
+                //   JUMP_IF_ABRUPT exit                                      ir
+                //   <item.iterator_destructuring_assignment_evaluation>      ir/err
+                //   exit:
+                elision.iterator_destructuring_assignment_evaluation(chunk)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                self.element.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.fixup(exit)?;
+                Ok(AlwaysAbruptResult)
+            }
+            None => {
+                // AssignmentElisionElement : AssignmentElement
+                //  1. Return ? IteratorDestructuringAssignmentEvaluation of AssignmentElement with argument
+                //     iteratorRecord.
+                self.element.iterator_destructuring_assignment_evaluation(chunk, strict, text)
+            }
+        }
+    }
+}
+
+impl AssignmentElement {
     #[allow(unused_variables)]
-    pub fn iterator_destructuring_assignment_expression(
+    pub fn iterator_destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
+        // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing unused or an abrupt completion.
+        //
+        // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
+        // completion.)
+        //
+        // AssignmentElement : DestructuringAssignmentTarget Initializeropt
+        //  1. If DestructuringAssignmentTarget is neither an ObjectLiteral nor an ArrayLiteral, then
+        //      a. Let lref be ? Evaluation of DestructuringAssignmentTarget.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, then
+        //          i. Set iteratorRecord.[[Done]] to true.
+        //      e. Else,
+        //          i. Let value be Completion(IteratorValue(next)).
+        //          ii. If value is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(value).
+        //  3. If iteratorRecord.[[Done]] is true, let value be undefined.
+        //  4. If Initializer is present and value is undefined, then
+        //      a. If IsAnonymousFunctionDefinition(Initializer) is true and IsIdentifierRef of
+        //         DestructuringAssignmentTarget is true, then
+        //          i. Let v be ? NamedEvaluation of Initializer with argument lref.[[ReferencedName]].
+        //      b. Else,
+        //          i. Let defaultValue be ? Evaluation of Initializer.
+        //          ii. Let v be ? GetValue(defaultValue).
+        //  5. Else,
+        //      a. Let v be value.
+        //  6. If DestructuringAssignmentTarget is either an ObjectLiteral or an ArrayLiteral, then
+        //      a. Let nestedAssignmentPattern be the AssignmentPattern that is covered by
+        //         DestructuringAssignmentTarget.
+        //      b. Return ? DestructuringAssignmentEvaluation of nestedAssignmentPattern with argument v.
+        //  7. Return ? PutValue(lref, v).
+
+        // start:                                         ir
+        // --- if not pattern
+        //   <dat.evaluate>                               lref/err ir
+        //   JUMP_IF_ABRUPT unwind_1                      lref ir
+        //   SWAP                                         ir lref
+        // --- endif
+        //   IR_STEP                                      PATTERN: [ err or (value ir) ]; NOTPATTERN: [ (err or (value ir)) lref ]
+        // --- if not pattern
+        //   JUMP_IF_ABRUPT unwind_1                      value ir lref
+        //   SWAP                                         ir value lref
+        //   ROTATE_DOWN 3                                value lref ir
+        // --- else if pattern
+        //   JUMP_IF_ABRUPT exit                          value ir
+        // --- endif
+        // --- if initializer is present
+        //   JUMP_IF_NOT_UNDEF has_value
+        //   POP                                          PATTERN: [ ir ]; NOTPATTERN: [ lref ir ]
+        // --- if is_anonymous_function && is_identifier_ref
+        //   <izer.named_evaluation(dat.referenced_name)> v/err ir
+        // --- else
+        //   <izer.evaluate>                              PATTERN: [ vref/err ir ]; NOTPATTERN: [ vref/err lref ir ]
+        //   GET_VALUE                                    PATTERN: [ v/err ir ]; NOTPATTERN: [ v/err lref ir ]
+        // --- endif (anonymous)
+        // --- if not pattern
+        //   JUMP_IF_ABRUPT unwind_2                      v lref ir
+        // --- else if pattern
+        //   JUMP_IF_ABRUPT unwind_1                      v ir
+        // --- endif
+        // has_value:                                     PATTERN: [ v ir ]; NOTPATTERN: [ v lref ir ]
+        // --- endif (initializer)
+        // --- if pattern
+        //   <dat.destructuring_assignment_evaluation>    v/err ir
+        //   EMPTY_IF_NOT_ERROR                           [empty]/err ir
+        // --- else
+        //   PUT_VALUE                                    [empty]/err ir
+        // --- endif
+        //   UPDATE_EMPTY                                 ir/err
+        //   JUMP exit
+        // --- if not pattern
+        // unwind_2:                                      err lref ir
+        //   UNWIND 1                                     err ir
+        // --- endif
+        // unwind_1:                                      err ir
+        //   UNWIND 1                                     err
+        // exit:                                          ir/err
+        let dat = &self.target;
+        let mut unwind_1_a = None;
+        let not_pattern = if let DestructuringAssignmentTarget::LeftHandSideExpression(lhse) = dat.as_ref() {
+            let lhse_status = lhse.compile(chunk, strict, text)?;
+            if lhse_status.maybe_abrupt() {
+                unwind_1_a = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            }
+            chunk.op(Insn::Swap);
+            true
+        } else {
+            false
+        };
+        chunk.op(Insn::EmbellishedIteratorStep);
+        let mut unwind_1_b = None;
+        let mut exit_a = None;
+        if not_pattern {
+            unwind_1_b = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            chunk.op(Insn::Swap);
+            chunk.op_plus_arg(Insn::RotateDown, 3);
+        } else {
+            exit_a = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        }
+        let mut unwind_2 = None;
+        let mut unwind_1_c = None;
+        if let Some(izer) = self.initializer.as_ref() {
+            let has_value = chunk.op_jump(Insn::JumpIfNotUndef);
+            chunk.op(Insn::Pop);
+            let izer_status =
+                if let (Some(np), Some(lhse_id)) = (izer.anonymous_function_definition(), dat.identifier_ref()) {
+                    let idx = chunk.add_to_string_pool(lhse_id.string_value())?;
+                    np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
+                } else {
+                    let status = izer.compile(chunk, strict, text)?;
+                    if status.maybe_ref() {
+                        chunk.op(Insn::GetValue);
+                    }
+                    status
+                };
+            if izer_status.maybe_abrupt() {
+                let target = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                if not_pattern {
+                    unwind_2 = target;
+                } else {
+                    unwind_1_c = target;
+                }
+            }
+            chunk.fixup(has_value)?;
+        }
+        if not_pattern {
+            chunk.op(Insn::PutValue);
+        } else {
+            dat.destructuring_assignment_evaluation(chunk, strict, text)?;
+            chunk.op(Insn::EmptyIfNotError);
+        }
+        chunk.op(Insn::UpdateEmpty);
+        let mut exit_b = None;
+        let unwind_1_needed = unwind_1_a.is_some() || unwind_1_b.is_some() || unwind_1_c.is_some();
+        if unwind_2.is_some() || unwind_1_needed {
+            exit_b = Some(chunk.op_jump(Insn::Jump));
+
+            if let Some(unwind_2) = unwind_2 {
+                chunk.fixup(unwind_2).expect("jump is too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, if unwind_1_needed { 1 } else { 2 });
+            }
+            if let Some(unwind_1) = unwind_1_a {
+                chunk.fixup(unwind_1)?;
+            }
+            if let Some(unwind_1) = unwind_1_b {
+                chunk.fixup(unwind_1)?;
+            }
+            if let Some(unwind_1) = unwind_1_c {
+                chunk.fixup(unwind_1)?;
+            }
+            if unwind_1_needed {
+                chunk.op_plus_arg(Insn::Unwind, 1);
+            }
+        }
+        if let Some(exit) = exit_a {
+            chunk.fixup(exit)?;
+        }
+        if let Some(exit) = exit_b {
+            chunk.fixup(exit).expect("jump too short to fail");
+        }
+        Ok(AlwaysAbruptResult)
+    }
+
+    fn keyed_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
     ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: KeyedDestructuringAssignmentEvaluation
+        // The syntax-directed operation KeyedDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
+        // language value) and propertyName (a property key) and returns either a normal completion containing unused or
+        // an abrupt completion. It is defined piecewise over the following productions:
+        //
+        // AssignmentElement : DestructuringAssignmentTarget Initializeropt
+        //  1. If DestructuringAssignmentTarget is neither an ObjectLiteral nor an ArrayLiteral, then
+        //      a. Let lref be ? Evaluation of DestructuringAssignmentTarget.
+        //  2. Let v be ? GetV(value, propertyName).
+        //  3. If Initializer is present and v is undefined, then
+        //      a. If IsAnonymousFunctionDefinition(Initializer) and IsIdentifierRef of DestructuringAssignmentTarget
+        //         are both true, then
+        //          i. Let rhsValue be ? NamedEvaluation of Initializer with argument lref.[[ReferencedName]].
+        //      b. Else,
+        //          i. Let defaultValue be ? Evaluation of Initializer.
+        //          ii. Let rhsValue be ? GetValue(defaultValue).
+        //  4. Else,
+        //      a. Let rhsValue be v.
+        //  5. If DestructuringAssignmentTarget is either an ObjectLiteral or an ArrayLiteral, then
+        //      a. Let assignmentPattern be the AssignmentPattern that is covered by DestructuringAssignmentTarget.
+        //      b. Return ? DestructuringAssignmentEvaluation of assignmentPattern with argument rhsValue.
+        //  6. Return ? PutValue(lref, rhsValue).
+
+        // start:                                 name value
+        // -- if not pattern
+        //   <dat.evaluate>                       lref/err name value
+        //   JUMP_IF_ABRUPT unwind_2              lref name value
+        //   ROTATE_DOWN 3                        name value lref
+        // -- endif
+        //   GETV                                 v/err lref/--
+        // -- if not pattern
+        //   JUMP_IF_ABRUPT unwind_1              v lref
+        // -- else
+        //   JUMP_IF_ABRUPT exit                  v
+        // -- endif
+        // -- if initializer present
+        //   JUMP_IF_NOT_UNDEF has_value          undefined lref/--
+        //   POP                                  lref/--
+        // -- if named anonymous
+        //   <izer.named_evaluation(lhse.name)>   rhsValue/err lref/--
+        // -- else not named anonymous
+        //   <izer.evaluate()>                    rref/err lref/--
+        //   GET_VALUE                            rhsValue/err lref/--
+        // -- endif
+        // -- if not pattern
+        //   JUMP_IF_ABRUPT unwind_1              rhsValue lref
+        // -- else
+        //   JUMP_IF_ABRUPT exit                  rhsValue
+        // -- endif
+        // has_value:                             rhsValue lref/--
+        // -- endif
+        // -- if not pattern
+        //   PUT_VALUE                            [empty]/err
+        // -- else
+        //   <dat.destructuring_assignment_evaluation()> rhsValue/err
+        //   EMPTY_IF_NOT_ERROR                   [empty]/err
+        // -- endif
+        //   JUMP exit
+        // unwind_2:
+        //   UNWIND 1
+        // unwind_1:
+        //   UNWIND 1
+        // exit:
+
+        let unwind_2 = if let DestructuringAssignmentTarget::LeftHandSideExpression(lhse) = self.target.as_ref() {
+            let lhse_status = lhse.compile(chunk, strict, text)?;
+            let mark = if lhse_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+            chunk.op_plus_arg(Insn::RotateDown, 3);
+            mark
+        } else {
+            None
+        };
+        chunk.op(Insn::GetV);
+        let (unwind_1_a, exit_a) = {
+            let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+            if matches!(self.target.as_ref(), DestructuringAssignmentTarget::LeftHandSideExpression(_)) {
+                (Some(mark), None)
+            } else {
+                (None, Some(mark))
+            }
+        };
+        let (unwind_1_b, exit_b) = if let Some(izer) = self.initializer.as_ref() {
+            let has_value = chunk.op_jump(Insn::JumpIfNotUndef);
+            chunk.op(Insn::Pop);
+            let status = if let (Some(np), Some(lhse_id)) =
+                (izer.anonymous_function_definition(), self.target.as_ref().identifier_ref())
+            {
+                let id = chunk.add_to_string_pool(lhse_id.string_value())?;
+                chunk.op_plus_arg(Insn::String, id);
+                np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(id))?
+            } else {
+                izer.compile(chunk, strict, text)?
+            };
+            if status.maybe_ref() {
+                chunk.op(Insn::GetValue);
+            }
+
+            let (unwind_1, exit) = if status.maybe_ref() || status.maybe_abrupt() {
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                if matches!(self.target.as_ref(), DestructuringAssignmentTarget::LeftHandSideExpression(_)) {
+                    (Some(mark), None)
+                } else {
+                    (None, Some(mark))
+                }
+            } else {
+                (None, None)
+            };
+
+            chunk.fixup(has_value)?;
+
+            (unwind_1, exit)
+        } else {
+            (None, None)
+        };
+
+        match self.target.as_ref() {
+            DestructuringAssignmentTarget::LeftHandSideExpression(_) => {
+                chunk.op(Insn::PutValue);
+            }
+            DestructuringAssignmentTarget::AssignmentPattern(ap) => {
+                ap.destructuring_assignment_evaluation(chunk, strict, text)?;
+                chunk.op(Insn::EmptyIfNotError);
+            }
+        }
+        let exit_c = if unwind_2.is_some() || unwind_1_a.is_some() || unwind_1_b.is_some() {
+            Some(chunk.op_jump(Insn::Jump))
+        } else {
+            None
+        };
+
+        let has_unwind1 = unwind_1_a.is_some() || unwind_1_b.is_some();
+        if let Some(unwind) = unwind_2 {
+            chunk.fixup(unwind)?;
+            chunk.op_plus_arg(Insn::Unwind, if has_unwind1 { 1 } else { 2 });
+        }
+        if has_unwind1 {
+            if let Some(unwind) = unwind_1_a {
+                chunk.fixup(unwind)?;
+            }
+            if let Some(unwind) = unwind_1_b {
+                chunk.fixup(unwind)?;
+            }
+            chunk.op_plus_arg(Insn::Unwind, 1);
+        }
+
+        if let Some(exit) = exit_a {
+            chunk.fixup(exit)?;
+        }
+        if let Some(exit) = exit_b {
+            chunk.fixup(exit)?;
+        }
+        if let Some(exit) = exit_c {
+            chunk.fixup(exit)?;
+        }
+
+        Ok(AbruptResult::from(true))
+    }
+}
+
+impl<'a> TryFrom<&'a DestructuringAssignmentTarget> for &'a Rc<AssignmentPattern> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &'a DestructuringAssignmentTarget) -> Result<Self, Self::Error> {
+        match value {
+            DestructuringAssignmentTarget::LeftHandSideExpression(_) => {
+                Err(anyhow!("lhs cannot be converted to pattern"))
+            }
+            DestructuringAssignmentTarget::AssignmentPattern(ap) => Ok(ap),
+        }
+    }
+}
+
+impl DestructuringAssignmentTarget {
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         todo!()
+    }
+    pub fn destructuring_assignment_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        let pattern: &Rc<AssignmentPattern> = self.try_into()?;
+        pattern.destructuring_assignment_evaluation(chunk, strict, text)
     }
 }
 
 impl Expression {
-    #[allow(unused_variables)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             Expression::FallThru(ae) => ae.compile(chunk, strict, text),
@@ -5214,7 +5816,7 @@ impl ForInOfStatement {
         //   IRES_TO_VALUE                            value/err iter_record v
         //   JUMP_IF_ABRUPT unwind2                   value iter_record v
         // --- if destructuring && lhsKind == assignment
-        //   <lhs.destructuring_assignment_pattern>   status iter_record v
+        //   <lhs.destructuring_assignment_evaluation>   status iter_record v
         // --- else if destructuring && lhsKind == varBinding
         //   <lhs.binding_initialization(putvalue)>   status iter_record v
         // --- else if lhsKind == assignment || lhsKind == varBinding
@@ -5314,7 +5916,7 @@ impl ForInOfStatement {
         match lhs {
             ForInOfLHSExpr::AssignmentPattern(lhs) => {
                 assert!(destructuring);
-                lhs.destructuring_assignment_pattern(chunk, strict, text)?;
+                lhs.destructuring_assignment_evaluation(chunk, strict, text)?;
             }
             ForInOfLHSExpr::ForBinding(fb) => {
                 if destructuring {
@@ -5582,22 +6184,6 @@ impl ForDeclaration {
 
     #[allow(unused_variables)]
     fn for_declaration_binding_initialization(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
-        // For coverage purposes, try and store a big int. (Upon actual implementation, remove this.)
-        let bi = num::BigInt::from(78);
-        chunk.add_to_bigint_pool(Rc::new(bi))?;
-
-        todo!()
-    }
-}
-
-impl AssignmentPattern {
-    #[allow(unused_variables)]
-    fn destructuring_assignment_pattern(
         &self,
         chunk: &mut Chunk,
         strict: bool,

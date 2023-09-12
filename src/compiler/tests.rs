@@ -8432,14 +8432,14 @@ mod assignment_pattern {
 
     #[test_case("{a}", true, &[] => panics "not yet implemented"; "anything")]
     #[test_case("{a}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "temporary coverage hack")]
-    fn destructuring_assignment_pattern(
+    fn destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_pattern(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, src)
             .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_ref()))
             .map_err(|e| e.to_string())
     }

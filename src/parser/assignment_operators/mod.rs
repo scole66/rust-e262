@@ -1149,7 +1149,7 @@ impl ArrayAssignmentPattern {
 // AssignmentRestProperty[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub struct AssignmentRestProperty(Rc<DestructuringAssignmentTarget>);
+pub struct AssignmentRestProperty(pub Rc<DestructuringAssignmentTarget>);
 
 impl fmt::Display for AssignmentRestProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1466,8 +1466,8 @@ impl AssignmentElementList {
 //      Elision_opt AssignmentElement[?Yield, ?Await]
 #[derive(Debug)]
 pub struct AssignmentElisionElement {
-    elisions: Option<Rc<Elisions>>,
-    element: Rc<AssignmentElement>,
+    pub elisions: Option<Rc<Elisions>>,
+    pub element: Rc<AssignmentElement>,
 }
 
 impl fmt::Display for AssignmentElisionElement {
@@ -1712,8 +1712,8 @@ impl AssignmentProperty {
 //      DestructuringAssignmentTarget[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
 pub struct AssignmentElement {
-    target: Rc<DestructuringAssignmentTarget>,
-    initializer: Option<Rc<Initializer>>,
+    pub target: Rc<DestructuringAssignmentTarget>,
+    pub initializer: Option<Rc<Initializer>>,
 }
 
 impl fmt::Display for AssignmentElement {
@@ -1811,7 +1811,7 @@ impl AssignmentElement {
 // AssignmentRestElement[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub struct AssignmentRestElement(Rc<DestructuringAssignmentTarget>);
+pub struct AssignmentRestElement(pub Rc<DestructuringAssignmentTarget>);
 
 impl fmt::Display for AssignmentRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1990,6 +1990,13 @@ impl DestructuringAssignmentTarget {
                 }
                 lhs.early_errors(errs, strict);
             }
+        }
+    }
+
+    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.identifier_ref(),
+            DestructuringAssignmentTarget::AssignmentPattern(_) => None,
         }
     }
 }

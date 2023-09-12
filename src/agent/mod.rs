@@ -1290,6 +1290,24 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let fc = agent.execution_context_stack.borrow()[index].stack[idx].clone();
                     agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
                 }
+                Insn::DupAfterList => {
+                    // stack has a list followed by a value: N item(n-1) ... item(0) value
+                    // output dups that value behind the list: N item(n-1) ... item(0) value value
+                    let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
+                    let stack_len = stack.len();
+                    let list_len = f64::try_from(
+                        ECMAScriptValue::try_from(
+                            stack[stack_len - 1].clone().expect("list len must be normal completion"),
+                        )
+                        .expect("list len must be a value"),
+                    )
+                    .expect("list len must be a number") as usize;
+                    assert!(stack_len >= list_len + 2, "stack must contain a list and a completion");
+                    let value_index = stack_len - (list_len + 2);
+                    let value = stack[value_index].clone();
+                    stack.push(value);
+                    stack[value_index..].rotate_right(1);
+                }
                 Insn::ToString => {
                     let val = ECMAScriptValue::try_from(
                         agent.execution_context_stack.borrow_mut()[index]

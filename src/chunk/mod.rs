@@ -191,6 +191,7 @@ impl Chunk {
             | Insn::PopOrPanic
             | Insn::Pop2Push3
             | Insn::Dup
+            | Insn::DupAfterList
             | Insn::ToString
             | Insn::ToNumeric
             | Insn::ToObject
