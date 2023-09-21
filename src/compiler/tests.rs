@@ -43,6 +43,7 @@ mod insn {
     #[test_case(Insn::PopOrPanic => "POP_PANIC"; "PopOrPanic instruction")]
     #[test_case(Insn::Pop2Push3 => "POP2_PUSH3"; "Pop2Push3 instruction")]
     #[test_case(Insn::Dup => "DUP"; "Dup instruction")]
+    #[test_case(Insn::DupAfterList => "DUP_AFTER_LIST"; "DupAfterList instruction")]
     #[test_case(Insn::RotateUp => "ROTATEUP"; "RotateUp instruction")]
     #[test_case(Insn::RotateDown => "ROTATEDOWN"; "RotateDown instruction")]
     #[test_case(Insn::RotateDownList => "ROTATEDOWN_LIST"; "RotateDownList instruction")]
@@ -118,6 +119,8 @@ mod insn {
     #[test_case(Insn::Return => "RETURN"; "Return instruction")]
     #[test_case(Insn::UnwindList => "UNWIND_LIST"; "UnwindList instruction")]
     #[test_case(Insn::AppendList => "APPEND_LIST"; "AppendList instruction")]
+    #[test_case(Insn::SwapDeepList => "SWAP_DEEP_LIST"; "SwapDeepList instruction")]
+    #[test_case(Insn::PopOutList => "POP_OUT_LIST"; "PopOutList instruction")]
     #[test_case(Insn::PushNewVarEnvFromLex => "PNVEFL"; "PushNewVarEnvFromLex instruction")]
     #[test_case(Insn::PushNewLexEnvFromVar => "PNLEFV"; "PushNewLexEnvFromVar instruction")]
     #[test_case(Insn::SetLexEnvToVarEnv => "SLETVE"; "SetLexEnvToVarEnv instruction")]
@@ -2921,7 +2924,34 @@ mod assignment_expression {
         "JUMP_IF_ABRUPT 3",
         "POP_LIST",
         "JUMP 2",
-        "UNWIND 1"]), true, false)); "destructuring assignment")]
+        "UNWIND 1"]), true, false)); "destructuring assignment - simple")]
+    #[test_case("{a}=3n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "destructuring - bad expr")]
+    #[test_case("{a}=1", true, &[] => Ok((svec(&[
+        "FLOAT 0 (1)",
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 31",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 3",
+        "POP_LIST",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "destructuring - not ref")]
+    #[test_case("{a=3n}=b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "destructuring - bad pattern")]
+    #[test_case("{a=@@(38)}=b", true, &[] => serr("out of range integral type conversion attempted"); "destructuring - jump too far")]
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).assignment_expression();
         let mut c = complex_filled_chunk("x", slots_left);
@@ -8455,7 +8485,7 @@ mod assignment_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{a}", true, &[] => Ok((svec(&[
+    #[test_case("{a}", true, &[] => Ok(svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 31",
         "STRING 0 (a)",
@@ -8477,16 +8507,512 @@ mod assignment_pattern {
         "POP_LIST",
         "JUMP 2",
         "UNWIND 1"
-    ]), false)); "anything")]
+    ])); "object pattern")]
+    #[test_case("[a]", true, &[] => Ok(svec(&[
+        "DUP",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 7",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "array pattern")]
     fn destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
         what: &[(Fillable, usize)],
-    ) -> Result<(Vec<String>, bool), String> {
+    ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
         node.destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_ref()))
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod assignment_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "id: simple")]
+    #[test_case("a", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "id: no string space")]
+    #[test_case("a", false, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "id: simple/non-strict")]
+    #[test_case("a=null", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 23",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_UNDEF 2",
+        "POP",
+        "NULL",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "id: izer")]
+    #[test_case("a=()=>null", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 28",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 19",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 0 (a)",
+        "FUNC_IAE 0",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "id: nameable")]
+    #[test_case("a=()=>null", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "id: nameable fail")]
+    #[test_case("a=8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "id: izer fail")]
+    #[test_case("a=b", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 28",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 19",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "id: ref")]
+    #[test_case("a=@@@", true, &[] => serr("out of range integral type conversion attempted"); "id: izer jump too far")]
+    #[test_case("a", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "id: no float space")]
+    #[test_case("a=@@(14)", true, &[] => serr("out of range integral type conversion attempted"); "id: getv jump too far")]
+    #[test_case("a=@@(23)", true, &[] => serr("out of range integral type conversion attempted"); "id: resolve jump too far")]
+    #[test_case("a:b", true, &[] => Ok((svec(&[
+        "DUP",
+        "STRING 0 (a)",
+        "POP2_PUSH3",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "prop: ref only")]
+    #[test_case("[8n]:a", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "prop: name fail")]
+    #[test_case("[a]:b", true, &[] => Ok((svec(&[
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 1",
+        "TO_KEY",
+        "JUMP_IF_ABRUPT 25",
+        "POP2_PUSH3",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "prop: fallible name")]
+    #[test_case("a:b=8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "prop: expr fail")]
+    #[test_case("a:null", true, &[] => Ok((svec(&[
+        "DUP",
+        "STRING 0 (a)",
+        "POP2_PUSH3",
+        "NULL",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 3",
+        "PUT_VALUE",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true)); "prop: infallible expr")]
+    #[test_case("a:b", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "prop: resource exhaustion")]
+    #[test_case("[a]:b=@@(29)", true, &[] => serr("out of range integral type conversion attempted"); "prop: too big")]
+    fn property_destructuring_assignment_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).assignment_property();
+        let mut c = complex_filled_chunk("x", what);
+        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+            .map(|status| {
+                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+            })
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod assignment_property_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "item; normal")]
+    #[test_case("a,b", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 33",
+        "SWAP_LIST",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 1 (b)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 1 (b)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 4",
+        "SWAP_DEEP_LIST",
+        "APPEND_LIST",
+        "JUMP 2",
+        "POP_OUT_LIST 3"
+    ])); "list; normal")]
+    #[test_case("a=1n,b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list; head fail")]
+    #[test_case("a,b=1n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list; tail fail")]
+    #[test_case("a,b=@@(37)", true, &[] => serr("out of range integral type conversion attempted"); "list; tail too large")]
+    fn property_destructuring_assignment_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).assignment_property_list();
+        let mut c = complex_filled_chunk("x", what);
+        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod assignment_rest_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a", true, &[] => Ok(svec(&[
+        "DUP_AFTER_LIST",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 14",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 7",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "JUMP 5",
+        "UNWIND_LIST",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "normal")]
+    #[test_case("...a[1n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "rest fail")]
+    #[test_case("...0", true, &[] => Ok(svec(&[
+        "DUP_AFTER_LIST",
+        "FLOAT 0 (0)",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 6",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "POP",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "infallible")]
+    fn rest_destructuring_assignment_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).assignment_rest_property();
+        let mut c = complex_filled_chunk("x", what);
+        node.rest_destructuring_assignment_evaluation(&mut c, strict, src)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod assignment_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 8",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "no-init; normal")]
+    #[test_case("a[1n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "no-init; fail")]
+    #[test_case("0", true, &[] => Ok(svec(&[
+        "FLOAT 0 (0)",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 3",
+        "PUT_VALUE",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "no-init; infallible")]
+    #[test_case("[a]", true, &[] => Ok(svec(&[
+        "GETV",
+        "JUMP_IF_ABRUPT 31",
+        "DUP",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 7",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR"
+    ])); "no-init; pattern; normal")]
+    #[test_case("a=0", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 13",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "JUMP_NOT_UNDEF 3",
+        "POP",
+        "FLOAT 0 (0)",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "init; normal")]
+    #[test_case("a=()=>null", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 16",
+        "JUMP_NOT_UNDEF 9",
+        "POP",
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "FUNC_IAE 0",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "init with func; normal")]
+    #[test_case("a=b", true, &[] => Ok(svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 17",
+        "ROTATEDOWN 3",
+        "GETV",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 5",
+        "PUT_VALUE",
+        "JUMP 4",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "init with ref; normal")]
+    #[test_case("a=()=>null", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "init with func; fail")]
+    #[test_case("a=8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "init with expr; fail")]
+    #[test_case("[a]=b", true, &[] => Ok(svec(&[
+        "GETV",
+        "JUMP_IF_ABRUPT 40",
+        "JUMP_NOT_UNDEF 7",
+        "POP",
+        "STRING 0 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 31",
+        "DUP",
+        "GET_SYNC_ITER",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "STRING 1 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 11",
+        "SWAP",
+        "ITER_STEP",
+        "JUMP_IF_ABRUPT 7",
+        "SWAP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR",
+        "ITER_CLOSE_IF_NOT_DONE",
+        "UPDATE_EMPTY",
+        "JUMP 2",
+        "UNWIND 1",
+        "EMPTY_IF_NOT_ERR"
+    ])); "pattern target; normal")]
+    #[test_case("a=@@(2)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big")]
+    #[test_case("[a[8n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "destructuring fail")]
+    #[test_case("a=@@(12)", true, &[] => serr("out of range integral type conversion attempted"); "lhse init too big")]
+    #[test_case("0=@@(7)", true, &[] => serr("out of range integral type conversion attempted"); "infallible lhse init too big")]
+    #[test_case("[a]=@@(35)", true, &[] => serr("out of range integral type conversion attempted"); "dstr init too big")] // exit_a
+    fn keyed_destructuring_assignment_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).assignment_element();
+        let mut c = complex_filled_chunk("x", what);
+        node.keyed_destructuring_assignment_evaluation(&mut c, strict, src)
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9493,5 +10019,181 @@ mod for_in_of_statement {
         )
         .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
         .map_err(|e| e.to_string())
+    }
+}
+
+mod object_assignment_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}", true, &[] => Ok(svec(&["REQ_COER"])); "empty")]
+    #[test_case("{...a}", true, &[] => Ok(svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 26",
+        "ZERO",
+        "DUP_AFTER_LIST",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 14",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 7",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "JUMP 5",
+        "UNWIND_LIST",
+        "UNWIND 1",
+        "UNWIND 1"
+    ])); "rest-only: normal")]
+    #[test_case("{...b}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest-only; fail")]
+    #[test_case("{...b[@@(38)]}", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too large")]
+    #[test_case("{a,b}", true, &[] => Ok(svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 66",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 33",
+        "SWAP_LIST",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 1 (b)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 1 (b)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 4",
+        "SWAP_DEEP_LIST",
+        "APPEND_LIST",
+        "JUMP 2",
+        "POP_OUT_LIST 3",
+        "JUMP_IF_ABRUPT 3",
+        "POP_LIST",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "list-only; normal")]
+    #[test_case("{a,b,}", true, &[] => Ok(svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 66",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 33",
+        "SWAP_LIST",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 1 (b)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 1 (b)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 4",
+        "SWAP_DEEP_LIST",
+        "APPEND_LIST",
+        "JUMP 2",
+        "POP_OUT_LIST 3",
+        "JUMP_IF_ABRUPT 3",
+        "POP_LIST",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "list-rest/empty-rest; normal")]
+    #[test_case("{a=1n,b}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-only; fail")]
+    #[test_case("{a=@@(70),b}", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")]
+    #[test_case("{a,...b}", true, &[] => Ok(svec(&[
+        "REQ_COER",
+        "JUMP_IF_ABRUPT 55",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 19",
+        "SWAP",
+        "POP2_PUSH3",
+        "STRING 0 (a)",
+        "GETV",
+        "JUMP_IF_ABRUPT 10",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "POP",
+        "STRING 0 (a)",
+        "FLOAT 0 (1)",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_ABRUPT 27",
+        "DUP_AFTER_LIST",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 14",
+        "ROTATEDOWN_LIST 1",
+        "OBJECT",
+        "ROTATEDOWN_LIST 1",
+        "COPY_DATAPROPS_WE",
+        "JUMP_IF_ABRUPT 7",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 6",
+        "POP",
+        "JUMP 5",
+        "UNWIND_LIST",
+        "UNWIND 1",
+        "UNWIND 1",
+        "JUMP 2",
+        "UNWIND 1"
+    ])); "list-rest; normal")]
+    #[test_case("{a=8n,...b}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; list-fail")]
+    #[test_case("{a,...b[8n]}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; rest-fail")]
+    #[test_case("{a,...b[@@(39)]}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; rest too big")]
+    #[test_case("{a=@@(59),...b}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; list too big")]
+    fn destructuring_assignment_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).object_assignment_pattern();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.destructuring_assignment_evaluation(&mut c, strict, src)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }

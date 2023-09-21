@@ -3312,7 +3312,6 @@ impl AssignmentPattern {
 }
 
 impl ObjectAssignmentPattern {
-    #[allow(unused_variables)]
     fn destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -3381,18 +3380,15 @@ impl ObjectAssignmentPattern {
 
                 chunk.op(Insn::RequireCoercible);
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                let apl_status = apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let mut unwind = None;
-                if apl_status.maybe_abrupt() {
-                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::PopList);
-                if let Some(unwind) = unwind {
-                    let exit2 = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(unwind).expect("Jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                    chunk.fixup(exit2).expect("Jump too short to fail");
-                }
+
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit2).expect("Jump too short to fail");
+
                 chunk.fixup(exit)?;
                 Ok(AlwaysAbruptResult)
             }
@@ -3416,18 +3412,15 @@ impl ObjectAssignmentPattern {
                 // exit:
                 chunk.op(Insn::RequireCoercible);
                 let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                let apl_status = apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let mut unwind = None;
-                if apl_status.maybe_abrupt() {
-                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                apl.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
-                if let Some(unwind) = unwind {
-                    let exit2 = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(unwind)?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
-                    chunk.fixup(exit2).expect("jump too short to fail");
-                }
+
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind)?;
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit2).expect("jump too short to fail");
+
                 chunk.fixup(exit1)?;
                 Ok(AlwaysAbruptResult)
             }
@@ -3441,7 +3434,7 @@ impl AssignmentPropertyList {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation
         // The syntax-directed operation PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript
         // language value) and returns either a normal completion containing a List of property keys or an abrupt
@@ -3477,29 +3470,19 @@ impl AssignmentPropertyList {
                 // unwind_deep_list:                                           err value property_names
                 //   POP_OUT_LIST 3                                            err value
                 // exit:
-                let list_status = list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let mut exit1 = None;
-                if list_status.maybe_abrupt() {
-                    exit1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                list.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SwapList);
-                let item_status = item.property_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let mut unwind_deep_list = None;
-                if item_status.maybe_abrupt() {
-                    unwind_deep_list = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                item.property_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind_deep_list = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SwapDeepList);
                 chunk.op(Insn::AppendList);
-                if let Some(unwind_deep_list) = unwind_deep_list {
-                    let exit2 = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
-                    chunk.op_plus_arg(Insn::PopOutList, 3);
-                    chunk.fixup(exit2).expect("Jump too short to fail");
-                }
-                if let Some(exit1) = exit1 {
-                    chunk.fixup(exit1)?;
-                }
-                Ok((list_status.maybe_abrupt() || item_status.maybe_abrupt()).into())
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::PopOutList, 3);
+                chunk.fixup(exit2).expect("Jump too short to fail");
+                chunk.fixup(exit1)?;
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -3511,7 +3494,7 @@ impl AssignmentProperty {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation The syntax-directed operation
         // PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript language value) and returns
         // either a normal completion containing a List of property keys or an abrupt completion. It collects a list of
@@ -3616,7 +3599,7 @@ impl AssignmentProperty {
                 chunk.fixup(exit1)?;
                 chunk.fixup(exit2).expect("jump too short to fail");
                 chunk.fixup(exit3).expect("jump too short to fail");
-                Ok(AbruptResult::Maybe)
+                Ok(AlwaysAbruptResult)
             }
             AssignmentProperty::Property(prop_name, ae) => {
                 // AssignmentProperty : PropertyName : AssignmentElement
@@ -3646,25 +3629,19 @@ impl AssignmentProperty {
                     unwind1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
                 chunk.op(Insn::Pop2Push3);
-                let ae_status = ae.keyed_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let mut unwind2 = None;
-                if ae_status.maybe_abrupt() {
-                    unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                ae.keyed_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 let one = chunk.add_to_float_pool(1.0)?;
                 chunk.op_plus_arg(Insn::Float, one);
-                if unwind1.is_some() || unwind2.is_some() {
-                    let exit = chunk.op_jump(Insn::Jump);
-                    if let Some(unwind) = unwind1 {
-                        chunk.fixup(unwind)?;
-                    }
-                    if let Some(unwind) = unwind2 {
-                        chunk.fixup(unwind).expect("Jump too short to fail");
-                    }
-                    chunk.fixup(exit).expect("jump too short to fail");
+                let exit = chunk.op_jump(Insn::Jump);
+                if let Some(unwind) = unwind1 {
+                    chunk.fixup(unwind)?;
                 }
-                Ok((status.maybe_abrupt() || ae_status.maybe_abrupt()).into())
+                chunk.fixup(unwind2).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("jump too short to fail");
+                Ok(AlwaysAbruptResult)
             }
         }
     }
@@ -3726,7 +3703,7 @@ impl AssignmentRestProperty {
         chunk.op(Insn::Pop);
         let exit = chunk.op_jump(Insn::Jump);
         if let Some(unwind_list_plus_2) = unwind_list_plus_2 {
-            chunk.fixup(unwind_list_plus_2)?;
+            chunk.fixup(unwind_list_plus_2).expect("jump too short to fail");
             chunk.op(Insn::UnwindList);
         }
         chunk.fixup(unwind_2).expect("jump too short to fail");
@@ -4013,7 +3990,6 @@ impl ArrayAssignmentPattern {
 }
 
 impl AssignmentRestElement {
-    #[allow(unused_variables)]
     pub fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -4195,7 +4171,6 @@ impl AssignmentElisionElement {
 }
 
 impl AssignmentElement {
-    #[allow(unused_variables)]
     pub fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -4374,7 +4349,7 @@ impl AssignmentElement {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: KeyedDestructuringAssignmentEvaluation
         // The syntax-directed operation KeyedDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
         // language value) and propertyName (a property key) and returns either a normal completion containing unused or
@@ -4462,7 +4437,7 @@ impl AssignmentElement {
             let status = if let (Some(np), Some(lhse_id)) =
                 (izer.anonymous_function_definition(), self.target.as_ref().identifier_ref())
             {
-                let id = chunk.add_to_string_pool(lhse_id.string_value())?;
+                let id = chunk.add_to_string_pool(lhse_id.string_value()).expect("id will have been added during lhse compile");
                 chunk.op_plus_arg(Insn::String, id);
                 np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(id))?
             } else {
@@ -4505,32 +4480,33 @@ impl AssignmentElement {
             None
         };
 
-        let has_unwind1 = unwind_1_a.is_some() || unwind_1_b.is_some();
+        let has_unwind1 = unwind_1_a.is_some();
         if let Some(unwind) = unwind_2 {
+            assert!(has_unwind1);
             chunk.fixup(unwind)?;
-            chunk.op_plus_arg(Insn::Unwind, if has_unwind1 { 1 } else { 2 });
+            chunk.op_plus_arg(Insn::Unwind, 1);
         }
-        if has_unwind1 {
-            if let Some(unwind) = unwind_1_a {
-                chunk.fixup(unwind)?;
-            }
+        if let Some(unwind) = unwind_1_a {
+            chunk.fixup(unwind)?;
             if let Some(unwind) = unwind_1_b {
-                chunk.fixup(unwind)?;
+                chunk.fixup(unwind).expect("jump too short to fail");
             }
             chunk.op_plus_arg(Insn::Unwind, 1);
         }
 
+        let has_exit_a = exit_a.is_some();
         if let Some(exit) = exit_a {
             chunk.fixup(exit)?;
         }
         if let Some(exit) = exit_b {
-            chunk.fixup(exit)?;
+            assert!(has_exit_a);
+            chunk.fixup(exit).expect("exit_a fit, so this one will too");
         }
         if let Some(exit) = exit_c {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).expect("jump too short to fail");
         }
 
-        Ok(AbruptResult::from(true))
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -4548,9 +4524,11 @@ impl<'a> TryFrom<&'a DestructuringAssignmentTarget> for &'a Rc<AssignmentPattern
 }
 
 impl DestructuringAssignmentTarget {
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        todo!()
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict, text),
+            DestructuringAssignmentTarget::AssignmentPattern(_) => unreachable!(),
+        }
     }
     pub fn destructuring_assignment_evaluation(
         &self,
@@ -6033,7 +6011,6 @@ impl ForInOfStatement {
         Ok(AlwaysAbruptResult)
     }
 
-    #[allow(unused_variables)]
     pub fn for_in_of_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -6109,8 +6086,7 @@ impl ForInOfStatement {
         if head_status.maybe_abrupt() {
             exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }
-        let body_status =
-            Self::for_in_of_body_evaluation(chunk, strict, text, lhs, stmt, iteration_kind, label_set, iterator_kind)?;
+        Self::for_in_of_body_evaluation(chunk, strict, text, lhs, stmt, iteration_kind, label_set, iterator_kind)?;
         if let Some(exit) = exit {
             chunk.fixup(exit)?;
         }
@@ -6503,7 +6479,6 @@ impl FunctionDeclaration {
         Ok(NeverAbruptRefResult)
     }
 
-    #[allow(unused_variables)]
     fn compile_fo_instantiation(
         &self,
         chunk: &mut Chunk,
@@ -6585,7 +6560,6 @@ impl FunctionExpression {
     /// Generate code to create a potentially named function object
     ///
     /// See [InstantiateOrdinaryFunctionExpression](https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression) in ECMA-262.
-    #[allow(unused_variables)]
     fn instantiate_ordinary_function_expression(
         &self,
         chunk: &mut Chunk,
