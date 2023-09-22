@@ -3945,16 +3945,11 @@ impl ArrayAssignmentPattern {
                 chunk.op(Insn::GetSyncIterator);
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Dup);
-                let ael_status = ael.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
-                let unwind_alt = if ael_status.maybe_abrupt() {
-                    let after_list = chunk.op_jump(Insn::JumpIfNormal);
-                    chunk.op(Insn::IteratorCloseIfNotDone);
-                    let unwind_alt = chunk.op_jump(Insn::Jump);
-                    chunk.fixup(after_list).expect("Jump too short to fail");
-                    Some(unwind_alt)
-                } else {
-                    None
-                };
+                ael.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
+                let after_list = chunk.op_jump(Insn::JumpIfNormal);
+                chunk.op(Insn::IteratorCloseIfNotDone);
+                let unwind_alt = chunk.op_jump(Insn::Jump);
+                chunk.fixup(after_list).expect("Jump too short to fail");
 
                 let unwind2 = if let Some(elision) = elision.as_ref() {
                     elision.iterator_destructuring_assignment_evaluation(chunk)?;
@@ -3977,9 +3972,7 @@ impl ArrayAssignmentPattern {
                     chunk.op_plus_arg(Insn::Unwind, 1);
                 }
                 chunk.fixup(unwind)?;
-                if let Some(unwind) = unwind_alt {
-                    chunk.fixup(unwind)?;
-                }
+                chunk.fixup(unwind_alt).expect("If unwind worked, unwind_alt will work");
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("Jump too short to fail");
 
@@ -4287,7 +4280,7 @@ impl AssignmentElement {
             chunk.op(Insn::Pop);
             let izer_status =
                 if let (Some(np), Some(lhse_id)) = (izer.anonymous_function_definition(), dat.identifier_ref()) {
-                    let idx = chunk.add_to_string_pool(lhse_id.string_value())?;
+                    let idx = chunk.add_to_string_pool(lhse_id.string_value()).expect("would already have been added");
                     np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
                 } else {
                     let status = izer.compile(chunk, strict, text)?;
@@ -4314,13 +4307,14 @@ impl AssignmentElement {
         }
         chunk.op(Insn::UpdateEmpty);
         let mut exit_b = None;
-        let unwind_1_needed = unwind_1_a.is_some() || unwind_1_b.is_some() || unwind_1_c.is_some();
-        if unwind_2.is_some() || unwind_1_needed {
+        let unwind_1_needed =
+            unwind_1_a.is_some() || unwind_1_b.is_some() || unwind_1_c.is_some() || unwind_2.is_some();
+        if unwind_1_needed {
             exit_b = Some(chunk.op_jump(Insn::Jump));
 
             if let Some(unwind_2) = unwind_2 {
                 chunk.fixup(unwind_2).expect("jump is too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, if unwind_1_needed { 1 } else { 2 });
+                chunk.op_plus_arg(Insn::Unwind, 1);
             }
             if let Some(unwind_1) = unwind_1_a {
                 chunk.fixup(unwind_1)?;
@@ -4331,9 +4325,7 @@ impl AssignmentElement {
             if let Some(unwind_1) = unwind_1_c {
                 chunk.fixup(unwind_1)?;
             }
-            if unwind_1_needed {
-                chunk.op_plus_arg(Insn::Unwind, 1);
-            }
+            chunk.op_plus_arg(Insn::Unwind, 1);
         }
         if let Some(exit) = exit_a {
             chunk.fixup(exit)?;
@@ -4437,7 +4429,9 @@ impl AssignmentElement {
             let status = if let (Some(np), Some(lhse_id)) =
                 (izer.anonymous_function_definition(), self.target.as_ref().identifier_ref())
             {
-                let id = chunk.add_to_string_pool(lhse_id.string_value()).expect("id will have been added during lhse compile");
+                let id = chunk
+                    .add_to_string_pool(lhse_id.string_value())
+                    .expect("id will have been added during lhse compile");
                 chunk.op_plus_arg(Insn::String, id);
                 np.compile_named_evaluation(chunk, strict, text, NameLoc::Index(id))?
             } else {
