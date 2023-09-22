@@ -996,8 +996,6 @@ mod binding_status {
     }
 }
 
-// Function Environment Record testing should go here, but there's currently no good way to make a function object, so
-// testing is deferred.
 mod function_environment_record {
     use super::*;
     use test_case::test_case;
@@ -1059,6 +1057,81 @@ mod function_environment_record {
         fer.set_mutable_binding("bob".into(), "illegal".into(), true).expect_err("Should be immutable");
         let val = fer.get_binding_value(&"bob".into(), true).unwrap();
         assert_eq!(val, ECMAScriptValue::from("initialized"));
+    }
+
+    #[test_case("function a(){}" => true; "non-lexical")]
+    #[test_case("() => 1" => false; "lexical")]
+    fn has_this_binding(src: &str) -> bool {
+        setup_test_agent();
+        let (_, fer) = make_fer(src, None);
+
+        fer.has_this_binding()
+    }
+
+    fn make_lexical() -> FunctionEnvironmentRecord {
+        make_fer("() => 3", None).1
+    }
+    fn make_uninit_this() -> FunctionEnvironmentRecord {
+        make_fer("function a() {}", None).1
+    }
+    fn make_init_this() -> FunctionEnvironmentRecord {
+        let (_, fer) = make_fer("function a(){}", None);
+        fer.bind_this_value(ECMAScriptValue::from("sentinel")).unwrap();
+        fer
+    }
+    #[test_case(make_lexical => panics "assertion failed:"; "lexical")]
+    #[test_case(make_uninit_this => sok("core"); "uninit")]
+    #[test_case(make_init_this => serr("ReferenceError: This value already bound"); "already initialized")]
+    fn bind_this_value(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        let value = ECMAScriptValue::from("core");
+
+        fer.bind_this_value(value).map_err(unwind_any_error).map(|v| v.to_string())
+    }
+
+    fn make_super() -> FunctionEnvironmentRecord {
+        let (f, fer) = make_fer("function a(){}", None);
+        let home_object_prototype = create_string_object("Home Object Prototype".into());
+        let home_object = ordinary_object_create(Some(home_object_prototype), &[]);
+
+        let fo = f.o.to_function_obj().unwrap();
+        fo.function_data().borrow_mut().home_object = Some(home_object);
+        fer
+    }
+    #[test_case(make_lexical => Ok(None); "no home object")]
+    #[test_case(make_super => Ok(Some("Home Object Prototype".to_string())); "has home object")]
+    fn get_super_base(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<Option<String>, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.get_super_base()
+            .map_err(unwind_any_error)
+            .map(|opt_obj| opt_obj.map(|obj| String::from(to_string(obj).unwrap())))
+    }
+
+    #[test]
+    fn debug_fmt() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+        let s = format!("{fer:#?}");
+        assert_ne!(s, "");
+    }
+    #[test]
+    fn concise() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function b(){}", None);
+        let s = format!("{fer:?}");
+        assert_ne!(s, "");
+        assert!(!s.contains('\n'));
+    }
+
+    #[test]
+    fn get_outer_env() {
+        setup_test_agent();
+        let (_, fer) = make_fer("() => 10", None);
+        assert_eq!(fer.get_outer_env().map(|er| er.name()), Some("realm-global".to_string()));
     }
 }
 

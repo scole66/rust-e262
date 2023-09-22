@@ -223,3 +223,31 @@ mod function_prototype_call {
         super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
     }
 }
+
+mod concise_body_source {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        setup_test_agent();
+        let bs = BodySource::from(Maker::new(";").function_body());
+        let fnbody = ConciseBodySource(&bs);
+        let res = format!("{fnbody:#?}");
+        assert_ne!(res, "");
+        assert!(!res.contains('\n'));
+    }
+}
+
+mod concise_param_source {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        setup_test_agent();
+        let fp = ParamSource::from(Maker::new("a,b,c").formal_parameters());
+        let cps = ConciseParamSource(&fp);
+        let res = format!("{cps:#?}");
+        assert_ne!(res, "");
+        assert!(!res.contains('\n'));
+    }
+}
