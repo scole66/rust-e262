@@ -2247,7 +2247,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 svr.map(|sv| match sv {
                     NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
                     NormalCompletion::Value(v) => v,
-                    NormalCompletion::IteratorRecord(_) | NormalCompletion::Environment(..) => unreachable!(),
+                    NormalCompletion::IteratorRecord(_)
+                    | NormalCompletion::Environment(..)
+                    | NormalCompletion::PrivateName(_) => unreachable!(),
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
@@ -2256,7 +2258,10 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
 
 fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) {
     let this_value = match &reference {
-        NormalCompletion::IteratorRecord(_) | NormalCompletion::Empty | NormalCompletion::Environment(..) => {
+        NormalCompletion::IteratorRecord(_)
+        | NormalCompletion::Empty
+        | NormalCompletion::Environment(..)
+        | NormalCompletion::PrivateName(_) => {
             panic!("begin_call_evaluation called with non-value, non-ref \"this\"");
         }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
@@ -2316,6 +2321,7 @@ fn delete_ref(expr: FullCompletion) -> FullCompletion {
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(..)
         | NormalCompletion::Empty
+        | NormalCompletion::PrivateName(_)
         | NormalCompletion::Value(_) => Ok(true.into()),
         NormalCompletion::Reference(r) => match *r {
             Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
