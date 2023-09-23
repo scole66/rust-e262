@@ -1528,7 +1528,7 @@ pub fn get_identifier_reference(
 #[derive(Debug)]
 pub struct PrivateEnvironmentRecord {
     outer_private_environment: Option<Box<PrivateEnvironmentRecord>>,
-    names: Vec<PrivateName>,
+    pub names: Vec<PrivateName>,
 }
 
 impl PrivateEnvironmentRecord {

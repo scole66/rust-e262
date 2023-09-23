@@ -161,6 +161,7 @@ pub enum Insn {
     EmbellishedIteratorStep,
     IteratorRest,
     EnumerateObjectProperties,
+    PrivateIdLookup,
 }
 
 impl fmt::Display for Insn {
@@ -311,6 +312,7 @@ impl fmt::Display for Insn {
             Insn::EmbellishedIteratorStep => "ITER_STEP",
             Insn::IteratorRest => "ITER_REST",
             Insn::EnumerateObjectProperties => "ENUM_PROPS",
+            Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
         })
     }
 }
@@ -4661,7 +4663,7 @@ impl Statement {
 impl Declaration {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
-            Declaration::Class(_) => todo!(),
+            Declaration::Class(cls) => cls.compile(chunk, strict, text),
             Declaration::Hoistable(_) => {
                 chunk.op(Insn::Empty);
                 Ok(AbruptResult::Never)
@@ -8623,5 +8625,103 @@ impl FunctionStatementList {
     }
 }
 
+impl ClassDeclaration {
+    #[allow(unused_variables)]
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: Evaluation
+        // ClassDeclaration : class BindingIdentifier ClassTail
+        //  1. Perform ? BindingClassDeclarationEvaluation of this ClassDeclaration.
+        //  2. Return EMPTY.
+        // NOTE
+        // ClassDeclaration : class ClassTail only occurs as part of an ExportDeclaration and is never directly
+        // evaluated.
+
+        // <self.binding_class_declaration_evaluation>    anything/err
+        // EMPTY_IF_NOT_ERROR                             [empty]/e
+        todo!()
+        //let decl_status = self.binding_class_declaration_evaluation(chunk, strict, text)?;
+        //chunk.op(Insn::EmptyIfNotError);
+        //Ok(decl_status)
+    }
+
+    //     fn binding_class_declaration_evaluation(
+    //         &self,
+    //         chunk: &mut Chunk,
+    //         strict: bool,
+    //         text: &str,
+    //     ) -> anyhow::Result<AbruptResult> {
+    //         // Runtime Semantics: BindingClassDeclarationEvaluation
+    //         // The syntax-directed operation BindingClassDeclarationEvaluation takes no arguments and returns either a
+    //         // normal completion containing a function object or an abrupt completion. It is defined piecewise over the
+    //         // following productions:
+    //         //
+    //         // NOTE
+    //         // ClassDeclaration : class ClassTail only occurs as part of an ExportDeclaration and establishing its binding
+    //         // is handled as part of the evaluation action for that production. See 16.2.3.7.
+
+    //         match self {
+    //             ClassDeclaration::Named { ident, tail, location } => {
+    //                 // ClassDeclaration : class BindingIdentifier ClassTail
+    //                 //  1. Let className be StringValue of BindingIdentifier.
+    //                 //  2. Let value be ? ClassDefinitionEvaluation of ClassTail with arguments className and className.
+    //                 //  3. Set value.[[SourceText]] to the source text matched by ClassDeclaration.
+    //                 //  4. Let env be the running execution context's LexicalEnvironment.
+    //                 //  5. Perform ? InitializeBoundName(className, value, env).
+    //                 //  6. Return value.
+    //                 let class_name = ident.string_value();
+    //                 let class_name_dup = class_name.clone();
+    //                 let idx = chunk.add_to_string_pool(class_name)?;
+    //                 tail.class_definition_evaluation(chunk, strict, text, idx, class_name_dup, location.span)?;
+    //                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+    //                 compile_initialize_bound_name(chunk, strict, EnvUsage::UseCurrentLexical, idx);
+    //                 chunk.fixup(exit).expect("jump too short to fail");
+    //                 Ok(AbruptResult::Maybe)
+    //             }
+    //             ClassDeclaration::Unnamed { tail, location } => {
+    //                 // ClassDeclaration : class ClassTail
+    //                 //  1. Let value be ? ClassDefinitionEvaluation of ClassTail with arguments undefined and "default".
+    //                 //  2. Set value.[[SourceText]] to the source text matched by ClassDeclaration.
+    //                 //  3. Return value.
+
+    //                 todo!()
+    //             }
+    //         }
+    //     }
+}
+
+// impl ClassTail {
+//     fn class_definition_evaluation(
+//         &self,
+//         chunk: &mut Chunk,
+//         strict: bool,
+//         text: &str,
+//         name1: u16,
+//         name2: JSString,
+//         src_span: Span,
+//     ) -> anyhow::Result<AbruptResult> {
+//         todo!()
+//     }
+// }
+
+impl ClassElementName {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            ClassElementName::PropertyName(pn) => pn.compile(chunk, strict, text),
+            ClassElementName::PrivateIdentifier { data, .. } => {
+                // ClassElementName : PrivateIdentifier
+                //  1. Let privateIdentifier be StringValue of PrivateIdentifier.
+                //  2. Let privateEnvRec be the running execution context's PrivateEnvironment.
+                //  3. Let names be privateEnvRec.[[Names]].
+                //  4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
+                //  5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
+                //  6. Return privateName.
+                let private_identifier = data.string_value.clone();
+                let private_identifier_idx = chunk.add_to_string_pool(private_identifier)?;
+                chunk.op_plus_arg(Insn::PrivateIdLookup, private_identifier_idx);
+                Ok(AbruptResult::Never)
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests;

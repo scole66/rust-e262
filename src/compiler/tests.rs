@@ -158,6 +158,7 @@ mod insn {
     #[test_case(Insn::IteratorResultComplete => "IRES_COMPLETE"; "IteratorResultComplete instruction")]
     #[test_case(Insn::IteratorResultToValue => "IRES_TOVAL"; "IteratorResultToValue instruction")]
     #[test_case(Insn::EnumerateObjectProperties => "ENUM_PROPS"; "EnumerateObjectProperties instruction")]
+    #[test_case(Insn::PrivateIdLookup => "PRIV_ID_LOOKUP"; "PrivateIdLookup instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -10867,5 +10868,22 @@ mod object_assignment_pattern {
         node.destructuring_assignment_evaluation(&mut c, strict, src)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+    }
+}
+
+mod class_element_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("name", true, &[] => Ok((svec(&["STRING 0 (name)"]), false)); "property name")]
+    #[test_case("#name", true, &[] => Ok((svec(&["PRIV_ID_LOOKUP 0 (#name)"]), false)); "private name")]
+    #[test_case("#name", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "private name fail")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).class_element_name();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+        })
     }
 }
