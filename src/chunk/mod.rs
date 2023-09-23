@@ -132,7 +132,8 @@ impl Chunk {
             | Insn::SetMutableVarBinding
             | Insn::TargetedContinue
             | Insn::TargetedBreak
-            | Insn::HandleTargetedBreak => {
+            | Insn::HandleTargetedBreak
+            | Insn::PrivateIdLookup => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
             }

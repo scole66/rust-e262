@@ -2237,6 +2237,29 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let ir = IteratorRecord { iterator, next_method: next, done: Cell::new(false) };
                     ec_push(Ok(NormalCompletion::from(ir)));
                 }
+                Insn::PrivateIdLookup => {
+                    // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
+                    // Input on the stack: nothing
+                    // Output on the stack: the sought-after PrivateId
+
+                    // (These are from the evalution steps for the production: ClassElementName : PrivateIdentifier)
+                    // 2. Let privateEnvRec be the running execution context's PrivateEnvironment.
+                    // 3. Let names be privateEnvRec.[[Names]].
+                    // 4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
+                    // 5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
+                    // 6. Return privateName.
+                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let private_identifier = &chunk.strings[string_index as usize];
+                    let priv_env = current_private_environment().expect("Private environment exists");
+                    let names = &priv_env.borrow().names;
+                    let private_name = names
+                        .iter()
+                        .find(|&item| item.description == *private_identifier)
+                        .expect("Identifer must be present")
+                        .clone();
+                    ec_push(Ok(NormalCompletion::from(private_name)));
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
