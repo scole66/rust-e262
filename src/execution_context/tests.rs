@@ -227,7 +227,8 @@ mod agent {
             NormalCompletion::IteratorRecord(_)
             | NormalCompletion::Empty
             | NormalCompletion::Value(_)
-            | NormalCompletion::Environment(_) => Err("improper completion".to_string()),
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::PrivateName(_) => Err("improper completion".to_string()),
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }
