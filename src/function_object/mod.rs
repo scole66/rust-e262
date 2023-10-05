@@ -24,12 +24,56 @@ pub enum ThisLexicality {
     NonLexicalThis,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassName {
     String(JSString),
     Symbol(Symbol),
     Private(PrivateName),
     Empty,
+}
+
+impl<T> From<T> for ClassName
+where
+    T: Into<JSString>,
+{
+    fn from(value: T) -> Self {
+        Self::String(value.into())
+    }
+}
+
+impl TryFrom<NormalCompletion> for ClassName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Empty => Ok(Self::Empty),
+            NormalCompletion::PrivateName(pn) => Ok(Self::Private(pn)),
+            NormalCompletion::Value(v) => match v {
+                ECMAScriptValue::String(s) => Ok(Self::String(s)),
+                ECMAScriptValue::Symbol(sym) => Ok(Self::Symbol(sym)),
+                ECMAScriptValue::Undefined
+                | ECMAScriptValue::Null
+                | ECMAScriptValue::Boolean(_)
+                | ECMAScriptValue::Number(_)
+                | ECMAScriptValue::BigInt(_)
+                | ECMAScriptValue::Object(_) => Err(anyhow::anyhow!("Not a class name")),
+            },
+            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) | NormalCompletion::IteratorRecord(_) => {
+                Err(anyhow::anyhow!("Not a class name"))
+            }
+        }
+    }
+}
+
+impl From<ClassName> for NormalCompletion {
+    fn from(value: ClassName) -> Self {
+        match value {
+            ClassName::String(s) => s.into(),
+            ClassName::Symbol(sym) => sym.into(),
+            ClassName::Private(pn) => pn.into(),
+            ClassName::Empty => NormalCompletion::Empty,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -43,6 +87,7 @@ pub enum BodySource {
     AsyncGenerator(Rc<AsyncGeneratorBody>),
     ConciseBody(Rc<ConciseBody>),
     AsyncConciseBody(Rc<AsyncConciseBody>),
+    Initializer(Rc<Initializer>),
 }
 
 impl From<Rc<FunctionBody>> for BodySource {
@@ -73,6 +118,11 @@ impl From<Rc<GeneratorBody>> for BodySource {
 impl From<Rc<AsyncGeneratorBody>> for BodySource {
     fn from(src: Rc<AsyncGeneratorBody>) -> Self {
         Self::AsyncGenerator(src)
+    }
+}
+impl From<Rc<Initializer>> for BodySource {
+    fn from(value: Rc<Initializer>) -> Self {
+        Self::Initializer(value)
     }
 }
 
@@ -109,6 +159,7 @@ impl fmt::Display for BodySource {
             BodySource::AsyncGenerator(node) => node.fmt(f),
             BodySource::ConciseBody(node) => node.fmt(f),
             BodySource::AsyncConciseBody(node) => node.fmt(f),
+            BodySource::Initializer(node) => node.fmt(f),
         }
     }
 }
@@ -128,6 +179,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
             BodySource::ConciseBody(cb) => cb.var_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.var_declared_names(),
+            BodySource::Initializer(_) => Vec::new(),
         }
     }
 
@@ -142,6 +194,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.var_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.var_scoped_declarations(),
+            BodySource::Initializer(_) => Vec::new(),
         }
     }
 
@@ -153,6 +206,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_declared_names(),
             BodySource::ConciseBody(cb) => cb.lexically_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_declared_names(),
+            BodySource::Initializer(_) => Vec::new(),
         }
     }
 
@@ -164,6 +218,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_scoped_declarations(),
+            BodySource::Initializer(_) => Vec::new(),
         }
     }
 
@@ -175,6 +230,7 @@ impl BodySource {
             BodySource::AsyncGenerator(node) => node.function_body_contains_use_strict(),
             BodySource::ConciseBody(node) => node.concise_body_contains_use_strict(),
             BodySource::AsyncConciseBody(acb) => acb.contains_use_strict(),
+            BodySource::Initializer(_) => false,
         }
     }
 }
@@ -325,6 +381,11 @@ impl From<Rc<FunctionDeclaration>> for FunctionSource {
         Self::FunctionDeclaration(fd)
     }
 }
+impl From<Rc<FieldDefinition>> for FunctionSource {
+    fn from(value: Rc<FieldDefinition>) -> Self {
+        Self::FieldDefinition(value)
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
     type Error = anyhow::Error;
 
@@ -355,6 +416,16 @@ impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<FieldDefinition> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::FieldDefinition(fd) => Ok(fd),
+            _ => bail!("FieldDefinition expected"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct FunctionObjectData {
@@ -372,7 +443,7 @@ pub struct FunctionObjectData {
     source_text: String,
     fields: Vec<ClassFieldDefinitionRecord>,
     private_methods: Vec<Rc<PrivateElement>>,
-    class_field_initializer_name: ClassName,
+    pub class_field_initializer_name: ClassName,
     is_class_constructor: bool,
     is_constructor: bool,
 }
@@ -1621,6 +1692,16 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
         };
     }
     prototype_function!(function_prototype_call, "call", 1.0);
+}
+
+pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
+    // MakeMethod ( F, homeObject )
+    // The abstract operation MakeMethod takes arguments F (an ECMAScript function object) and homeObject (an Object)
+    // and returns UNUSED. It configures F as a method. It performs the following steps when called:
+    //
+    // 1. Set F.[[HomeObject]] to homeObject.
+    // 2. Return UNUSED.
+    f.function_data().borrow_mut().home_object = Some(home_object);
 }
 
 #[cfg(test)]

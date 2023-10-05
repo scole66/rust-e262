@@ -2260,6 +2260,26 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .clone();
                     ec_push(Ok(NormalCompletion::from(private_name)));
                 }
+                Insn::EvaluateInitializedClassFieldDefinition => {
+                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[stash_index as usize];
+                    let name = ClassName::try_from(
+                        ec_pop().expect("two items must be on stack").expect("first item must not be error"),
+                    )
+                    .expect("first item must be a ClassName");
+                    let home_object = Object::try_from(
+                        ec_pop().expect("two items must be on stack").expect("second item must not be error"),
+                    )
+                    .expect("second item must be object");
+                    let initializer =
+                        evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)
+                            .expect("initializer must compile");
+
+                    ec_push(Ok(NormalCompletion::from(home_object)));
+                    ec_push(Ok(NormalCompletion::from(name)));
+                    ec_push(Ok(NormalCompletion::from(initializer)));
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -2786,6 +2806,53 @@ pub fn instantiate_ordinary_function_object(
     make_constructor(&closure, None);
 
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
+}
+
+fn evaluate_initialized_class_field_definition(
+    info: &StashedFunctionData,
+    home_object: Object,
+    name: ClassName,
+    text: &str,
+) -> anyhow::Result<Object> {
+    // Pieces from ClassFieldDefinitionEvaluation
+    //  1. Let env be the LexicalEnvironment of the running execution context.
+    //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  3. Let initializer be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
+    //     Initializer, NON-LEXICAL-THIS, env, privateEnv).
+    //  4. Perform MakeMethod(initializer, homeObject).
+    //  5. Set initializer.[[ClassFieldInitializerName]] to name.
+    //  6. Return initializer.
+
+    let to_compile: Rc<FieldDefinition> =
+        info.to_compile.clone().try_into().expect("This routine only used with class field definitions");
+    let prod_text_loc = to_compile.location().span;
+    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+    let chunk_name = nameify(prod_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, text)?;
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let env = current_lexical_environment().unwrap();
+    let priv_env = current_private_environment();
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let initializer = ordinary_function_create(
+        function_prototype,
+        info.source_text.as_str(),
+        info.params.clone(),
+        info.body.clone(),
+        ThisLexicality::NonLexicalThis,
+        env,
+        priv_env,
+        info.strict,
+        Rc::new(compiled),
+    );
+
+    make_method(initializer.o.to_function_obj().unwrap(), home_object);
+    initializer.o.to_function_obj().unwrap().function_data().borrow_mut().class_field_initializer_name = name;
+
+    Ok(initializer)
 }
 
 fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
