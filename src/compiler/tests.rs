@@ -160,6 +160,7 @@ mod insn {
     #[test_case(Insn::EnumerateObjectProperties => "ENUM_PROPS"; "EnumerateObjectProperties instruction")]
     #[test_case(Insn::PrivateIdLookup => "PRIV_ID_LOOKUP"; "PrivateIdLookup instruction")]
     #[test_case(Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF"; "EvaluateInitializedClassFieldDefinition instruction")]
+    #[test_case(Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF"; "EvaluateClassStaticBlockDefinition instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -552,6 +553,7 @@ mod nameable_production {
             BodySource::ConciseBody(node) => format!("ConciseBody: {node}"),
             BodySource::AsyncConciseBody(node) => format!("AsyncConciseBody: {node}"),
             BodySource::Initializer(node) => format!("Initializer: {node}"),
+            BodySource::ClassStaticBlockBody(node) => format!("ClassStaticBlockBody: {node}"),
         }
     }
 
@@ -10921,5 +10923,78 @@ mod field_definition {
         node.class_field_definition_evaluation(&mut c, strict, src, node2).map_err(|e| e.to_string()).map(|flags| {
             (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
         })
+    }
+}
+
+mod class_static_block_statement_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false)); "empty")]
+    #[test_case("this.item = 3;", true, &[] => Ok((svec(&[
+        "THIS",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 0 (item)",
+        "STRICT_REF",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (3)",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true)); "slist")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).class_static_block_statement_list();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+        })
+    }
+}
+
+mod class_static_block_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false)); "empty")]
+    #[test_case("this.item = 3;", true, &[] => Ok((svec(&[
+        "THIS",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 0 (item)",
+        "STRICT_REF",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (3)",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]), true)); "slist")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).class_static_block_body();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+        })
+    }
+}
+
+mod class_static_block {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("static {}", true, &[] => Ok(svec(&["EVAL_CLASS_SBLK_DEF 0"])); "normal")]
+    #[test_case("static {}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "compile error")]
+    fn class_static_block_definition_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).class_static_block();
+        let mut c = complex_filled_chunk("x", what);
+        let node2 = node.clone();
+
+        node.class_static_block_definition_evaluation(&mut c, strict, node2)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }
