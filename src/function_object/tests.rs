@@ -223,3 +223,28 @@ mod function_prototype_call {
         super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
     }
 }
+
+mod make_method {
+    use super::*;
+
+    #[test]
+    fn call() {
+        setup_test_agent();
+        let src = "function a(){}";
+        let fd = Maker::new(src).function_declaration();
+        let realm_rc = current_realm_record().unwrap();
+        let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap();
+        let fobj = Object::try_from(fvalue).unwrap();
+        let f_funobj = fobj.o.to_function_obj().unwrap();
+
+        let home = ordinary_object_create(None, &[]);
+
+        assert!(f_funobj.function_data().borrow().home_object.is_none());
+
+        make_method(f_funobj, home.clone());
+
+        assert_eq!(f_funobj.function_data().borrow().home_object, Some(home));
+    }
+}

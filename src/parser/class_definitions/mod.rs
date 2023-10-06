@@ -1340,8 +1340,8 @@ pub enum CEKind {
 //      ClassElementName[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
 pub struct FieldDefinition {
-    name: Rc<ClassElementName>,
-    init: Option<Rc<Initializer>>,
+    pub name: Rc<ClassElementName>,
+    pub init: Option<Rc<Initializer>>,
 }
 
 impl fmt::Display for FieldDefinition {

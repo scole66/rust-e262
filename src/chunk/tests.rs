@@ -371,10 +371,10 @@ mod chunk {
         let result = c.disassemble();
         let expected = svec(&[
             "====== disassemble ======",
-            "    STRING              0 (charlie)",
-            "    FLOAT               0 (78.2)",
-            "    BIGINT              0 (93939)",
-            "    JUMP_IF_ABRUPT      8",
+            "    STRING                  0 (charlie)",
+            "    FLOAT                   0 (78.2)",
+            "    BIGINT                  0 (93939)",
+            "    JUMP_IF_ABRUPT          8",
             "    RESOLVE",
             "    STRICT_RESOLVE",
             "    THIS",
@@ -383,9 +383,9 @@ mod chunk {
             "    FALSE",
             "    GET_VALUE",
             "    UPDATE_EMPTY",
-            "    UNWIND              3",
-            "    LOOP_CONT           [alpha, beta, zeta]",
-            "    AMA                 3 charlie",
+            "    UNWIND                  3",
+            "    LOOP_CONT               [alpha, beta, zeta]",
+            "    AMA                     3 charlie",
         ]);
         assert_eq!(result, expected);
     }
