@@ -88,6 +88,7 @@ pub enum BodySource {
     ConciseBody(Rc<ConciseBody>),
     AsyncConciseBody(Rc<AsyncConciseBody>),
     Initializer(Rc<Initializer>),
+    ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
 }
 
 impl From<Rc<FunctionBody>> for BodySource {
@@ -125,6 +126,11 @@ impl From<Rc<Initializer>> for BodySource {
         Self::Initializer(value)
     }
 }
+impl From<Rc<ClassStaticBlockBody>> for BodySource {
+    fn from(value: Rc<ClassStaticBlockBody>) -> Self {
+        Self::ClassStaticBlockBody(value)
+    }
+}
 
 impl PartialEq for BodySource {
     fn eq(&self, other: &Self) -> bool {
@@ -160,6 +166,7 @@ impl fmt::Display for BodySource {
             BodySource::ConciseBody(node) => node.fmt(f),
             BodySource::AsyncConciseBody(node) => node.fmt(f),
             BodySource::Initializer(node) => node.fmt(f),
+            BodySource::ClassStaticBlockBody(node) => node.fmt(f),
         }
     }
 }
@@ -179,7 +186,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
             BodySource::ConciseBody(cb) => cb.var_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.var_declared_names(),
-            BodySource::Initializer(_) => Vec::new(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -194,7 +201,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.var_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.var_scoped_declarations(),
-            BodySource::Initializer(_) => Vec::new(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -206,7 +213,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_declared_names(),
             BodySource::ConciseBody(cb) => cb.lexically_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_declared_names(),
-            BodySource::Initializer(_) => Vec::new(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -218,7 +225,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_scoped_declarations(),
-            BodySource::Initializer(_) => Vec::new(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -230,7 +237,7 @@ impl BodySource {
             BodySource::AsyncGenerator(node) => node.function_body_contains_use_strict(),
             BodySource::ConciseBody(node) => node.concise_body_contains_use_strict(),
             BodySource::AsyncConciseBody(acb) => acb.contains_use_strict(),
-            BodySource::Initializer(_) => false,
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => false,
         }
     }
 }
@@ -386,6 +393,11 @@ impl From<Rc<FieldDefinition>> for FunctionSource {
         Self::FieldDefinition(value)
     }
 }
+impl From<Rc<ClassStaticBlock>> for FunctionSource {
+    fn from(value: Rc<ClassStaticBlock>) -> Self {
+        Self::ClassStaticBlock(value)
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
     type Error = anyhow::Error;
 
@@ -423,6 +435,16 @@ impl TryFrom<FunctionSource> for Rc<FieldDefinition> {
         match value {
             FunctionSource::FieldDefinition(fd) => Ok(fd),
             _ => bail!("FieldDefinition expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<ClassStaticBlock> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::ClassStaticBlock(csb) => Ok(csb),
+            _ => bail!("ClassStaticBody expected"),
         }
     }
 }

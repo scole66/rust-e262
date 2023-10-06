@@ -163,6 +163,7 @@ pub enum Insn {
     EnumerateObjectProperties,
     PrivateIdLookup,
     EvaluateInitializedClassFieldDefinition,
+    EvaluateClassStaticBlockDefinition,
 }
 
 impl fmt::Display for Insn {
@@ -315,6 +316,7 @@ impl fmt::Display for Insn {
             Insn::EnumerateObjectProperties => "ENUM_PROPS",
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
             Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
+            Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
         })
     }
 }
@@ -8802,6 +8804,62 @@ impl FieldDefinition {
             Ok(AbruptResult::Maybe)
         } else {
             Ok(AbruptResult::Never)
+        }
+    }
+}
+
+impl ClassStaticBlock {
+    pub fn class_static_block_definition_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        self_as_rc: Rc<ClassStaticBlock>,
+    ) -> anyhow::Result<NeverAbruptRefResult> {
+        // Runtime Semantics: ClassStaticBlockDefinitionEvaluation
+        // The syntax-directed operation ClassStaticBlockDefinitionEvaluation takes argument homeObject (an Object) and
+        // returns a ClassStaticBlockDefinition Record. It is defined piecewise over the following productions:
+        //
+        // ClassStaticBlock : static { ClassStaticBlockBody }
+        //  1. Let lex be the running execution context's LexicalEnvironment.
+        //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  3. Let sourceText be the empty sequence of Unicode code points.
+        //  4. Let formalParameters be an instance of the production FormalParameters : [empty] .
+        //  5. Let bodyFunction be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameters,
+        //     ClassStaticBlockBody, NON-LEXICAL-THIS, lex, privateEnv).
+        //  6. Perform MakeMethod(bodyFunction, homeObject).
+        //  7. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
+        //
+        // NOTE: The function bodyFunction is never directly accessible to ECMAScript code.
+        let info = StashedFunctionData {
+            source_text: String::new(),
+            params: Rc::new(FormalParameters::Empty(Location::default())).into(),
+            body: self.block.clone().into(),
+            to_compile: self_as_rc.into(),
+            strict,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(info)?;
+        chunk.op_plus_arg(Insn::EvaluateClassStaticBlockDefinition, func_id);
+        Ok(NeverAbruptRefResult)
+    }
+}
+
+impl ClassStaticBlockBody {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        self.0.compile(chunk, strict, text)
+    }
+}
+
+impl ClassStaticBlockStatementList {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, strict, text),
+            ClassStaticBlockStatementList::Empty(_) => {
+                // ClassStaticBlockStatementList : [empty]
+                //  1. Return undefined.
+                chunk.op(Insn::Undefined);
+                Ok(AbruptResult::Never)
+            }
         }
     }
 }

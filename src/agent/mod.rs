@@ -2280,6 +2280,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec_push(Ok(NormalCompletion::from(name)));
                     ec_push(Ok(NormalCompletion::from(initializer)));
                 }
+                Insn::EvaluateClassStaticBlockDefinition => {
+                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[stash_index as usize];
+                    let home_object =
+                        Object::try_from(ec_pop().expect("item must be on stack").expect("item must not be error"))
+                            .expect("item must be object");
+
+                    let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)
+                        .expect("initializer must compile");
+
+                    ec_push(Ok(NormalCompletion::from(home_object)));
+                    ec_push(Ok(NormalCompletion::from(block_body)));
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -2853,6 +2867,47 @@ fn evaluate_initialized_class_field_definition(
     initializer.o.to_function_obj().unwrap().function_data().borrow_mut().class_field_initializer_name = name;
 
     Ok(initializer)
+}
+
+fn evaluate_class_static_block_definition(
+    info: &StashedFunctionData,
+    home_object: Object,
+    text: &str,
+) -> anyhow::Result<Object> {
+    // Pieces from ClassStaticBlockDefinitionEvaluation
+    //  1. Let lex be the running execution context's LexicalEnvironment.
+    //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  3. Let bodyFunction be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameters, ClassStaticBlockBody, NON-LEXICAL-THIS, lex, privateEnv).
+    //  4. Perform MakeMethod(bodyFunction, homeObject).
+    //  5. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
+    let to_compile: Rc<ClassStaticBlock> =
+        info.to_compile.clone().try_into().expect("This routine only used with class field definitions");
+    let prod_text_loc = to_compile.location().span;
+    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+    let chunk_name = nameify(prod_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    to_compile.block.as_ref().compile(&mut compiled, info.strict, text)?;
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let lex = current_lexical_environment().unwrap();
+    let private_env = current_private_environment();
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let body_function = ordinary_function_create(
+        function_prototype,
+        info.source_text.as_str(),
+        info.params.clone(),
+        info.body.clone(),
+        ThisLexicality::NonLexicalThis,
+        lex,
+        private_env,
+        info.strict,
+        Rc::new(compiled),
+    );
+
+    make_method(body_function.o.to_function_obj().unwrap(), home_object);
+    Ok(body_function)
 }
 
 fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {

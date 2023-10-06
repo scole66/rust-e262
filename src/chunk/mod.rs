@@ -153,7 +153,8 @@ impl Chunk {
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
-            | Insn::EvaluateInitializedClassFieldDefinition => {
+            | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateClassStaticBlockDefinition => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<24}{}", insn, arg))
             }
