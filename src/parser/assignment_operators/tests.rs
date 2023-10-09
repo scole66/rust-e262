@@ -1,6 +1,6 @@
 use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::*;
+use crate::prettyprint::pp_testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 
@@ -1689,5 +1689,16 @@ mod destructuring_assignment_target {
             .unwrap()
             .0
             .contains_arguments()
+    }
+
+    #[test_case("bob" => Some(String::from("bob")); "lref with id")]
+    #[test_case("bob.name" => None; "lref without id")]
+    #[test_case("[a, b]" => None; "pattern")]
+    fn identifier_ref(src: &str) -> Option<String> {
+        setup_test_agent();
+        Maker::new(src)
+            .destructuring_assignment_target()
+            .identifier_ref()
+            .map(|idref| String::from(idref.string_value()))
     }
 }

@@ -65,7 +65,7 @@ where
     let mut msg = Vec::new();
     item.pprint(&mut msg).unwrap();
     let whole_message = str::from_utf8(&msg).unwrap();
-    testhelp::check_message(whole_message, selfstring, childstrings);
+    pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
 pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
@@ -75,7 +75,7 @@ where
     let mut msg = Vec::new();
     item.pprint_concise(&mut msg).unwrap();
     let whole_message = str::from_utf8(&msg).unwrap();
-    testhelp::check_message(whole_message, selfstring, childstrings);
+    pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
 pub fn pretty_error_validate<T>(item: &T)

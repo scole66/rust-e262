@@ -205,6 +205,24 @@ impl<'a> Maker<'a> {
     pub fn arrow_parameters(self) -> Rc<ArrowParameters> {
         ArrowParameters::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElement`] parse node.
+    pub fn assignment_element(self) -> Rc<AssignmentElement> {
+        AssignmentElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElementList`] parse node.
+    pub fn assignment_element_list(self) -> Rc<AssignmentElementList> {
+        AssignmentElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElisionElement`] parse node.
+    pub fn assignment_elision_element(self) -> Rc<AssignmentElisionElement> {
+        AssignmentElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AssignmentExpression`] parse node.
     pub fn assignment_expression(self) -> Rc<AssignmentExpression> {
         AssignmentExpression::parse(
@@ -220,6 +238,30 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`AssignmentPattern`] parse node.
     pub fn assignment_pattern(self) -> Rc<AssignmentPattern> {
         AssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentProperty`] parse node.
+    pub fn assignment_property(self) -> Rc<AssignmentProperty> {
+        AssignmentProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentPropertyList`] parse node.
+    pub fn assignment_property_list(self) -> Rc<AssignmentPropertyList> {
+        AssignmentPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentRestElement`] parse node.
+    pub fn assignment_rest_element(self) -> Rc<AssignmentRestElement> {
+        AssignmentRestElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentRestProperty`] parse node.
+    pub fn assignment_rest_property(self) -> Rc<AssignmentRestProperty> {
+        AssignmentRestProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
@@ -630,6 +672,17 @@ impl<'a> Maker<'a> {
             self.yield_flag,
             self.await_flag,
             self.return_flag,
+        )
+        .unwrap()
+        .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`DestructuringAssignmentTarget`] parse node.
+    pub fn destructuring_assignment_target(self) -> Rc<DestructuringAssignmentTarget> {
+        DestructuringAssignmentTarget::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
         )
         .unwrap()
         .0

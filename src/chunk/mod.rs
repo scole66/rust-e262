@@ -3,6 +3,7 @@ use ahash::AHashSet;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::bigint::BigInt;
+use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +16,12 @@ pub struct StashedFunctionData {
     pub this_mode: ThisLexicality,
 }
 
+pub struct ConciseChunk<'a>(pub &'a Chunk);
+impl<'a> fmt::Debug for ConciseChunk<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Chunk {{ {} }}", self.0.name)
+    }
+}
 /// A compilation unit
 #[derive(Debug, Default)]
 pub struct Chunk {
@@ -132,27 +139,31 @@ impl Chunk {
             | Insn::SetMutableVarBinding
             | Insn::TargetedContinue
             | Insn::TargetedBreak
-            | Insn::HandleTargetedBreak => {
+            | Insn::HandleTargetedBreak
+            | Insn::PrivateIdLookup => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.strings[arg]))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.floats[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.floats[arg]))
             }
             Insn::Bigint => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
+            | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
-            | Insn::InstantiateOrdinaryFunctionExpression => {
+            | Insn::InstantiateOrdinaryFunctionExpression
+            | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateClassStaticBlockDefinition => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{}", insn, arg))
+                (2, format!("    {:<24}{}", insn, arg))
             }
             Insn::Ref
             | Insn::StrictRef
@@ -190,6 +201,7 @@ impl Chunk {
             | Insn::PopOrPanic
             | Insn::Pop2Push3
             | Insn::Dup
+            | Insn::DupAfterList
             | Insn::ToString
             | Insn::ToNumeric
             | Insn::ToObject
@@ -239,6 +251,7 @@ impl Chunk {
             | Insn::AppendList
             | Insn::ExtractThrownValue
             | Insn::SwapList
+            | Insn::SwapDeepList
             | Insn::PopList
             | Insn::RequireConstructor
             | Insn::Construct
@@ -270,18 +283,18 @@ impl Chunk {
             | Insn::JumpIfNotUndef
             | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;
-                (2, format!("    {:<20}{}", insn, arg))
+                (2, format!("    {:<24}{}", insn, arg))
             }
             Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
-                (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))
+                (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
             }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;
                 let mut string_set = self.string_sets[string_set_idx].iter().collect::<Vec<&JSString>>();
                 string_set.sort();
-                (2, format!("    {:<20}[{}]", insn, string_set.iter().join(", ")))
+                (2, format!("    {:<24}[{}]", insn, string_set.iter().join(", ")))
             }
         }
     }

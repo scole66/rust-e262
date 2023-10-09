@@ -9,6 +9,7 @@ pub enum NormalCompletion {
     Reference(Box<Reference>),
     Environment(Rc<dyn EnvironmentRecord>),
     IteratorRecord(Rc<IteratorRecord>),
+    PrivateName(PrivateName),
 }
 impl PartialEq for NormalCompletion {
     fn eq(&self, other: &Self) -> bool {
@@ -28,6 +29,8 @@ impl PartialEq for NormalCompletion {
             (Self::Empty, _) => false,
             (Self::IteratorRecord(left), Self::IteratorRecord(right)) => Rc::ptr_eq(left, right),
             (Self::IteratorRecord(_), _) => false,
+            (Self::PrivateName(left), Self::PrivateName(right)) => left == right,
+            (Self::PrivateName(_), _) => false,
         }
     }
 }
@@ -41,6 +44,7 @@ impl fmt::Display for NormalCompletion {
             }
             NormalCompletion::Environment(x) => write!(f, "{:?}", x),
             NormalCompletion::IteratorRecord(ir) => f.write_str(&ir.concise()),
+            NormalCompletion::PrivateName(pn) => write!(f, "{}", pn),
         }
     }
 }
@@ -111,6 +115,12 @@ impl From<Rc<IteratorRecord>> for NormalCompletion {
     }
 }
 
+impl From<PrivateName> for NormalCompletion {
+    fn from(value: PrivateName) -> Self {
+        Self::PrivateName(value)
+    }
+}
+
 impl TryFrom<NormalCompletion> for ECMAScriptValue {
     type Error = anyhow::Error;
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
@@ -119,7 +129,8 @@ impl TryFrom<NormalCompletion> for ECMAScriptValue {
             NormalCompletion::IteratorRecord(_)
             | NormalCompletion::Reference(_)
             | NormalCompletion::Empty
-            | NormalCompletion::Environment(..) => Err(anyhow!("Not a language value!")),
+            | NormalCompletion::Environment(..)
+            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -130,9 +141,10 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
         match src {
             NormalCompletion::Value(v) => Ok(Some(v)),
             NormalCompletion::Empty => Ok(None),
-            NormalCompletion::IteratorRecord(_) | NormalCompletion::Reference(_) | NormalCompletion::Environment(_) => {
-                Err(anyhow!("Not a language value!"))
-            }
+            NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -181,6 +193,17 @@ impl TryFrom<NormalCompletion> for Rc<IteratorRecord> {
         match value {
             NormalCompletion::IteratorRecord(ir) => Ok(ir),
             _ => Err(anyhow!("Not an iterator record")),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for PrivateName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::PrivateName(pn) => Ok(pn),
+            _ => Err(anyhow!("Not a private name")),
         }
     }
 }

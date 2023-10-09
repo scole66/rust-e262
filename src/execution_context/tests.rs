@@ -21,6 +21,7 @@ mod script_record {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         setup_test_agent();
         let sr = ScriptRecord::new_empty(current_realm_record().unwrap());
@@ -226,8 +227,22 @@ mod agent {
             NormalCompletion::IteratorRecord(_)
             | NormalCompletion::Empty
             | NormalCompletion::Value(_)
-            | NormalCompletion::Environment(_) => Err("improper completion".to_string()),
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::PrivateName(_) => Err("improper completion".to_string()),
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
+    }
+}
+
+mod concise_script {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let script = Maker::new("10;").script();
+        let cs = ConciseScript(script.as_ref());
+        let result = format!("{cs:#?}");
+        assert_eq!(result.lines().collect::<Vec<_>>().len(), 1);
     }
 }

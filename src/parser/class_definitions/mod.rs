@@ -1340,8 +1340,8 @@ pub enum CEKind {
 //      ClassElementName[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
 pub struct FieldDefinition {
-    name: Rc<ClassElementName>,
-    init: Option<Rc<Initializer>>,
+    pub name: Rc<ClassElementName>,
+    pub init: Option<Rc<Initializer>>,
 }
 
 impl fmt::Display for FieldDefinition {
@@ -1644,7 +1644,7 @@ impl ClassElementName {
 //      static { ClassStaticBlockBody }
 #[derive(Debug)]
 pub struct ClassStaticBlock {
-    block: Rc<ClassStaticBlockBody>,
+    pub block: Rc<ClassStaticBlockBody>,
     location: Location,
 }
 
@@ -1740,7 +1740,7 @@ impl ClassStaticBlock {
 // ClassStaticBlockBody :
 //      ClassStaticBlockStatementList
 #[derive(Debug)]
-pub struct ClassStaticBlockBody(Rc<ClassStaticBlockStatementList>);
+pub struct ClassStaticBlockBody(pub Rc<ClassStaticBlockStatementList>);
 
 impl fmt::Display for ClassStaticBlockBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

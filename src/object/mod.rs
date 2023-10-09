@@ -630,7 +630,7 @@ where
                 }
                 if let Some(o) = oo {
                     let mut data = o.into().common_object_data().borrow_mut();
-                    let mut pd = data.properties.get_mut(&p.unwrap()).unwrap();
+                    let pd = data.properties.get_mut(&p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
                     }
@@ -1166,7 +1166,7 @@ impl<'a> From<&'a Object> for ConciseObject<'a> {
         Self(source)
     }
 }
-struct ConciseOptionalObject<'a>(&'a Option<Object>);
+pub struct ConciseOptionalObject<'a>(&'a Option<Object>);
 impl<'a> fmt::Debug for ConciseOptionalObject<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.as_ref() {

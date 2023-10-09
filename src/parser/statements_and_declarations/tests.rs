@@ -1,6 +1,6 @@
 use super::testhelp::*;
 use super::*;
-use crate::prettyprint::testhelp::*;
+use crate::prettyprint::pp_testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 use test_case::test_case;
@@ -613,6 +613,7 @@ mod hoistable_decl_part {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let hdp = HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){'hdp';}").function_declaration());
         let my_copy = hdp.clone();

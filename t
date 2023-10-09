@@ -129,6 +129,22 @@ test_defs[CompilerElisions]="parser::primary_expressions::Elisions elisions comp
 test_defs[CompilerElementList]="parser::primary_expressions::ElementList element_list compiler"
 test_defs[CompilerSpreadElement]="parser::primary_expressions::SpreadElement spread_element compiler"
 test_defs[CompilerArrayLiteral]="parser::primary_expressions::ArrayLiteral array_literal compiler"
+test_defs[CompilerObjectAssignmentPattern]="parser::assignment_operators::ObjectAssignmentPattern object_assignment_pattern compiler"
+test_defs[CompilerAssignmentPropertyList]="parser::assignment_operators::AssignmentPropertyList assignment_property_list compiler"
+test_defs[CompilerAssignmentProperty]="parser::assignment_operators::AssignmentProperty assignment_property:: compiler"
+test_defs[CompilerAssignmentRestProperty]="parser::assignment_operators::AssignmentRestProperty assignment_rest_property compiler"
+test_defs[CompilerArrayAssignmentPattern]="parser::assignment_operators::ArrayAssignmentPattern array_assignment_pattern compiler"
+test_defs[CompilerAssignmentRestElement]="parser::assignment_operators::AssignmentRestElement assignment_rest_element compiler"
+test_defs[CompilerAssignmentElementList]="parser::assignment_operators::AssignmentElementList assignment_element_list compiler"
+test_defs[CompilerAssignmentElisionElement]="parser::assignment_operators::AssignmentElisionElement assignment_elision_element compiler"
+test_defs[CompilerAssignmentElement]="parser::assignment_operators::AssignmentElement assignment_element:: compiler"
+test_defs[CompilerDestructuringAssignmentTarget]="parser::assignment_operators::DestructuringAssignmentTarget destructuring_assignment_target compiler"
+test_defs[CompilerClassDeclaration]="parser::class_definitions::ClassDeclaration class_declaration compiler"
+test_defs[CompilerClassElementName]="parser::class_definitions::ClassElementName class_element_name compiler"
+test_defs[CompilerFieldDefinition]="parser::class_definitions::FieldDefinition field_definition compiler"
+test_defs[CompilerClassStaticBlock]="parser::class_definitions::ClassStaticBlock class_static_block:: compiler"
+test_defs[CompilerClassStaticBlockBody]="parser::class_definitions::ClassStaticBlockBody class_static_block_body compiler"
+test_defs[CompilerClassStaticBlockStatementList]="parser::class_definitions::ClassStaticBlockStatementList class_static_block_statement_list compiler"
 test_defs[RefResult]="RefResult ref_result compiler"
 test_defs[AbruptResult]="AbruptResult abrupt_result compiler"
 test_defs[AlwaysAbruptResult]="AlwaysAbruptResult always_abrupt_result compiler"
@@ -417,6 +433,7 @@ test_defs[ForInIteratorObject]="ForInIteratorObject for_in_iterator_object agent
 test_defs[create_for_in_iterator]="create_for_in_iterator create_for_in_iterator agent"
 test_defs[provision_for_in_iterator_prototype]="provision_for_in_iterator_prototype provision_for_in_iterator_prototype agent"
 test_defs[for_in_iterator_prototype_next]="for_in_iterator_prototype_next for_in_iterator_prototype_next agent"
+test_defs[evaluate_initialized_class_field_definition]="evaluate_initialized_class_field_definition evaluate_initialized_class_field_definition agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
@@ -446,6 +463,9 @@ test_defs[FunctionEnvironmentRecord_name]="FunctionEnvironmentRecord@Environment
 test_defs[FunctionEnvironmentRecord_binding_names]="FunctionEnvironmentRecord@EnvironmentRecord::binding_names function_environment_record::binding_names environment_record"
 test_defs[FunctionEnvironmentRecord_get_super_base]="FunctionEnvironmentRecord::get_super_base function_environment_record::get_super_base environment_record"
 test_defs[FunctionEnvironmentRecord_new]="FunctionEnvironmentRecord::new function_environment_record::new environment_record"
+test_defs[ConciselyPrintedEnvironmentRecord]="ConciselyPrintedEnvironmentRecord concisely_printed_environment_record environment_record"
+test_defs[ConciseGlobalEnvironmentRecord]="ConciseGlobalEnvironmentRecord concise_global_environment_record environment_record"
+test_defs[ConciseOptionalGlobalEnvironmentRecord]="ConciseOptionalGlobalEnvironmentRecord concise_optional_global_environment_record environment_record"
 
 test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance object"
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
@@ -462,10 +482,12 @@ test_defs[ImmutablePrototypeExoticObject_own_property_keys]="ImmutablePrototypeE
 test_defs[length_of_array_like]="length_of_array_like length_of_array_like object"
 test_defs[Object_is_typed_array]="Object::is_typed_array object::is_typed_array object"
 test_defs[test_integrity_level]="test_integrity_level test_integrity_level object"
+test_defs[ConciseOptionalObject]="ConciseOptionalObject concise_optional_object object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
 test_defs[StashedFunctionData]="StashedFunctionData stashed_function_data chunk"
+test_defs[ConciseChunk]="ConciseChunk concise_chunk chunk"
 
 test_defs[ParameterMap]="ParameterMap parameter_map arguments_object"
 test_defs[ArgumentsObject]="ArgumentsObject arguments_object arguments_object"
@@ -478,6 +500,7 @@ test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInte
 
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
+test_defs[Realm]="Realm realm realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
@@ -528,6 +551,9 @@ test_defs[FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object]=
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
 test_defs[FunctionObject_own_property_keys]="FunctionObject@ObjectInterface::own_property_keys function_object::own_property_keys function_object"
 test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object"
+test_defs[ConciseBodySource]="ConciseBodySource concise_body_source function_object"
+test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_object"
+test_defs[make_method]="make_method make_method function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 
@@ -667,6 +693,7 @@ test_defs[iterator_close]="iterator_close iterator_close control_abstraction"
 test_defs[ScriptRecord]="ScriptRecord script_record execution_context"
 test_defs[ScriptOrModule]="ScriptOrModule script_or_module execution_context"
 test_defs[ExecutionContext]="ExecutionContext execution_context execution_context"
+test_defs[ConciseScript]="ConciseScript concise_script execution_context"
 
 test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from_iterable map"
 
