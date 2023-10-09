@@ -259,12 +259,12 @@ mod function_object_data {
     fn fmt() {
         setup_test_agent();
         let src = "function test_sample(){{}}";
-        let fd = Maker::new(&src).function_declaration();
+        let fd = Maker::new(src).function_declaration();
         setup_test_agent();
         let realm_rc = current_realm_record().unwrap();
         let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &src, fd.clone()).unwrap();
+        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap();
         let fobj = Object::try_from(fvalue).unwrap();
 
         let function = fobj.o.to_function_obj().unwrap().function_data().borrow();

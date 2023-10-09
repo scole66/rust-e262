@@ -839,10 +839,10 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //  2. If envRec.[[ThisBindingStatus]] is uninitialized, throw a ReferenceError exception.
     //  3. Return envRec.[[ThisValue]].
     fn get_this_binding(&self) -> Completion<ECMAScriptValue> {
-        if self.this_binding_status.get() == BindingStatus::Uninitialized {
-            Err(create_reference_error("This binding uninitialized"))
-        } else {
-            Ok(self.this_value.borrow().clone())
+        match self.this_binding_status.get() {
+            BindingStatus::Lexical => panic!("lexical functions never have a this binding"),
+            BindingStatus::Initialized => Ok(self.this_value.borrow().clone()),
+            BindingStatus::Uninitialized => Err(create_reference_error("This binding uninitialized")),
         }
     }
 
@@ -857,7 +857,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     //  4. Set envRec.[[ThisBindingStatus]] to initialized.
     //  5. Return V.
     fn bind_this_value(&self, val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        assert_ne!(self.this_binding_status.get(), BindingStatus::Lexical);
+        assert_ne!(self.this_binding_status.get(), BindingStatus::Lexical, "binding status may not be lexical");
         if self.this_binding_status.get() == BindingStatus::Initialized {
             Err(create_reference_error("This value already bound"))
         } else {

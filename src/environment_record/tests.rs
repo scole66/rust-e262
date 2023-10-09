@@ -1059,6 +1059,46 @@ mod function_environment_record {
         assert_eq!(val, ECMAScriptValue::from("initialized"));
     }
 
+    #[test]
+    fn create_mutable_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        assert_eq!(fer.binding_names(), &[JSString::from("bob")]);
+
+        // But was it mutable?
+        fer.initialize_binding(&"bob".into(), "initialized".into()).unwrap();
+        fer.set_mutable_binding("bob".into(), "altered".into(), true).unwrap();
+        let val = fer.get_binding_value(&"bob".into(), true).unwrap();
+        assert_eq!(val, ECMAScriptValue::from("altered"));
+    }
+
+    #[test]
+    fn has_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        assert!(fer.has_binding(&"bob".into()).unwrap());
+    }
+
+    #[test]
+    fn delete_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        fer.initialize_binding(&"bob".into(), "initialized".into()).unwrap();
+        fer.create_mutable_binding("alice".into(), false).unwrap();
+        fer.initialize_binding(&"alice".into(), "initialized".into()).unwrap();
+
+        assert!(fer.delete_binding(&"bob".into()).unwrap());
+        assert!(!fer.delete_binding(&"alice".into()).unwrap());
+        assert!(fer.has_binding(&"alice".into()).unwrap());
+        assert!(!fer.has_binding(&"bob".into()).unwrap());
+    }
+
     #[test_case("function a(){}" => true; "non-lexical")]
     #[test_case("() => 1" => false; "lexical")]
     fn has_this_binding(src: &str) -> bool {
@@ -1079,7 +1119,7 @@ mod function_environment_record {
         fer.bind_this_value(ECMAScriptValue::from("sentinel")).unwrap();
         fer
     }
-    #[test_case(make_lexical => panics "assertion failed:"; "lexical")]
+    #[test_case(make_lexical => panics "binding status may not be lexical"; "lexical")]
     #[test_case(make_uninit_this => sok("core"); "uninit")]
     #[test_case(make_init_this => serr("ReferenceError: This value already bound"); "already initialized")]
     fn bind_this_value(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
@@ -1089,6 +1129,16 @@ mod function_environment_record {
         let value = ECMAScriptValue::from("core");
 
         fer.bind_this_value(value).map_err(unwind_any_error).map(|v| v.to_string())
+    }
+
+    #[test_case(make_lexical => panics "lexical functions never have a this binding"; "lexical")]
+    #[test_case(make_uninit_this => serr("ReferenceError: This binding uninitialized"); "uninitialized")]
+    #[test_case(make_init_this => Ok("sentinel".to_string()); "initialized")]
+    fn get_this_binding(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.get_this_binding().map_err(unwind_any_error).map(|v| to_string(v).unwrap().to_string())
     }
 
     fn make_super() -> FunctionEnvironmentRecord {
@@ -1111,6 +1161,23 @@ mod function_environment_record {
             .map(|opt_obj| opt_obj.map(|obj| String::from(to_string(obj).unwrap())))
     }
 
+    #[test_case(make_lexical => false; "lexical - no super")]
+    #[test_case(make_init_this => false; "non-lexical - no super")]
+    #[test_case(make_super => true; "has super")]
+    fn has_super_binding(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> bool {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.has_super_binding()
+    }
+
+    #[test_case(make_lexical => None; "lexical")]
+    fn with_base_object(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Option<String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.with_base_object().map(|obj| get(&obj, &"sentinel".into()).unwrap().to_string())
+    }
     #[test]
     fn debug_fmt() {
         setup_test_agent();
@@ -2216,6 +2283,44 @@ mod concisely_printed_environment_record {
         let env = DeclarativeEnvironmentRecord::new(None, "test-sentinel");
         let cper = ConciselyPrintedEnvironmentRecord(Rc::new(env));
         let repr = format!("{cper:#?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+}
+
+mod concise_global_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let realm = current_realm_record().unwrap();
+        let ge = realm.borrow().global_env.as_ref().unwrap().clone();
+        let cge = ConciseGlobalEnvironmentRecord(ge.as_ref());
+
+        let repr = format!("{cge:?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+}
+
+mod concise_optional_global_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug_some() {
+        setup_test_agent();
+        let realm = current_realm_record().unwrap();
+        let ge = realm.borrow().global_env.as_ref().unwrap().clone();
+        let coge = ConciseOptionalGlobalEnvironmentRecord(Some(ge));
+
+        let repr = format!("{coge:?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+
+    #[test]
+    fn debug_none() {
+        let coge = ConciseOptionalGlobalEnvironmentRecord(None);
+
+        let repr = format!("{coge:?}");
         assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
     }
 }
