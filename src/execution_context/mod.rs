@@ -1,13 +1,31 @@
 use super::*;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ScriptRecord {
     pub realm: Rc<RefCell<Realm>>,
     pub ecmascript_code: Rc<Script>,
     pub text: String,
     pub compiled: Rc<Chunk>,
+}
+struct ConciseScript<'a>(&'a Script);
+impl<'a> fmt::Debug for ConciseScript<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Debug for ScriptRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ScriptRecord")
+            .field("realm", &self.realm)
+            .field("ecmascript_code", &ConciseScript(&self.ecmascript_code))
+            .field("text", &self.text)
+            .field("compiled", &ConciseChunk(&self.compiled))
+            .finish()
+    }
 }
 
 #[derive(Debug)]

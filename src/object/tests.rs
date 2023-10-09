@@ -3339,3 +3339,46 @@ mod test_integrity_level {
         super::test_integrity_level(&obj, level).map_err(unwind_any_error)
     }
 }
+
+mod concise_optional_object {
+    use super::*;
+
+    #[test]
+    fn from_some() {
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+
+        let obj_id = obj.o.id();
+
+        let opt_obj = Some(obj);
+
+        let res = ConciseOptionalObject::from(&opt_obj);
+
+        let res_id = res.0.as_ref().unwrap().o.id();
+        assert_eq!(obj_id, res_id);
+    }
+    #[test]
+    fn from_none() {
+        setup_test_agent();
+        let res = ConciseOptionalObject::from(&None);
+        assert!(res.0.is_none());
+    }
+
+    #[test]
+    fn fmt_none() {
+        setup_test_agent();
+        let coo = ConciseOptionalObject::from(&None);
+        let res = format!("{coo:?}");
+        assert_eq!(res, "None");
+    }
+
+    #[test]
+    fn fmt_some() {
+        setup_test_agent();
+        let obj = Some(ordinary_object_create(None, &[]));
+        let coo = ConciseOptionalObject::from(&obj);
+        let res = format!("{coo:#?}");
+        assert_ne!(res, "");
+        assert!(!res.contains('\n'));
+    }
+}
