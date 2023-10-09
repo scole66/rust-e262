@@ -142,15 +142,15 @@ impl Chunk {
             | Insn::HandleTargetedBreak
             | Insn::PrivateIdLookup => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.strings[arg]))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.floats[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.floats[arg]))
             }
             Insn::Bigint => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind
             | Insn::RotateUp
@@ -159,9 +159,11 @@ impl Chunk {
             | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
-            | Insn::InstantiateOrdinaryFunctionExpression => {
+            | Insn::InstantiateOrdinaryFunctionExpression
+            | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateClassStaticBlockDefinition => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<20}{}", insn, arg))
+                (2, format!("    {:<24}{}", insn, arg))
             }
             Insn::Ref
             | Insn::StrictRef
@@ -281,18 +283,18 @@ impl Chunk {
             | Insn::JumpIfNotUndef
             | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;
-                (2, format!("    {:<20}{}", insn, arg))
+                (2, format!("    {:<24}{}", insn, arg))
             }
             Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
-                (3, format!("    {:<20}{} {}", insn, index_arg, self.strings[string_arg]))
+                (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
             }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;
                 let mut string_set = self.string_sets[string_set_idx].iter().collect::<Vec<&JSString>>();
                 string_set.sort();
-                (2, format!("    {:<20}[{}]", insn, string_set.iter().join(", ")))
+                (2, format!("    {:<24}[{}]", insn, string_set.iter().join(", ")))
             }
         }
     }

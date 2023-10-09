@@ -141,6 +141,10 @@ test_defs[CompilerAssignmentElement]="parser::assignment_operators::AssignmentEl
 test_defs[CompilerDestructuringAssignmentTarget]="parser::assignment_operators::DestructuringAssignmentTarget destructuring_assignment_target compiler"
 test_defs[CompilerClassDeclaration]="parser::class_definitions::ClassDeclaration class_declaration compiler"
 test_defs[CompilerClassElementName]="parser::class_definitions::ClassElementName class_element_name compiler"
+test_defs[CompilerFieldDefinition]="parser::class_definitions::FieldDefinition field_definition compiler"
+test_defs[CompilerClassStaticBlock]="parser::class_definitions::ClassStaticBlock class_static_block:: compiler"
+test_defs[CompilerClassStaticBlockBody]="parser::class_definitions::ClassStaticBlockBody class_static_block_body compiler"
+test_defs[CompilerClassStaticBlockStatementList]="parser::class_definitions::ClassStaticBlockStatementList class_static_block_statement_list compiler"
 test_defs[RefResult]="RefResult ref_result compiler"
 test_defs[AbruptResult]="AbruptResult abrupt_result compiler"
 test_defs[AlwaysAbruptResult]="AlwaysAbruptResult always_abrupt_result compiler"
@@ -429,6 +433,7 @@ test_defs[ForInIteratorObject]="ForInIteratorObject for_in_iterator_object agent
 test_defs[create_for_in_iterator]="create_for_in_iterator create_for_in_iterator agent"
 test_defs[provision_for_in_iterator_prototype]="provision_for_in_iterator_prototype provision_for_in_iterator_prototype agent"
 test_defs[for_in_iterator_prototype_next]="for_in_iterator_prototype_next for_in_iterator_prototype_next agent"
+test_defs[evaluate_initialized_class_field_definition]="evaluate_initialized_class_field_definition evaluate_initialized_class_field_definition agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
@@ -548,6 +553,7 @@ test_defs[FunctionObject_own_property_keys]="FunctionObject@ObjectInterface::own
 test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object"
 test_defs[ConciseBodySource]="ConciseBodySource concise_body_source function_object"
 test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_object"
+test_defs[make_method]="make_method make_method function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 

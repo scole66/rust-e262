@@ -162,6 +162,8 @@ pub enum Insn {
     IteratorRest,
     EnumerateObjectProperties,
     PrivateIdLookup,
+    EvaluateInitializedClassFieldDefinition,
+    EvaluateClassStaticBlockDefinition,
 }
 
 impl fmt::Display for Insn {
@@ -313,6 +315,8 @@ impl fmt::Display for Insn {
             Insn::IteratorRest => "ITER_REST",
             Insn::EnumerateObjectProperties => "ENUM_PROPS",
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
+            Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
+            Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
         })
     }
 }
@@ -8723,5 +8727,142 @@ impl ClassElementName {
         }
     }
 }
+
+impl FieldDefinition {
+    fn class_field_definition_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: Rc<FieldDefinition>,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: ClassFieldDefinitionEvaluation
+        // The syntax-directed operation ClassFieldDefinitionEvaluation takes argument homeObject (an Object) and
+        // returns either a normal completion containing a ClassFieldDefinition Record or an abrupt completion. It is
+        // defined piecewise over the following productions:
+        //
+        // FieldDefinition : ClassElementName Initializeropt
+        //  1. Let name be ? Evaluation of ClassElementName.
+        //  2. If Initializeropt is present, then
+        //      a. Let formalParameterList be an instance of the production FormalParameters : [empty] .
+        //      b. Let env be the LexicalEnvironment of the running execution context.
+        //      c. Let privateEnv be the running execution context's PrivateEnvironment.
+        //      d. Let sourceText be the empty sequence of Unicode code points.
+        //      e. Let initializer be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
+        //         Initializer, NON-LEXICAL-THIS, env, privateEnv).
+        //      f. Perform MakeMethod(initializer, homeObject).
+        //      g. Set initializer.[[ClassFieldInitializerName]] to name.
+        //  3. Else,
+        //      a. Let initializer be EMPTY.
+        //  4. Return the ClassFieldDefinition Record { [[Name]]: name, [[Initializer]]: initializer }.
+        //
+        // NOTE: The function created for initializer is never directly accessible to ECMAScript code.
+        //
+        // INPUT ON STACK         homeObject
+        // OUTPUT ON STACK        (initializer name homeObject)/err
+
+        // --- initialzer not present ---
+        //   <name.evaluate>      // name/err homeObject
+        //   JUMP_IF_ABRUPT unwind
+        //   EMPTY                // [empty] name homeObject
+        //   JUMP exit
+        // unwind:
+        //   UNWIND 1
+        // exit:
+        // --- else ---
+        //   <name.evaluate>      // name/err homeObject
+        //   JUMP_IF_ABRUPT unwind
+        //   EVAL_CLASS_FIELD_DEF(initializer)  // initializer name homeObject
+        //   JUMP exit
+        // unwind:
+        //   UNWIND 1
+        // exit:
+
+        let status = self.name.compile(chunk, strict, text)?;
+        let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        match &self.init {
+            Some(init) => {
+                let info = StashedFunctionData {
+                    source_text: String::new(),
+                    params: Rc::new(FormalParameters::Empty(Location::default())).into(),
+                    body: init.clone().into(),
+                    to_compile: self_as_rc.into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                let func_id = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_arg(Insn::EvaluateInitializedClassFieldDefinition, func_id);
+            }
+            None => chunk.op(Insn::Empty),
+        }
+        if let Some(unwind) = unwind {
+            let exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("jump too short to fail");
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.fixup(exit).expect("jump too short to fail");
+
+            Ok(AbruptResult::Maybe)
+        } else {
+            Ok(AbruptResult::Never)
+        }
+    }
+}
+
+impl ClassStaticBlock {
+    pub fn class_static_block_definition_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        self_as_rc: Rc<ClassStaticBlock>,
+    ) -> anyhow::Result<NeverAbruptRefResult> {
+        // Runtime Semantics: ClassStaticBlockDefinitionEvaluation
+        // The syntax-directed operation ClassStaticBlockDefinitionEvaluation takes argument homeObject (an Object) and
+        // returns a ClassStaticBlockDefinition Record. It is defined piecewise over the following productions:
+        //
+        // ClassStaticBlock : static { ClassStaticBlockBody }
+        //  1. Let lex be the running execution context's LexicalEnvironment.
+        //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  3. Let sourceText be the empty sequence of Unicode code points.
+        //  4. Let formalParameters be an instance of the production FormalParameters : [empty] .
+        //  5. Let bodyFunction be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameters,
+        //     ClassStaticBlockBody, NON-LEXICAL-THIS, lex, privateEnv).
+        //  6. Perform MakeMethod(bodyFunction, homeObject).
+        //  7. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
+        //
+        // NOTE: The function bodyFunction is never directly accessible to ECMAScript code.
+        let info = StashedFunctionData {
+            source_text: String::new(),
+            params: Rc::new(FormalParameters::Empty(Location::default())).into(),
+            body: self.block.clone().into(),
+            to_compile: self_as_rc.into(),
+            strict,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(info)?;
+        chunk.op_plus_arg(Insn::EvaluateClassStaticBlockDefinition, func_id);
+        Ok(NeverAbruptRefResult)
+    }
+}
+
+impl ClassStaticBlockBody {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        self.0.compile(chunk, strict, text)
+    }
+}
+
+impl ClassStaticBlockStatementList {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match self {
+            ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, strict, text),
+            ClassStaticBlockStatementList::Empty(_) => {
+                // ClassStaticBlockStatementList : [empty]
+                //  1. Return undefined.
+                chunk.op(Insn::Undefined);
+                Ok(AbruptResult::Never)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;
