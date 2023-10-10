@@ -515,6 +515,7 @@ test_defs[array_iterator]="array_iterator array_iterator arrays"
 test_defs[create_array_iterator]="create_array_iterator array_iterator::standard arrays"
 test_defs[array_constructor_function]="array_constructor_function array_constructor_function arrays"
 test_defs[array_species_create]="array_species_create array_species_create arrays"
+test_defs[array_is_array]="array_is_array array_is_array arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 
