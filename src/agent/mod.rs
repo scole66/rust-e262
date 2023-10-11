@@ -2910,6 +2910,53 @@ fn evaluate_class_static_block_definition(
     Ok(body_function)
 }
 
+fn define_method(object: Object, function_prototype: Option<Object>, info: &StashedFunctionData, text: &str) -> anyhow::Result<Object> {
+    // Pieces of DefineMethod
+    //  1. Let env be the running execution context's LexicalEnvironment.
+    //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  3. If functionPrototype is present, then
+    //      a. Let prototype be functionPrototype.
+    //  4. Else,
+    //      a. Let prototype be %Function.prototype%.
+    //  5. Let prototype be %Function.prototype%.
+    //  6. Let sourceText be the source text matched by MethodDefinition.
+    //  7. Let closure be OrdinaryFunctionCreate(prototype, sourceText, UniqueFormalParameters, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+    //  8. Perform MakeMethod(closure, object).
+    //  9. Return closure.
+    let to_compile: Rc<MethodDefinition> =
+        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
+    let fb = match to_compile.as_ref() {
+        MethodDefinition::NamedFunction(_, _, fb, _) => fb,
+        _ => unreachable!(),
+    };
+    let prod_text_loc = to_compile.location().span;
+    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+    let chunk_name = nameify(prod_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    fb.compile_body(&mut compiled, text, info)?;
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let env = current_lexical_environment().unwrap();
+    let private_env = current_private_environment();
+    let prototype = function_prototype.unwrap_or_else(|| intrinsic(IntrinsicId::FunctionPrototype));
+    let closure = ordinary_function_create(
+        prototype,
+        &info.source_text,
+        info.params.clone(),
+        info.body.clone(),
+        info.this_mode,
+        env,
+        private_env,
+        info.strict,
+        Rc::new(compiled),
+    );
+    make_method(closure.o.to_function_obj().unwrap(), object);
+
+    Ok(closure)
+}
+
 fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
     let (px, py) = if left_first {
         let px = to_primitive(x, None)?;

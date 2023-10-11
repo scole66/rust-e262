@@ -572,6 +572,7 @@ mod nameable_production {
             ParamSource::ArrowParameters(node) => format!("ArrowParameters: {node}"),
             ParamSource::AsyncArrowBinding(node) => format!("AsyncArrowBinding: {node}"),
             ParamSource::ArrowFormals(node) => format!("ArrowFormals: {node}"),
+            ParamSource::UniqueFormalParameters(node) => format!("UniqueFormalParameters: {node}"),
         }
     }
 }

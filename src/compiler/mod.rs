@@ -164,6 +164,7 @@ pub enum Insn {
     PrivateIdLookup,
     EvaluateInitializedClassFieldDefinition,
     EvaluateClassStaticBlockDefinition,
+    DefineMethod,
 }
 
 impl fmt::Display for Insn {
@@ -317,6 +318,7 @@ impl fmt::Display for Insn {
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
             Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
             Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
+            Insn::DefineMethod => "DEFINE_METHOD",
         })
     }
 }
@@ -7103,6 +7105,7 @@ impl ParamSource {
             ParamSource::ArrowParameters(params) => params.compile_binding_initialization(chunk, strict, text, env),
             ParamSource::AsyncArrowBinding(_) => todo!(),
             ParamSource::ArrowFormals(_) => todo!(),
+            ParamSource::UniqueFormalParameters(_) => todo!(),
         }
     }
 }
@@ -8860,6 +8863,79 @@ impl ClassStaticBlockStatementList {
                 chunk.op(Insn::Undefined);
                 Ok(AbruptResult::Never)
             }
+        }
+    }
+}
+
+impl MethodDefinition {
+    pub fn define_method(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: &Rc<MethodDefinition>,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            MethodDefinition::NamedFunction(class_element_name, unique_formal_parameters, function_body, location) => {
+                // Runtime Semantics: DefineMethod
+                // The syntax-directed operation DefineMethod takes argument object (an Object) and optional argument
+                // functionPrototype (an Object) and returns either a normal completion containing a Record with fields
+                // [[Key]] (a property key) and [[Closure]] (an ECMAScript function object) or an abrupt completion. It
+                // is defined piecewise over the following productions:
+                //
+                // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //  1. Let propKey be ? Evaluation of ClassElementName.
+                //  2. Let env be the running execution context's LexicalEnvironment.
+                //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  4. If functionPrototype is present, then
+                //      a. Let prototype be functionPrototype.
+                //  5. Else,
+                //      a. Let prototype be %Function.prototype%.
+                //  6. Let sourceText be the source text matched by MethodDefinition.
+                //  7. Let closure be OrdinaryFunctionCreate(prototype, sourceText, UniqueFormalParameters,
+                //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+                //  8. Perform MakeMethod(closure, object).
+                //  9. Return the Record { [[Key]]: propKey, [[Closure]]: closure }.
+
+                // start:                    object prototype
+                //  <cen.evaluate>           propkey/err object prototype
+                //  JUMP_IF_ABRUPT unwind_2  propkey object prototype
+                //  DEFINE_METHOD(self)      propkey closure
+                //  JUMP exit
+                // unwind_2:
+                //  UNWIND 2
+                // exit:                     err/(propkey closure)
+
+                let status = class_element_name.compile(chunk, strict, text)?;
+                let unwind_2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_text =
+                    text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: ParamSource::from(unique_formal_parameters.clone()),
+                    body: function_body.clone().into(),
+                    to_compile: self_as_rc.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_arg(Insn::DefineMethod, idx);
+                if let Some(spot) = unwind_2 {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(spot).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.fixup(exit).expect("jump too short to fail");
+
+                    Ok(AbruptResult::Maybe)
+                } else {
+                    Ok(AbruptResult::Never)
+                }
+            }
+            MethodDefinition::Generator(_)
+            | MethodDefinition::Async(_)
+            | MethodDefinition::AsyncGenerator(_)
+            | MethodDefinition::Getter(_, _, _)
+            | MethodDefinition::Setter(_, _, _, _) => unreachable!(),
         }
     }
 }
