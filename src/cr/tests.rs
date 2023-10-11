@@ -18,6 +18,10 @@ mod normal_completion {
     #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
                 NormalCompletion::from(10)
                 => false; "ref-notequal")]
+    #[test_case(NormalCompletion::PrivateName(PrivateName::new("charlie")), NormalCompletion::from(10) => false; "one pn")]
+    #[test_case(NormalCompletion::PrivateName(PrivateName::new("alice")),
+                NormalCompletion::PrivateName(PrivateName::new("bob"))
+                => false; "both pn")]
     fn eq(left: NormalCompletion, right: NormalCompletion) -> bool {
         left == right
     }
@@ -76,7 +80,6 @@ mod normal_completion {
         #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
         #[test_case(23_i64 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from i64")]
         #[test_case(23_u32 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from u32")]
-
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
         }
@@ -121,6 +124,16 @@ mod normal_completion {
             if let NormalCompletion::IteratorRecord(recovered) = nc {
                 assert!(Rc::ptr_eq(&recovered, &ir));
             }
+        }
+
+        #[test]
+        fn private_name() {
+            setup_test_agent();
+            let pn = PrivateName::new("test-sentinel");
+
+            let nc = NormalCompletion::from(pn.clone());
+            let recovered = PrivateName::try_from(nc).unwrap();
+            assert_eq!(recovered, pn);
         }
     }
 
@@ -190,6 +203,7 @@ mod normal_completion {
     #[test_case(NormalCompletion::from(103) => "103"; "value")]
     #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => "Ref(unresolvable->a)"; "non-strict reference")]
     #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
+    #[test_case(NormalCompletion::PrivateName(PrivateName::new("alpha")) => "PN[alpha]"; "private name")]
     fn display(n: NormalCompletion) -> String {
         format!("{n}")
     }

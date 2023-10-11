@@ -125,7 +125,7 @@ fn code_point_at_02() {
         CodePointAtResult { code_point: 0xe2, code_unit_count: 1, is_unpaired_surrogate: false },
         CodePointAtResult { code_point: 0xd902, code_unit_count: 1, is_unpaired_surrogate: true },
     ];
-    let positions = vec![0, 1, 3, 4, 5, 6];
+    let positions = [0, 1, 3, 4, 5, 6];
     for idx in 0..positions.len() {
         let result = code_point_at(&mystr, positions[idx]);
         assert!(result == expected[idx]);

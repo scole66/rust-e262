@@ -371,10 +371,10 @@ mod chunk {
         let result = c.disassemble();
         let expected = svec(&[
             "====== disassemble ======",
-            "    STRING              0 (charlie)",
-            "    FLOAT               0 (78.2)",
-            "    BIGINT              0 (93939)",
-            "    JUMP_IF_ABRUPT      8",
+            "    STRING                  0 (charlie)",
+            "    FLOAT                   0 (78.2)",
+            "    BIGINT                  0 (93939)",
+            "    JUMP_IF_ABRUPT          8",
             "    RESOLVE",
             "    STRICT_RESOLVE",
             "    THIS",
@@ -383,9 +383,9 @@ mod chunk {
             "    FALSE",
             "    GET_VALUE",
             "    UPDATE_EMPTY",
-            "    UNWIND              3",
-            "    LOOP_CONT           [alpha, beta, zeta]",
-            "    AMA                 3 charlie",
+            "    UNWIND                  3",
+            "    LOOP_CONT               [alpha, beta, zeta]",
+            "    AMA                     3 charlie",
         ]);
         assert_eq!(result, expected);
     }
@@ -456,5 +456,22 @@ mod stashed_function_data {
         assert_eq!(sfd == sfd_other, false);
         assert_eq!(sfd != number2, false);
         assert_eq!(sfd != sfd_other, true);
+    }
+}
+
+mod concise_chunk {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        // The whole point of concise types is that they print on one line, even if in alternate mode. So
+        // validate that.
+        let c = Chunk::new("concise");
+        let cc = ConciseChunk(&c);
+        assert!(format!("{c:#?}").lines().collect::<Vec<_>>().len() > 1); // asserts validity of the test
+
+        // Check the concise formatter
+        assert_eq!(format!("{cc:#?}").lines().collect::<Vec<_>>().len(), 1);
+        assert_eq!(format!("{cc:?}").lines().collect::<Vec<_>>().len(), 1);
     }
 }

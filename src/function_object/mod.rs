@@ -24,12 +24,56 @@ pub enum ThisLexicality {
     NonLexicalThis,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassName {
     String(JSString),
     Symbol(Symbol),
     Private(PrivateName),
     Empty,
+}
+
+impl<T> From<T> for ClassName
+where
+    T: Into<JSString>,
+{
+    fn from(value: T) -> Self {
+        Self::String(value.into())
+    }
+}
+
+impl TryFrom<NormalCompletion> for ClassName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Empty => Ok(Self::Empty),
+            NormalCompletion::PrivateName(pn) => Ok(Self::Private(pn)),
+            NormalCompletion::Value(v) => match v {
+                ECMAScriptValue::String(s) => Ok(Self::String(s)),
+                ECMAScriptValue::Symbol(sym) => Ok(Self::Symbol(sym)),
+                ECMAScriptValue::Undefined
+                | ECMAScriptValue::Null
+                | ECMAScriptValue::Boolean(_)
+                | ECMAScriptValue::Number(_)
+                | ECMAScriptValue::BigInt(_)
+                | ECMAScriptValue::Object(_) => Err(anyhow::anyhow!("Not a class name")),
+            },
+            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) | NormalCompletion::IteratorRecord(_) => {
+                Err(anyhow::anyhow!("Not a class name"))
+            }
+        }
+    }
+}
+
+impl From<ClassName> for NormalCompletion {
+    fn from(value: ClassName) -> Self {
+        match value {
+            ClassName::String(s) => s.into(),
+            ClassName::Symbol(sym) => sym.into(),
+            ClassName::Private(pn) => pn.into(),
+            ClassName::Empty => NormalCompletion::Empty,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -43,6 +87,14 @@ pub enum BodySource {
     AsyncGenerator(Rc<AsyncGeneratorBody>),
     ConciseBody(Rc<ConciseBody>),
     AsyncConciseBody(Rc<AsyncConciseBody>),
+    Initializer(Rc<Initializer>),
+    ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
+}
+pub struct ConciseBodySource<'a>(&'a BodySource);
+impl<'a> fmt::Debug for ConciseBodySource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
 }
 
 impl From<Rc<FunctionBody>> for BodySource {
@@ -73,6 +125,16 @@ impl From<Rc<GeneratorBody>> for BodySource {
 impl From<Rc<AsyncGeneratorBody>> for BodySource {
     fn from(src: Rc<AsyncGeneratorBody>) -> Self {
         Self::AsyncGenerator(src)
+    }
+}
+impl From<Rc<Initializer>> for BodySource {
+    fn from(value: Rc<Initializer>) -> Self {
+        Self::Initializer(value)
+    }
+}
+impl From<Rc<ClassStaticBlockBody>> for BodySource {
+    fn from(value: Rc<ClassStaticBlockBody>) -> Self {
+        Self::ClassStaticBlockBody(value)
     }
 }
 
@@ -109,6 +171,8 @@ impl fmt::Display for BodySource {
             BodySource::AsyncGenerator(node) => node.fmt(f),
             BodySource::ConciseBody(node) => node.fmt(f),
             BodySource::AsyncConciseBody(node) => node.fmt(f),
+            BodySource::Initializer(node) => node.fmt(f),
+            BodySource::ClassStaticBlockBody(node) => node.fmt(f),
         }
     }
 }
@@ -128,6 +192,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_declared_names(),
             BodySource::ConciseBody(cb) => cb.var_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.var_declared_names(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -142,6 +207,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.var_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.var_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.var_scoped_declarations(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -153,6 +219,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_declared_names(),
             BodySource::ConciseBody(cb) => cb.lexically_declared_names(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_declared_names(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -164,6 +231,7 @@ impl BodySource {
             BodySource::AsyncGenerator(ag) => ag.lexically_scoped_declarations(),
             BodySource::ConciseBody(cb) => cb.lexically_scoped_declarations(),
             BodySource::AsyncConciseBody(acb) => acb.lexically_scoped_declarations(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => Vec::new(),
         }
     }
 
@@ -175,6 +243,7 @@ impl BodySource {
             BodySource::AsyncGenerator(node) => node.function_body_contains_use_strict(),
             BodySource::ConciseBody(node) => node.concise_body_contains_use_strict(),
             BodySource::AsyncConciseBody(acb) => acb.contains_use_strict(),
+            BodySource::Initializer(_) | BodySource::ClassStaticBlockBody(_) => false,
         }
     }
 }
@@ -185,6 +254,13 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
+}
+
+pub struct ConciseParamSource<'a>(&'a ParamSource);
+impl<'a> fmt::Debug for ConciseParamSource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
 }
 
 impl fmt::Display for ParamSource {
@@ -325,6 +401,16 @@ impl From<Rc<FunctionDeclaration>> for FunctionSource {
         Self::FunctionDeclaration(fd)
     }
 }
+impl From<Rc<FieldDefinition>> for FunctionSource {
+    fn from(value: Rc<FieldDefinition>) -> Self {
+        Self::FieldDefinition(value)
+    }
+}
+impl From<Rc<ClassStaticBlock>> for FunctionSource {
+    fn from(value: Rc<ClassStaticBlock>) -> Self {
+        Self::ClassStaticBlock(value)
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
     type Error = anyhow::Error;
 
@@ -355,8 +441,27 @@ impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<FieldDefinition> {
+    type Error = anyhow::Error;
 
-#[derive(Debug)]
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::FieldDefinition(fd) => Ok(fd),
+            _ => bail!("FieldDefinition expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<ClassStaticBlock> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::ClassStaticBlock(csb) => Ok(csb),
+            _ => bail!("ClassStaticBody expected"),
+        }
+    }
+}
+
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
     private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -372,9 +477,32 @@ pub struct FunctionObjectData {
     source_text: String,
     fields: Vec<ClassFieldDefinitionRecord>,
     private_methods: Vec<Rc<PrivateElement>>,
-    class_field_initializer_name: ClassName,
+    pub class_field_initializer_name: ClassName,
     is_class_constructor: bool,
     is_constructor: bool,
+}
+impl fmt::Debug for FunctionObjectData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FunctionObjectData")
+            .field("environment", &ConciselyPrintedEnvironmentRecord(Rc::clone(&self.environment)))
+            .field("private_environment", &self.private_environment)
+            .field("formal_parameters", &ConciseParamSource(&self.formal_parameters))
+            .field("ecmascript_code", &ConciseBodySource(&self.ecmascript_code))
+            .field("compiled", &ConciseChunk(&self.compiled))
+            .field("constructor_kind", &self.constructor_kind)
+            .field("realm", &self.realm)
+            .field("script_or_module", &self.script_or_module)
+            .field("this_mode", &self.this_mode)
+            .field("strict", &self.strict)
+            .field("home_object", &ConciseOptionalObject::from(&self.home_object))
+            .field("source_text", &self.source_text)
+            .field("fields", &self.fields)
+            .field("private_methods", &self.private_methods)
+            .field("class_field_initializer_name", &self.class_field_initializer_name)
+            .field("is_class_constructor", &self.is_class_constructor)
+            .field("is_constructor", &self.is_constructor)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -1621,6 +1749,16 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
         };
     }
     prototype_function!(function_prototype_call, "call", 1.0);
+}
+
+pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
+    // MakeMethod ( F, homeObject )
+    // The abstract operation MakeMethod takes arguments F (an ECMAScript function object) and homeObject (an Object)
+    // and returns UNUSED. It configures F as a method. It performs the following steps when called:
+    //
+    // 1. Set F.[[HomeObject]] to homeObject.
+    // 2. Return UNUSED.
+    f.function_data().borrow_mut().home_object = Some(home_object);
 }
 
 #[cfg(test)]

@@ -1754,3 +1754,60 @@ mod for_in_iterator_prototype_next {
         }
     }
 }
+
+mod evaluate_initialized_class_field_definition {
+    use super::*;
+
+    #[test]
+    fn call() {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
+        set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+
+        let src = "sum = 10+20";
+        let fd = Maker::new(src).field_definition();
+        let proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let home = ordinary_object_create(Some(proto), &[]);
+        let name = ClassName::from("class_name");
+        let info = StashedFunctionData {
+            source_text: String::new(),
+            params: Rc::new(FormalParameters::Empty(Location::default())).into(),
+            body: fd.init.as_ref().unwrap().clone().into(),
+            to_compile: fd.into(),
+            strict: true,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+
+        let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, src).unwrap();
+
+        let fdata = obj.o.to_function_obj().unwrap().function_data().borrow();
+        assert_eq!(fdata.class_field_initializer_name, ClassName::from("class_name"));
+        assert_eq!(fdata.home_object.as_ref().unwrap().o.id(), home.o.id());
+    }
+
+    #[test]
+    fn call_err() {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
+        set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+
+        let src = "sum = @@# + 10+20";
+        let fd = Maker::new(src).field_definition();
+        let proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let home = ordinary_object_create(Some(proto), &[]);
+        let name = ClassName::from("class_name");
+        let info = StashedFunctionData {
+            source_text: String::new(),
+            params: Rc::new(FormalParameters::Empty(Location::default())).into(),
+            body: fd.init.as_ref().unwrap().clone().into(),
+            to_compile: fd.into(),
+            strict: true,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+
+        let res = evaluate_initialized_class_field_definition(&info, home.clone(), name, src);
+        assert!(res.is_err());
+    }
+}

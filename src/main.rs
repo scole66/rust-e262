@@ -182,4 +182,5 @@ fn main() {
 }
 
 #[cfg(test)]
+#[allow(hidden_glob_reexports)]
 mod tests;

@@ -473,7 +473,7 @@ impl ParseError {
     }
 }
 
-////
+// =======
 // Otherwise:
 //
 // If self is Ok, return unchanged.
