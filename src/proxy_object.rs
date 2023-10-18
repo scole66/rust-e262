@@ -1,4 +1,5 @@
 use super::*;
+use counter::Counter;
 
 #[derive(Debug)]
 pub struct ProxyObject {
@@ -668,7 +669,7 @@ impl ObjectInterface for ProxyObject {
         // The [[OwnPropertyKeys]] internal method of a Proxy exotic object O takes no arguments and returns either a
         // normal completion containing a List of property keys or a throw completion. It performs the following steps
         // when called:
-        // 
+        //
         //  1. Perform ? ValidateNonRevokedProxy(O).
         //  2. Let target be O.[[ProxyTarget]].
         //  3. Let handler be O.[[ProxyHandler]].
@@ -706,7 +707,7 @@ impl ObjectInterface for ProxyObject {
         //
         // NOTE
         // [[OwnPropertyKeys]] for Proxy objects enforces the following invariants:
-        // 
+        //
         //  * The result of [[OwnPropertyKeys]] is a List.
         //  * The returned List contains no duplicate entries.
         //  * The Type of each result List element is either String or Symbol.
@@ -721,8 +722,58 @@ impl ObjectInterface for ProxyObject {
             return target.o.own_property_keys();
         }
         let trap_result_array = call(&trap, &handler, &[target.into()])?;
-        let trap_result = create_list_from_array_like(trap_result_array, Some(&[ValueType::String, ValueType::Symbol]))?;
-        todo!()
+        let trap_result =
+            create_list_from_array_like(trap_result_array, Some(&[ValueKind::String, ValueKind::Symbol]))?
+                .into_iter()
+                .map(|v| PropertyKey::try_from(v).expect("values are keys"))
+                .collect::<Vec<_>>();
+        let has_duplicates = trap_result.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).count() > 0;
+        if has_duplicates {
+            return Err(create_type_error("proxy error: The returned List may not contain duplicate entries."));
+        }
+        let extensible_target = is_extensible(target)?;
+        let target_keys = target.o.own_property_keys()?;
+        let mut target_configurable_keys = vec![];
+        let mut target_nonconfigurable_keys = vec![];
+        for key in target_keys {
+            let desc = target.o.get_own_property(&key)?;
+            if matches!(desc, Some(PropertyDescriptor { configurable: false, .. })) {
+                target_nonconfigurable_keys.push(key);
+            } else {
+                target_configurable_keys.push(key);
+            }
+        }
+        if extensible_target && target_nonconfigurable_keys.is_empty() {
+            return Ok(trap_result);
+        }
+        let mut unchecked_result_keys = trap_result.clone();
+        for key in target_nonconfigurable_keys {
+            match unchecked_result_keys.iter().position(|k| k.eq(&key)) {
+                None => {
+                    return Err(create_type_error("proxy error: The result List must contain the keys of all non-configurable own properties of the target object."));
+                }
+                Some(idx) => {
+                    unchecked_result_keys.swap_remove(idx);
+                }
+            }
+        }
+        if extensible_target {
+            return Ok(trap_result);
+        }
+        for key in target_configurable_keys {
+            match unchecked_result_keys.iter().position(|k| k.eq(&key)) {
+                None => {
+                    return Err(create_type_error("proxy error:  If the target object is not extensible, then the result List must contain all the keys of the own properties of the target object and no other values."));
+                }
+                Some(idx) => {
+                    unchecked_result_keys.swap_remove(idx);
+                }
+            }
+        }
+        if !unchecked_result_keys.is_empty() {
+            return Err(create_type_error("proxy error:  If the target object is not extensible, then the result List must contain all the keys of the own properties of the target object and no other values."));
+        }
+        Ok(trap_result)
     }
 }
 
