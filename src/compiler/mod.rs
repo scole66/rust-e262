@@ -111,6 +111,7 @@ pub enum Insn {
     InstantiateIdFreeFunctionExpression,
     InstantiateOrdinaryFunctionExpression,
     InstantiateArrowFunctionExpression,
+    InstantiateGeneratorFunctionExpression,
     InstantiateOrdinaryFunctionObject,
     LeftShift,
     SignedRightShift,
@@ -264,6 +265,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateIdFreeFunctionExpression => "FUNC_IIFE",
             Insn::InstantiateOrdinaryFunctionExpression => "FUNC_IOFE",
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
+            Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
@@ -770,8 +772,8 @@ impl NameableProduction {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
             }
             NameableProduction::Generator(generator) => {
-                generator.named_evaluation(chunk, strict, text, id).map(CompilerStatusFlags::from)
-            },
+                generator.named_evaluation(chunk, strict, text, id, generator.clone()).map(CompilerStatusFlags::from)
+            }
             NameableProduction::AsyncFunction(_) => todo!(),
             NameableProduction::AsyncGenerator(_) => todo!(),
             NameableProduction::Class(_) => todo!(),
@@ -8620,7 +8622,7 @@ impl FunctionBody {
 }
 
 impl FunctionStatementList {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
             FunctionStatementList::Statements(s) => s.compile(chunk, strict, text),
             FunctionStatementList::Empty(_) => {
@@ -8867,12 +8869,18 @@ impl ClassStaticBlockStatementList {
 }
 
 impl GeneratorExpression {
-    #[allow(unused_variables)]
-    fn instantiate_generator_function_expression(&self, chunk: &mut Chunk, strict: bool, text: &str, id: NameLoc) -> anyhow::Result<AbruptResult> {
+    fn instantiate_generator_function_expression(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        id: NameLoc,
+        self_as_rc: Rc<GeneratorExpression>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateGeneratorFunctionExpression
         // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
         // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
-        // 
+        //
         // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
         //  1. If name is not present, set name to "".
         //  2. Let env be the LexicalEnvironment of the running execution context.
@@ -8885,18 +8893,78 @@ impl GeneratorExpression {
         //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
         //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
         //  9. Return closure.
-        todo!()
+        if let Some(name_id) = match id {
+            NameLoc::None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+            NameLoc::Index(id) => Some(id),
+            NameLoc::OnStack => None,
+        } {
+            chunk.op_plus_arg(Insn::String, name_id);
+        }
+
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self_as_rc),
+            this_mode: ThisLexicality::LexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id);
+        Ok(AlwaysAbruptResult)
     }
 
-    fn named_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str, id: NameLoc) -> anyhow::Result<AbruptResult> {
+    fn named_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        id: NameLoc,
+        self_as_rc: Rc<Self>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: NamedEvaluation
         // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
         // returns either a normal completion containing a function object or an abrupt completion. It is defined
         // piecewise over the following productions:
-        
+
         // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
         //  1. Return InstantiateGeneratorFunctionExpression of GeneratorExpression with argument name.
-        self.instantiate_generator_function_expression(chunk, strict, text, id)
+        self.instantiate_generator_function_expression(chunk, strict, text, id, self_as_rc)
+    }
+}
+
+impl GeneratorBody {
+    #[allow(unused_variables)]
+    pub fn evaluate_generator_body(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: EvaluateGeneratorBody
+        // The syntax-directed operation EvaluateGeneratorBody takes arguments functionObject (an ECMAScript function
+        // object) and argumentsList (a List of ECMAScript language values) and returns a throw completion or a return
+        // completion. It is defined piecewise over the following productions:
+        //
+        // GeneratorBody : FunctionBody
+        //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
+        //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject, "%GeneratorFunction.prototype.prototype%", «
+        //     [[GeneratorState]], [[GeneratorContext]], [[GeneratorBrand]] »).
+        //  3. Set G.[[GeneratorBrand]] to EMPTY.
+        //  4. Perform GeneratorStart(G, FunctionBody).
+        //  5. Return Completion Record { [[Type]]: RETURN, [[Value]]: G, [[Target]]: EMPTY }.
+
+        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+        let status = compile_fdi(chunk, text, info)?;
+        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+
+        // Stack: func ...
+
+        todo!()
     }
 }
 

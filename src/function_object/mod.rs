@@ -401,6 +401,11 @@ impl From<Rc<FunctionDeclaration>> for FunctionSource {
         Self::FunctionDeclaration(fd)
     }
 }
+impl From<Rc<GeneratorExpression>> for FunctionSource {
+    fn from(value: Rc<GeneratorExpression>) -> Self {
+        Self::GeneratorExpression(value)
+    }
+}
 impl From<Rc<FieldDefinition>> for FunctionSource {
     fn from(value: Rc<FieldDefinition>) -> Self {
         Self::FieldDefinition(value)
@@ -430,6 +435,17 @@ impl TryFrom<FunctionSource> for Rc<ArrowFunction> {
             _ => bail!("ArrowFunction expected"),
         }
     }
+}
+impl TryFrom<FunctionSource> for Rc<GeneratorExpression> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorExpression(g) => Ok(g),
+            _ => bail!("Generator Expression expected")
+        }
+    }
+    
 }
 impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
     type Error = anyhow::Error;

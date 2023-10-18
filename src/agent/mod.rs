@@ -1602,6 +1602,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let info = &chunk.function_object_data[id as usize];
                     instantiate_arrow_function_expression(Some(index), text, info)
                 }
+                Insn::InstantiateGeneratorFunctionExpression => {
+                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[id as usize];
+                    instantiate_generator_function_expression(Some(index), text, info)
+                }
                 Insn::InstantiateOrdinaryFunctionObject => {
                     let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
@@ -2773,6 +2779,74 @@ pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, i
     );
     set_function_name(&closure, name.into(), None);
 
+    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
+}
+
+pub fn instantiate_generator_function_expression(index: Option<usize>, text: &str, info: &StashedFunctionData) {
+    // Runtime Semantics: InstantiateGeneratorFunctionExpression
+    // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
+    // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
+    //
+    // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
+    //  1. If name is not present, set name to "".
+    //  2. Let env be the LexicalEnvironment of the running execution context.
+    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  4. Let sourceText be the source text matched by GeneratorExpression.
+    //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+    //     GeneratorBody, non-lexical-this, env, privateEnv).
+    //  6. Perform SetFunctionName(closure, name).
+    //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+    //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
+    //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+    //  9. Return closure.
+    let index = index.unwrap_or(AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1);
+    let env = current_lexical_environment().unwrap();
+    let priv_env = current_private_environment();
+
+    let name = AGENT.with(|agent| {
+        JSString::try_from(
+            ECMAScriptValue::try_from(agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
+                .unwrap(),
+        )
+        .unwrap()
+    });
+
+    let to_compile: Rc<GeneratorExpression> =
+        info.to_compile.clone().try_into().expect("This routine only used with Generator Expressions");
+    let chunk_name = nameify(&info.source_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, text, info);
+    if let Err(err) = compilation_status {
+        AGENT.with(|agent| {
+            let typeerror = create_type_error(err.to_string());
+            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
+            let l = execution_context_stack[index].stack.len();
+            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
+        });
+        return;
+    }
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+    let closure = ordinary_function_create(
+        generator_function_prototype,
+        info.source_text.as_str(),
+        info.params.clone(),
+        info.body.clone(),
+        ThisLexicality::LexicalThis,
+        env,
+        priv_env,
+        info.strict,
+        Rc::new(compiled),
+    );
+    set_function_name(&closure, name.into(), None);
+
+    let prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+    let desc = PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
+    define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
 }
 
