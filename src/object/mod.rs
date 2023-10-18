@@ -1959,6 +1959,55 @@ pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
     to_length(get(obj, &"length".into())?)
 }
 
+pub fn create_list_from_array_like(
+    obj: ECMAScriptValue,
+    element_types: Option<&[ValueKind]>,
+) -> Completion<Vec<ECMAScriptValue>> {
+    // CreateListFromArrayLike ( obj [ , elementTypes ] )
+    // The abstract operation CreateListFromArrayLike takes argument obj (an ECMAScript language value) and optional
+    // argument elementTypes (a List of names of ECMAScript Language Types) and returns either a normal completion
+    // containing a List of ECMAScript language values or a throw completion. It is used to create a List value whose
+    // elements are provided by the indexed properties of obj. elementTypes contains the names of ECMAScript Language
+    // Types that are allowed for element values of the List that is created. It performs the following steps when
+    // called:
+    //
+    //  1. If elementTypes is not present, set elementTypes to « Undefined, Null, Boolean, String, Symbol, Number,
+    //     BigInt, Object ».
+    //  2. If obj is not an Object, throw a TypeError exception.
+    //  3. Let len be ? LengthOfArrayLike(obj).
+    //  4. Let list be a new empty List.
+    //  5. Let index be 0.
+    //  6. Repeat, while index < len,
+    //      a. Let indexName be ! ToString(𝔽(index)).
+    //      b. Let next be ? Get(obj, indexName).
+    //      c. If elementTypes does not contain Type(next), throw a TypeError exception.
+    //      d. Append next to list.
+    //      e. Set index to index + 1.
+    //  7. Return list.
+    let element_types = element_types.unwrap_or(&[
+        ValueKind::Undefined,
+        ValueKind::Null,
+        ValueKind::Boolean,
+        ValueKind::String,
+        ValueKind::Symbol,
+        ValueKind::Number,
+        ValueKind::BigInt,
+        ValueKind::Object,
+    ]);
+    let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
+    let len = length_of_array_like(&obj)?;
+    let mut list = Vec::new();
+    for index in 0..len as usize {
+        let index_name = to_string(index).expect("number to string works");
+        let next = get(&obj, &index_name.into())?;
+        if !element_types.contains(&next.kind()) {
+            return Err(create_type_error("Invalid kind for array"));
+        }
+        list.push(next);
+    }
+    Ok(list)
+}
+
 // Invoke ( V, P [ , argumentsList ] )
 //
 // The abstract operation Invoke takes arguments V (an ECMAScript language value) and P (a property key) and optional

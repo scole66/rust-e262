@@ -3382,3 +3382,40 @@ mod concise_optional_object {
         assert!(!res.contains('\n'));
     }
 }
+
+mod create_list_from_array_like {
+    use super::*;
+    use test_case::test_case;
+
+    fn not_arraylike() -> ECMAScriptValue {
+        let obj = ordinary_object_create(None, &[]);
+        set(&obj, "length".into(), wks(WksId::AsyncIterator).into(), true).unwrap();
+        obj.into()
+    }
+    fn three_numbers() -> ECMAScriptValue {
+        let obj = create_array_from_list(&[8.into(), 3.into(), 100.into()]);
+        obj.into()
+    }
+    fn evil_get() -> ECMAScriptValue {
+        let obj = ordinary_object_create(None, &[]);
+        set(&obj, "length".into(), 10.into(), true).unwrap();
+        let thrower = intrinsic(IntrinsicId::ThrowTypeError);
+        let desc = PotentialPropertyDescriptor::new().get(thrower);
+        define_property_or_throw(&obj, "0", desc).unwrap();
+        obj.into()
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined, None => serr("TypeError: CreateListFromArrayLike called on non-object"); "not an object")]
+    #[test_case(not_arraylike, None => serr("TypeError: Symbol values cannot be converted to Number values"); "object, not arraylike")]
+    #[test_case(three_numbers, Some(&[ValueKind::Number]) => Ok("8, 3, 100".into()); "three item list")]
+    #[test_case(three_numbers, Some(&[ValueKind::String]) => serr("TypeError: Invalid kind for array"); "kind mismatch")]
+    #[test_case(evil_get, None => serr("TypeError: Generic TypeError"); "get fails")]
+    fn call(make_al: impl FnOnce() -> ECMAScriptValue, types: Option<&[ValueKind]>) -> Result<String, String> {
+        setup_test_agent();
+        let array_like = make_al();
+
+        create_list_from_array_like(array_like, types).map_err(unwind_any_error).map(|seq| {
+            seq.iter().map(|val| String::from(to_string(val.clone()).unwrap())).collect::<Vec<_>>().join(", ")
+        })
+    }
+}

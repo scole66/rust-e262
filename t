@@ -41,6 +41,7 @@ test_defs[to_uint32_agentless]="to_uint32_agentless to_uint32_agentless values"
 test_defs[to_string_agentless]="to_string_agentless to_string_agentless values"
 test_defs[to_object]="to_object to_object values"
 test_defs[canonical_numeric_index_string]="canonical_numeric_index_string canonical_numeric_index_string values"
+test_defs[ValueKind]="ValueKind value_kind values"
 
 test_defs[SymbolObject]="SymbolObject symbol_object symbol_object"
 test_defs[SymbolRegistry]="SymbolRegistry symbol_registry symbol_object"
@@ -483,6 +484,7 @@ test_defs[length_of_array_like]="length_of_array_like length_of_array_like objec
 test_defs[Object_is_typed_array]="Object::is_typed_array object::is_typed_array object"
 test_defs[test_integrity_level]="test_integrity_level test_integrity_level object"
 test_defs[ConciseOptionalObject]="ConciseOptionalObject concise_optional_object object"
+test_defs[create_list_from_array_like]="create_list_from_array_like create_list_from_array_like object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
