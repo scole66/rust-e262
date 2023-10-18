@@ -537,14 +537,191 @@ impl ObjectInterface for ProxyObject {
     }
 
     fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        todo!()
+        // [[Set]] ( P, V, Receiver )
+        // The [[Set]] internal method of a Proxy exotic object O takes arguments P (a property key), V (an ECMAScript
+        // language value), and Receiver (an ECMAScript language value) and returns either a normal completion
+        // containing a Boolean or a throw completion. It performs the following steps when called:
+        //
+        //  1. Perform ? ValidateNonRevokedProxy(O).
+        //  2. Let target be O.[[ProxyTarget]].
+        //  3. Let handler be O.[[ProxyHandler]].
+        //  4. Assert: handler is an Object.
+        //  5. Let trap be ? GetMethod(handler, "set").
+        //  6. If trap is undefined, then
+        //      a. Return ? target.[[Set]](P, V, Receiver).
+        //  7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, P, V, Receiver »)).
+        //  8. If booleanTrapResult is false, return false.
+        //  9. Let targetDesc be ? target.[[GetOwnProperty]](P).
+        //  10. If targetDesc is not undefined and targetDesc.[[Configurable]] is false, then
+        //      a. If IsDataDescriptor(targetDesc) is true and targetDesc.[[Writable]] is false, then
+        //          i. If SameValue(V, targetDesc.[[Value]]) is false, throw a TypeError exception.
+        //      b. If IsAccessorDescriptor(targetDesc) is true, then
+        //          i. If targetDesc.[[Set]] is undefined, throw a TypeError exception.
+        //  11. Return true.
+        //
+        // NOTE
+        // [[Set]] for Proxy objects enforces the following invariants:
+        //
+        //  * The result of [[Set]] is a Boolean value.
+        //  * Cannot change the value of a property to be different from the value of the corresponding target object
+        //    property if the corresponding target object property is a non-writable, non-configurable own data
+        //    property.
+        //  * Cannot set the value of a property if the corresponding target object property is a non-configurable own
+        //    accessor property that has undefined as its [[Set]] attribute.
+        self.validate_non_revoked()?;
+        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
+        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let trap = get_method(&handler, &"set".into())?;
+        if matches!(trap, ECMAScriptValue::Undefined) {
+            return target.o.set(key, value, receiver);
+        }
+        let boolean_trap_result =
+            to_boolean(call(&trap, &handler, &[key.clone().into(), value.clone(), receiver.clone()])?);
+        if !boolean_trap_result {
+            return Ok(false);
+        }
+        let target_desc = target.o.get_own_property(&key)?;
+        if let Some(PropertyDescriptor {
+            configurable: false,
+            property: PropertyKind::Data(DataProperty { writable: false, value: target_value }),
+            ..
+        }) = target_desc
+        {
+            if !value.same_value(&target_value) {
+                return Err(create_type_error("proxy error: Cannot change the value of a property to be different from the value of the corresponding target object property if the corresponding target object property is a non-writable, non-configurable own data property."));
+            }
+        } else if matches!(
+            target_desc,
+            Some(PropertyDescriptor {
+                configurable: false,
+                property: PropertyKind::Accessor(AccessorProperty { set: ECMAScriptValue::Undefined, .. }),
+                ..
+            })
+        ) {
+            return Err(create_type_error("proxy error: Cannot set the value of a property if the corresponding target object property is a non-configurable own accessor property that has undefined as its [[Set]] attribute."));
+        }
+
+        Ok(true)
     }
 
     fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        todo!()
+        // [[Delete]] ( P )
+        // The [[Delete]] internal method of a Proxy exotic object O takes argument P (a property key) and returns
+        // either a normal completion containing a Boolean or a throw completion. It performs the following steps when
+        // called:
+        //
+        //  1. Perform ? ValidateNonRevokedProxy(O).
+        //  2. Let target be O.[[ProxyTarget]].
+        //  3. Let handler be O.[[ProxyHandler]].
+        //  4. Assert: handler is an Object.
+        //  5. Let trap be ? GetMethod(handler, "deleteProperty").
+        //  6. If trap is undefined, then
+        //      a. Return ? target.[[Delete]](P).
+        //  7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, P »)).
+        //  8. If booleanTrapResult is false, return false.
+        //  9. Let targetDesc be ? target.[[GetOwnProperty]](P).
+        //  10. If targetDesc is undefined, return true.
+        //  11. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
+        //  12. Let extensibleTarget be ? IsExtensible(target).
+        //  13. If extensibleTarget is false, throw a TypeError exception.
+        //  14. Return true.
+        //
+        // NOTE
+        // [[Delete]] for Proxy objects enforces the following invariants:
+        //
+        //  * The result of [[Delete]] is a Boolean value.
+        //  * A property cannot be reported as deleted, if it exists as a non-configurable own property of the target
+        //    object.
+        //  * A property cannot be reported as deleted, if it exists as an own property of the target object and the
+        //    target object is non-extensible.
+        self.validate_non_revoked()?;
+        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
+        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let trap = get_method(&handler, &"deleteProperty".into())?;
+        if matches!(trap, ECMAScriptValue::Undefined) {
+            return target.o.delete(key);
+        }
+        let boolean_trap_result = to_boolean(call(&trap, &handler, &[target.into(), key.into()])?);
+        if !boolean_trap_result {
+            return Ok(false);
+        }
+        let target_desc = target.o.get_own_property(key)?;
+        match target_desc {
+            None => Ok(true),
+            Some(target_desc) => {
+                if !target_desc.configurable {
+                    Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as a non-configurable own property of the target object."))
+                } else {
+                    let extensible_target = is_extensible(target)?;
+                    if !extensible_target {
+                        Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as an own property of the target object and the target object is non-extensible."))
+                    } else {
+                        Ok(true)
+                    }
+                }
+            }
+        }
     }
 
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
+        // [[OwnPropertyKeys]] ( )
+        // The [[OwnPropertyKeys]] internal method of a Proxy exotic object O takes no arguments and returns either a
+        // normal completion containing a List of property keys or a throw completion. It performs the following steps
+        // when called:
+        // 
+        //  1. Perform ? ValidateNonRevokedProxy(O).
+        //  2. Let target be O.[[ProxyTarget]].
+        //  3. Let handler be O.[[ProxyHandler]].
+        //  4. Assert: handler is an Object.
+        //  5. Let trap be ? GetMethod(handler, "ownKeys").
+        //  6. If trap is undefined, then
+        //      a. Return ? target.[[OwnPropertyKeys]]().
+        //  7. Let trapResultArray be ? Call(trap, handler, « target »).
+        //  8. Let trapResult be ? CreateListFromArrayLike(trapResultArray, « String, Symbol »).
+        //  9. If trapResult contains any duplicate entries, throw a TypeError exception.
+        //  10. Let extensibleTarget be ? IsExtensible(target).
+        //  11. Let targetKeys be ? target.[[OwnPropertyKeys]]().
+        //  12. Assert: targetKeys is a List of property keys.
+        //  13. Assert: targetKeys contains no duplicate entries.
+        //  14. Let targetConfigurableKeys be a new empty List.
+        //  15. Let targetNonconfigurableKeys be a new empty List.
+        //  16. For each element key of targetKeys, do
+        //      a. Let desc be ? target.[[GetOwnProperty]](key).
+        //      b. If desc is not undefined and desc.[[Configurable]] is false, then
+        //          i. Append key to targetNonconfigurableKeys.
+        //      c. Else,
+        //          i. Append key to targetConfigurableKeys.
+        //  17. If extensibleTarget is true and targetNonconfigurableKeys is empty, then
+        //      a. Return trapResult.
+        //  18. Let uncheckedResultKeys be a List whose elements are the elements of trapResult.
+        //  19. For each element key of targetNonconfigurableKeys, do
+        //      a. If uncheckedResultKeys does not contain key, throw a TypeError exception.
+        //      b. Remove key from uncheckedResultKeys.
+        //  20. If extensibleTarget is true, return trapResult.
+        //  21. For each element key of targetConfigurableKeys, do
+        //      a. If uncheckedResultKeys does not contain key, throw a TypeError exception.
+        //      b. Remove key from uncheckedResultKeys.
+        //  22. If uncheckedResultKeys is not empty, throw a TypeError exception.
+        //  23. Return trapResult.
+        //
+        // NOTE
+        // [[OwnPropertyKeys]] for Proxy objects enforces the following invariants:
+        // 
+        //  * The result of [[OwnPropertyKeys]] is a List.
+        //  * The returned List contains no duplicate entries.
+        //  * The Type of each result List element is either String or Symbol.
+        //  * The result List must contain the keys of all non-configurable own properties of the target object.
+        //  * If the target object is not extensible, then the result List must contain all the keys of the own
+        //    properties of the target object and no other values.
+        self.validate_non_revoked()?;
+        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
+        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let trap = get_method(&handler, &"ownKeys".into())?;
+        if matches!(trap, ECMAScriptValue::Undefined) {
+            return target.o.own_property_keys();
+        }
+        let trap_result_array = call(&trap, &handler, &[target.into()])?;
+        let trap_result = create_list_from_array_like(trap_result_array, Some(&[ValueType::String, ValueType::Symbol]))?;
         todo!()
     }
 }
