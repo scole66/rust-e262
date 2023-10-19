@@ -177,6 +177,15 @@ impl From<u64> for ECMAScriptValue {
     }
 }
 
+impl From<usize> for ECMAScriptValue {
+    fn from(val: usize) -> Self {
+        if val <= 1 << 53 {
+            Self::from(val as f64)
+        } else {
+            Self::from(BigInt::from(val))
+        }
+    }
+}
 impl From<i64> for ECMAScriptValue {
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
@@ -468,6 +477,18 @@ impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.descriptive_string())
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValueKind {
+    Undefined,
+    Null,
+    Boolean,
+    String,
+    Symbol,
+    Number,
+    BigInt,
+    Object,
 }
 
 // Private Names
@@ -1311,6 +1332,19 @@ impl ECMAScriptValue {
             | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
             | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => self.same_value_non_numeric(other),
             _ => false,
+        }
+    }
+
+    pub fn kind(&self) -> ValueKind {
+        match self {
+            ECMAScriptValue::Undefined => ValueKind::Undefined,
+            ECMAScriptValue::Null => ValueKind::Null,
+            ECMAScriptValue::Boolean(_) => ValueKind::Boolean,
+            ECMAScriptValue::String(_) => ValueKind::String,
+            ECMAScriptValue::Number(_) => ValueKind::Number,
+            ECMAScriptValue::BigInt(_) => ValueKind::BigInt,
+            ECMAScriptValue::Symbol(_) => ValueKind::Symbol,
+            ECMAScriptValue::Object(_) => ValueKind::Object,
         }
     }
 }

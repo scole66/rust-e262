@@ -176,6 +176,13 @@ mod ecmascript_value {
     fn from_string(s: String) -> ECMAScriptValue {
         ECMAScriptValue::from(s)
     }
+    #[test_case(56_usize => (ECMAScriptValue::Number(56.0), ValueKind::Number); "small number")]
+    #[test_case(9007199254741092_usize => (ECMAScriptValue::from(9007199254741092_u64), ValueKind::BigInt); "big number")]
+    fn from_usize(u: usize) -> (ECMAScriptValue, ValueKind) {
+        let v = ECMAScriptValue::from(u);
+        let kind = v.kind();
+        (v, kind)
+    }
     #[test]
     fn is_undefined() {
         assert_eq!(ECMAScriptValue::Undefined.is_undefined(), true);
@@ -447,6 +454,21 @@ mod ecmascript_value {
         let y = make_y();
 
         x.is_strictly_equal(&y)
+    }
+
+    #[test_case(undef => ValueKind::Undefined)]
+    #[test_case(null => ValueKind::Null)]
+    #[test_case(bool_a => ValueKind::Boolean)]
+    #[test_case(number_10 => ValueKind::Number)]
+    #[test_case(string_a => ValueKind::String)]
+    #[test_case(symbol_a => ValueKind::Symbol)]
+    #[test_case(bigint_a => ValueKind::BigInt)]
+    #[test_case(object_a => ValueKind::Object)]
+    fn kind(make_x: ValueMaker) -> ValueKind {
+        setup_test_agent();
+        let x = make_x();
+
+        x.kind()
     }
 }
 
@@ -2058,5 +2080,23 @@ mod agent {
         let y = make_y();
 
         super::is_loosely_equal(&x, &y).map_err(unwind_any_error)
+    }
+}
+
+mod value_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn fmt() {
+        let k = ValueKind::Number;
+        let repr = format!("{k:?}");
+        assert_ne!(repr, "");
+    }
+
+    #[test_case(ValueKind::Null, ValueKind::Null => true; "same")]
+    #[test_case(ValueKind::Undefined, ValueKind::Object => false; "different")]
+    fn eq(v1: ValueKind, v2: ValueKind) -> bool {
+        v1 == v2
     }
 }
