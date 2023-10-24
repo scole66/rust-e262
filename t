@@ -470,6 +470,7 @@ test_defs[ConciseOptionalGlobalEnvironmentRecord]="ConciseOptionalGlobalEnvironm
 
 test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance object"
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
+test_defs[PotentialPropertyDescriptor]="PotentialPropertyDescriptor potential_property_descriptor object"
 test_defs[InternalSlotName]="InternalSlotName internal_slot_name object"
 test_defs[make_basic_object]="make_basic_object make_basic_object object"
 test_defs[call]="call object::tests::call object"
