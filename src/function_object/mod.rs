@@ -442,10 +442,9 @@ impl TryFrom<FunctionSource> for Rc<GeneratorExpression> {
     fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
         match value {
             FunctionSource::GeneratorExpression(g) => Ok(g),
-            _ => bail!("Generator Expression expected")
+            _ => bail!("Generator Expression expected"),
         }
     }
-    
 }
 impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
     type Error = anyhow::Error;
