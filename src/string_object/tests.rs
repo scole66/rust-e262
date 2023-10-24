@@ -229,6 +229,18 @@ mod string_object {
         assert!(so.o.to_number_obj().is_none());
     }
 
+    fn make() -> Object {
+        let proto = intrinsic(IntrinsicId::StringPrototype);
+        let o = StringObject::object("sentinel".into(), Some(proto));
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        o
+    }
+
+    none_function!(to_generator_object);
+    none_function!(to_for_in_iterator);
+    false_function!(is_generator_object);
+
     #[test]
     fn to_constructable() {
         setup_test_agent();

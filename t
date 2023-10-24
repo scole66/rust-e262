@@ -56,7 +56,6 @@ test_defs[symbol_value_of]="symbol_value_of symbol_value_of symbol_object"
 test_defs[symbol_description]="symbol_description symbol_description symbol_object"
 test_defs[SymbolObject_own_property_keys]="SymbolObject@ObjectInterface::own_property_keys symbol_object::own_keys symbol_object"
 
-test_defs[Insn]="Insn insn compiler"
 test_defs[EnvUsage]="EnvUsage env_usage compiler"
 test_defs[ArgListSizeHint]="ArgListSizeHint arg_list_size_hint compiler"
 test_defs[CompilerStatusFlags]="CompilerStatusFlags compiler_status_flags compiler"
@@ -470,6 +469,8 @@ test_defs[ConciseOptionalGlobalEnvironmentRecord]="ConciseOptionalGlobalEnvironm
 
 test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance object"
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
+test_defs[PotentialPropertyDescriptor]="PotentialPropertyDescriptor potential_property_descriptor object"
+test_defs[from_property_descriptor]="from_property_descriptor from_property_descriptor object"
 test_defs[InternalSlotName]="InternalSlotName internal_slot_name object"
 test_defs[make_basic_object]="make_basic_object make_basic_object object"
 test_defs[call]="call object::tests::call object"
@@ -706,6 +707,9 @@ test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
 
 test_defs[Token]="Token token scanner"
 test_defs[debug_token]="debug_token debug_token scanner"
+
+test_defs[ProxyObject]="ProxyObject proxy_object proxy_object"
+test_defs[ProxyObjectObjectInterface]="object::ObjectInterface object_interface proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")
