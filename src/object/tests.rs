@@ -3462,3 +3462,24 @@ mod create_list_from_array_like {
         })
     }
 }
+
+mod is_compatible_property_descriptor {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| PotentialPropertyDescriptor::new().value(ECMAScriptValue::Null).writable(false).configurable(false),
+                || PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: false}), enumerable: true, configurable: false, ..Default::default() },
+                true => false; "incompatible")]
+    #[test_case(|| PotentialPropertyDescriptor::new().value(ECMAScriptValue::Null).writable(true).configurable(true),
+                || PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: true}), enumerable: true, configurable: true, ..Default::default() },
+                true => true; "compatible")]
+    fn call(
+        ppd_maker: impl FnOnce() -> PotentialPropertyDescriptor,
+        current_maker: impl FnOnce() -> PropertyDescriptor,
+        extensible: bool,
+    ) -> bool {
+        let ppd = ppd_maker();
+        let current = current_maker();
+        super::is_compatible_property_descriptor(extensible, ppd, &current)
+    }
+}
