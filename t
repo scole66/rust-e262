@@ -472,6 +472,7 @@ test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance ob
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
 test_defs[PotentialPropertyDescriptor]="PotentialPropertyDescriptor potential_property_descriptor object"
 test_defs[from_property_descriptor]="from_property_descriptor from_property_descriptor object"
+test_defs[fpd]="fpd from_property_descriptor object"
 test_defs[InternalSlotName]="InternalSlotName internal_slot_name object"
 test_defs[make_basic_object]="make_basic_object make_basic_object object"
 test_defs[call]="call object::tests::call object"

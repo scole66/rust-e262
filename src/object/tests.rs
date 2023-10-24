@@ -2725,11 +2725,26 @@ mod from_property_descriptor {
         writable: Option<ECMAScriptValue>,
         get: Option<ECMAScriptValue>,
         set: Option<ECMAScriptValue>,
-        enumerable: ECMAScriptValue,
-        configurable: ECMAScriptValue,
+        enumerable: Option<ECMAScriptValue>,
+        configurable: Option<ECMAScriptValue>,
     }
 
-    #[test_case(None => None; "empty")]
+    #[test_case(None::<PotentialPropertyDescriptor> => None; "undefined")]
+    #[test_case(Some(PotentialPropertyDescriptor {
+        value: None,
+        writable: None,
+        get: None,
+        set: None,
+        enumerable: None,
+        configurable: None,
+     }) => Some(TestResult {
+        value: None,
+        writable: None,
+        get: None,
+        set: None,
+        enumerable: None,
+        configurable: None,
+     }) ; "empty")]
     #[test_case(Some(PropertyDescriptor {
         property: PropertyKind::Data( DataProperty { value: ECMAScriptValue::Null, writable: true } ),
         enumerable: true,
@@ -2740,8 +2755,8 @@ mod from_property_descriptor {
         writable: Some(ECMAScriptValue::from(true)),
         get: None,
         set: None,
-        enumerable: ECMAScriptValue::from(true),
-        configurable:ECMAScriptValue::from(true)
+        enumerable: Some(ECMAScriptValue::from(true)),
+        configurable: Some(ECMAScriptValue::from(true)),
     }); "standard data")]
     #[test_case(Some(PropertyDescriptor {
         property: PropertyKind::Accessor( AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(10) } ),
@@ -2753,18 +2768,21 @@ mod from_property_descriptor {
         writable: None,
         get: Some(ECMAScriptValue::Undefined),
         set: Some(ECMAScriptValue::from(10)),
-        enumerable: ECMAScriptValue::from(false),
-        configurable:ECMAScriptValue::from(true)
+        enumerable: Some(ECMAScriptValue::from(false)),
+        configurable: Some(ECMAScriptValue::from(true)),
     }); "standard accessor")]
-    fn happy(pd: Option<PropertyDescriptor>) -> Option<TestResult> {
+    fn happy<T>(desc: Option<T>) -> Option<TestResult>
+    where
+        T: Into<PotentialPropertyDescriptor>,
+    {
         setup_test_agent();
-        from_property_descriptor(pd).map(|o| TestResult {
+        from_property_descriptor(desc).map(|o| TestResult {
             value: maybeprop(&o, "value"),
             writable: maybeprop(&o, "writable"),
             get: maybeprop(&o, "get"),
             set: maybeprop(&o, "set"),
-            enumerable: maybeprop(&o, "enumerable").unwrap(),
-            configurable: maybeprop(&o, "configurable").unwrap(),
+            enumerable: maybeprop(&o, "enumerable"),
+            configurable: maybeprop(&o, "configurable"),
         })
     }
 }
@@ -3468,18 +3486,18 @@ mod is_compatible_property_descriptor {
     use test_case::test_case;
 
     #[test_case(|| PotentialPropertyDescriptor::new().value(ECMAScriptValue::Null).writable(false).configurable(false),
-                || PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: false}), enumerable: true, configurable: false, ..Default::default() },
+                || Some(PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: false}), enumerable: true, configurable: false, ..Default::default() }),
                 true => false; "incompatible")]
     #[test_case(|| PotentialPropertyDescriptor::new().value(ECMAScriptValue::Null).writable(true).configurable(true),
-                || PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: true}), enumerable: true, configurable: true, ..Default::default() },
+                || Some(PropertyDescriptor { property: PropertyKind::Data(DataProperty{value: ECMAScriptValue::Undefined, writable: true}), enumerable: true, configurable: true, ..Default::default() }),
                 true => true; "compatible")]
     fn call(
         ppd_maker: impl FnOnce() -> PotentialPropertyDescriptor,
-        current_maker: impl FnOnce() -> PropertyDescriptor,
+        current_maker: impl FnOnce() -> Option<PropertyDescriptor>,
         extensible: bool,
     ) -> bool {
         let ppd = ppd_maker();
         let current = current_maker();
-        super::is_compatible_property_descriptor(extensible, ppd, &current)
+        super::is_compatible_property_descriptor(extensible, ppd, current.as_ref())
     }
 }
