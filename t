@@ -56,6 +56,7 @@ test_defs[symbol_value_of]="symbol_value_of symbol_value_of symbol_object"
 test_defs[symbol_description]="symbol_description symbol_description symbol_object"
 test_defs[SymbolObject_own_property_keys]="SymbolObject@ObjectInterface::own_property_keys symbol_object::own_keys symbol_object"
 
+test_defs[Insn]="Insn insn compiler"
 test_defs[EnvUsage]="EnvUsage env_usage compiler"
 test_defs[ArgListSizeHint]="ArgListSizeHint arg_list_size_hint compiler"
 test_defs[CompilerStatusFlags]="CompilerStatusFlags compiler_status_flags compiler"
