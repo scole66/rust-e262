@@ -323,165 +323,208 @@ fn concise_property_descriptor_debug() {
     printer_validate(|w| write!(w, "{:?}", c3));
 }
 
-#[test]
-fn potential_property_descriptor_debug() {
-    let ppd: PotentialPropertyDescriptor = Default::default();
-    assert_ne!(format!("{:?}", ppd), "");
-}
-#[test]
-fn potential_property_descriptor_default() {
-    let ppd: PotentialPropertyDescriptor = Default::default();
-    assert_eq!(
-        ppd,
-        PotentialPropertyDescriptor {
-            value: None,
-            writable: None,
-            get: None,
-            set: None,
-            enumerable: None,
-            configurable: None
-        }
-    );
-}
-#[test]
-fn potential_property_descriptor_partialeq() {
-    let items: [PotentialPropertyDescriptor; 8] = [
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: Some(true),
-            get: None,
-            set: None,
-            enumerable: Some(true),
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: None,
-            writable: Some(true),
-            get: None,
-            set: None,
-            enumerable: Some(true),
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: None,
-            get: None,
-            set: None,
-            enumerable: Some(true),
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: Some(true),
-            get: Some(ECMAScriptValue::Undefined),
-            set: None,
-            enumerable: Some(true),
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: Some(true),
-            get: None,
-            set: Some(ECMAScriptValue::Undefined),
-            enumerable: Some(true),
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: Some(true),
-            get: None,
-            set: None,
-            enumerable: None,
-            configurable: Some(true),
-        },
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(true)),
-            writable: Some(true),
-            get: None,
-            set: None,
-            enumerable: Some(true),
-            configurable: None,
-        },
-        PotentialPropertyDescriptor {
-            value: None,
-            writable: None,
-            get: None,
-            set: None,
-            enumerable: None,
-            configurable: None,
-        },
-    ];
-    for (right_idx, right_value) in items.iter().enumerate() {
-        for (left_idx, left_value) in items.iter().enumerate() {
-            assert_eq!(*left_value == *right_value, left_idx == right_idx);
-            assert_eq!(*left_value != *right_value, left_idx != right_idx);
-        }
-    }
-}
-#[test]
-#[allow(clippy::redundant_clone)]
-fn potential_property_descriptor_clone() {
-    let ppd1 = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(true)),
-        writable: Some(true),
-        get: None,
-        set: None,
-        enumerable: Some(true),
-        configurable: Some(true),
-    };
-    let ppd2 = ppd1.clone();
-    assert_eq!(ppd1, ppd2);
-}
-#[test]
-fn potential_property_descriptor_is_writable() {
-    let ppd1 = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
-    let ppd2 = PotentialPropertyDescriptor { writable: Some(false), ..Default::default() };
-    let ppd3 = PotentialPropertyDescriptor { writable: None, ..Default::default() };
+mod potential_property_descriptor {
+    use super::*;
+    use test_case::test_case;
 
-    assert_eq!(ppd1.is_writable(), Some(true));
-    assert_eq!(ppd2.is_writable(), Some(false));
-    assert_eq!(ppd3.is_writable(), None);
-}
-#[test]
-fn potential_property_descriptor_is_generic_descriptor() {
-    let items = [
-        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, true),
-        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, true),
-    ];
-    for (desc, expected) in items.iter() {
-        assert_eq!(desc.is_generic_descriptor(), *expected);
+    #[test]
+    fn debug() {
+        let ppd: PotentialPropertyDescriptor = Default::default();
+        assert_ne!(format!("{:?}", ppd), "");
     }
-}
-#[test]
-fn potential_property_descriptor_is_data_descriptor() {
-    let items = [
-        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
-        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, true),
-        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
-    ];
-    for (desc, expected) in items.iter() {
-        assert_eq!(desc.is_data_descriptor(), *expected);
+    #[test]
+    fn default() {
+        let ppd: PotentialPropertyDescriptor = Default::default();
+        assert_eq!(
+            ppd,
+            PotentialPropertyDescriptor {
+                value: None,
+                writable: None,
+                get: None,
+                set: None,
+                enumerable: None,
+                configurable: None
+            }
+        );
     }
-}
-#[test]
-fn potential_property_descriptor_is_accessor_descriptor() {
-    let items = [
-        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
-        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
-        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
-        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
-    ];
-    for (desc, expected) in items.iter() {
-        assert_eq!(desc.is_accessor_descriptor(), *expected);
+    #[test]
+    fn partialeq() {
+        let items: [PotentialPropertyDescriptor; 8] = [
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                get: None,
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: None,
+                writable: Some(true),
+                get: None,
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: None,
+                get: None,
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                get: Some(ECMAScriptValue::Undefined),
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                get: None,
+                set: Some(ECMAScriptValue::Undefined),
+                enumerable: Some(true),
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                get: None,
+                set: None,
+                enumerable: None,
+                configurable: Some(true),
+            },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                get: None,
+                set: None,
+                enumerable: Some(true),
+                configurable: None,
+            },
+            PotentialPropertyDescriptor {
+                value: None,
+                writable: None,
+                get: None,
+                set: None,
+                enumerable: None,
+                configurable: None,
+            },
+        ];
+        for (right_idx, right_value) in items.iter().enumerate() {
+            for (left_idx, left_value) in items.iter().enumerate() {
+                assert_eq!(*left_value == *right_value, left_idx == right_idx);
+                assert_eq!(*left_value != *right_value, left_idx != right_idx);
+            }
+        }
+    }
+    #[test]
+    #[allow(clippy::redundant_clone)]
+    fn clone() {
+        let ppd1 = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: Some(true),
+            configurable: Some(true),
+        };
+        let ppd2 = ppd1.clone();
+        assert_eq!(ppd1, ppd2);
+    }
+    #[test]
+    fn is_writable() {
+        let ppd1 = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
+        let ppd2 = PotentialPropertyDescriptor { writable: Some(false), ..Default::default() };
+        let ppd3 = PotentialPropertyDescriptor { writable: None, ..Default::default() };
+
+        assert_eq!(ppd1.is_writable(), Some(true));
+        assert_eq!(ppd2.is_writable(), Some(false));
+        assert_eq!(ppd3.is_writable(), None);
+    }
+    #[test]
+    fn is_generic_descriptor() {
+        let items = [
+            (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, true),
+            (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, true),
+        ];
+        for (desc, expected) in items.iter() {
+            assert_eq!(desc.is_generic_descriptor(), *expected);
+        }
+    }
+    #[test]
+    fn is_data_descriptor() {
+        let items = [
+            (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+            (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, true),
+            (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
+        ];
+        for (desc, expected) in items.iter() {
+            assert_eq!(desc.is_data_descriptor(), *expected);
+        }
+    }
+    #[test]
+    fn is_accessor_descriptor() {
+        let items = [
+            (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+            (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+            (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
+            (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
+        ];
+        for (desc, expected) in items.iter() {
+            assert_eq!(desc.is_accessor_descriptor(), *expected);
+        }
+    }
+
+    #[test_case(true => PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }; "is configurable")]
+    #[test_case(false => PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() }; "isn't configurable")]
+    fn configurable(cfgable: bool) -> PotentialPropertyDescriptor {
+        PotentialPropertyDescriptor::new().configurable(cfgable)
+    }
+    #[test_case(true => PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }; "is enumerable")]
+    #[test_case(false => PotentialPropertyDescriptor { enumerable: Some(false), ..Default::default() }; "isn't enumerable")]
+    fn enumerable(enumable: bool) -> PotentialPropertyDescriptor {
+        PotentialPropertyDescriptor::new().enumerable(enumable)
+    }
+    #[test_case(true => PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }; "is writable")]
+    #[test_case(false => PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }; "isn't writable")]
+    fn writable(writable: bool) -> PotentialPropertyDescriptor {
+        PotentialPropertyDescriptor::new().writable(writable)
+    }
+    #[test_case(|| -54_i32 => "-54"; "value is i32")]
+    #[test_case(|| "string".to_string() => "string"; "value is String")]
+    #[test_case(|| JSString::from("jsstring") => "jsstring"; "value is JSString")]
+    #[test_case(|| ECMAScriptValue::Null => "null"; "value is ECMAScriptValue")]
+    #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    fn value<T>(maker: impl FnOnce() -> T) -> String
+    where
+        T: Into<ECMAScriptValue>,
+    {
+        setup_test_agent();
+        let val = maker();
+        PotentialPropertyDescriptor::new().value(val).value.unwrap().test_result_string()
+    }
+    #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    fn ppd_set<T>(maker: impl FnOnce() -> T) -> String
+    where
+        T: Into<ECMAScriptValue>,
+    {
+        setup_test_agent();
+        let val = maker();
+        PotentialPropertyDescriptor::new().set(val).set.unwrap().test_result_string()
     }
 }
 
