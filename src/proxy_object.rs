@@ -795,6 +795,5 @@ impl ProxyObject {
     }
 }
 
-
 #[cfg(test)]
 mod tests;
