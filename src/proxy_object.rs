@@ -8,12 +8,6 @@ pub struct ProxyObject {
     pub proxy_target: Option<Object>,
 }
 
-impl<'a> From<&'a ProxyObject> for &'a dyn ObjectInterface {
-    fn from(obj: &'a ProxyObject) -> Self {
-        obj
-    }
-}
-
 impl ObjectInterface for ProxyObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
@@ -791,6 +785,16 @@ impl ProxyObject {
             Err(create_type_error("Proxy has been revoked"))
         } else {
             Ok(())
+        }
+    }
+
+    pub fn object(target: Option<Object>, handler: Option<Object>) -> Object {
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
+                proxy_handler: handler,
+                proxy_target: target,
+            }),
         }
     }
 }

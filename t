@@ -711,7 +711,6 @@ test_defs[Token]="Token token scanner"
 test_defs[debug_token]="debug_token debug_token scanner"
 
 test_defs[ProxyObject]="ProxyObject proxy_object proxy_object"
-test_defs[ProxyObjectObjectInterface]="object::ObjectInterface object_interface proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")

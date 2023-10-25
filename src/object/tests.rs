@@ -276,6 +276,55 @@ mod property_descriptor {
         assert_eq!(constant.is_writable(), Some(false));
         assert_eq!(accessor.is_writable(), None);
     }
+
+    mod from {
+        use super::*;
+        use test_case::test_case;
+
+        #[derive(PartialEq, Debug)]
+        struct TestResult {
+            value: Option<String>,
+            writable: Option<bool>,
+            get: Option<String>,
+            set: Option<String>,
+            enumerable: bool,
+            configurable: bool,
+        }
+
+        #[test_case(PotentialPropertyDescriptor::new => serr("incomplete descriptor"); "empty ppd")]
+        #[test_case(|| PotentialPropertyDescriptor::new().writable(true).value(1).enumerable(true).configurable(true) => Ok(TestResult{
+            value: Some("1".to_string()), writable: Some(true), get: None, set: None, enumerable: true, configurable: true
+        }); "data descriptor")]
+        #[test_case(|| PotentialPropertyDescriptor::new().writable(true).enumerable(true).configurable(true) => serr("incomplete descriptor"); "value missing")]
+        #[test_case(|| PotentialPropertyDescriptor::new().value(true).enumerable(true).configurable(true) => serr("incomplete descriptor"); "writable missing")]
+        #[test_case(|| PotentialPropertyDescriptor::new().value(true).writable(true).configurable(true) => serr("incomplete descriptor"); "enumerable missing")]
+        #[test_case(|| PotentialPropertyDescriptor::new().value(true).writable(true).enumerable(true) => serr("incomplete descriptor"); "configurable missing")]
+        #[test_case(|| PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError)).set(intrinsic(IntrinsicId::ThrowTypeError)).enumerable(true).configurable(true) =>
+        Ok(TestResult {
+            value: None, writable: None, get: Some(String::from("length:0,name:")), set: Some(String::from("length:0,name:")), enumerable: true, configurable: true
+        }); "accessor descriptor")]
+        #[test_case(|| PotentialPropertyDescriptor::new().set(intrinsic(IntrinsicId::ThrowTypeError)).enumerable(true).configurable(true) => serr("incomplete descriptor"); "get missing")]
+        #[test_case(|| PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError)).enumerable(true).configurable(true) => serr("incomplete descriptor"); "set missing")]
+        fn potential_property_descriptor(
+            maker: impl FnOnce() -> PotentialPropertyDescriptor,
+        ) -> Result<TestResult, String> {
+            setup_test_agent();
+            PropertyDescriptor::try_from(maker()).map_err(|e| e.to_string()).map(|pd| {
+                let (value, writable, get, set) = match pd.property {
+                    PropertyKind::Data(DataProperty { value, writable }) => (Some(value), Some(writable), None, None),
+                    PropertyKind::Accessor(AccessorProperty { get, set }) => (None, None, Some(get), Some(set)),
+                };
+                TestResult {
+                    value: value.map(|x| x.test_result_string()),
+                    writable,
+                    get: get.map(|x| x.test_result_string()),
+                    set: set.map(|x| x.test_result_string()),
+                    configurable: pd.configurable,
+                    enumerable: pd.enumerable,
+                }
+            })
+        }
+    }
 }
 
 #[test]
@@ -508,6 +557,7 @@ mod potential_property_descriptor {
     #[test_case(|| "string".to_string() => "string"; "value is String")]
     #[test_case(|| JSString::from("jsstring") => "jsstring"; "value is JSString")]
     #[test_case(|| ECMAScriptValue::Null => "null"; "value is ECMAScriptValue")]
+    #[test_case(|| true => "true"; "value is boolean")]
     #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
     fn value<T>(maker: impl FnOnce() -> T) -> String
     where
@@ -525,6 +575,96 @@ mod potential_property_descriptor {
         setup_test_agent();
         let val = maker();
         PotentialPropertyDescriptor::new().set(val).set.unwrap().test_result_string()
+    }
+
+    mod from {
+        use super::*;
+        use test_case::test_case;
+
+        #[derive(Debug, PartialEq)]
+        struct TestResult {
+            value: Option<String>,
+            writable: Option<bool>,
+            get: Option<String>,
+            set: Option<String>,
+            enumerable: bool,
+            configurable: bool,
+        }
+
+        #[test_case(|| PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty{ value: ECMAScriptValue::from("testcase"), writable: true }),
+            enumerable: true,
+            configurable: true,
+            ..Default::default()
+        } => TestResult {
+            value: Some("testcase".to_string()),
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: true,
+            configurable: true,
+        }; "data property")]
+        #[test_case(|| PropertyDescriptor {
+            property: PropertyKind::Accessor(AccessorProperty {
+                get: intrinsic(IntrinsicId::ThrowTypeError).into(),
+                set: intrinsic(IntrinsicId::ThrowTypeError).into(),
+            }),
+            enumerable: true,
+            configurable: true,
+            ..Default::default()
+        } => TestResult {
+            value: None,
+            writable: None,
+            get: Some("length:0,name:".to_string()),
+            set: Some("length:0,name:".to_string()),
+            enumerable: true,
+            configurable: true,
+        }; "accessor property")]
+        fn property_descriptor(maker: impl FnOnce() -> PropertyDescriptor) -> TestResult {
+            setup_test_agent();
+            let ppd = PotentialPropertyDescriptor::from(maker());
+            TestResult {
+                value: ppd.value.map(|x| x.test_result_string()),
+                writable: ppd.writable,
+                get: ppd.get.map(|x| x.test_result_string()),
+                set: ppd.set.map(|x| x.test_result_string()),
+                enumerable: ppd.enumerable.unwrap(),
+                configurable: ppd.configurable.unwrap(),
+            }
+        }
+
+        #[test_case(PotentialPropertyDescriptor::new => TestResult {
+            value: Some("undefined".to_string()),
+            writable: Some(false),
+            get: None,
+            set: None,
+            enumerable: false,
+            configurable: false,
+        }; "empty")]
+        #[test_case(|| PotentialPropertyDescriptor::new().get(ECMAScriptValue::Undefined) => TestResult {
+            value: None,
+            writable: None,
+            get: Some("undefined".to_string()),
+            set: Some("undefined".to_string()),
+            enumerable: false,
+            configurable: false,
+        }; "only get")]
+        fn complete(maker: impl FnOnce() -> PotentialPropertyDescriptor) -> TestResult {
+            setup_test_agent();
+            let pd = maker().complete();
+            let (value, writable, get, set) = match pd.property {
+                PropertyKind::Data(DataProperty { value, writable }) => (Some(value), Some(writable), None, None),
+                PropertyKind::Accessor(AccessorProperty { get, set }) => (None, None, Some(get), Some(set)),
+            };
+            TestResult {
+                value: value.map(|x| x.test_result_string()),
+                writable,
+                get: get.map(|x| x.test_result_string()),
+                set: set.map(|x| x.test_result_string()),
+                configurable: pd.configurable,
+                enumerable: pd.enumerable,
+            }
+        }
     }
 }
 

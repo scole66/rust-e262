@@ -1537,6 +1537,9 @@ pub enum InternalSlotName {
     ObjectWasVisited,
     VisitedKeys,
     RemainingKeys,
+    // Proxy Objects
+    ProxyTarget,
+    ProxyHandler,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1593,6 +1596,7 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::VisitedKeys,
     InternalSlotName::RemainingKeys,
 ];
+pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
