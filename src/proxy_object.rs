@@ -18,6 +18,12 @@ impl ObjectInterface for ProxyObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
+    fn to_proxy_object(&self) -> Option<&ProxyObject> {
+        Some(self)
+    }
+    fn is_proxy_object(&self) -> bool {
+        true
+    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         // [[GetPrototypeOf]] ( )
@@ -784,6 +790,7 @@ impl ProxyObject {
         if self.proxy_target.is_none() {
             Err(create_type_error("Proxy has been revoked"))
         } else {
+            assert!(self.proxy_handler.is_some());
             Ok(())
         }
     }

@@ -1081,6 +1081,9 @@ pub trait ObjectInterface: Debug {
     fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
         None
     }
+    fn to_proxy_object(&self) -> Option<&ProxyObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
