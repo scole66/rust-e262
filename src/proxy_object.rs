@@ -206,7 +206,7 @@ impl ObjectInterface for ProxyObject {
         self.validate_non_revoked()?;
         let target = self.proxy_target.as_ref().expect("proxy is not revoked");
         let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
-        let trap = get_method(&handler, &"isExtensible".into())?;
+        let trap = get_method(&handler, &"preventExtensions".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.prevent_extensions();
         }

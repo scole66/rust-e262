@@ -348,7 +348,6 @@ mod proxy_object {
         use super::*;
         use test_case::test_case;
 
-        // Handler behaviors
         fn check_arg(this_value: &ECMAScriptValue, arguments: &[ECMAScriptValue]) {
             assert_eq!(arguments.len(), 1);
             let mut args = FuncArgs::from(arguments);
@@ -358,6 +357,7 @@ mod proxy_object {
             assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
         }
 
+        // Handler behaviors
         fn fn_returns_false() -> Object {
             fn behavior(
                 this_value: ECMAScriptValue,
@@ -379,7 +379,7 @@ mod proxy_object {
                 _: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_false_no_checks called".into(), true).unwrap();
                 Ok(false.into())
             }
             cbf(behavior)
@@ -434,6 +434,123 @@ mod proxy_object {
             setup_test_agent();
             let po = make_po();
             po.o.is_extensible().map_err(unwind_any_error).map(|b| {
+                (b, {
+                    let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
+                    get(&handler, &"callback_message".into()).unwrap().test_result_string()
+                })
+            })
+        }
+    }
+
+    mod prevent_extensions {
+        use super::*;
+        use test_case::test_case;
+
+        fn check_arg(this_value: &ECMAScriptValue, arguments: &[ECMAScriptValue]) {
+            assert_eq!(arguments.len(), 1);
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            let handler = Object::try_from(this_value).unwrap();
+            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+        }
+
+        // Handler behaviors
+        fn fn_returns_false() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                check_arg(&this_value, arguments);
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                Ok(false.into())
+            }
+            cbf(behavior)
+        }
+
+        fn fn_returns_true() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                check_arg(&this_value, arguments);
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_true called".into(), true).unwrap();
+                Ok(true.into())
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_true_no_checks() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                _arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_true_no_checks called".into(), true).unwrap();
+                Ok(true.into())
+            }
+            cbf(behavior)
+        }
+
+        // Proxy Object makers
+        fn make_handler(fcn: Object) -> Object {
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value(fcn);
+            define_property_or_throw(&handler, "preventExtensions", ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true);
+            define_property_or_throw(&handler, "callback_message", ppd).unwrap();
+            handler
+        }
+        fn make_target() -> Object {
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value("target object");
+            define_property_or_throw(&target, "test_marker", ppd).unwrap();
+            target
+        }
+
+        fn handler_prevent_extensions_throws() -> Object {
+            let target = make_target();
+            let handler = make_handler(intrinsic(IntrinsicId::ThrowTypeError));
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_returns_false() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_returns_false());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_returns_true_extensible() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_returns_true());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_returns_true_non_extensible() -> Object {
+            let target = make_target();
+            target.o.prevent_extensions().unwrap();
+            let handler = make_handler(fn_returns_true());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_is_extensible_fails() -> Object {
+            let target = TestObject::object(&[FunctionId::IsExtensible]);
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+
+        #[test_case(revoked => serr("TypeError: Proxy has been revoked"); "is revoked")]
+        #[test_case(dead_handler => serr("TypeError: get called on DeadObject"); "get_method fails")]
+        #[test_case(no_overrides => Ok((true, "undefined".into())); "no call")]
+        #[test_case(handler_prevent_extensions_throws => serr("TypeError: Generic TypeError"); "call fails")]
+        #[test_case(handler_returns_false => Ok((false, "fn_returns_false called".to_string())); "returns false")]
+        #[test_case(handler_returns_true_extensible => serr("TypeError: proxy error: extensible property cannot be changed"); "true/extensible")]
+        #[test_case(handler_returns_true_non_extensible => Ok((true, "fn_returns_true called".to_string())); "true/nonextensible")]
+        #[test_case(target_is_extensible_fails => serr("TypeError: [[IsExtensible]] called on TestObject"); "target is extensible errs")]
+        fn t(make_po: impl FnOnce() -> Object) -> Result<(bool, String), String> {
+            setup_test_agent();
+            let po = make_po();
+            po.o.prevent_extensions().map_err(unwind_any_error).map(|b| {
                 (b, {
                     let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
                     get(&handler, &"callback_message".into()).unwrap().test_result_string()
