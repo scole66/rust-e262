@@ -715,6 +715,7 @@ test_defs[ProxyObject_get_prototype_of]="ProxyObject@ObjectInterface::get_protot
 test_defs[ProxyObject_set_prototype_of]="ProxyObject@ObjectInterface::set_prototype_of proxy_object::set_prototype_of proxy_object"
 test_defs[ProxyObject_is_extensible]="ProxyObject@ObjectInterface::is_extensible proxy_object::is_extensible proxy_object"
 test_defs[ProxyObject_prevent_extensions]="ProxyObject@ObjectInterface::prevent_extensions proxy_object::prevent_extensions proxy_object"
+test_defs[ProxyObject_get_own_property]="ProxyObject@ObjectInterface::get_own_property proxy_object::get_own_property proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")
