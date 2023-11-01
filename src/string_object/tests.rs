@@ -81,6 +81,7 @@ mod string_object {
     none_function!(to_number_obj);
     none_function!(to_generator_object);
     none_function!(to_for_in_iterator);
+    none_function!(to_proxy_object);
 
     #[test]
     fn to_constructable() {

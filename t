@@ -471,6 +471,7 @@ test_defs[ConciseOptionalGlobalEnvironmentRecord]="ConciseOptionalGlobalEnvironm
 test_defs[ordinary_has_instance]="ordinary_has_instance ordinary_has_instance object"
 test_defs[PropertyDescriptor]="PropertyDescriptor property_descriptor object"
 test_defs[PotentialPropertyDescriptor]="PotentialPropertyDescriptor potential_property_descriptor object"
+test_defs[PotentialPropertyDescriptor_set]="PotentialPropertyDescriptor::set potential_property_descriptor::ppd_set object"
 test_defs[from_property_descriptor]="from_property_descriptor from_property_descriptor object"
 test_defs[fpd]="fpd from_property_descriptor object"
 test_defs[InternalSlotName]="InternalSlotName internal_slot_name object"
@@ -716,6 +717,12 @@ test_defs[ProxyObject_set_prototype_of]="ProxyObject@ObjectInterface::set_protot
 test_defs[ProxyObject_is_extensible]="ProxyObject@ObjectInterface::is_extensible proxy_object::is_extensible proxy_object"
 test_defs[ProxyObject_prevent_extensions]="ProxyObject@ObjectInterface::prevent_extensions proxy_object::prevent_extensions proxy_object"
 test_defs[ProxyObject_get_own_property]="ProxyObject@ObjectInterface::get_own_property proxy_object::get_own_property proxy_object"
+test_defs[ProxyObject_define_own_property]="ProxyObject@ObjectInterface::define_own_property proxy_object::define_own_property proxy_object"
+test_defs[ProxyObject_has_property]="ProxyObject@ObjectInterface::has_property proxy_object::has_property proxy_object"
+test_defs[ProxyObject_get]="ProxyObject@ObjectInterface::get proxy_object::get:: proxy_object"
+test_defs[ProxyObject_set]="ProxyObject@ObjectInterface::set proxy_object::set:: proxy_object"
+test_defs[ProxyObject_delete]="ProxyObject@ObjectInterface::delete proxy_object::delete proxy_object"
+test_defs[ProxyObject_own_property_keys]="ProxyObject@ObjectInterface::own_property_keys proxy_object::own_property_keys proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")

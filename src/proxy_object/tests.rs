@@ -862,4 +862,304 @@ mod proxy_object {
             })
         }
     }
+
+    mod define_own_property {
+        use super::*;
+        use test_case::test_case;
+
+        fn check_arg(this_value: &ECMAScriptValue, arguments: &[ECMAScriptValue]) {
+            assert_eq!(arguments.len(), 3);
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            let key = String::from(JSString::try_from(args.next_arg()).unwrap());
+            assert_eq!(key, "test_key");
+            let _descriptor_obj = Object::try_from(args.next_arg()).unwrap();
+            let handler = Object::try_from(this_value).unwrap();
+            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+        }
+
+        // Property descriptor factories
+        fn make_typical_data_pd() -> PotentialPropertyDescriptor {
+            PotentialPropertyDescriptor::new().value("typical").writable(true).enumerable(true).configurable(true)
+        }
+        fn make_configless_pd() -> PotentialPropertyDescriptor {
+            PotentialPropertyDescriptor::new().value("config-free")
+        }
+        fn make_unchangeable_pd() -> PotentialPropertyDescriptor {
+            PotentialPropertyDescriptor::new().value("lentil soup").writable(false).configurable(false)
+        }
+        fn make_readonly_nonconfigurable_pd() -> PotentialPropertyDescriptor {
+            PotentialPropertyDescriptor::new().value(10).writable(false).configurable(false)
+        }
+        fn make_writable_nonconfigurable_pd() -> PotentialPropertyDescriptor {
+            PotentialPropertyDescriptor::new().value(20).writable(true).configurable(false)
+        }
+
+        // Handler behaviors
+        fn fn_returns_true() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                check_arg(&this_value, arguments);
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_true called".into(), true).unwrap();
+                let mut args = FuncArgs::from(arguments);
+                let target = Object::try_from(args.next_arg()).unwrap();
+                let key = args.next_arg();
+                let descriptor_obj = args.next_arg();
+                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
+                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                target
+                    .o
+                    .define_own_property(key.try_into().unwrap(), to_property_descriptor(&descriptor_obj).unwrap())
+                    .unwrap();
+                Ok(ECMAScriptValue::from(true))
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_true_no_checks() -> Object {
+            fn behavior(
+                _this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                _arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                Ok(ECMAScriptValue::from(true))
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_false() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                check_arg(&this_value, arguments);
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                let mut args = FuncArgs::from(arguments);
+                let _target = Object::try_from(args.next_arg()).unwrap();
+                let key = args.next_arg();
+                let descriptor_obj = args.next_arg();
+                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
+                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                Ok(ECMAScriptValue::from(false))
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_true_without_setting() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                check_arg(&this_value, arguments);
+                let handler = Object::try_from(this_value).unwrap();
+                set(&handler, "callback_message".into(), "fn_returns_true_without_setting called".into(), true)
+                    .unwrap();
+                let mut args = FuncArgs::from(arguments);
+                let _target = Object::try_from(args.next_arg()).unwrap();
+                let key = args.next_arg();
+                let descriptor_obj = args.next_arg();
+                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
+                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                Ok(ECMAScriptValue::from(true))
+            }
+            cbf(behavior)
+        }
+
+        // Handler/Target makers
+        fn make_handler(fcn: Object) -> Object {
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value(fcn);
+            define_property_or_throw(&handler, "defineProperty", ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
+            define_property_or_throw(&handler, "callback_message", ppd).unwrap();
+            handler
+        }
+        fn make_target() -> Object {
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value("target object");
+            define_property_or_throw(&target, "test_marker", ppd).unwrap();
+            target
+        }
+
+        // Proxy Object Makers
+        fn no_trouble() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_returns_true());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_throws() -> Object {
+            let target = make_target();
+            let handler = make_handler(intrinsic(IntrinsicId::ThrowTypeError));
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_returns_false() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_returns_false());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_get_own_prop_throws() -> Object {
+            let target = TestObject::object(&[FunctionId::GetOwnProperty(None)]);
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_is_extensible_throws() -> Object {
+            let target = TestObject::object(&[FunctionId::IsExtensible]);
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_not_configurable() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value("original value").writable(false).configurable(false);
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_is_config() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value("pumpkin").configurable(true).writable(true);
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_writable_not_configurable() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value(10).writable(true).configurable(false);
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_true_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_writable_not_configurable_checking() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value(10).writable(true).configurable(false);
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_true());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn frozen_target() -> Object {
+            let target = make_target();
+            target.o.prevent_extensions().unwrap();
+            let handler = make_handler(fn_returns_true());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_doesnt_change_target() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_returns_true_without_setting());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+
+        #[test_case(revoked, PotentialPropertyDescriptor::new
+            => serr("TypeError: Proxy has been revoked");
+            "is revoked")]
+        #[test_case(dead_handler, PotentialPropertyDescriptor::new
+            => serr("TypeError: get called on DeadObject");
+            "get_method fails")]
+        #[test_case(no_overrides, make_typical_data_pd
+            => Ok((
+                true,
+                "undefined".to_string(),
+                "undefined".to_string(),
+                "undefined".to_string(),
+                Some("value:typical,writable:true,enumerable:true,configurable:true".to_string())
+            ));
+            "no handler; simple prop")]
+        #[test_case(no_trouble, make_typical_data_pd
+            => Ok((
+                true,
+                "fn_returns_true called".to_string(),
+                "test_key".to_string(),
+                "value:typical,writable:true,enumerable:true,configurable:true".to_string(),
+                Some("value:typical,writable:true,enumerable:true,configurable:true".to_string())
+            ));
+            "recording handler")]
+        #[test_case(handler_throws, make_typical_data_pd
+            => serr("TypeError: Generic TypeError");
+            "handler call throws")]
+        #[test_case(handler_returns_false, make_typical_data_pd
+            => Ok((
+                false,
+                "fn_returns_false called".to_string(),
+                "test_key".to_string(),
+                "value:typical,writable:true,enumerable:true,configurable:true".to_string(),
+                None
+            ));
+            "handler returns false, making no change")]
+        #[test_case(target_get_own_prop_throws, make_typical_data_pd
+            => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+            "target GetOwnProperty fails")]
+        #[test_case(target_is_extensible_throws, make_typical_data_pd
+            => serr("TypeError: [[IsExtensible]] called on TestObject"); 
+            "target [[IsExtensible]] fails")]
+        #[test_case(no_trouble, make_configless_pd
+            => Ok((
+                true,
+                "fn_returns_true called".to_string(),
+                "test_key".to_string(),
+                "value:config-free".to_string(),
+                Some("value:config-free,writable:false,enumerable:false,configurable:false".to_string())
+            ));
+            "pd without configurable")]
+        #[test_case(target_not_configurable, make_unchangeable_pd
+            => serr("TypeError: proxy error: If a property has a corresponding target object property then applying the Property Descriptor of the property to the target object using [[DefineOwnProperty]] will not throw an exception.");
+            "target unchangable")]
+        #[test_case(target_is_config, make_unchangeable_pd
+            => serr("TypeError: proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object.");
+            "desc unchangable, but target is")]
+        #[test_case(target_writable_not_configurable, make_readonly_nonconfigurable_pd
+            => serr("TypeError: proxy error: A non-configurable property cannot be non-writable, unless there exists a corresponding non-configurable, non-writable own property of the target object.");
+            "target writable, not configurable; desc is read-only")]
+        #[test_case(target_writable_not_configurable_checking, make_writable_nonconfigurable_pd
+            => Ok((
+                true,
+                "fn_returns_true called".to_string(),
+                "test_key".to_string(),
+                "value:20,writable:true,configurable:false".to_string(),
+                Some("value:20,writable:true,enumerable:false,configurable:false".to_string())
+            ));
+            "nonconfig but writable")]
+        #[test_case(frozen_target, make_typical_data_pd
+            => serr("TypeError: proxy error: A property cannot be added, if the target object is not extensible.");
+            "frozen target, can't add")]
+        #[test_case(handler_doesnt_change_target, make_writable_nonconfigurable_pd
+            => serr("TypeError: proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object.");
+            "nonconfig prop, missing on target")]
+        #[test_case(handler_doesnt_change_target, make_typical_data_pd
+            => Ok((
+                true,
+                "fn_returns_true_without_setting called".to_string(),
+                "test_key".to_string(),
+                "value:typical,writable:true,enumerable:true,configurable:true".to_string(),
+                None
+            ));
+            "missing on target")]
+        fn t(
+            make_po: impl FnOnce() -> Object,
+            make_pd: impl FnOnce() -> PotentialPropertyDescriptor,
+        ) -> Result<(bool, String, String, String, Option<String>), String> {
+            setup_test_agent();
+            let po = make_po();
+            let key = "test_key".into();
+            let desc = make_pd();
+            po.o.define_own_property(key, desc).map_err(unwind_any_error).map(|b: bool| {
+                let (handler, target) = {
+                    let proxy_obj = po.o.to_proxy_object().unwrap();
+                    (proxy_obj.proxy_handler.clone().unwrap(), proxy_obj.proxy_target.clone().unwrap())
+                };
+                (
+                    b,
+                    get(&handler, &"callback_message".into()).unwrap().test_result_string(),
+                    get(&handler, &"observed_key".into()).unwrap().test_result_string(),
+                    get(&handler, &"observed_descriptor".into()).unwrap().test_result_string(),
+                    {
+                        from_property_descriptor(target.o.get_own_property(&"test_key".into()).unwrap())
+                            .map(|pd| ECMAScriptValue::from(pd).test_result_string())
+                    },
+                )
+            })
+        }
+    }
 }

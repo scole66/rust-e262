@@ -568,6 +568,7 @@ mod potential_property_descriptor {
         PotentialPropertyDescriptor::new().value(val).value.unwrap().test_result_string()
     }
     #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    #[test_case(|| true => "true"; "value is bool")]
     fn ppd_set<T>(maker: impl FnOnce() -> T) -> String
     where
         T: Into<ECMAScriptValue>,
