@@ -49,6 +49,11 @@ mod proxy_object {
             None,
         )
     }
+    fn record(handler: &Object, arguments: &[ECMAScriptValue], message: &str) {
+        set(handler, "callback_message".into(), ECMAScriptValue::from(message), true).unwrap();
+        let arg_obj = create_array_from_list(arguments);
+        set(handler, "arguments".into(), ECMAScriptValue::from(arg_obj), true).unwrap();
+    }
 
     // Behaviors
     fn fn_returning_null() -> Object {
@@ -1167,12 +1172,6 @@ mod proxy_object {
         use super::*;
         use test_case::test_case;
 
-        fn record(handler: &Object, arguments: &[ECMAScriptValue], message: &str) {
-            set(handler, "callback_message".into(), ECMAScriptValue::from(message), true).unwrap();
-            let arg_obj = create_array_from_list(arguments);
-            set(handler, "arguments".into(), ECMAScriptValue::from(arg_obj), true).unwrap();
-        }
-
         fn fn_only_watches() -> Object {
             fn behavior(
                 this_value: ECMAScriptValue,
@@ -1335,7 +1334,7 @@ mod proxy_object {
             setup_test_agent();
             let po = make_po();
             let key = &"test_key".into();
-            po.o.has_property(key).map_err(unwind_any_error).map(|b: bool| {
+            po.o.has_property(key).map_err(unwind_any_error).map(|b| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
                 let message = get(&handler, &"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
@@ -1344,6 +1343,166 @@ mod proxy_object {
                 });
                 (
                     b,
+                    message.test_result_string(),
+                    create_list_from_array_like(arguments, None)
+                        .unwrap()
+                        .into_iter()
+                        .map(|item| item.test_result_string())
+                        .collect::<Vec<_>>(),
+                )
+            })
+        }
+    }
+
+    mod get {
+        use super::*;
+        use test_case::test_case;
+
+        fn fn_only_watches() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _new_target: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                let handler = Object::try_from(this_value).unwrap();
+                record(&handler, arguments, "fn_only_watches called");
+                let mut args = FuncArgs::from(arguments);
+                let target = Object::try_from(args.next_arg()).unwrap();
+                let key = args.next_arg();
+                let receiver = args.next_arg();
+                let rval = target.o.get(&key.try_into().unwrap(), &receiver).unwrap();
+                Ok(rval)
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_undefined_no_checks() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(ECMAScriptValue::Undefined)
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_val_no_checks() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(ECMAScriptValue::from(100))
+            }
+            cbf(behavior)
+        }
+
+        // Handler/Target makers
+        fn make_handler(fcn: Object) -> Object {
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value(fcn);
+            define_property_or_throw(&handler, "get", ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
+            define_property_or_throw(&handler, "callback_message", ppd).unwrap();
+            handler
+        }
+        fn make_target() -> Object {
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value("target object");
+            define_property_or_throw(&target, "test_marker", ppd).unwrap();
+            target
+        }
+
+        // Proxy Object makers
+        fn handler_watches_target_empty() -> Object {
+            let target = make_target();
+            let handler = make_handler(fn_only_watches());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_throws() -> Object {
+            let target = make_target();
+            let handler = make_handler(intrinsic(IntrinsicId::ThrowTypeError));
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_get_own_prop_throws() -> Object {
+            let target = TestObject::object(&[FunctionId::GetOwnProperty(Some("test_key".into()))]);
+            let handler = make_handler(fn_returns_undefined_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_nonconfig_readonly_handler_undef() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value("nonconfig/nonwrite");
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_undefined_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_nonconfig_readonly_handler_watches() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().value("nonconfig/nonwrite");
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_only_watches());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_nonconfig_and_undef_get_handler_returns_val() -> Object {
+            let target = make_target();
+            let ppd = PotentialPropertyDescriptor::new().get(ECMAScriptValue::Undefined);
+            define_property_or_throw(&target, "test_key", ppd).unwrap();
+            let handler = make_handler(fn_returns_val_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+
+        #[test_case(revoked, || None => serr("TypeError: Proxy has been revoked"); "is revoked")]
+        #[test_case(dead_handler, || None => serr("TypeError: get called on DeadObject"); "handler get fails")]
+        #[test_case(no_overrides, || None
+            => Ok((
+                "target".to_string(),
+                "undefined".to_string(),
+                vec![]
+            ));
+            "handler does nothing")]
+        #[test_case(handler_throws, || None => serr("TypeError: Generic TypeError"); "handler call fails")]
+        #[test_case(handler_watches_target_empty, || None
+            => Ok((
+                "undefined".to_string(),
+                "fn_only_watches called".to_string(),
+                vec!["test_marker:target object".to_string(), "test_key".to_string(), "".to_string()]
+            ));
+            "reading not-present")]
+        #[test_case(target_get_own_prop_throws, || None
+            => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+            "target [[GetOwnProperty]] fails")]
+        #[test_case(target_nonconfig_readonly_handler_undef, || None
+            => serr("TypeError: proxy error: The value reported for a property must be the same as the value of the \
+                    corresponding target object property if the target object property is a non-writable, \
+                    non-configurable own data property.");
+            "target non-config and non-writable")]
+        #[test_case(target_nonconfig_readonly_handler_watches, || None
+            => Ok((
+                "nonconfig/nonwrite".to_string(),
+                "fn_only_watches called".to_string(),
+                vec![
+                    "test_marker:target object,test_key:nonconfig/nonwrite".to_string(),
+                    "test_key".to_string(),
+                    "".to_string()
+                    ]
+                ));
+            "target non-config and non-write; handler returns same")]
+        #[test_case(target_nonconfig_and_undef_get_handler_returns_val, || None
+            => serr("TypeError: proxy error: The value reported for a property must be undefined if the corresponding \
+                    target object property is a non-configurable own accessor property that has undefined as its \
+                    [[Get]] attribute.");
+            "target non-config with an undefined get; handler returns not-undefined")]
+        fn t(
+            make_po: impl FnOnce() -> Object,
+            make_receiver: impl FnOnce() -> Option<Object>,
+        ) -> Result<(String, String, Vec<String>), String> {
+            setup_test_agent();
+            let po = make_po();
+            let key = &"test_key".into();
+            let receiver = ECMAScriptValue::from(match make_receiver() {
+                None => po.clone(),
+                Some(obj) => obj,
+            });
+            po.o.get(key, &receiver).map_err(unwind_any_error).map(|v| {
+                let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
+                let message = get(&handler, &"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                    ECMAScriptValue::Object(o) => o,
+                    _ => array_create(0, None).unwrap(),
+                });
+                (
+                    v.test_result_string(),
                     message.test_result_string(),
                     create_list_from_array_like(arguments, None)
                         .unwrap()
