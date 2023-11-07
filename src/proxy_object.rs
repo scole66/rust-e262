@@ -577,7 +577,7 @@ impl ObjectInterface for ProxyObject {
             return target.o.set(key, value, receiver);
         }
         let boolean_trap_result =
-            to_boolean(call(&trap, &handler, &[key.clone().into(), value.clone(), receiver.clone()])?);
+            to_boolean(call(&trap, &handler, &[target.into(), key.clone().into(), value.clone(), receiver.clone()])?);
         if !boolean_trap_result {
             return Ok(false);
         }
