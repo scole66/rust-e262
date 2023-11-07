@@ -750,7 +750,10 @@ impl ObjectInterface for ProxyObject {
         for key in target_nonconfigurable_keys {
             match unchecked_result_keys.iter().position(|k| k.eq(&key)) {
                 None => {
-                    return Err(create_type_error("proxy error: The result List must contain the keys of all non-configurable own properties of the target object."));
+                    return Err(create_type_error(
+                        "proxy error: The result List must contain the keys of all non-configurable own \
+                        properties of the target object.",
+                    ));
                 }
                 Some(idx) => {
                     unchecked_result_keys.swap_remove(idx);
@@ -763,7 +766,10 @@ impl ObjectInterface for ProxyObject {
         for key in target_configurable_keys {
             match unchecked_result_keys.iter().position(|k| k.eq(&key)) {
                 None => {
-                    return Err(create_type_error("proxy error:  If the target object is not extensible, then the result List must contain all the keys of the own properties of the target object and no other values."));
+                    return Err(create_type_error(
+                        "proxy error: If the target object is not extensible, then the result List must \
+                        contain all the keys of the own properties of the target object and no other values.",
+                    ));
                 }
                 Some(idx) => {
                     unchecked_result_keys.swap_remove(idx);
@@ -771,7 +777,10 @@ impl ObjectInterface for ProxyObject {
             }
         }
         if !unchecked_result_keys.is_empty() {
-            return Err(create_type_error("proxy error:  If the target object is not extensible, then the result List must contain all the keys of the own properties of the target object and no other values."));
+            return Err(create_type_error(
+                "proxy error: If the target object is not extensible, then the result List must contain all \
+                the keys of the own properties of the target object and no other values.",
+            ));
         }
         Ok(trap_result)
     }

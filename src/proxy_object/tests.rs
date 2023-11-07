@@ -1951,4 +1951,261 @@ mod proxy_object {
             })
         }
     }
+
+    mod own_property_keys {
+        use super::*;
+        use test_case::test_case;
+
+        // Behaviors
+        fn fn_returns_invalid_pks() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(create_array_from_list(&[ECMAScriptValue::Null, ECMAScriptValue::from("blue")]).into())
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_duplicate_pks() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(create_array_from_list(&[ECMAScriptValue::from("blue"), ECMAScriptValue::from("blue")]).into())
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_empty_no_checks() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(array_create(0, None).expect("creation works").into())
+            }
+            cbf(behavior)
+        }
+        fn fn_returns_test_marker_plus_more() -> Object {
+            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+                Ok(create_array_from_list(&[
+                    ECMAScriptValue::from("test_marker"),
+                    ECMAScriptValue::from("blue"),
+                    ECMAScriptValue::from("orange"),
+                ])
+                .into())
+            }
+            cbf(behavior)
+        }
+        fn fn_recording_list() -> Object {
+            fn behavior(
+                this_value: ECMAScriptValue,
+                _: Option<&Object>,
+                arguments: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                let handler = Object::try_from(this_value).unwrap();
+                record(&handler, arguments, "fn_recording_list called");
+                Ok(create_array_from_list(&[ECMAScriptValue::from("test_marker"), ECMAScriptValue::from("alphonse")])
+                    .into())
+            }
+            cbf(behavior)
+        }
+
+        // Handler/Target makers
+        fn make_handler(fcn: Object) -> Object {
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value(fcn);
+            define_property_or_throw(&handler, "ownKeys", ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
+            define_property_or_throw(&handler, "callback_message", ppd).unwrap();
+            handler
+        }
+        fn make_target(configurable: bool) -> Object {
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value("target object").configurable(configurable);
+            define_property_or_throw(&target, "test_marker", ppd).unwrap();
+            target
+        }
+
+        // Proxy Object makers
+        fn handler_throws() -> Object {
+            let target = make_target(false);
+            let handler = make_handler(intrinsic(IntrinsicId::ThrowTypeError));
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_makes_bad_keys() -> Object {
+            let target = make_target(false);
+            let handler = make_handler(fn_returns_invalid_pks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn handler_makes_duplicate_keys() -> Object {
+            let target = make_target(false);
+            let handler = make_handler(fn_returns_duplicate_pks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_is_extensible_throws() -> Object {
+            let target = TestObject::object(&[FunctionId::IsExtensible]);
+            let handler = make_handler(fn_returns_empty_no_checks());
+            ProxyObject::object(Some(target), Some(handler))
+        }
+        fn target_own_prop_keys_throws() -> Object {
+            ProxyObject::object(
+                Some(TestObject::object(&[FunctionId::OwnPropertyKeys])),
+                Some(make_handler(fn_returns_empty_no_checks())),
+            )
+        }
+        fn target_has_nonconfig_handler_doesnt() -> Object {
+            ProxyObject::object(
+                Some({
+                    let target = make_target(false);
+                    let ppd = PotentialPropertyDescriptor::new().value("nonconfig");
+                    define_property_or_throw(&target, "nonconfig_prop", ppd).unwrap();
+                    target
+                }),
+                Some(make_handler(fn_returns_empty_no_checks())),
+            )
+        }
+        fn target_notextensible_handler_adds_extras_with_gaps() -> Object {
+            ProxyObject::object(
+                Some({
+                    let target = make_target(false);
+                    let ppd =
+                        PotentialPropertyDescriptor::new().value(0).writable(true).configurable(true).enumerable(true);
+                    define_property_or_throw(&target, "alice", ppd).unwrap();
+                    target.o.prevent_extensions().unwrap();
+                    target
+                }),
+                Some(make_handler(fn_returns_test_marker_plus_more())),
+            )
+        }
+        fn target_notextensible_handler_adds_extras() -> Object {
+            ProxyObject::object(
+                Some({
+                    let target = make_target(false);
+                    let ppd =
+                        PotentialPropertyDescriptor::new().value(0).writable(true).configurable(true).enumerable(true);
+                    define_property_or_throw(&target, "blue", ppd).unwrap();
+                    target.o.prevent_extensions().unwrap();
+                    target
+                }),
+                Some(make_handler(fn_returns_test_marker_plus_more())),
+            )
+        }
+        fn target_get_prop_throws() -> Object {
+            ProxyObject::object(
+                Some({
+                    fn helper(obj: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+                        if key == &PropertyKey::from("test_marker") {
+                            let flag = obj.something.get();
+                            match flag {
+                                0 => {
+                                    obj.something.set(1);
+                                    Ok(ordinary_get_own_property(obj, key))
+                                }
+                                x => {
+                                    obj.something.set(x + 1);
+                                    Err(create_type_error("[[GetOwnProperty]] fails"))
+                                }
+                            }
+                        } else {
+                            Ok(ordinary_get_own_property(obj, key))
+                        }
+                    }
+                    let target = AdaptableObject::object(AdaptableMethods {
+                        get_own_property_override: Some(helper),
+                        ..Default::default()
+                    });
+                    let ppd = PotentialPropertyDescriptor::new().value(0);
+                    define_property_or_throw(&target, "test_marker", ppd).unwrap();
+                    target
+                }),
+                Some(make_handler(fn_returns_test_marker_plus_more())),
+            )
+        }
+        fn target_extensible_and_all_configurable() -> Object {
+            ProxyObject::object(Some(make_target(true)), Some(make_handler(fn_recording_list())))
+        }
+        fn target_extensible_with_nonconfig_handler_returns_all_nonconfigs() -> Object {
+            ProxyObject::object(Some(make_target(false)), Some(make_handler(fn_recording_list())))
+        }
+        fn target_not_extensible_handler_returns_all() -> Object {
+            ProxyObject::object(
+                Some({
+                    let target = make_target(false);
+                    let ppd = PotentialPropertyDescriptor::new().value(0);
+                    define_property_or_throw(&target, "alphonse", ppd).unwrap();
+                    target.o.prevent_extensions().unwrap();
+                    target
+                }),
+                Some(make_handler(fn_recording_list())),
+            )
+        }
+
+        #[test_case(revoked => serr("TypeError: Proxy has been revoked"); "proxy revoked")]
+        #[test_case(dead_handler => serr("TypeError: get called on DeadObject"); "handler broken")]
+        #[test_case(handler_throws => serr("TypeError: Generic TypeError"); "handler call fails")]
+        #[test_case(handler_makes_bad_keys => serr("TypeError: Invalid kind for array"); "callback makes invalid list")]
+        #[test_case(handler_makes_duplicate_keys
+            => serr("TypeError: proxy error: The returned List may not contain duplicate entries.");
+            "duplicate entries")]
+        #[test_case(target_is_extensible_throws
+            => serr("TypeError: [[IsExtensible]] called on TestObject");
+            "target [[IsExtensible]] fails")]
+        #[test_case(target_own_prop_keys_throws
+            => serr("TypeError: [[OwnPropertyKeys]] called on TestObject");
+            "target [[OwnPropertyKeys]] fails")]
+        #[test_case(target_has_nonconfig_handler_doesnt
+            => serr("TypeError: proxy error: The result List must contain the keys of all non-configurable own \
+                    properties of the target object.");
+            "target with nonconfig items; handler doesn't include them")]
+        #[test_case(target_notextensible_handler_adds_extras_with_gaps
+            => serr("TypeError: proxy error: If the target object is not extensible, then the result List must contain \
+                    all the keys of the own properties of the target object and no other values.");
+            "target not extensible; but the handler adds some keys, drops others")]
+        #[test_case(target_notextensible_handler_adds_extras
+            => serr("TypeError: proxy error: If the target object is not extensible, then the result List must contain \
+                    all the keys of the own properties of the target object and no other values.");
+            "target not extensible; but the handler adds some keys, without dropping others")]
+        #[test_case(target_get_prop_throws
+            => serr("TypeError: [[GetOwnProperty]] fails"); 
+            "target [[GetOwnProperty]] fails")]
+        #[test_case(no_overrides
+            => Ok((
+                vec!["test_key".into()],
+                "undefined".into(),
+                vec![]
+            ));
+            "handler doesn't override")]
+        #[test_case(target_extensible_and_all_configurable
+            => Ok((
+                vec!["test_marker".to_string(), "alphonse".to_string()],
+                "fn_recording_list called".to_string(),
+                vec!["test_marker:target object".to_string()]
+            ));
+            "extensible target with no non-configurable keys")]
+        #[test_case(target_extensible_with_nonconfig_handler_returns_all_nonconfigs
+            => Ok((
+                vec!["test_marker".to_string(), "alphonse".to_string()],
+                "fn_recording_list called".to_string(),
+                vec!["test_marker:target object".to_string()]
+            ));
+            "extensible target with one non-configurable key")]
+        #[test_case(target_not_extensible_handler_returns_all
+            => Ok((
+                vec!["test_marker".to_string(), "alphonse".to_string()],
+                "fn_recording_list called".to_string(),
+                vec!["test_marker:target object,alphonse:0".to_string()]
+            ));
+            "non-extensible target, successfully")]
+        fn t(make_po: impl FnOnce() -> Object) -> Result<(Vec<String>, String, Vec<String>), String> {
+            setup_test_agent();
+            let po = make_po();
+            po.o.own_property_keys().map_err(unwind_any_error).map(|v| {
+                let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
+                let message = get(&handler, &"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                    ECMAScriptValue::Object(o) => o,
+                    _ => array_create(0, None).unwrap(),
+                });
+                (
+                    v.into_iter().map(|pk| ECMAScriptValue::from(pk).test_result_string()).collect::<Vec<_>>(),
+                    message.test_result_string(),
+                    create_list_from_array_like(arguments, None)
+                        .unwrap()
+                        .into_iter()
+                        .map(|item| item.test_result_string())
+                        .collect::<Vec<_>>(),
+                )
+            })
+        }
+    }
 }
