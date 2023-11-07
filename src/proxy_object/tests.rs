@@ -2208,4 +2208,53 @@ mod proxy_object {
             })
         }
     }
+
+    fn make() -> Object {
+        ProxyObject::object(
+            Some({
+                let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                let ppd = PotentialPropertyDescriptor::new().value("target object").configurable(true);
+                define_property_or_throw(&target, "test_marker", ppd).unwrap();
+                target
+            }),
+            Some(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+        )
+    }
+
+    false_function!(is_plain_object);
+    false_function!(is_number_object);
+    false_function!(is_regexp_object);
+    false_function!(is_arguments_object);
+    false_function!(is_error_object);
+    false_function!(is_string_object);
+    false_function!(is_array_object);
+    false_function!(is_symbol_object);
+    false_function!(is_generator_object);
+    false_function!(is_callable_obj);
+    false_function!(is_boolean_object);
+    false_function!(is_date_object);
+    false_function!(uses_ordinary_get_prototype_of);
+
+    none_function!(to_number_obj);
+    none_function!(to_array_object);
+    none_function!(to_constructable);
+    none_function!(to_error_obj);
+    none_function!(to_generator_object);
+    none_function!(to_for_in_iterator);
+    none_function!(to_boolean_obj);
+    none_function!(to_symbol_obj);
+    none_function!(to_callable_obj);
+    none_function!(to_arguments_object);
+    none_function!(to_function_obj);
+    none_function!(to_builtin_function_obj);
+    none_function!(to_string_obj);
+
+    default_id_test!();
+
+    #[test]
+    fn is_proxy_object() {
+        setup_test_agent();
+        let p = make();
+        assert!(p.o.is_proxy_object());
+    }
 }
