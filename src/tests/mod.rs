@@ -564,6 +564,10 @@ pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
+pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
+    Ok(Some(msg.to_string()))
+}
+
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }

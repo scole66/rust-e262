@@ -172,6 +172,13 @@ mod ecmascript_value {
         let key = maker();
         format!("{}", ECMAScriptValue::from(key))
     }
+    #[test_case(|| PropertyKey::String("key".into()) => "key"; "string")]
+    #[test_case(|| PropertyKey::Symbol(wks(WksId::ToPrimitive)) => "Symbol(Symbol.toPrimitive)"; "symbol")]
+    fn from_property_key_ref(maker: fn() -> PropertyKey) -> String {
+        setup_test_agent();
+        let key = maker();
+        format!("{}", ECMAScriptValue::from(&key))
+    }
     #[test_case(String::from("blue") => ECMAScriptValue::String("blue".into()); "String")]
     fn from_string(s: String) -> ECMAScriptValue {
         ECMAScriptValue::from(s)
@@ -182,6 +189,12 @@ mod ecmascript_value {
         let v = ECMAScriptValue::from(u);
         let kind = v.kind();
         (v, kind)
+    }
+    #[test_case(|| wks(WksId::ToPrimitive) => "Symbol(Symbol.toPrimitive)"; "symbol")]
+    fn from_symbol_ref(maker: impl FnOnce() -> Symbol) -> String {
+        setup_test_agent();
+        let sym = maker();
+        ECMAScriptValue::from(&sym).test_result_string()
     }
     #[test]
     fn is_undefined() {

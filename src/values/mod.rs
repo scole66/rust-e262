@@ -231,6 +231,21 @@ impl From<Symbol> for ECMAScriptValue {
     }
 }
 
+impl From<&Symbol> for ECMAScriptValue {
+    fn from(value: &Symbol) -> Self {
+        Self::Symbol(value.clone())
+    }
+}
+
+impl From<&PropertyKey> for ECMAScriptValue {
+    fn from(value: &PropertyKey) -> Self {
+        match value {
+            PropertyKey::String(s) => s.into(),
+            PropertyKey::Symbol(sym) => sym.into(),
+        }
+    }
+}
+
 impl TryFrom<ECMAScriptValue> for Numeric {
     type Error = anyhow::Error;
     fn try_from(src: ECMAScriptValue) -> Result<Self, Self::Error> {

@@ -100,7 +100,7 @@ impl ObjectInterface for StringObject {
         let string_desc = self.string_get_own_property(&key);
         if let Some(string_desc) = string_desc {
             let extensible = self.common.borrow().extensible;
-            Ok(is_compatible_property_descriptor(extensible, desc, &string_desc))
+            Ok(is_compatible_property_descriptor(extensible, desc, Some(&string_desc)))
         } else {
             ordinary_define_own_property(self, key, desc)
         }

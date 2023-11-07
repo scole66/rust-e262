@@ -162,6 +162,25 @@ impl PotentialPropertyDescriptor {
         self.set = Some(set.into());
         self
     }
+
+    pub fn complete(self) -> PropertyDescriptor {
+        PropertyDescriptor {
+            property: if self.is_accessor_descriptor() {
+                PropertyKind::Accessor(AccessorProperty {
+                    get: self.get.unwrap_or(ECMAScriptValue::Undefined),
+                    set: self.set.unwrap_or(ECMAScriptValue::Undefined),
+                })
+            } else {
+                PropertyKind::Data(DataProperty {
+                    value: self.value.unwrap_or(ECMAScriptValue::Undefined),
+                    writable: self.writable.unwrap_or(false),
+                })
+            },
+            enumerable: self.enumerable.unwrap_or(false),
+            configurable: self.configurable.unwrap_or(false),
+            ..Default::default()
+        }
+    }
 }
 
 impl DescriptorKind for PotentialPropertyDescriptor {
@@ -176,6 +195,46 @@ impl DescriptorKind for PotentialPropertyDescriptor {
     }
     fn is_writable(&self) -> Option<bool> {
         self.writable
+    }
+}
+
+impl TryFrom<PotentialPropertyDescriptor> for PropertyDescriptor {
+    type Error = anyhow::Error;
+
+    fn try_from(value: PotentialPropertyDescriptor) -> Result<Self, Self::Error> {
+        Ok(PropertyDescriptor {
+            property: if value.is_data_descriptor() {
+                PropertyKind::Data(DataProperty {
+                    value: value.value.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                    writable: value.writable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                })
+            } else {
+                PropertyKind::Accessor(AccessorProperty {
+                    get: value.get.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                    set: value.set.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                })
+            },
+            configurable: value.configurable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+            enumerable: value.enumerable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+            ..Default::default()
+        })
+    }
+}
+
+impl From<PropertyDescriptor> for PotentialPropertyDescriptor {
+    fn from(v: PropertyDescriptor) -> Self {
+        let (writable, value, get, set) = match v.property {
+            PropertyKind::Data(DataProperty { value, writable }) => (Some(writable), Some(value), None, None),
+            PropertyKind::Accessor(AccessorProperty { get, set }) => (None, None, Some(get), Some(set)),
+        };
+        PotentialPropertyDescriptor {
+            value,
+            writable,
+            get,
+            set,
+            enumerable: Some(v.enumerable),
+            configurable: Some(v.configurable),
+        }
     }
 }
 
@@ -245,26 +304,33 @@ where
 //  9. If Desc has a [[Configurable]] field, then
 //      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
 //  10. Return obj.
-pub fn from_property_descriptor(desc: Option<PropertyDescriptor>) -> Option<Object> {
-    match desc {
-        Some(d) => {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            match &d.property {
-                PropertyKind::Data(DataProperty { value, writable }) => {
-                    create_data_property_or_throw(&obj, "value", value.clone()).unwrap();
-                    create_data_property_or_throw(&obj, "writable", *writable).unwrap();
-                }
-                PropertyKind::Accessor(AccessorProperty { get, set }) => {
-                    create_data_property_or_throw(&obj, "get", get.clone()).unwrap();
-                    create_data_property_or_throw(&obj, "set", set.clone()).unwrap();
-                }
-            }
-            create_data_property_or_throw(&obj, "enumerable", d.enumerable).unwrap();
-            create_data_property_or_throw(&obj, "configurable", d.configurable).unwrap();
-            Some(obj)
-        }
-        None => None,
+fn fpd(d: PotentialPropertyDescriptor) -> Object {
+    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    if let Some(value) = d.value {
+        create_data_property_or_throw(&obj, "value", value).unwrap();
     }
+    if let Some(writable) = d.writable {
+        create_data_property_or_throw(&obj, "writable", writable).unwrap();
+    }
+    if let Some(get) = d.get {
+        create_data_property_or_throw(&obj, "get", get).unwrap();
+    }
+    if let Some(set) = d.set {
+        create_data_property_or_throw(&obj, "set", set).unwrap();
+    }
+    if let Some(enumerable) = d.enumerable {
+        create_data_property_or_throw(&obj, "enumerable", enumerable).unwrap();
+    }
+    if let Some(configurable) = d.configurable {
+        create_data_property_or_throw(&obj, "configurable", configurable).unwrap();
+    }
+    obj
+}
+pub fn from_property_descriptor<T>(desc: Option<T>) -> Option<Object>
+where
+    T: Into<PotentialPropertyDescriptor>,
+{
+    desc.map(|d| fpd(d.into()))
 }
 
 // ToPropertyDescriptor ( Obj )
@@ -685,10 +751,10 @@ where
 pub fn is_compatible_property_descriptor(
     extensible: bool,
     desc: PotentialPropertyDescriptor,
-    current: &PropertyDescriptor,
+    current: Option<&PropertyDescriptor>,
 ) -> bool {
     let oo: Option<&dyn ObjectInterface> = None;
-    validate_and_apply_property_descriptor(oo, None, extensible, desc, Some(current))
+    validate_and_apply_property_descriptor(oo, None, extensible, desc, current)
 }
 
 // OrdinaryHasProperty ( O, P )
@@ -1013,6 +1079,9 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
+        None
+    }
+    fn to_proxy_object(&self) -> Option<&ProxyObject> {
         None
     }
     /// True if this object has no special behavior and no additional slots
@@ -1471,6 +1540,9 @@ pub enum InternalSlotName {
     ObjectWasVisited,
     VisitedKeys,
     RemainingKeys,
+    // Proxy Objects
+    ProxyTarget,
+    ProxyHandler,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1527,6 +1599,7 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::VisitedKeys,
     InternalSlotName::RemainingKeys,
 ];
+pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
