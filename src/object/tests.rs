@@ -1,5 +1,7 @@
 use super::*;
 use crate::tests::*;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::io::Write;
 use test_case::test_case;
 
@@ -3471,6 +3473,145 @@ mod object {
         setup_test_agent();
         let obj = make_obj();
         obj.is_typed_array()
+    }
+
+    mod concise {
+        use super::*;
+        use test_case::test_case;
+
+        struct Wrapper(Object);
+        impl fmt::Debug for Wrapper {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.concise(f)
+            }
+        }
+
+        #[test_case(|| ordinary_object_create(None, &[]) => (true, 1); "simple obj")]
+        fn t(make_obj: impl FnOnce() -> Object) -> (bool, usize) {
+            let output = format!("{:?}", Wrapper(make_obj()));
+            let lines = output.lines().collect::<Vec<_>>();
+            (!output.is_empty(), lines.len())
+        }
+    }
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+        let result = format!("{obj:?}");
+        assert_ne!(result, "");
+    }
+
+    #[test]
+    fn display() {
+        lazy_static! {
+            static ref MATCH: Regex = Regex::new("^<Object [0-9]+>$").expect("Valid regex");
+        }
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+        let result = format!("{obj}");
+        assert!(MATCH.is_match(&result));
+    }
+
+    mod try_from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(|| ECMAScriptValue::Undefined => serr("Only object values may be converted to true objects"); "not object")]
+        #[test_case(
+            || {
+                let obj = ordinary_object_create(None, &[]);
+                set(&obj, "key_1".into(), "value_1".into(), true).unwrap();
+                set(&obj, "key_2".into(), "value_2".into(), true).unwrap();
+                obj.into()
+            }
+            => Ok("key_1:value_1,key_2:value_2".to_string());
+            "is object")]
+        fn value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+            setup_test_agent();
+            Object::try_from(make_val())
+                .map_err(|e| e.to_string())
+                .map(|o| ECMAScriptValue::from(o).test_result_string())
+        }
+
+        #[test_case(|| ECMAScriptValue::Undefined
+            => serr("Only object values may be converted to true objects");
+            "not object")]
+        #[test_case(
+            || {
+                let obj = ordinary_object_create(None, &[]);
+                set(&obj, "key_1".into(), "value_1".into(), true).unwrap();
+                set(&obj, "key_2".into(), "value_2".into(), true).unwrap();
+                obj.into()
+            }
+            => Ok("key_1:value_1,key_2:value_2".to_string());
+            "is object")]
+        fn value_ref(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+            setup_test_agent();
+            Object::try_from(&make_val())
+                .map_err(|e| e.to_string())
+                .map(|o| ECMAScriptValue::from(o).test_result_string())
+        }
+    }
+
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            (obj.clone(), obj)
+        }
+        => true; "equal")]
+    #[test_case(
+        || {
+            let obj_1 = ordinary_object_create(None, &[]);
+            let obj_2 = ordinary_object_create(None, &[]);
+            (obj_1, obj_2)
+        }
+        => false; "unequal")]
+    fn eq(make_objects: impl FnOnce() -> (Object, Object)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_objects();
+        left == right
+    }
+
+    #[test]
+    fn clone() {
+        setup_test_agent();
+        let obj = ordinary_object_create(None, &[]);
+        let second = obj.clone();
+        assert_eq!(obj, second);
+    }
+
+    #[test]
+    fn new() {
+        let o = Object::new(None, true);
+        assert!(o.o.get_prototype_of().unwrap().is_none());
+        assert!(o.o.is_extensible().unwrap());
+        assert!(o.o.is_plain_object());
+    }
+
+    #[test_case(
+        || ordinary_object_create(None, &[])
+        => Ok(false);
+        "plain object")]
+    #[test_case(
+        || create_array_from_list(&[ECMAScriptValue::from(67), ECMAScriptValue::from(91)])
+        => Ok(true);
+        "true array")]
+    #[test_case(
+        || ProxyObject::object(None, None)
+        => serr("TypeError: Proxy has been revoked");
+        "revoked proxy")]
+    #[test_case(
+        || ProxyObject::object(Some(create_array_from_list(&[])), Some(ordinary_object_create(None, &[])))
+        => Ok(true);
+        "proxy on array")]
+    #[test_case(
+        || ProxyObject::object(Some(ordinary_object_create(None, &[])), Some(ordinary_object_create(None, &[])))
+        => Ok(false);
+        "proxy on plain object")]
+    fn is_array(make_obj: impl FnOnce() -> Object) -> Result<bool, String> {
+        setup_test_agent();
+        make_obj().is_array().map_err(unwind_any_error)
     }
 }
 

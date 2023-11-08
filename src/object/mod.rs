@@ -1474,8 +1474,9 @@ impl Object {
     pub fn is_array(&self) -> Completion<bool> {
         if self.o.is_array_object() {
             Ok(true)
-        } else if self.o.is_proxy_object() {
-            todo!()
+        } else if let Some(po) = self.o.to_proxy_object() {
+            po.validate_non_revoked()?;
+            po.proxy_target.as_ref().expect("proxy is not revoked").is_array()
         } else {
             Ok(false)
         }
