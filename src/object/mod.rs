@@ -1792,33 +1792,6 @@ pub fn set(obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bo
     }
 }
 
-// CreateDataPropertyOrThrow ( O, P, V )
-//
-// The abstract operation CreateDataPropertyOrThrow takes arguments O (an Object), P (a property key), and V (an
-// ECMAScript language value). It is used to create a new own property of an object. It throws a TypeError exception if
-// the requested property update cannot be performed. It performs the following steps when called:
-//
-//  1. Let success be ? CreateDataProperty(O, P, V).
-//  2. If success is false, throw a TypeError exception.
-//  3. Return success.
-//
-// NOTE     | This abstract operation creates a property whose attributes are set to the same defaults used for
-//          | properties created by the ECMAScript language assignment operator. Normally, the property will not
-//          | already exist. If it does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]]
-//          | will return false causing this operation to throw a TypeError exception.
-//pub fn create_data_property_or_throw(
-//    obj: &Object,
-//    p: impl Into<PropertyKey>,
-//    v: impl Into<ECMAScriptValue>,
-//) -> Completion<()> {
-//    let success = obj.create_data_property(p, v)?;
-//    if !success {
-//        Err(create_type_error("Unable to create data property"))
-//    } else {
-//        Ok(())
-//    }
-//}
-
 /// For the given object, attach the given property descriptor to a given key.
 ///
 /// This calls the \[\[DefineOwnProperty]] internal method of the object, throwing an error if that definition fails.
