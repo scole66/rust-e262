@@ -63,7 +63,7 @@ mod function_declaration {
             let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &src, fd.clone()).unwrap();
             let fobj = Object::try_from(fvalue).unwrap();
 
-            let result = String::from(JSString::try_from(get(&fobj, &"name".into()).unwrap()).unwrap());
+            let result = String::from(JSString::try_from(fobj.get(&"name".into()).unwrap()).unwrap());
 
             let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
             assert_eq!(function.environment.name(), global_env.name());

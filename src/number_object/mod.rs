@@ -148,13 +148,14 @@ impl NumberObjectInterface for NumberObject {
 }
 
 impl NumberObject {
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
-                number_data: RefCell::new(0_f64),
-            }),
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
+            number_data: RefCell::new(0_f64),
         }
+    }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 

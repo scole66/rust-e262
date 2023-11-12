@@ -506,10 +506,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         } else if !self.is_with_environment {
             Ok(true)
         } else {
-            let unscopables = get(binding_object, &PropertyKey::from(wks(WksId::Unscopables)))?;
+            let unscopables = binding_object.get(&PropertyKey::from(wks(WksId::Unscopables)))?;
             match &unscopables {
                 ECMAScriptValue::Object(unscopables_obj) => {
-                    let blocked = to_boolean(get(unscopables_obj, &name_key)?);
+                    let blocked = to_boolean(unscopables_obj.get(&name_key)?);
                     Ok(!blocked)
                 }
                 _ => Ok(true),
@@ -611,7 +611,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
                 Err(create_reference_error("Unresolvable reference"))
             }
         } else {
-            get(binding_object, &name_key)
+            binding_object.get(&name_key)
         }
     }
 

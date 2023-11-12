@@ -1176,7 +1176,7 @@ mod function_environment_record {
         setup_test_agent();
         let fer = fer_maker();
 
-        fer.with_base_object().map(|obj| get(&obj, &"sentinel".into()).unwrap().to_string())
+        fer.with_base_object().map(|obj| obj.get(&"sentinel".into()).unwrap().to_string())
     }
     #[test]
     fn debug_fmt() {
@@ -1490,7 +1490,7 @@ mod global_environment_record {
             ger.initialize_binding(&test_name, ECMAScriptValue::from(223)).unwrap();
 
             // Validate
-            let val = get(&global_object, &PropertyKey::from(test_name)).unwrap();
+            let val = global_object.get(&PropertyKey::from(test_name)).unwrap();
             assert_eq!(val, ECMAScriptValue::from(223));
         }
     }

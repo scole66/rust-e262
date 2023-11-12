@@ -327,11 +327,13 @@ impl ObjectInterface for ArgumentsObject {
 impl ArgumentsObject {
     pub fn object(parameter_map: Option<ParameterMap>) -> Object {
         let prototype = Some(intrinsic(IntrinsicId::ObjectPrototype));
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, ARGUMENTS_OBJECT_SLOTS)),
-                parameter_map: parameter_map.map(RefCell::new),
-            }),
+        Object { o: Rc::new(Self::new(prototype, parameter_map)) }
+    }
+
+    pub fn new(prototype: Option<Object>, parameter_map: Option<ParameterMap>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, ARGUMENTS_OBJECT_SLOTS)),
+            parameter_map: parameter_map.map(RefCell::new),
         }
     }
 }

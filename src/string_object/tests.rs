@@ -32,7 +32,7 @@ mod string_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object("orange".into(), Some(prototype));
 
-        let length = super::get(&so, &"length".into()).unwrap();
+        let length = so.get(&"length".into()).unwrap();
         assert_eq!(length, ECMAScriptValue::from(6));
 
         let sobj = so.o.to_string_obj().unwrap();
@@ -592,7 +592,7 @@ mod provision_string_intrinsic {
             ToKey::Symbol(id) => PropertyKey::from(wks(id)),
         };
         let proto = intrinsic(IntrinsicId::StringPrototype);
-        let val = super::get(&proto, &key).unwrap();
+        let val = proto.get(&key).unwrap();
         assert!(is_callable(&val));
         let name = getv(&val, &"name".into()).unwrap();
         let name = to_string(name).unwrap();
@@ -609,7 +609,7 @@ mod provision_string_intrinsic {
 
         // The String constructor: is the initial value of the "String" property of the global object.
         let global = current_realm_record().unwrap().borrow().global_object.as_ref().unwrap().clone();
-        let sfg_val = get(&global, &"String".into()).unwrap();
+        let sfg_val = global.get(&"String".into()).unwrap();
         let string_from_global = to_object(sfg_val).unwrap();
         assert_eq!(string_object, string_from_global);
 
@@ -644,7 +644,7 @@ mod provision_string_intrinsic {
             ToKey::Symbol(id) => PropertyKey::from(wks(id)),
         };
         let cstr = intrinsic(IntrinsicId::String);
-        let val = super::get(&cstr, &key).unwrap();
+        let val = cstr.get(&key).unwrap();
         assert!(is_callable(&val));
         let name = getv(&val, &"name".into()).unwrap();
         let name = to_string(name).unwrap();

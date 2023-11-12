@@ -673,7 +673,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
         }
     };
     for name in method_names.iter() {
-        let method = get(obj, name)?;
+        let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {

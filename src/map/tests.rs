@@ -53,7 +53,7 @@ mod add_entries_from_iterable {
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iterator_proto), &[]);
         let next_behavior = intrinsic(IntrinsicId::ThrowTypeError);
-        create_data_property_or_throw(&iterator, "next", next_behavior).unwrap();
+        iterator.create_data_property_or_throw("next", next_behavior).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
     }
@@ -73,7 +73,7 @@ mod add_entries_from_iterable {
             result
         };
         let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
     }
@@ -85,12 +85,12 @@ mod add_entries_from_iterable {
         let next_behavior = |_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(object_proto), &[]);
-            create_data_property_or_throw(&obj, "value", "oopsie").unwrap();
+            obj.create_data_property_or_throw("value", "oopsie").unwrap();
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
         let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
     }
@@ -105,12 +105,12 @@ mod add_entries_from_iterable {
             let items = ordinary_object_create(Some(object_proto), &[]);
             let error_ppd = PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError));
             define_property_or_throw(&items, "0", error_ppd).unwrap();
-            create_data_property_or_throw(&obj, "value", items).unwrap();
+            obj.create_data_property_or_throw("value", items).unwrap();
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
         let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
     }
@@ -125,13 +125,13 @@ mod add_entries_from_iterable {
             let items = ordinary_object_create(Some(object_proto), &[]);
             let error_ppd = PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError));
             define_property_or_throw(&items, "1", error_ppd).unwrap();
-            create_data_property_or_throw(&items, "0", "key").unwrap();
-            create_data_property_or_throw(&obj, "value", items).unwrap();
+            items.create_data_property_or_throw("0", "key").unwrap();
+            obj.create_data_property_or_throw("value", items).unwrap();
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
         let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
     }
@@ -166,7 +166,7 @@ mod add_entries_from_iterable {
                 let mut r = String::new();
                 let mut first = true;
                 for key in keys {
-                    let value = get(&o, &key).map_err(unwind_any_error)?;
+                    let value = o.get(&key).map_err(unwind_any_error)?;
                     if !first {
                         r.push(',');
                     } else {

@@ -176,8 +176,11 @@ impl ArrayObject {
         Ok(a)
     }
 
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }
+    }
     pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 
     // ArraySetLength ( A, Desc )
@@ -311,7 +314,7 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     if !is_array {
         return Ok(ArrayObject::create(length, None)?.into());
     }
-    let mut c = get(original_array, &"constructor".into())?;
+    let mut c = original_array.get(&"constructor".into())?;
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
@@ -322,7 +325,7 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     }
     if c.is_object() {
         let c_obj = Object::try_from(&c).unwrap();
-        let species = get(&c_obj, &wks(WksId::Species).into())?;
+        let species = c_obj.get(&wks(WksId::Species).into())?;
         if species.is_null() {
             c = ECMAScriptValue::Undefined;
         } else {
@@ -532,7 +535,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // Array.prototype [ @@iterator ] ( )
     // The initial value of the @@iterator property is %Array.prototype.values%,
     let array_prototype_values =
-        get(&array_prototype, &"values".into()).expect("a property just added should be gettable");
+        array_prototype.get(&"values".into()).expect("a property just added should be gettable");
     let values_ppd = PotentialPropertyDescriptor::new()
         .value(array_prototype_values.clone())
         .enumerable(false)
@@ -667,7 +670,7 @@ fn array_constructor_function(
                     int_len
                 }
                 _ => {
-                    create_data_property_or_throw(&array, "0", len).expect("Property creation should be successful");
+                    array.create_data_property_or_throw("0", len).expect("Property creation should be successful");
                     1
                 }
             };
@@ -679,7 +682,8 @@ fn array_constructor_function(
                 .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
             for k in 0..number_of_args {
                 let pk = format!("{k}");
-                create_data_property_or_throw(&array, pk, arguments[k as usize].clone())
+                array
+                    .create_data_property_or_throw(pk, arguments[k as usize].clone())
                     .expect("property creation should succeed");
             }
             Ok(array.into())
@@ -865,7 +869,7 @@ fn array_prototype_join(
         if k > 0 {
             r = r.concat(sep.clone());
         }
-        let element = get(&o, &to_string(k).expect("numbers should be string-able").into())?;
+        let element = o.get(&to_string(k).expect("numbers should be string-able").into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
         k += 1;
@@ -1007,7 +1011,7 @@ fn array_prototype_to_string(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let array = to_object(this_value)?;
-    let mut func = get(&array, &"join".into())?;
+    let mut func = array.get(&"join".into())?;
     if !is_callable(&func) {
         func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
     }
@@ -1102,7 +1106,7 @@ async fn array_iterator(
             generator_yield(&co, res).await?;
         } else {
             let element_key = to_string(index).expect("numbers should always have string representations");
-            let element_value = get(&array, &element_key.into())?;
+            let element_value = array.get(&element_key.into())?;
             if kind == KeyValueKind::Value {
                 let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
                 generator_yield(&co, res).await?;

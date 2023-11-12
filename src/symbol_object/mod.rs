@@ -161,13 +161,14 @@ impl SymbolObjectInterface for SymbolObject {
 }
 
 impl SymbolObject {
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)),
-                symbol_data: RefCell::new(None),
-            }),
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)),
+            symbol_data: RefCell::new(None),
         }
+    }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 

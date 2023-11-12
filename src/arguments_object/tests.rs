@@ -169,10 +169,10 @@ mod arguments_object {
 
         let obj = ArgumentsObject::object(Some(pmap));
 
-        create_data_property_or_throw(&obj, 0, "value of 'from'").unwrap();
-        create_data_property_or_throw(&obj, 1, "value of 'the'").unwrap();
-        create_data_property_or_throw(&obj, 2, "value of 'test'").unwrap();
-        create_data_property_or_throw(&obj, 100, "not in index").unwrap();
+        obj.create_data_property_or_throw(0, "value of 'from'").unwrap();
+        obj.create_data_property_or_throw(1, "value of 'the'").unwrap();
+        obj.create_data_property_or_throw(2, "value of 'test'").unwrap();
+        obj.create_data_property_or_throw(100, "not in index").unwrap();
 
         obj
     }
@@ -544,8 +544,7 @@ mod arguments_object {
         let result = obj.o.define_own_property(name.into(), desc).map_err(unwind_any_error)?;
 
         let object_keys = obj.o.own_property_keys().unwrap();
-        let items =
-            object_keys.iter().map(|key| (key.to_string(), super::get(&obj, key).unwrap())).collect::<AHashMap<_, _>>();
+        let items = object_keys.iter().map(|key| (key.to_string(), obj.get(key).unwrap())).collect::<AHashMap<_, _>>();
 
         let env_items = env
             .binding_names()

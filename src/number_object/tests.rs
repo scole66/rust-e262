@@ -202,34 +202,34 @@ fn number_constructor_data_props() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
 
-    let val = get(&number_constructor, &PropertyKey::from("EPSILON")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("EPSILON")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::EPSILON));
 
-    let val = get(&number_constructor, &PropertyKey::from("MAX_SAFE_INTEGER")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("MAX_SAFE_INTEGER")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(9007199254740991.0));
 
-    let val = get(&number_constructor, &PropertyKey::from("MAX_VALUE")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("MAX_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::MAX));
 
-    let val = get(&number_constructor, &PropertyKey::from("MIN_SAFE_INTEGER")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("MIN_SAFE_INTEGER")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(-9007199254740991.0));
 
-    let val = get(&number_constructor, &PropertyKey::from("MIN_VALUE")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("MIN_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(5e-324));
 
-    let val = get(&number_constructor, &PropertyKey::from("NaN")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("NaN")).unwrap();
     assert!(matches!(val, ECMAScriptValue::Number(_)));
     if let ECMAScriptValue::Number(n) = val {
         assert!(n.is_nan());
     }
 
-    let val = get(&number_constructor, &PropertyKey::from("NEGATIVE_INFINITY")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("NEGATIVE_INFINITY")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::NEG_INFINITY));
 
-    let val = get(&number_constructor, &PropertyKey::from("POSITIVE_INFINITY")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("POSITIVE_INFINITY")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::INFINITY));
 
-    let val = get(&number_constructor, &PropertyKey::from("prototype")).unwrap();
+    let val = number_constructor.get(&PropertyKey::from("prototype")).unwrap();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
     assert_eq!(val, ECMAScriptValue::from(number_prototype));
 }
@@ -349,7 +349,7 @@ fn number_is_finite_no_args() {
     //    false
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_finite = get(&number_constructor, &PropertyKey::from("isFinite")).unwrap();
+    let is_finite = number_constructor.get(&PropertyKey::from("isFinite")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     let result = call(&is_finite, &this_value, &[]).unwrap();
@@ -359,7 +359,7 @@ fn number_is_finite_no_args() {
 fn number_is_finite_one_arg() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_finite = get(&number_constructor, &PropertyKey::from("isFinite")).unwrap();
+    let is_finite = number_constructor.get(&PropertyKey::from("isFinite")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -383,7 +383,7 @@ fn number_is_finite_one_arg() {
 fn number_is_integer_no_args() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_integer = get(&number_constructor, &PropertyKey::from("isInteger")).unwrap();
+    let is_integer = number_constructor.get(&PropertyKey::from("isInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     let result = call(&is_integer, &this_value, &[]).unwrap();
@@ -393,7 +393,7 @@ fn number_is_integer_no_args() {
 fn number_is_integer_one_arg() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_integer = get(&number_constructor, &PropertyKey::from("isInteger")).unwrap();
+    let is_integer = number_constructor.get(&PropertyKey::from("isInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -419,7 +419,7 @@ fn number_is_integer_one_arg() {
 fn number_is_nan_no_args() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_nan = get(&number_constructor, &PropertyKey::from("isNaN")).unwrap();
+    let is_nan = number_constructor.get(&PropertyKey::from("isNaN")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     let result = call(&is_nan, &this_value, &[]).unwrap();
@@ -429,7 +429,7 @@ fn number_is_nan_no_args() {
 fn number_is_nan_one_arg() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_nan = get(&number_constructor, &PropertyKey::from("isNaN")).unwrap();
+    let is_nan = number_constructor.get(&PropertyKey::from("isNaN")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -452,7 +452,7 @@ fn number_is_nan_one_arg() {
 fn number_is_safe_integer_no_args() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_safe_integer = get(&number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
+    let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     let result = call(&is_safe_integer, &this_value, &[]).unwrap();
@@ -462,7 +462,7 @@ fn number_is_safe_integer_no_args() {
 fn number_is_safe_integer_one_arg() {
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
-    let is_safe_integer = get(&number_constructor, &PropertyKey::from("isSafeInteger")).unwrap();
+    let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
     for (arg, expected) in [
@@ -601,7 +601,7 @@ fn number_proto_to_string_08() {
     // this_number_value is not actually a number
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let to_string = get(&number_prototype, &PropertyKey::from("toString")).unwrap();
+    let to_string = number_prototype.get(&PropertyKey::from("toString")).unwrap();
 
     let result = call(&to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
@@ -686,7 +686,7 @@ fn number_proto_to_precision_12() {
     // this_number_value is not actually a number
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&number_prototype, &PropertyKey::from("toPrecision")).unwrap();
+    let func = number_prototype.get(&PropertyKey::from("toPrecision")).unwrap();
 
     let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
@@ -783,7 +783,7 @@ fn number_proto_to_exponential_04() {
     // this_number_value is not actually a number
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&number_prototype, &PropertyKey::from("toExponential")).unwrap();
+    let func = number_prototype.get(&PropertyKey::from("toExponential")).unwrap();
 
     let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
@@ -953,7 +953,7 @@ fn number_proto_to_fixed_21() {
     // this_number_value is not actually a number
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let func = get(&number_prototype, &PropertyKey::from("toFixed")).unwrap();
+    let func = number_prototype.get(&PropertyKey::from("toFixed")).unwrap();
 
     let result = call(&func, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");

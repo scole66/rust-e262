@@ -51,13 +51,13 @@ pub fn add_entries_from_iterable(
                         return iterator_close(&iterator_record, Err(error));
                     }
                     ECMAScriptValue::Object(next_item) => {
-                        let k = match get(&next_item, &"0".into()) {
+                        let k = match next_item.get(&"0".into()) {
                             Ok(val) => val,
                             Err(err) => {
                                 return iterator_close(&iterator_record, Err(err));
                             }
                         };
-                        let v = match get(&next_item, &"1".into()) {
+                        let v = match next_item.get(&"1".into()) {
                             Ok(val) => val,
                             Err(err) => {
                                 return iterator_close(&iterator_record, Err(err));

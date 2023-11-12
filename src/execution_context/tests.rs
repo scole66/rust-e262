@@ -125,7 +125,7 @@ fn get_global_object(reset: bool) -> Option<String> {
     let maybe_obj = super::get_global_object();
 
     maybe_obj.map(|obj| {
-        let val = get(&obj, &"debug_token".into()).unwrap_or_else(|_| "missing".into());
+        let val = obj.get(&"debug_token".into()).unwrap_or_else(|_| "missing".into());
         to_string(val).unwrap().to_string()
     })
 }
@@ -192,7 +192,7 @@ mod agent {
 
         let this_binding_value = super::resolve_this_binding().unwrap();
         let this_binding = to_object(this_binding_value).unwrap();
-        let probe = get(&this_binding, &"debug_token".into()).unwrap();
+        let probe = this_binding.get(&"debug_token".into()).unwrap();
         let repr = to_string(probe).unwrap();
         assert_eq!(repr.to_string(), "present");
     }

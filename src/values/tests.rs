@@ -1102,7 +1102,7 @@ fn to_string_10() {
     let obj = ordinary_object_create(None, &[]);
     let badtostring =
         create_builtin_function(tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
-    create_data_property(&obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
+    obj.create_data_property("toString", badtostring).unwrap();
 
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
@@ -1161,7 +1161,7 @@ fn to_object_06() {
     setup_test_agent();
     let test_value = wks(WksId::ToPrimitive);
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
-    let desc = get(&result, &"description".into()).unwrap();
+    let desc = result.get(&"description".into()).unwrap();
     assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]

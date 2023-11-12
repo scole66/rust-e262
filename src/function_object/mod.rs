@@ -795,6 +795,50 @@ impl FunctionInterface for FunctionObject {
 
 impl FunctionObject {
     #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        prototype: Option<Object>,
+        environment: Rc<dyn EnvironmentRecord>,
+        private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        formal_parameters: ParamSource,
+        ecmascript_code: BodySource,
+        constructor_kind: ConstructorKind,
+        realm: Rc<RefCell<Realm>>,
+        script_or_module: Option<ScriptOrModule>,
+        this_mode: ThisMode,
+        strict: bool,
+        home_object: Option<Object>,
+        source_text: &str,
+        fields: Vec<ClassFieldDefinitionRecord>,
+        private_methods: Vec<Rc<PrivateElement>>,
+        class_field_initializer_name: ClassName,
+        is_class_constructor: bool,
+        compiled: Rc<Chunk>,
+    ) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, FUNCTION_OBJECT_SLOTS)),
+            function_data: RefCell::new(FunctionObjectData {
+                environment,
+                private_environment,
+                formal_parameters,
+                ecmascript_code,
+                constructor_kind,
+                realm,
+                script_or_module,
+                this_mode,
+                strict,
+                home_object,
+                source_text: source_text.to_string(),
+                is_class_constructor,
+                fields,
+                private_methods,
+                class_field_initializer_name,
+                is_constructor: false,
+                compiled,
+            }),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn object(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -815,28 +859,25 @@ impl FunctionObject {
         compiled: Rc<Chunk>,
     ) -> Object {
         Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, FUNCTION_OBJECT_SLOTS)),
-                function_data: RefCell::new(FunctionObjectData {
-                    environment,
-                    private_environment,
-                    formal_parameters,
-                    ecmascript_code,
-                    constructor_kind,
-                    realm,
-                    script_or_module,
-                    this_mode,
-                    strict,
-                    home_object,
-                    source_text: source_text.to_string(),
-                    is_class_constructor,
-                    fields,
-                    private_methods,
-                    class_field_initializer_name,
-                    is_constructor: false,
-                    compiled,
-                }),
-            }),
+            o: Rc::new(Self::new(
+                prototype,
+                environment,
+                private_environment,
+                formal_parameters,
+                ecmascript_code,
+                constructor_kind,
+                realm,
+                script_or_module,
+                this_mode,
+                strict,
+                home_object,
+                source_text,
+                fields,
+                private_methods,
+                class_field_initializer_name,
+                is_class_constructor,
+                compiled,
+            )),
         }
     }
 }
@@ -1193,11 +1234,11 @@ impl BuiltInFunctionObject {
         initial_name: Option<FunctionName>,
         steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
-    ) -> Rc<Self> {
-        Rc::new(Self {
+    ) -> Self {
+        Self {
             common: RefCell::new(CommonObjectData::new(prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
             builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
-        })
+        }
     }
 
     pub fn object(
@@ -1208,7 +1249,7 @@ impl BuiltInFunctionObject {
         steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
-        Object { o: Self::new(prototype, extensible, realm, initial_name, steps, is_constructor) }
+        Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor)) }
     }
 }
 

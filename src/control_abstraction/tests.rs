@@ -42,10 +42,10 @@ mod provision_generator_function_intrinsics {
         assert!(generator_function.o.to_builtin_function_obj().is_some());
         assert_eq!(generator_function.o.common_object_data().borrow().prototype.as_ref().unwrap().clone(), function);
 
-        assert_eq!(get(&generator_function, &"name".into()).unwrap(), ECMAScriptValue::from("GeneratorFunction"));
-        assert_eq!(get(&generator_function, &"length".into()).unwrap(), ECMAScriptValue::from(1));
+        assert_eq!(generator_function.get(&"name".into()).unwrap(), ECMAScriptValue::from("GeneratorFunction"));
+        assert_eq!(generator_function.get(&"length".into()).unwrap(), ECMAScriptValue::from(1));
         assert_eq!(
-            get(&generator_function, &"prototype".into()).unwrap(),
+            generator_function.get(&"prototype".into()).unwrap(),
             ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
         );
     }
@@ -64,15 +64,15 @@ mod provision_generator_function_intrinsics {
 
         let to_string_tag = wks(WksId::ToStringTag);
         assert_eq!(
-            get(&generator_function_prototype, &to_string_tag.into()).unwrap(),
+            generator_function_prototype.get(&to_string_tag.into()).unwrap(),
             ECMAScriptValue::from("GeneratorFunction")
         );
         assert_eq!(
-            get(&generator_function_prototype, &"constructor".into()).unwrap(),
+            generator_function_prototype.get(&"constructor".into()).unwrap(),
             ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunction))
         );
         assert_eq!(
-            get(&generator_function_prototype, &"prototype".into()).unwrap(),
+            generator_function_prototype.get(&"prototype".into()).unwrap(),
             ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype))
         );
     }
@@ -87,11 +87,11 @@ mod provision_generator_function_intrinsics {
             intrinsic(IntrinsicId::IteratorPrototype)
         );
         assert_eq!(
-            get(&generator_prototype, &"constructor".into()).unwrap(),
+            generator_prototype.get(&"constructor".into()).unwrap(),
             ECMAScriptValue::from(intrinsic(IntrinsicId::GeneratorFunctionPrototype))
         );
         let to_string_tag = wks(WksId::ToStringTag);
-        assert_eq!(get(&generator_prototype, &to_string_tag.into()).unwrap(), ECMAScriptValue::from("Generator"));
+        assert_eq!(generator_prototype.get(&to_string_tag.into()).unwrap(), ECMAScriptValue::from("Generator"));
     }
 
     #[test_case("next" => "next;1"; "next function")]
@@ -101,7 +101,7 @@ mod provision_generator_function_intrinsics {
         setup_test_agent();
         let key = PropertyKey::from(key);
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let val = super::get(&proto, &key).unwrap();
+        let val = proto.get(&key).unwrap();
         assert!(is_callable(&val));
         let name = getv(&val, &"name".into()).unwrap();
         let name = to_string(name).unwrap();
@@ -116,8 +116,8 @@ mod provision_generator_function_intrinsics {
 fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
     setup_test_agent();
     let obj = super::create_iter_result_object(value.clone(), done);
-    let value_res = get(&obj, &"value".into()).unwrap();
-    let done_res = get(&obj, &"done".into()).unwrap();
+    let value_res = obj.get(&"value".into()).unwrap();
+    let done_res = obj.get(&"done".into()).unwrap();
 
     assert_eq!(value_res, value);
     assert_eq!(done_res, ECMAScriptValue::from(done));
@@ -907,8 +907,8 @@ mod get_iterator_from_method {
         result
             .map(|ir| {
                 (
-                    get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
-                    get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
+                    ir.next_method.get(&"sentinel".into()).unwrap().to_string(),
+                    ir.iterator.get(&"sentinel".into()).unwrap().to_string(),
                     ir.done.get(),
                 )
             })
@@ -1001,8 +1001,8 @@ mod get_iterator {
         super::get_iterator(&obj, kind)
             .map(|ir| {
                 (
-                    get(&ir.next_method, &"sentinel".into()).unwrap().to_string(),
-                    get(&ir.iterator, &"sentinel".into()).unwrap().to_string(),
+                    ir.next_method.get(&"sentinel".into()).unwrap().to_string(),
+                    ir.iterator.get(&"sentinel".into()).unwrap().to_string(),
                     ir.done.get(),
                 )
             })
@@ -1183,8 +1183,8 @@ mod iterator_record {
         let value = make_value();
         ir.next(value)
             .map(|val| {
-                let value = get(&val, &"value".into()).unwrap();
-                let done = get(&val, &"done".into()).unwrap();
+                let value = val.get(&"value".into()).unwrap();
+                let done = val.get(&"done".into()).unwrap();
                 (value, done)
             })
             .map_err(unwind_any_error)
@@ -1197,7 +1197,7 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(obj_proto), &[]);
-        create_data_property_or_throw(&obj, "value", ECMAScriptValue::from("value"))?;
+        obj.create_data_property_or_throw("value", ECMAScriptValue::from("value"))?;
         let done_getter = intrinsic(IntrinsicId::ThrowTypeError);
         let done_ppd = PotentialPropertyDescriptor::new().get(done_getter).configurable(true).enumerable(true);
         define_property_or_throw(&obj, "done", done_ppd)?;
@@ -1208,12 +1208,12 @@ mod iterator_record {
         let obj = ordinary_object_create(Some(iter_proto), &[]);
         let next_method =
             create_builtin_function(next_returns_broken_iter_result, false, 0.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&obj, "next", next_method).unwrap();
+        obj.create_data_property_or_throw("next", next_method).unwrap();
         obj
     }
     fn ir_with_throwing_done() -> IteratorRecord {
         let iterator = create_iterator_object_with_throwing_next();
-        let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
+        let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn instantly_done() -> IteratorRecord {
@@ -1230,8 +1230,8 @@ mod iterator_record {
         ir.step()
             .map(|result| {
                 result.map(|iter_result| {
-                    let value = get(&iter_result, &"value".into()).unwrap();
-                    let done = to_boolean(get(&iter_result, &"done".into()).unwrap());
+                    let value = iter_result.get(&"value".into()).unwrap();
+                    let done = to_boolean(iter_result.get(&"done".into()).unwrap());
                     (value, done)
                 })
             })
@@ -1243,8 +1243,8 @@ mod iterator_record {
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
         let report = ECMAScriptValue::from(format!("{name}({arg})"));
         let tracking_array = Object::try_from(getv(&this_value, &"tracker".into()).unwrap()).unwrap();
-        let tracking_array_length = get(&tracking_array, &"length".into()).unwrap();
-        create_data_property_or_throw(&tracking_array, to_string(tracking_array_length).unwrap(), report).unwrap();
+        let tracking_array_length = tracking_array.get(&"length".into()).unwrap();
+        tracking_array.create_data_property_or_throw(to_string(tracking_array_length).unwrap(), report).unwrap();
         Ok(result.into())
     }
     fn tracking_next(
@@ -1265,16 +1265,16 @@ mod iterator_record {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iter_proto), &[]);
         let tracking_array = array_create(0, None).unwrap();
-        create_data_property_or_throw(&iterator, "tracker", tracking_array).unwrap();
+        iterator.create_data_property_or_throw("tracker", tracking_array).unwrap();
         let next = create_builtin_function(tracking_next, false, 1.0, "next".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "next", next).unwrap();
+        iterator.create_data_property_or_throw("next", next).unwrap();
         let ireturn = create_builtin_function(tracking_return, false, 1.0, "return".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "return", ireturn).unwrap();
+        iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
     fn create_tracking_iterator_record() -> IteratorRecord {
         let iterator = create_tracking_iterator_with_return();
-        let next_method = Object::try_from(get(&iterator, &"next".into()).unwrap()).unwrap();
+        let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn invalid_return(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
@@ -1284,7 +1284,7 @@ mod iterator_record {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iter_proto), &[]);
         let ireturn = create_builtin_function(invalid_return, false, 1.0, "return".into(), &[], None, None, None);
-        create_data_property_or_throw(&iterator, "return", ireturn).unwrap();
+        iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
 
@@ -1301,15 +1301,15 @@ mod iterator_record {
         let ir = make_ir();
         let completion = make_completion().map(NormalCompletion::from);
         let r = ir.close(completion).map_err(unwind_any_error)?;
-        let tracker = Object::try_from(get(&ir.iterator, &"tracker".into()).unwrap());
+        let tracker = Object::try_from(ir.iterator.get(&"tracker".into()).unwrap());
         if tracker.is_err() {
             return Ok((r.try_into().unwrap(), vec![]));
         }
         let tracker = tracker.unwrap();
-        let tracker_len = to_number(get(&tracker, &"length".into()).unwrap()).unwrap() as u64;
+        let tracker_len = to_number(tracker.get(&"length".into()).unwrap()).unwrap() as u64;
         let mut tracks = vec![];
         for idx in 0..tracker_len {
-            let item = get(&tracker, &format!("{idx}").into()).unwrap();
+            let item = tracker.get(&format!("{idx}").into()).unwrap();
             tracks.push(format!("{item}"));
         }
         Ok((r.try_into().unwrap(), tracks))
@@ -1349,8 +1349,8 @@ mod iterator_next {
         let ir = make_ir();
         super::iterator_next(&ir, value)
             .map(|val| {
-                let value = get(&val, &"value".into()).unwrap();
-                let done = get(&val, &"done".into()).unwrap();
+                let value = val.get(&"value".into()).unwrap();
+                let done = val.get(&"done".into()).unwrap();
                 (value, done)
             })
             .map_err(unwind_any_error)
@@ -1368,8 +1368,8 @@ mod iterator_step {
         super::iterator_step(&ir)
             .map(|result| {
                 result.map(|iter_result| {
-                    let value = get(&iter_result, &"value".into()).unwrap();
-                    let done = to_boolean(get(&iter_result, &"done".into()).unwrap());
+                    let value = iter_result.get(&"value".into()).unwrap();
+                    let done = to_boolean(iter_result.get(&"done".into()).unwrap());
                     (value, done)
                 })
             })
