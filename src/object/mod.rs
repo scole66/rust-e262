@@ -1493,8 +1493,8 @@ impl Object {
         if self.o.is_array_object() {
             Ok(true)
         } else if let Some(po) = self.o.to_proxy_object() {
-            po.validate_non_revoked()?;
-            po.proxy_target.as_ref().expect("proxy is not revoked").is_array()
+            let (target, _handler) = po.validate_non_revoked()?;
+            target.is_array()
         } else {
             Ok(false)
         }

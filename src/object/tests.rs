@@ -3518,15 +3518,15 @@ mod object {
         => Ok(true);
         "true array")]
     #[test_case(
-        || ProxyObject::object(None, None)
+        || ProxyObject::object(None)
         => serr("TypeError: Proxy has been revoked");
         "revoked proxy")]
     #[test_case(
-        || ProxyObject::object(Some(create_array_from_list(&[])), Some(ordinary_object_create(None, &[])))
+        || ProxyObject::object(Some((create_array_from_list(&[]), ordinary_object_create(None, &[]))))
         => Ok(true);
         "proxy on array")]
     #[test_case(
-        || ProxyObject::object(Some(ordinary_object_create(None, &[])), Some(ordinary_object_create(None, &[])))
+        || ProxyObject::object(Some((ordinary_object_create(None, &[]), ordinary_object_create(None, &[]))))
         => Ok(false);
         "proxy on plain object")]
     fn is_array(make_obj: impl FnOnce() -> Object) -> Result<bool, String> {
