@@ -119,14 +119,14 @@ mod constructor {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let target = ordinary_object_create(Some(object_proto.clone()), &[]);
             let fruits = ordinary_object_create(Some(object_proto.clone()), &[]);
-            create_data_property_or_throw(&fruits, "round", "apple").unwrap();
-            create_data_property_or_throw(&fruits, "long", "banana").unwrap();
-            create_data_property_or_throw(&fruits, "bunch", "grapes").unwrap();
+            fruits.create_data_property_or_throw("round", "apple").unwrap();
+            fruits.create_data_property_or_throw("long", "banana").unwrap();
+            fruits.create_data_property_or_throw("bunch", "grapes").unwrap();
             let limbs = ordinary_object_create(Some(object_proto), &[]);
-            create_data_property_or_throw(&limbs, "spider", 8).unwrap();
-            create_data_property_or_throw(&limbs, "bee", 6).unwrap();
-            create_data_property_or_throw(&limbs, "dog", 4).unwrap();
-            create_data_property_or_throw(&limbs, "worm", 0).unwrap();
+            limbs.create_data_property_or_throw("spider", 8).unwrap();
+            limbs.create_data_property_or_throw("bee", 6).unwrap();
+            limbs.create_data_property_or_throw("dog", 4).unwrap();
+            limbs.create_data_property_or_throw("worm", 0).unwrap();
             define_property_or_throw(
                 &limbs,
                 PropertyKey::from("not_visible"),
@@ -161,13 +161,13 @@ mod constructor {
             match result {
                 ECMAScriptValue::Object(to) => {
                     assert_eq!(to, target);
-                    assert_eq!(get(&to, &PropertyKey::from("round")).unwrap(), ECMAScriptValue::from("apple"));
-                    assert_eq!(get(&to, &PropertyKey::from("long")).unwrap(), ECMAScriptValue::from("banana"));
-                    assert_eq!(get(&to, &PropertyKey::from("bunch")).unwrap(), ECMAScriptValue::from("grapes"));
-                    assert_eq!(get(&to, &PropertyKey::from("spider")).unwrap(), ECMAScriptValue::from(8));
-                    assert_eq!(get(&to, &PropertyKey::from("bee")).unwrap(), ECMAScriptValue::from(6));
-                    assert_eq!(get(&to, &PropertyKey::from("dog")).unwrap(), ECMAScriptValue::from(4));
-                    assert_eq!(get(&to, &PropertyKey::from("worm")).unwrap(), ECMAScriptValue::from(0));
+                    assert_eq!(to.get(&PropertyKey::from("round")).unwrap(), ECMAScriptValue::from("apple"));
+                    assert_eq!(to.get(&PropertyKey::from("long")).unwrap(), ECMAScriptValue::from("banana"));
+                    assert_eq!(to.get(&PropertyKey::from("bunch")).unwrap(), ECMAScriptValue::from("grapes"));
+                    assert_eq!(to.get(&PropertyKey::from("spider")).unwrap(), ECMAScriptValue::from(8));
+                    assert_eq!(to.get(&PropertyKey::from("bee")).unwrap(), ECMAScriptValue::from(6));
+                    assert_eq!(to.get(&PropertyKey::from("dog")).unwrap(), ECMAScriptValue::from(4));
+                    assert_eq!(to.get(&PropertyKey::from("worm")).unwrap(), ECMAScriptValue::from(0));
                     assert!(!has_own_property(&to, &PropertyKey::from("not_visible")).unwrap());
                     assert!(!has_own_property(&to, &PropertyKey::from("once")).unwrap());
                     assert!(!has_own_property(&to, &PropertyKey::from("twice")).unwrap());
@@ -205,7 +205,7 @@ mod constructor {
         fn obj_with_item() -> ECMAScriptValue {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(proto), &[]);
-            create_data_property_or_throw(&obj, "something", 782).unwrap();
+            obj.create_data_property_or_throw("something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
         fn get_own_prop_ok(_: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
@@ -254,23 +254,23 @@ mod constructor {
         fn normal_params() -> ECMAScriptValue {
             let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            create_data_property_or_throw(&emotion_descriptor, "value", "happy").unwrap();
-            create_data_property_or_throw(&emotion_descriptor, "writable", true).unwrap();
-            create_data_property_or_throw(&emotion_descriptor, "enumerable", true).unwrap();
-            create_data_property_or_throw(&emotion_descriptor, "configurable", true).unwrap();
-            create_data_property_or_throw(&obj, "emotion", emotion_descriptor).unwrap();
+            emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
+            emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
+            emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
+            emotion_descriptor.create_data_property_or_throw("configurable", true).unwrap();
+            obj.create_data_property_or_throw("emotion", emotion_descriptor).unwrap();
             let age_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            create_data_property_or_throw(&age_descriptor, "value", 27).unwrap();
-            create_data_property_or_throw(&age_descriptor, "writable", true).unwrap();
-            create_data_property_or_throw(&age_descriptor, "enumerable", true).unwrap();
-            create_data_property_or_throw(&age_descriptor, "configurable", true).unwrap();
-            create_data_property_or_throw(&obj, "age", age_descriptor).unwrap();
+            age_descriptor.create_data_property_or_throw("value", 27).unwrap();
+            age_descriptor.create_data_property_or_throw("writable", true).unwrap();
+            age_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
+            age_descriptor.create_data_property_or_throw("configurable", true).unwrap();
+            obj.create_data_property_or_throw("age", age_descriptor).unwrap();
             let favorite_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            create_data_property_or_throw(&favorite_descriptor, "value", "banana").unwrap();
-            create_data_property_or_throw(&favorite_descriptor, "writable", false).unwrap();
-            create_data_property_or_throw(&favorite_descriptor, "enumerable", true).unwrap();
-            create_data_property_or_throw(&favorite_descriptor, "configurable", true).unwrap();
-            create_data_property_or_throw(&obj, "favorite_fruit", favorite_descriptor).unwrap();
+            favorite_descriptor.create_data_property_or_throw("value", "banana").unwrap();
+            favorite_descriptor.create_data_property_or_throw("writable", false).unwrap();
+            favorite_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
+            favorite_descriptor.create_data_property_or_throw("configurable", true).unwrap();
+            obj.create_data_property_or_throw("favorite_fruit", favorite_descriptor).unwrap();
             define_property_or_throw(
                 &obj,
                 PropertyKey::from("hidden"),
@@ -307,12 +307,12 @@ mod constructor {
                     Err(String::from("[[GetOwnProperty]] throws from AdaptableObject")); "get_own_property throws")]
         #[test_case(normal_obj, || {
                         let obj = TestObject::object(&[FunctionId::Get(None)]);
-                        create_data_property_or_throw(&obj, "key", "blue").unwrap();
+                        obj.create_data_property_or_throw("key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("[[Get]] called on TestObject")); "get throws")]
         #[test_case(normal_obj, || {
                         let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        create_data_property_or_throw(&obj, "key", "blue").unwrap();
+                        obj.create_data_property_or_throw("key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("Must be an object")); "to_property_descriptor throws")]
         fn f(
@@ -347,11 +347,11 @@ mod constructor {
                     || {
                         let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        create_data_property_or_throw(&emotion_descriptor, "value", "happy").unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "writable", true).unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "enumerable", true).unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "configurable", true).unwrap();
-                        create_data_property_or_throw(&obj, "emotion", emotion_descriptor).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
+                        emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("configurable", true).unwrap();
+                        obj.create_data_property_or_throw("emotion", emotion_descriptor).unwrap();
                         ECMAScriptValue::from(obj)
                     } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
         fn f(
@@ -390,17 +390,17 @@ mod constructor {
                     || {
                         let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        create_data_property_or_throw(&emotion_descriptor, "value", "happy").unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "writable", true).unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "enumerable", true).unwrap();
-                        create_data_property_or_throw(&emotion_descriptor, "configurable", true).unwrap();
-                        create_data_property_or_throw(&obj, "emotion", emotion_descriptor).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
+                        emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
+                        emotion_descriptor.create_data_property_or_throw("configurable", true).unwrap();
+                        obj.create_data_property_or_throw("emotion", emotion_descriptor).unwrap();
                         ECMAScriptValue::from(obj)
                     } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
         #[test_case(|| ECMAScriptValue::from(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])),
                     || {
                         let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        create_data_property_or_throw(&obj, "key", "blue").unwrap();
+                        obj.create_data_property_or_throw("key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err("Must be an object".to_string()); "bad props")]
         fn f(
@@ -469,10 +469,10 @@ mod constructor {
         }
         fn attrs() -> ECMAScriptValue {
             let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            create_data_property_or_throw(&obj, "value", 99).unwrap();
-            create_data_property_or_throw(&obj, "writable", true).unwrap();
-            create_data_property_or_throw(&obj, "enumerable", true).unwrap();
-            create_data_property_or_throw(&obj, "configurable", true).unwrap();
+            obj.create_data_property_or_throw("value", 99).unwrap();
+            obj.create_data_property_or_throw("writable", true).unwrap();
+            obj.create_data_property_or_throw("enumerable", true).unwrap();
+            obj.create_data_property_or_throw("configurable", true).unwrap();
             obj.into()
         }
 
@@ -529,23 +529,23 @@ mod constructor {
             setup_test_agent();
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(proto), &[]);
-            create_data_property_or_throw(&obj, "one", 1.0).unwrap();
-            create_data_property_or_throw(&obj, "favorite", "spaghetti").unwrap();
+            obj.create_data_property_or_throw("one", 1.0).unwrap();
+            obj.create_data_property_or_throw("favorite", "spaghetti").unwrap();
 
             let result = object_entries(ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap();
             let entries: Object = result.try_into().unwrap();
             assert!(entries.is_array().unwrap());
-            assert_eq!(get(&entries, &"length".into()).unwrap(), 2.0.into());
-            let first: Object = get(&entries, &"0".into()).unwrap().try_into().unwrap();
+            assert_eq!(entries.get(&"length".into()).unwrap(), 2.0.into());
+            let first: Object = entries.get(&"0".into()).unwrap().try_into().unwrap();
             assert!(first.is_array().unwrap());
-            assert_eq!(get(&first, &"length".into()).unwrap(), 2.0.into());
-            assert_eq!(get(&first, &"0".into()).unwrap(), "one".into());
-            assert_eq!(get(&first, &"1".into()).unwrap(), 1.0.into());
-            let second: Object = get(&entries, &"1".into()).unwrap().try_into().unwrap();
+            assert_eq!(first.get(&"length".into()).unwrap(), 2.0.into());
+            assert_eq!(first.get(&"0".into()).unwrap(), "one".into());
+            assert_eq!(first.get(&"1".into()).unwrap(), 1.0.into());
+            let second: Object = entries.get(&"1".into()).unwrap().try_into().unwrap();
             assert!(second.is_array().unwrap());
-            assert_eq!(get(&second, &"length".into()).unwrap(), 2.0.into());
-            assert_eq!(get(&second, &"0".into()).unwrap(), "favorite".into());
-            assert_eq!(get(&second, &"1".into()).unwrap(), "spaghetti".into());
+            assert_eq!(second.get(&"length".into()).unwrap(), 2.0.into());
+            assert_eq!(second.get(&"0".into()).unwrap(), "favorite".into());
+            assert_eq!(second.get(&"1".into()).unwrap(), "spaghetti".into());
         }
     }
 
@@ -576,7 +576,7 @@ mod constructor {
         fn ok() {
             setup_test_agent();
             let obj = ordinary_object_create(None, &[]);
-            create_data_property_or_throw(&obj, "property", "holiday").unwrap();
+            obj.create_data_property_or_throw("property", "holiday").unwrap();
             let result: Object =
                 object_freeze(ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap().try_into().unwrap();
             assert_eq!(
@@ -677,7 +677,7 @@ mod constructor {
                 get_own_property_override: Some(kaboom_gop),
                 ..Default::default()
             });
-            create_data_property_or_throw(&obj, "kaboom", 67).unwrap();
+            obj.create_data_property_or_throw("kaboom", 67).unwrap();
             obj.into()
         }
 
@@ -699,7 +699,7 @@ mod constructor {
             let mut r = String::new();
             let mut first = true;
             for key in keys {
-                let value = crate::object::get(&info, &key).unwrap();
+                let value = info.get(&key).unwrap();
                 if !first {
                     r.push(',');
                 } else {
@@ -724,7 +724,7 @@ mod constructor {
     #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "get_own_property_keys throws")]
     #[test_case(|| {
         let obj = ordinary_object_create(None, &[]);
-        create_data_property_or_throw(&obj, wks(WksId::ToStringTag), "test_value").unwrap();
+        obj.create_data_property_or_throw(wks(WksId::ToStringTag), "test_value").unwrap();
         obj.into()
     } => sok("0:Symbol(Symbol.toStringTag),length:1"); "one-symbol-prop")]
     fn get_own_property_symbols(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
@@ -741,7 +741,7 @@ mod constructor {
         fn object_with_std_proto() -> ECMAScriptValue {
             let key = global_symbol("gpo_test".into());
             let objproto = intrinsic(IntrinsicId::ObjectPrototype);
-            create_data_property_or_throw(&objproto, key, "%ObjectPrototype%").unwrap();
+            objproto.create_data_property_or_throw(key, "%ObjectPrototype%").unwrap();
             ordinary_object_create(Some(objproto), &[]).into()
         }
 
@@ -756,7 +756,7 @@ mod constructor {
             match result {
                 ECMAScriptValue::Object(obj) => {
                     let key = global_symbol("gpo_test".into());
-                    let val = get(&obj, &key.into()).unwrap();
+                    let val = obj.get(&key.into()).unwrap();
                     if !val.is_string() {
                         Ok(obj.into())
                     } else {
@@ -830,10 +830,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(get(&o, &"length".into()).unwrap()).unwrap() as usize;
+                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = get(&o, &format!("{idx}").into()).unwrap();
+                        let val = o.get(&format!("{idx}").into()).unwrap();
                         result.push(val);
                     }
                     result
@@ -862,7 +862,7 @@ mod constructor {
 
         fn ordinary() -> ECMAScriptValue {
             let obj = ordinary_object_create(None, &[]);
-            create_data_property_or_throw(&obj, "sentinel", "tomato").unwrap();
+            obj.create_data_property_or_throw("sentinel", "tomato").unwrap();
             obj.into()
         }
 
@@ -876,7 +876,7 @@ mod constructor {
             let res = object_prevent_extensions(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
-                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+                Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
             }
         }
     }
@@ -899,7 +899,7 @@ mod constructor {
 
         fn ordinary() -> ECMAScriptValue {
             let obj = ordinary_object_create(None, &[]);
-            create_data_property_or_throw(&obj, "sentinel", "tomato").unwrap();
+            obj.create_data_property_or_throw("sentinel", "tomato").unwrap();
             obj.into()
         }
 
@@ -913,7 +913,7 @@ mod constructor {
             let res = object_seal(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
-                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+                Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
             }
         }
     }
@@ -925,7 +925,7 @@ mod constructor {
         fn sentinel_obj() -> ECMAScriptValue {
             let objproto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(objproto), &[]);
-            create_data_property_or_throw(&obj, "sentinel", "turtle").unwrap();
+            obj.create_data_property_or_throw("sentinel", "turtle").unwrap();
             obj.into()
         }
 
@@ -961,7 +961,7 @@ mod constructor {
                 object_set_prototype_of(ECMAScriptValue::Undefined, None, &[o, proto]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
-                Ok(o) => Ok(get(&o, &"sentinel".into()).unwrap()),
+                Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
             }
         }
     }
@@ -982,10 +982,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(get(&o, &"length".into()).unwrap()).unwrap() as usize;
+                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = get(&o, &format!("{idx}").into()).unwrap();
+                        let val = o.get(&format!("{idx}").into()).unwrap();
                         result.push(val);
                     }
                     result
@@ -1005,9 +1005,9 @@ mod get_own_property_keys {
     fn test_obj() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(obj_proto), &[]);
-        create_data_property_or_throw(&obj, "string_key", "blue").unwrap();
-        create_data_property_or_throw(&obj, "other_key", 892).unwrap();
-        create_data_property_or_throw(&obj, wks(WksId::ToStringTag), "awkward").unwrap();
+        obj.create_data_property_or_throw("string_key", "blue").unwrap();
+        obj.create_data_property_or_throw("other_key", 892).unwrap();
+        obj.create_data_property_or_throw(wks(WksId::ToStringTag), "awkward").unwrap();
         obj.into()
     }
 

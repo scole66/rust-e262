@@ -12,9 +12,9 @@ fn create_native_error_object_01() {
     let result = create_native_error_object(message, constructor, proto_id, None);
 
     assert!(result.o.is_error_object());
-    let msg_val = get(&result, &PropertyKey::from("message")).unwrap();
+    let msg_val = result.get(&PropertyKey::from("message")).unwrap();
     assert_eq!(msg_val, ECMAScriptValue::from(message));
-    let kind = get(&result, &PropertyKey::from("name")).unwrap();
+    let kind = result.get(&PropertyKey::from("name")).unwrap();
     assert_eq!(kind, ECMAScriptValue::from("RangeError"));
 }
 
@@ -25,8 +25,8 @@ fn create_type_error_object_01() {
     let result = create_type_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
@@ -39,8 +39,8 @@ fn create_type_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("TypeError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -52,8 +52,8 @@ fn create_eval_error_object_01() {
     let result = create_eval_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
@@ -66,8 +66,8 @@ fn create_eval_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("EvalError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -79,8 +79,8 @@ fn create_reference_error_object_01() {
     let result = create_reference_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn create_reference_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -106,8 +106,8 @@ fn create_range_error_object_01() {
     let result = create_range_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
@@ -120,8 +120,8 @@ fn create_range_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("RangeError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -136,12 +136,12 @@ fn create_syntax_error_object_01() {
     );
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
-    let loc_obj = Object::try_from(get(&result, &"location".into()).unwrap()).unwrap();
-    assert_eq!(get(&loc_obj, &"line".into()).unwrap(), ECMAScriptValue::from(10));
-    assert_eq!(get(&loc_obj, &"column".into()).unwrap(), ECMAScriptValue::from(5));
-    assert_eq!(get(&loc_obj, &"byte_length".into()).unwrap(), ECMAScriptValue::from(12));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    let loc_obj = Object::try_from(result.get(&"location".into()).unwrap()).unwrap();
+    assert_eq!(loc_obj.get(&"line".into()).unwrap(), ECMAScriptValue::from(10));
+    assert_eq!(loc_obj.get(&"column".into()).unwrap(), ECMAScriptValue::from(5));
+    assert_eq!(loc_obj.get(&"byte_length".into()).unwrap(), ECMAScriptValue::from(12));
 }
 
 #[test]
@@ -154,8 +154,8 @@ fn create_syntax_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -167,8 +167,8 @@ fn create_uri_error_object_01() {
     let result = create_uri_error_object("Happy Days");
 
     assert!(result.o.is_error_object());
-    assert_eq!(get(&result, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
-    assert_eq!(get(&result, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
+    assert_eq!(result.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
+    assert_eq!(result.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("Happy Days"));
 }
 
 #[test]
@@ -181,8 +181,8 @@ fn create_uri_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
-            assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+            assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("URIError"));
+            assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
 }
@@ -374,7 +374,7 @@ fn error_constructor_data_props() {
     setup_test_agent();
     let error_constructor = intrinsic(IntrinsicId::Error);
 
-    let val = get(&error_constructor, &PropertyKey::from("prototype")).unwrap();
+    let val = error_constructor.get(&PropertyKey::from("prototype")).unwrap();
     let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
     assert_eq!(val, ECMAScriptValue::from(error_prototype));
 }
@@ -389,8 +389,8 @@ fn error_constructor_function_01() {
     let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
-    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
@@ -404,7 +404,7 @@ fn error_constructor_function_02() {
 
     assert!(obj.o.is_error_object());
     assert!(!has_own_property(&obj, &PropertyKey::from("message")).unwrap());
-    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
@@ -417,8 +417,8 @@ fn error_constructor_function_03() {
     let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
-    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+    assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
@@ -458,14 +458,14 @@ fn error_prototype_data_props() {
     setup_test_agent();
     let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
 
-    let val = get(&error_prototype, &PropertyKey::from("constructor")).unwrap();
+    let val = error_prototype.get(&PropertyKey::from("constructor")).unwrap();
     let error_constructor = intrinsic(IntrinsicId::Error);
     assert_eq!(val, ECMAScriptValue::from(error_constructor));
 
-    let val = get(&error_prototype, &PropertyKey::from("message")).unwrap();
+    let val = error_prototype.get(&PropertyKey::from("message")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(""));
 
-    let val = get(&error_prototype, &PropertyKey::from("name")).unwrap();
+    let val = error_prototype.get(&PropertyKey::from("name")).unwrap();
     assert_eq!(val, ECMAScriptValue::from("Error"));
 }
 
@@ -599,7 +599,7 @@ fn error_prototype_tostring_10() {
 fn error_prototype_to_string_11() {
     setup_test_agent();
     let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
-    let func = get(&error_prototype, &PropertyKey::from("toString")).unwrap();
+    let func = error_prototype.get(&PropertyKey::from("toString")).unwrap();
 
     let result = call(&func, &ECMAScriptValue::Undefined, &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Error.prototype.toString called with non-object this value");
@@ -611,7 +611,7 @@ fn native_error_constructor_properties(id: IntrinsicId, expected_name: &str) {
 
     let proto = constructor.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(proto, intrinsic(IntrinsicId::Error));
-    let name = get(&constructor, &PropertyKey::from("name")).unwrap();
+    let name = constructor.get(&PropertyKey::from("name")).unwrap();
     assert_eq!(name, ECMAScriptValue::from(expected_name));
 }
 
@@ -650,13 +650,13 @@ fn native_error_prototype_properties(prototype: IntrinsicId, constructor: Intrin
     let proto_proto = prototype.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(proto_proto, error_prototype);
 
-    let cons = get(&prototype, &PropertyKey::from("constructor")).unwrap();
+    let cons = prototype.get(&PropertyKey::from("constructor")).unwrap();
     assert_eq!(cons, ECMAScriptValue::from(constructor));
 
-    let msg = get(&prototype, &PropertyKey::from("message")).unwrap();
+    let msg = prototype.get(&PropertyKey::from("message")).unwrap();
     assert_eq!(msg, ECMAScriptValue::from(""));
 
-    let myname = get(&prototype, &PropertyKey::from("name")).unwrap();
+    let myname = prototype.get(&PropertyKey::from("name")).unwrap();
     assert_eq!(myname, ECMAScriptValue::from(name));
 }
 
@@ -697,8 +697,8 @@ fn test_error_constructor(const_id: IntrinsicId, proto_id: IntrinsicId, name: &s
     let obj = to_object(objval).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert_eq!(get(&obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from(name));
-    assert_eq!(get(&obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("test message"));
+    assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from(name));
+    assert_eq!(obj.get(&PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("test message"));
     assert_eq!(obj.o.get_prototype_of().unwrap().unwrap(), proto);
 }
 

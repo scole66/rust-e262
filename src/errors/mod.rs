@@ -103,8 +103,11 @@ pub struct ErrorObject {
 }
 
 impl ErrorObject {
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, ERROR_OBJECT_SLOTS)) }
+    }
     pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ERROR_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 
@@ -326,9 +329,9 @@ pub fn error_prototype_tostring(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(o) = this_value {
-        let name_prop = get(&o, &PropertyKey::from("name"))?;
+        let name_prop = o.get(&PropertyKey::from("name"))?;
         let name = if name_prop.is_undefined() { JSString::from("Error") } else { to_string(name_prop)? };
-        let msg_prop = get(&o, &PropertyKey::from("message"))?;
+        let msg_prop = o.get(&PropertyKey::from("message"))?;
         let msg = if msg_prop.is_undefined() { JSString::from("") } else { to_string(msg_prop)? };
         if name.is_empty() {
             Ok(ECMAScriptValue::from(msg))

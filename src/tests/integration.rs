@@ -16,8 +16,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -43,8 +43,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -70,8 +70,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -97,8 +97,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 

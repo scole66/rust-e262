@@ -225,7 +225,7 @@ mod proxy_object {
             setup_test_agent();
             let po = make_po();
             po.o.get_prototype_of()
-                .map(|x| x.map(|obj| get(&obj, &"test_prop".into()).unwrap().test_result_string()))
+                .map(|x| x.map(|obj| obj.get(&"test_prop".into()).unwrap().test_result_string()))
                 .map_err(unwind_any_error)
         }
     }
@@ -253,7 +253,7 @@ mod proxy_object {
             let msg = match proto {
                 ECMAScriptValue::Null => String::from("saw null"),
                 ECMAScriptValue::Object(p) => {
-                    let obj_id = get(&p, &"test_prop".into()).unwrap().test_result_string();
+                    let obj_id = p.get(&"test_prop".into()).unwrap().test_result_string();
                     format!("saw {obj_id}")
                 }
                 _ => {
@@ -350,7 +350,7 @@ mod proxy_object {
             po.o.set_prototype_of(proto).map_err(unwind_any_error).map(|b| {
                 (b, {
                     let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                    get(&handler, &"callback_message".into()).unwrap().test_result_string()
+                    handler.get(&"callback_message".into()).unwrap().test_result_string()
                 })
             })
         }
@@ -364,9 +364,9 @@ mod proxy_object {
             assert_eq!(arguments.len(), 1);
             let mut args = FuncArgs::from(arguments);
             let target = Object::try_from(args.next_arg()).unwrap();
-            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            assert_eq!(target.get(&"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
             let handler = Object::try_from(this_value).unwrap();
-            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+            assert_eq!(handler.get(&"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
         }
 
         // Handler behaviors
@@ -448,7 +448,7 @@ mod proxy_object {
             po.o.is_extensible().map_err(unwind_any_error).map(|b| {
                 (b, {
                     let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                    get(&handler, &"callback_message".into()).unwrap().test_result_string()
+                    handler.get(&"callback_message".into()).unwrap().test_result_string()
                 })
             })
         }
@@ -462,9 +462,9 @@ mod proxy_object {
             assert_eq!(arguments.len(), 1);
             let mut args = FuncArgs::from(arguments);
             let target = Object::try_from(args.next_arg()).unwrap();
-            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            assert_eq!(target.get(&"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
             let handler = Object::try_from(this_value).unwrap();
-            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+            assert_eq!(handler.get(&"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
         }
 
         // Handler behaviors
@@ -565,7 +565,7 @@ mod proxy_object {
             po.o.prevent_extensions().map_err(unwind_any_error).map(|b| {
                 (b, {
                     let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                    get(&handler, &"callback_message".into()).unwrap().test_result_string()
+                    handler.get(&"callback_message".into()).unwrap().test_result_string()
                 })
             })
         }
@@ -578,11 +578,11 @@ mod proxy_object {
             assert_eq!(arguments.len(), 2);
             let mut args = FuncArgs::from(arguments);
             let target = Object::try_from(args.next_arg()).unwrap();
-            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            assert_eq!(target.get(&"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
             let key = String::from(JSString::try_from(args.next_arg()).unwrap());
             assert_eq!(key, "test_key");
             let handler = Object::try_from(this_value).unwrap();
-            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+            assert_eq!(handler.get(&"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
         }
 
         // Handler behaviors
@@ -861,7 +861,7 @@ mod proxy_object {
                         .unwrap_or_else(|| "undefined".to_string()),
                     {
                         let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                        get(&handler, &"callback_message".into()).unwrap().test_result_string()
+                        handler.get(&"callback_message".into()).unwrap().test_result_string()
                     },
                 )
             })
@@ -876,12 +876,12 @@ mod proxy_object {
             assert_eq!(arguments.len(), 3);
             let mut args = FuncArgs::from(arguments);
             let target = Object::try_from(args.next_arg()).unwrap();
-            assert_eq!(get(&target, &"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
+            assert_eq!(target.get(&"test_marker".into()).unwrap(), ECMAScriptValue::from("target object"));
             let key = String::from(JSString::try_from(args.next_arg()).unwrap());
             assert_eq!(key, "test_key");
             let _descriptor_obj = Object::try_from(args.next_arg()).unwrap();
             let handler = Object::try_from(this_value).unwrap();
-            assert_eq!(get(&handler, &"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
+            assert_eq!(handler.get(&"callback_message".into()).unwrap(), ECMAScriptValue::from("not called"));
         }
 
         // Property descriptor factories
@@ -1156,9 +1156,9 @@ mod proxy_object {
                 };
                 (
                     b,
-                    get(&handler, &"callback_message".into()).unwrap().test_result_string(),
-                    get(&handler, &"observed_key".into()).unwrap().test_result_string(),
-                    get(&handler, &"observed_descriptor".into()).unwrap().test_result_string(),
+                    handler.get(&"callback_message".into()).unwrap().test_result_string(),
+                    handler.get(&"observed_key".into()).unwrap().test_result_string(),
+                    handler.get(&"observed_descriptor".into()).unwrap().test_result_string(),
                     {
                         from_property_descriptor(target.o.get_own_property(&"test_key".into()).unwrap())
                             .map(|pd| ECMAScriptValue::from(pd).test_result_string())
@@ -1338,8 +1338,8 @@ mod proxy_object {
             let key = &"test_key".into();
             po.o.has_property(key).map_err(unwind_any_error).map(|b| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                let message = get(&handler, &"callback_message".into()).unwrap();
-                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                let message = handler.get(&"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
                     _ => array_create(0, None).unwrap(),
                 });
@@ -1543,8 +1543,8 @@ mod proxy_object {
             });
             po.o.get(key, &receiver).map_err(unwind_any_error).map(|v| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                let message = get(&handler, &"callback_message".into()).unwrap();
-                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                let message = handler.get(&"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
                     _ => array_create(0, None).unwrap(),
                 });
@@ -1751,8 +1751,8 @@ mod proxy_object {
             let value = "test_value".into();
             po.o.set(key, value, &receiver).map_err(unwind_any_error).map(|v| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                let message = get(&handler, &"callback_message".into()).unwrap();
-                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                let message = handler.get(&"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
                     _ => array_create(0, None).unwrap(),
                 });
@@ -1934,8 +1934,8 @@ mod proxy_object {
             let key = &"test_key".into();
             po.o.delete(key).map_err(unwind_any_error).map(|v| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                let message = get(&handler, &"callback_message".into()).unwrap();
-                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                let message = handler.get(&"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
                     _ => array_create(0, None).unwrap(),
                 });
@@ -2191,8 +2191,8 @@ mod proxy_object {
             let po = make_po();
             po.o.own_property_keys().map_err(unwind_any_error).map(|v| {
                 let handler = po.o.to_proxy_object().unwrap().proxy_handler.clone().unwrap();
-                let message = get(&handler, &"callback_message".into()).unwrap();
-                let arguments = ECMAScriptValue::from(match get(&handler, &"arguments".into()).unwrap() {
+                let message = handler.get(&"callback_message".into()).unwrap();
+                let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
                     _ => array_create(0, None).unwrap(),
                 });

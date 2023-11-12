@@ -581,14 +581,14 @@ mod agent {
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
                     .unwrap()
             });
-            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            assert_eq!(ao.get(&"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
+                assert_eq!(&ao.get(&idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let type_error_generator = intrinsic(IntrinsicId::ThrowTypeError);
             let iterator_sym = super::super::wks(WksId::Iterator);
-            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(ao.get(&iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             let callee = ao.o.get_own_property(&"callee".into()).unwrap().unwrap();
             assert_eq!(
                 callee.property,
@@ -679,14 +679,14 @@ mod agent {
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
                     .unwrap()
             });
-            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            assert_eq!(ao.get(&"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
+                assert_eq!(&ao.get(&idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let iterator_sym = super::super::wks(WksId::Iterator);
-            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
-            assert_eq!(get(&ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
+            assert_eq!(ao.get(&iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(ao.get(&"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
         }
 
         #[test]
@@ -761,7 +761,7 @@ mod agent {
             }
 
             for (idx, (name, value)) in zip(names, values).enumerate() {
-                let val = get(&ao, &idx.into()).unwrap();
+                let val = ao.get(&idx.into()).unwrap();
                 assert_eq!(&val, value);
                 set(&ao, idx.into(), (idx as u32).into(), true).unwrap();
                 let val = lex.get_binding_value(name, true).unwrap();
@@ -1515,7 +1515,7 @@ mod begin_call_evaluation {
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let my_this = match this_value {
-            ECMAScriptValue::Object(o) => get(&o, &"marker".into()).unwrap(),
+            ECMAScriptValue::Object(o) => o.get(&"marker".into()).unwrap(),
             _ => this_value,
         };
         let this_repr = String::from(to_string(my_this).unwrap());
@@ -1556,7 +1556,7 @@ mod begin_call_evaluation {
     fn with_env() -> NormalCompletion {
         let objproto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(objproto), &[]);
-        create_data_property_or_throw(&obj, "marker", "with-object").unwrap();
+        obj.create_data_property_or_throw("marker", "with-object").unwrap();
         let we = ObjectEnvironmentRecord::new(obj, true, None, "with_env test");
         Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
     }
@@ -1699,12 +1699,12 @@ mod for_in_iterator_prototype_next {
 
     fn make_busy_object() -> ECMAScriptValue {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        create_data_property_or_throw(&object_proto, "proto_prop", 67).unwrap();
-        create_data_property_or_throw(&object_proto, "masked", 0).unwrap();
+        object_proto.create_data_property_or_throw("proto_prop", 67).unwrap();
+        object_proto.create_data_property_or_throw("masked", 0).unwrap();
         let object = ordinary_object_create(Some(object_proto), &[]);
-        create_data_property_or_throw(&object, "on_object", 999).unwrap();
-        create_data_property_or_throw(&object, wks(WksId::ToStringTag), "TestObject").unwrap();
-        create_data_property_or_throw(&object, "masked", 99).unwrap();
+        object.create_data_property_or_throw("on_object", 999).unwrap();
+        object.create_data_property_or_throw(wks(WksId::ToStringTag), "TestObject").unwrap();
+        object.create_data_property_or_throw("masked", 99).unwrap();
         create_for_in_iterator(object).into()
     }
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
@@ -1729,8 +1729,8 @@ mod for_in_iterator_prototype_next {
             get_own_property_override: Some(gop_failure),
             ..Default::default()
         });
-        create_data_property_or_throw(&o, "sequoia", 0).unwrap();
-        create_data_property_or_throw(&o, "primed", true).unwrap();
+        o.create_data_property_or_throw("sequoia", 0).unwrap();
+        o.create_data_property_or_throw("primed", true).unwrap();
         create_for_in_iterator(o).into()
     }
 

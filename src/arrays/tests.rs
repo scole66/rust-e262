@@ -240,7 +240,7 @@ mod array_object {
         ) -> Completion<ECMAScriptValue> {
             // The value 320 the first time, errors thrown all other times.
             let this: Object = this_value.try_into().unwrap();
-            let previous = get(&this, &"has_already_run".into()).unwrap();
+            let previous = this.get(&"has_already_run".into()).unwrap();
             match previous {
                 ECMAScriptValue::Undefined => {
                     set(&this, "has_already_run".into(), true.into(), true).unwrap();
@@ -507,7 +507,7 @@ fn array_create() {
     let custom_proto = ordinary_object_create(Some(array_proto), &[]);
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
-    assert_eq!(get(&aobj, &"length".into()).unwrap(), ECMAScriptValue::from(231.0));
+    assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
     assert!(aobj.is_array().unwrap())
 }
 
@@ -858,7 +858,7 @@ mod key_value_kind {
 #[test_case(|| {
                    let obj = ordinary_object_create(None, &[]);
                    let sym = wks(WksId::Unscopables);
-                   create_data_property_or_throw(&obj, "length", sym).unwrap();
+                   obj.create_data_property_or_throw("length", sym).unwrap();
                    ECMAScriptValue::from(obj)
                },
             || ECMAScriptValue::Undefined
@@ -994,7 +994,7 @@ mod array_iterator {
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let obj = to_object(this_value.clone())?;
-        let so_far = get(&obj, &"called_count".into())?;
+        let so_far = obj.get(&"called_count".into())?;
         let so_far = if so_far.is_undefined() { 0.0 } else { to_number(so_far)? };
 
         let result = if so_far < 3.0 {
@@ -1067,11 +1067,11 @@ mod array_constructor_function {
             .map_err(unwind_any_error)?;
         let array = Object::try_from(array).unwrap();
         let mut result = vec![];
-        let length = f64::try_from(get(&array, &"length".into()).unwrap()).unwrap();
+        let length = f64::try_from(array.get(&"length".into()).unwrap()).unwrap();
 
         for x in 0..(length as usize) {
             let pk = format!("{x}");
-            let item = get(&array, &pk.into()).unwrap();
+            let item = array.get(&pk.into()).unwrap();
             result.push(item);
         }
 

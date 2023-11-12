@@ -1228,7 +1228,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let obj = Object::try_from(nc_obj).unwrap();
                     let name = PropertyKey::try_from(nc_name).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    create_data_property_or_throw(&obj, name, value).unwrap();
+                    obj.create_data_property_or_throw(name, value).unwrap();
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
                 }
                 Insn::SetPrototype => {
@@ -1840,12 +1840,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     match next_value {
                                         Err(e) => break Err(e),
                                         Ok(next_value) => {
-                                            create_data_property_or_throw(
-                                                &array,
-                                                to_string(next_index).expect("numbers should be stringable"),
-                                                next_value,
-                                            )
-                                            .expect("props should store ok");
+                                            array
+                                                .create_data_property_or_throw(
+                                                    to_string(next_index).expect("numbers should be stringable"),
+                                                    next_value,
+                                                )
+                                                .expect("props should store ok");
                                             next_index += 1;
                                         }
                                     }
@@ -2066,7 +2066,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                 Ok(Some(next)) => {
                                     match iterator_value(&next) {
                                         Ok(next_value) => {
-                                            create_data_property_or_throw(&a, format!("{n}"), next_value)
+                                            a.create_data_property_or_throw(format!("{n}"), next_value)
                                                 .expect("array property set should work");
                                             n += 1;
                                         }
@@ -2232,7 +2232,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     )
                     .expect("That value should be an object");
                     let iterator = create_for_in_iterator(obj);
-                    let next = Object::try_from(get(&iterator, &"next".into()).expect("next method should exist"))
+                    let next = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
                         .expect("next method should be an object");
                     let ir = IteratorRecord { iterator, next_method: next, done: Cell::new(false) };
                     ec_push(Ok(NormalCompletion::from(ir)));
@@ -3052,7 +3052,7 @@ pub fn create_unmapped_arguments_object(index: usize) {
     for (arg_number, item) in arguments.into_iter().enumerate() {
         let value =
             ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
-        create_data_property_or_throw(&obj, arg_number, value).expect("Normal Object");
+        obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
     }
 
     let iterator = wks(WksId::Iterator);
@@ -3106,7 +3106,7 @@ pub fn create_mapped_arguments_object(index: usize) {
 
     for (idx, item) in arguments.into_iter().enumerate() {
         let val = ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
-        create_data_property_or_throw(&ao, idx, val).expect("ArgumentObject won't throw");
+        ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
     }
 
     define_property_or_throw(
@@ -3570,18 +3570,19 @@ pub struct ForInIteratorObject {
 }
 
 impl ForInIteratorObject {
-    fn object(proto: Option<Object>, obj: Object) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
-                internals: RefCell::new(ForInIteratorInternals {
-                    object: obj,
-                    object_was_visited: false,
-                    visited_keys: Vec::new(),
-                    remaining_keys: Vec::new(),
-                }),
+    pub fn new(proto: Option<Object>, obj: Object) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
+            internals: RefCell::new(ForInIteratorInternals {
+                object: obj,
+                object_was_visited: false,
+                visited_keys: Vec::new(),
+                remaining_keys: Vec::new(),
             }),
         }
+    }
+    fn object(proto: Option<Object>, obj: Object) -> Object {
+        Object { o: Rc::new(Self::new(proto, obj)) }
     }
 }
 

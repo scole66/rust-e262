@@ -147,13 +147,14 @@ impl BooleanObjectInterface for BooleanObject {
 }
 
 impl BooleanObject {
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)),
-                boolean_data: RefCell::new(false),
-            }),
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)),
+            boolean_data: RefCell::new(false),
         }
+    }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 
