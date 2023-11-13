@@ -2,10 +2,14 @@ use super::*;
 use counter::Counter;
 
 #[derive(Debug)]
+pub struct ProxyItems {
+    pub proxy_handler: Object,
+    pub proxy_target: Object,
+}
+#[derive(Debug)]
 pub struct ProxyObject {
     common: RefCell<CommonObjectData>,
-    pub proxy_handler: Option<Object>,
-    pub proxy_target: Option<Object>,
+    pub proxy_items: Option<ProxyItems>,
 }
 
 impl ObjectInterface for ProxyObject {
@@ -52,9 +56,9 @@ impl ObjectInterface for ProxyObject {
         // * The result of [[GetPrototypeOf]] must be either an Object or null.
         // * If the target object is not extensible, [[GetPrototypeOf]] applied to the Proxy object must
         //   return the same value as [[GetPrototypeOf]] applied to the Proxy object's target object.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("target is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"getPrototypeOf".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get_prototype_of();
@@ -108,9 +112,9 @@ impl ObjectInterface for ProxyObject {
         // * The result of [[SetPrototypeOf]] is a Boolean value.
         // * If the target object is not extensible, the argument value must be the same as the result of
         //   [[GetPrototypeOf]] applied to target object.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"setPrototypeOf".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.set_prototype_of(v);
@@ -163,9 +167,9 @@ impl ObjectInterface for ProxyObject {
         // * The result of [[IsExtensible]] is a Boolean value.
         // * [[IsExtensible]] applied to the Proxy object must return the same value as [[IsExtensible]]
         //   applied to the Proxy object's target object with the same argument.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"isExtensible".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.is_extensible();
@@ -203,9 +207,9 @@ impl ObjectInterface for ProxyObject {
         //  * The result of [[PreventExtensions]] is a Boolean value.
         //  * [[PreventExtensions]] applied to the Proxy object only returns true if [[IsExtensible]] applied
         //    to the Proxy object's target object is false.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"preventExtensions".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.prevent_extensions();
@@ -270,9 +274,9 @@ impl ObjectInterface for ProxyObject {
         //    property of the target object.
         //  * A property cannot be reported as both non-configurable and non-writable, unless it exists as a
         //    non-configurable, non-writable own property of the target object.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"getOwnPropertyDescriptor".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get_own_property(key);
@@ -369,9 +373,9 @@ impl ObjectInterface for ProxyObject {
         //    non-configurable, non-writable own property of the target object.
         //  * If a property has a corresponding target object property then applying the Property Descriptor
         //    of the property to the target object using [[DefineOwnProperty]] will not throw an exception.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"defineProperty".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.define_own_property(key, desc);
@@ -453,9 +457,9 @@ impl ObjectInterface for ProxyObject {
         //    of the target object.
         //  * A property cannot be reported as non-existent, if it exists as an own property of the target
         //    object and the target object is not extensible.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"has".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.has_property(key);
@@ -504,9 +508,9 @@ impl ObjectInterface for ProxyObject {
         //    property.
         //  * The value reported for a property must be undefined if the corresponding target object property
         //    is a non-configurable own accessor property that has undefined as its [[Get]] attribute.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"get".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get(key, receiver);
@@ -569,9 +573,9 @@ impl ObjectInterface for ProxyObject {
         //    property.
         //  * Cannot set the value of a property if the corresponding target object property is a non-configurable own
         //    accessor property that has undefined as its [[Set]] attribute.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"set".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.set(key, value, receiver);
@@ -635,9 +639,9 @@ impl ObjectInterface for ProxyObject {
         //    object.
         //  * A property cannot be reported as deleted, if it exists as an own property of the target object and the
         //    target object is non-extensible.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"deleteProperty".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.delete(key);
@@ -714,9 +718,9 @@ impl ObjectInterface for ProxyObject {
         //  * The result List must contain the keys of all non-configurable own properties of the target object.
         //  * If the target object is not extensible, then the result List must contain all the keys of the own
         //    properties of the target object and no other values.
-        self.validate_non_revoked()?;
-        let target = self.proxy_target.as_ref().expect("proxy is not revoked");
-        let handler = ECMAScriptValue::from(self.proxy_handler.as_ref().expect("handler is an object"));
+        let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
+        let target = &proxy_target;
+        let handler = ECMAScriptValue::from(proxy_handler);
         let trap = get_method(&handler, &"ownKeys".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.own_property_keys();
@@ -787,7 +791,7 @@ impl ObjectInterface for ProxyObject {
 }
 
 impl ProxyObject {
-    pub fn validate_non_revoked(&self) -> Completion<()> {
+    pub fn validate_non_revoked(&self) -> Completion<(Object, Object)> {
         // ValidateNonRevokedProxy ( proxy )
         // The abstract operation ValidateNonRevokedProxy takes argument proxy (a Proxy exotic object) and
         // returns either a normal completion containing UNUSED or a throw completion. It throws a TypeError
@@ -796,20 +800,17 @@ impl ProxyObject {
         //  1. If proxy.[[ProxyTarget]] is null, throw a TypeError exception.
         //  2. Assert: proxy.[[ProxyHandler]] is not null.
         //  3. Return UNUSED.
-        if self.proxy_target.is_none() {
-            Err(create_type_error("Proxy has been revoked"))
-        } else {
-            assert!(self.proxy_handler.is_some());
-            Ok(())
+        match &self.proxy_items {
+            None => Err(create_type_error("Proxy has been revoked")),
+            Some(items) => Ok((items.proxy_target.clone(), items.proxy_handler.clone())),
         }
     }
 
-    pub fn object(target: Option<Object>, handler: Option<Object>) -> Object {
+    pub fn object(target_and_handler: Option<(Object, Object)>) -> Object {
         Object {
             o: Rc::new(Self {
                 common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-                proxy_handler: handler,
-                proxy_target: target,
+                proxy_items: target_and_handler.map(|(t, h)| ProxyItems { proxy_handler: h, proxy_target: t }),
             }),
         }
     }
