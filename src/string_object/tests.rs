@@ -594,9 +594,9 @@ mod provision_string_intrinsic {
         let proto = intrinsic(IntrinsicId::StringPrototype);
         let val = proto.get(&key).unwrap();
         assert!(is_callable(&val));
-        let name = getv(&val, &"name".into()).unwrap();
+        let name = val.get(&"name".into()).unwrap();
         let name = to_string(name).unwrap();
-        let length = getv(&val, &"length".into()).unwrap();
+        let length = val.get(&"length".into()).unwrap();
         let length = to_string(length).unwrap();
         format!("{};{}", String::from(name), length)
     }
@@ -646,9 +646,9 @@ mod provision_string_intrinsic {
         let cstr = intrinsic(IntrinsicId::String);
         let val = cstr.get(&key).unwrap();
         assert!(is_callable(&val));
-        let name = getv(&val, &"name".into()).unwrap();
+        let name = val.get(&"name".into()).unwrap();
         let name = to_string(name).unwrap();
-        let length = getv(&val, &"length".into()).unwrap();
+        let length = val.get(&"length".into()).unwrap();
         let length = to_string(length).unwrap();
         format!("{};{}", String::from(name), length)
     }

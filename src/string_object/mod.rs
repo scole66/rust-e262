@@ -192,6 +192,13 @@ pub fn create_string_object(s: JSString) -> Object {
 }
 
 impl StringObject {
+    pub fn new(value: JSString, prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
+            string_data: RefCell::new(value),
+        }
+    }
+
     pub fn object(value: JSString, prototype: Option<Object>) -> Object {
         // StringCreate ( value, prototype )
         //
@@ -210,12 +217,7 @@ impl StringObject {
         //    [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
         let length = value.len() as f64;
-        let s = Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
-                string_data: RefCell::new(value),
-            }),
-        };
+        let s = Object { o: Rc::new(Self::new(value, prototype)) };
         define_property_or_throw(
             &s,
             "length",

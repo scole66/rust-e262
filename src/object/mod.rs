@@ -783,7 +783,9 @@ pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ohp_internal(o.into(), p)
+}
+fn ohp_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Completion<bool> {
     let has_own = obj.get_own_property(p)?;
     match has_own {
         Some(_) => Ok(true),
@@ -817,7 +819,10 @@ pub fn ordinary_get<'a, T>(o: T, p: &PropertyKey, receiver: &ECMAScriptValue) ->
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    og_internal(o.into(), p, receiver)
+}
+
+fn og_internal(obj: &dyn ObjectInterface, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
     let pot_desc = obj.get_own_property(p)?;
     match pot_desc {
         None => {
@@ -836,23 +841,6 @@ where
                     getter => call(&getter, receiver, &[]),
                 }
             }
-        },
-    }
-}
-
-pub fn get_agentless(o: &Object, p: &PropertyKey) -> Option<ECMAScriptValue> {
-    let desc = ordinary_get_own_property(o, p);
-    match desc {
-        None => {
-            let parent = ordinary_get_prototype_of(o);
-            match parent {
-                None => None,
-                Some(parent) => get_agentless(&parent, p),
-            }
-        }
-        Some(desc) => match desc.property {
-            PropertyKind::Data(data_fields) => Some(data_fields.value),
-            PropertyKind::Accessor(_) => None,
         },
     }
 }
@@ -1755,19 +1743,28 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
     }
 }
 
-// GetV ( V, P )
-//
-// The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is used to
-// retrieve the value of a specific property of an ECMAScript language value. If the value is not an object, the
-// property lookup is performed using a wrapper object appropriate for the type of the value. It performs the following
-// steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. Let O be ? ToObject(V).
-//  3. Return ? O.[[Get]](P, V).
-pub fn getv(v: &ECMAScriptValue, p: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let o = to_object(v.clone())?;
-    o.o.get(p, v)
+impl ECMAScriptValue {
+    /// Convert a value to an object, and then do a property lookup
+    ///
+    /// This is useful for things like `"str".length`, which takes the value `"str"`, promotes it to an object, and then
+    /// returns the `length` property. It's also useful if you have an object in a value, and just want to do lookups
+    /// without needing to do the to-object conversion.
+    ///
+    /// See [GetV](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-get) from ECMA-262.
+    pub fn get(&self, p: &PropertyKey) -> Completion<ECMAScriptValue> {
+        // GetV ( V, P )
+        //
+        // The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is
+        // used to retrieve the value of a specific property of an ECMAScript language value. If the value is not an
+        // object, the property lookup is performed using a wrapper object appropriate for the type of the value. It
+        // performs the following steps when called:
+        //
+        //  1. Assert: IsPropertyKey(P) is true.
+        //  2. Let O be ? ToObject(V).
+        //  3. Return ? O.[[Get]](P, V).
+        let o = to_object(self.clone())?;
+        o.o.get(p, self)
+    }
 }
 
 // Set ( O, P, V, Throw )
@@ -1847,7 +1844,7 @@ fn internal_define_property_or_throw(
 //  4. If IsCallable(func) is false, throw a TypeError exception.
 //  5. Return func.
 pub fn get_method(val: &ECMAScriptValue, key: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let func = getv(val, key)?;
+    let func = val.get(key)?;
     if func.is_undefined() || func.is_null() {
         Ok(ECMAScriptValue::Undefined)
     } else if !is_callable(&func) {
@@ -2164,7 +2161,7 @@ pub fn create_list_from_array_like(
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
 pub fn invoke(v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    let func = getv(&v, p)?;
+    let func = v.get(p)?;
     call(&func, &v, arguments_list)
 }
 

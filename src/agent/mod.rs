@@ -2216,7 +2216,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         ec_pop().expect("should be 2 arguments").expect("should not be errors"),
                     )
                     .expect("arg should be value");
-                    let result = getv(&base_val, &prop_name).map(NormalCompletion::from);
+                    let result = base_val.get(&prop_name).map(NormalCompletion::from);
                     ec_push(result);
                 }
                 Insn::EnumerateObjectProperties => {

@@ -976,8 +976,8 @@ mod array_iterator {
                         result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
                     } else {
                         let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
-                        let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
-                        let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
+                        let left = pair.get(&"0".into()).map_err(unwind_any_error)?;
+                        let right = pair.get(&"1".into()).map_err(unwind_any_error)?;
                         result.push(left);
                         result.push(right);
                     }

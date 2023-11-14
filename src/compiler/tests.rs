@@ -8657,7 +8657,7 @@ mod assignment_property {
     ]), true)); "id: ref")]
     #[test_case("a=@@@", true, &[] => serr("out of range integral type conversion attempted"); "id: izer jump too far")]
     #[test_case("a", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "id: no float space")]
-    #[test_case("a=@@(14)", true, &[] => serr("out of range integral type conversion attempted"); "id: getv jump too far")]
+    #[test_case("a=@@(14)", true, &[] => serr("out of range integral type conversion attempted"); "id: get jump too far")]
     #[test_case("a=@@(23)", true, &[] => serr("out of range integral type conversion attempted"); "id: resolve jump too far")]
     #[test_case("a:b", true, &[] => Ok((svec(&[
         "DUP",

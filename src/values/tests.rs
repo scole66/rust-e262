@@ -1931,7 +1931,7 @@ mod option_object {
     fn validate_marker(res: Result<Option<Object>, String>) {
         let oo = res.unwrap();
         let obj = oo.unwrap();
-        let property = get_agentless(&obj, &PropertyKey::from("marker")).unwrap();
+        let property = obj.get(&PropertyKey::from("marker")).unwrap();
         assert_eq!(property, ECMAScriptValue::from("sentinel"));
     }
 
