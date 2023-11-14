@@ -1112,7 +1112,7 @@ mod fcn_def {
 
         part.instantiate_function_object(env, None, true, &src)
             .map_err(|err| err.to_string())
-            .map(|value| getv(&value, &"name".into()).unwrap().to_string())
+            .map(|value| value.get(&"name".into()).unwrap().to_string())
     }
 }
 

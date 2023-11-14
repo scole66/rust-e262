@@ -513,6 +513,12 @@ test_defs[define_property_or_throw]="define_property_or_throw define_property_or
 test_defs[idpot]="internal_define_property_or_throw define_property_or_throw object"
 test_defs[validate_and_apply_property_descriptor]="validate_and_apply_property_descriptor validate_and_apply_property_descriptor object"
 test_defs[ivaapd]="internal_validate_and_apply_property_descriptor validate_and_apply_property_descriptor object"
+test_defs[ordinary_has_property]="ordinary_has_property ordinary_has_property object"
+test_defs[ohp_internal]="ohp_internal ordinary_has_property object"
+test_defs[ordinary_get]="ordinary_get ordinary_get:: object"
+test_defs[og_internal]="og_internal ordinary_get:: object"
+test_defs[DataDescriptor]="DataDescriptor data_descriptor object"
+test_defs[getv]="values::ECMAScriptValue::get ecmascriptvalue_get object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"

@@ -1441,104 +1441,113 @@ fn validate_and_apply_property_descriptor_many() {
     }
 }
 
-#[test]
-fn ordinary_has_property_01() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
-    let initial = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(true)),
-        writable: Some(true),
-        configurable: Some(true),
-        enumerable: Some(true),
-        ..Default::default()
-    };
-    let key = PropertyKey::from("a");
-    define_property_or_throw(&obj, key.clone(), initial).unwrap();
-    let key2 = PropertyKey::from("b");
-    let key3 = PropertyKey::from("toString");
+mod ordinary_has_property {
+    use super::*;
+    use test_case::test_case;
 
-    // own property
-    let result = ordinary_has_property(&obj, &key).unwrap();
-    assert!(result);
+    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Undefined)
+    }
 
-    // property not there
-    let result = ordinary_has_property(&obj, &key2).unwrap();
-    assert!(!result);
+    fn setup<O>(obj: O) -> (O, PropertyKey)
+    where
+        O: ObjectInterface,
+    {
+        let key = PropertyKey::from("test_key");
+        let ppd =
+            PotentialPropertyDescriptor::new().value("test string").writable(true).enumerable(true).configurable(true);
+        obj.define_own_property(key.clone(), ppd).unwrap();
+        (obj, key)
+    }
 
-    // parent property
-    let result = ordinary_has_property(&obj, &key3).unwrap();
-    assert!(result);
+    #[test_case(
+        || (TestObject::object(&[FunctionId::GetOwnProperty(Some("test_key".into()))]), PropertyKey::from("test_key"))
+        => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+        "GetOwnProperty fails"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let obj = ordinary_object_create(Some(proto), &[]);
+            (obj, PropertyKey::from("not_actually_a_key"))
+        }
+        => Ok(false);
+        "Property not there, with prototype chain"
+    )]
+    #[test_case(
+        || (TestObject::object(&[FunctionId::GetPrototypeOf]), PropertyKey::from("test_key"))
+        => serr("TypeError: [[GetPrototypeOf]] called on TestObject");
+        "GetPrototypeOf fails"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            set(&obj, PropertyKey::from("test_key"), "value".into(), true).unwrap();
+            (obj, PropertyKey::from("test_key"))
+        }
+        => Ok(true);
+        "Property exists"
+    )]
+    #[test_case(|| setup(NumberObject::new(None)) => Ok(true); "using NumberObject")]
+    #[test_case(
+        || setup(ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object)))
+        => Ok(true);
+        "using ForInIteratorObject"
+    )]
+    #[test_case(
+        || setup(GeneratorObject::new(None, GeneratorState::Undefined, ""))
+        => Ok(true);
+        "using GeneratorObject"
+    )]
+    #[test_case(|| setup(OrdinaryObject::new(None, true)) => Ok(true); "using OrdinaryObject")]
+    #[test_case(|| setup(ArrayObject::new(None)) => Ok(true); "using ArrayObject")]
+    #[test_case(|| setup(BooleanObject::new(None)) => Ok(true); "using BooleanObject")]
+    #[test_case(|| setup(SymbolObject::new(None)) => Ok(true); "using SymbolObject")]
+    #[test_case(
+        || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, false))
+        => Ok(true);
+        "using BuiltInFunctionObject"
+    )]
+    #[test_case(|| setup(TestObject::new(None, &[])) => Ok(true); "using TestObject")]
+    #[test_case(|| setup(ErrorObject::new(None)) => Ok(true); "using ErrorObject")]
+    #[test_case(|| setup(ArgumentsObject::new(None, None)) => Ok(true); "using ArgumentsObject")]
+    #[test_case(|| setup(AdaptableObject::new(None, AdaptableMethods{..Default::default()})) => Ok(true); "using AdaptableObject")]
+    #[test_case(|| setup(StringObject::new("".into(), None)) => Ok(true); "using StringObject")]
+    #[test_case(
+        || {
+            setup(FunctionObject::new(
+                None,
+                current_realm_record().unwrap().borrow().global_env.clone().unwrap(),
+                None,
+                ParamSource::FormalParameters(Maker::new("").formal_parameters()),
+                BodySource::Function(Maker::new("{}").function_body()),
+                ConstructorKind::Base,
+                current_realm_record().unwrap(),
+                None,
+                ThisMode::Lexical,
+                true,
+                None,
+                "",
+                vec![],
+                vec![],
+                ClassName::Empty,
+                false,
+                Rc::new(Chunk::new("test"))
+            ))
+        }
+        => Ok(true);
+        "using FunctionObject"
+    )]
+    fn t<O>(make_items: impl FnOnce() -> (O, PropertyKey)) -> Result<bool, String>
+    where
+        for<'a> &'a O: Into<&'a dyn ObjectInterface>,
+    {
+        setup_test_agent();
+        let (obj, key) = make_items();
+        ordinary_has_property(&obj, &key).map_err(unwind_any_error)
+    }
 }
-#[test]
-fn ordinary_has_property_02() {
-    // [[GetOwnProperty]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::GetOwnProperty(None)]);
-    let key = PropertyKey::from("a");
 
-    let result = ordinary_has_property(&obj, &key).unwrap_err();
-    assert_eq!(unwind_type_error(result), "[[GetOwnProperty]] called on TestObject");
-}
-#[test]
-fn ordinary_has_property_03() {
-    // [GetPrototypeOf]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::GetPrototypeOf]);
-    let key = PropertyKey::from("a");
-
-    let result = ordinary_has_property(&obj, &key).unwrap_err();
-    assert_eq!(unwind_type_error(result), "[[GetPrototypeOf]] called on TestObject");
-}
-
-#[test]
-fn ordinary_get_01() {
-    // [[GetOwnProperty]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::GetOwnProperty(None)]);
-    let key = PropertyKey::from("a");
-
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::Undefined).unwrap_err();
-    assert_eq!(unwind_type_error(result), "[[GetOwnProperty]] called on TestObject");
-}
-#[test]
-fn ordinary_get_02() {
-    // [[GetPrototypeOf]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::GetPrototypeOf]);
-    let key = PropertyKey::from("a");
-
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::Undefined).unwrap_err();
-    assert_eq!(unwind_type_error(result), "[[GetPrototypeOf]] called on TestObject");
-}
-#[test]
-fn ordinary_get_03() {
-    // Top of the prototype chain
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-    let key = PropertyKey::from("a");
-
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::Undefined).unwrap();
-    assert_eq!(result, ECMAScriptValue::Undefined);
-}
-#[test]
-fn ordinary_get_04() {
-    // Normal data property
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-    let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(0)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    define_property_or_throw(&obj, key.clone(), initial).unwrap();
-
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::Undefined).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(0));
-}
 fn test_getter(
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1550,89 +1559,171 @@ fn test_getter(
     let key = PropertyKey::from("result");
     obj.get(&key)
 }
-#[test]
-fn ordinary_get_05() {
-    // Normal accessor property
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-    let key = PropertyKey::from("a");
-    let getter =
-        create_builtin_function(test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
-    let initial = PotentialPropertyDescriptor {
-        get: Some(ECMAScriptValue::from(getter)),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    define_property_or_throw(&obj, key.clone(), initial).unwrap();
-    define_property_or_throw(
-        &obj,
-        PropertyKey::from("result"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from("sentinel value")),
-            writable: Some(true),
-            enumerable: Some(true),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
 
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::from(obj.clone())).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("sentinel value"));
-}
-#[test]
-fn ordinary_get_06() {
-    // Accessor property on parent (this ensures we're passing "receiver" properly)
-    setup_test_agent();
-    let parent = ordinary_object_create(None, &[]);
-    let key = PropertyKey::from("a");
-    let getter =
-        create_builtin_function(test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
-    let initial = PotentialPropertyDescriptor {
-        get: Some(ECMAScriptValue::from(getter)),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    // GETTER ON PARENT
-    define_property_or_throw(&parent, key.clone(), initial).unwrap();
-    let child = ordinary_object_create(Some(parent), &[]);
-    // RESULT VALUE ON CHILD
-    define_property_or_throw(
-        &child,
-        PropertyKey::from("result"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from("sentinel value")),
-            writable: Some(true),
-            enumerable: Some(true),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+mod ordinary_get {
+    use super::*;
+    use test_case::test_case;
 
-    // THEREFORE:
-    //    child.a == "sentinel value"
-    let result = ordinary_get(&child, &key, &ECMAScriptValue::from(child.clone())).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("sentinel value"));
-}
-#[test]
-fn ordinary_get_07() {
-    // Accessor properties undefined
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-    let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor {
-        get: Some(ECMAScriptValue::Undefined),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    define_property_or_throw(&obj, key.clone(), initial).unwrap();
+    fn withprop<O>(obj: O) -> (O, PropertyKey, ECMAScriptValue)
+    where
+        O: ObjectInterface,
+    {
+        let key = PropertyKey::from("test_key");
+        let ppd =
+            PotentialPropertyDescriptor::new().value("sentinel").writable(true).enumerable(true).configurable(true);
+        obj.define_own_property(key.clone(), ppd).unwrap();
+        (obj, key, ECMAScriptValue::Undefined)
+    }
+    fn withoutprop<O>(obj: O) -> (O, PropertyKey, ECMAScriptValue)
+    where
+        for<'a> &'a O: Into<&'a dyn ObjectInterface>,
+    {
+        let key = PropertyKey::from("test_key");
+        (obj, key, ECMAScriptValue::Undefined)
+    }
+    fn steps(
+        this_value: ECMAScriptValue,
+        _: Option<&Object>,
+        arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let rval = create_array_from_list(arguments);
+        rval.create_data_property_or_throw("this_value", this_value.test_result_string()).unwrap();
+        Ok(ECMAScriptValue::from(rval))
+    }
+    fn cbf(
+        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    ) -> Object {
+        create_builtin_function(
+            behavior,
+            false,
+            0.0,
+            "f".into(),
+            BUILTIN_FUNCTION_SLOTS,
+            current_realm_record(),
+            Some(intrinsic(IntrinsicId::FunctionPrototype)),
+            None,
+        )
+    }
 
-    let result = ordinary_get(&obj, &key, &ECMAScriptValue::from(obj.clone())).unwrap();
-    assert_eq!(result, ECMAScriptValue::Undefined);
+    #[test_case(
+        || withoutprop(TestObject::new(None, &[FunctionId::GetOwnProperty(None)]))
+        => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+        "GetOwnProperty fails"
+    )]
+    #[test_case(
+        || withoutprop(TestObject::new(None, &[FunctionId::GetPrototypeOf]))
+        => serr("TypeError: [[GetPrototypeOf]] called on TestObject");
+        "GetPrototypeOf fails"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            withoutprop(ordinary_object_create(Some(proto), &[]))
+        }
+        => sok("undefined");
+        "has proto, but not in proto chain"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            set(&proto, "test_key".into(), "thirteen".into(), true).unwrap();
+            withoutprop(ordinary_object_create(Some(proto), &[]))
+        }
+        => sok("thirteen");
+        "in proto chain"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let obj = OrdinaryObject::new(Some(proto), true);
+            withprop(obj)
+        }
+        => sok("sentinel");
+        "in obj itself"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            let receiver = obj.clone();
+            let ppd = PotentialPropertyDescriptor::new().get(ECMAScriptValue::Undefined);
+            define_property_or_throw(&obj, "test_key", ppd).unwrap();
+            (obj, PropertyKey::from("test_key"), ECMAScriptValue::from(receiver))
+        }
+        => sok("undefined");
+        "Undefined getter"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("marker", "object-to-get-from").unwrap();
+            let receiver = ordinary_object_create(None, &[]);
+            receiver.create_data_property_or_throw("marker", "receiver-object").unwrap();
+            let getter = cbf(steps);
+            let ppd = PotentialPropertyDescriptor::new().get(getter);
+            define_property_or_throw(&obj, "test_key", ppd).unwrap();
+            (obj, PropertyKey::from("test_key"), ECMAScriptValue::from(receiver))
+        }
+        => sok("length:0,this_value:marker:receiver-object");
+        "getter defined"
+    )]
+    #[test_case(|| withoutprop(StringObject::new("a".into(), None)) => sok("undefined"); "using StringObject")]
+    #[test_case(|| withoutprop(NumberObject::new(None)) => sok("undefined"); "using NumberObject")]
+    #[test_case(|| withoutprop(BooleanObject::new(None)) => sok("undefined"); "using BooleanObject")]
+    #[test_case(
+        || withoutprop(GeneratorObject::new(None, GeneratorState::Undefined, ""))
+        => sok("undefined");
+        "using GeneratorObject"
+    )]
+    #[test_case(|| withoutprop(TestObject::new(None, &[])) => sok("undefined"); "using TestObject")]
+    #[test_case(|| withoutprop(ArrayObject::new(None)) => sok("undefined"); "using ArrayObject")]
+    #[test_case(
+        || withoutprop(ImmutablePrototypeExoticObject::new(None))
+        => sok("undefined");
+        "using ImmutablePrototypeExoticObject"
+    )]
+    #[test_case(|| withoutprop(SymbolObject::new(None)) => sok("undefined"); "using SymbolObject")]
+    #[test_case(
+        || withoutprop(ForInIteratorObject::new(None, intrinsic(IntrinsicId::StringPrototype)))
+        => sok("undefined");
+        "using ForInIteratorObject")]
+    #[test_case(
+        || {
+            withoutprop(FunctionObject::new(
+                None,
+                current_realm_record().unwrap().borrow().global_env.clone().unwrap(),
+                None,
+                ParamSource::FormalParameters(Maker::new("").formal_parameters()),
+                BodySource::Function(Maker::new("{}").function_body()),
+                ConstructorKind::Base,
+                current_realm_record().unwrap(),
+                None,
+                ThisMode::Lexical,
+                true,
+                None,
+                "",
+                vec![],
+                vec![],
+                ClassName::Empty,
+                false,
+                Rc::new(Chunk::new("test"))
+            ))
+        }
+        => sok("undefined");
+        "using FunctionObject")]
+    #[test_case(|| withoutprop(ArgumentsObject::new(None, None)) => sok("undefined"); "using ArgumentsObject")]
+    #[test_case(
+        || withoutprop(AdaptableObject::new(None, AdaptableMethods{..Default::default()}))
+        => sok("undefined");
+        "using AdaptableObject"
+    )]
+    fn t<O>(make_items: impl FnOnce() -> (O, PropertyKey, ECMAScriptValue)) -> Result<String, String>
+    where
+        for<'a> &'a O: Into<&'a dyn ObjectInterface>,
+    {
+        setup_test_agent();
+        let (obj, key, receiver) = make_items();
+        ordinary_get(&obj, &key, &receiver).map_err(unwind_any_error).map(|v| v.test_result_string())
+    }
 }
 
 #[test]
@@ -3095,12 +3186,12 @@ mod enumerable_own_property_names {
         let obj = normal();
         let result = enumerable_own_properties(&obj, KeyValueKind::KeyValue).unwrap();
         assert_eq!(result.len(), 2);
-        assert_eq!(getv(&result[0], &"0".into()).unwrap(), "one".into());
-        assert_eq!(getv(&result[0], &"1".into()).unwrap(), 1.0.into());
-        assert_eq!(getv(&result[0], &"length".into()).unwrap(), 2.0.into());
-        assert_eq!(getv(&result[1], &"0".into()).unwrap(), "three".into());
-        assert_eq!(getv(&result[1], &"1".into()).unwrap(), 3.0.into());
-        assert_eq!(getv(&result[1], &"length".into()).unwrap(), 2.0.into());
+        assert_eq!(result[0].get(&"0".into()).unwrap(), "one".into());
+        assert_eq!(result[0].get(&"1".into()).unwrap(), 1.0.into());
+        assert_eq!(result[0].get(&"length".into()).unwrap(), 2.0.into());
+        assert_eq!(result[1].get(&"0".into()).unwrap(), "three".into());
+        assert_eq!(result[1].get(&"1".into()).unwrap(), 3.0.into());
+        assert_eq!(result[1].get(&"length".into()).unwrap(), 2.0.into());
     }
 }
 
@@ -4276,4 +4367,52 @@ fn construct(make_items: impl FnOnce() -> (Object, Vec<ECMAScriptValue>, Option<
     super::construct(&func, args.as_slice(), new_target.as_ref())
         .map_err(unwind_any_error)
         .map(|v| v.test_result_string())
+}
+
+mod data_descriptor {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value:"value".into(), writable:true }),
+            enumerable: true,
+            configurable: true,
+            spot: 0
+        }
+        => Ok(("value".to_string(), true, true, true));
+        "data property"
+    )]
+    #[test_case(
+        || PropertyDescriptor {
+            property: PropertyKind::Accessor(AccessorProperty {
+                get: ECMAScriptValue::Undefined,
+                set: ECMAScriptValue::Undefined
+            }),
+            enumerable: true,
+            configurable: true,
+            spot: 0
+        }
+        => serr("Accessor Property cannot be formed into a DataDescriptor");
+        "accessor property"
+    )]
+    fn try_from(make_pd: impl FnOnce() -> PropertyDescriptor) -> Result<(String, bool, bool, bool), String> {
+        setup_test_agent();
+        let pd = make_pd();
+        DataDescriptor::try_from(pd)
+            .map_err(|e| e.to_string())
+            .map(|dd| (dd.value.test_result_string(), dd.writable, dd.enumerable, dd.configurable))
+    }
+}
+
+#[test_case(|| ("word".into(), "length".into()) => sok("4"); "simple")]
+#[test_case(
+    || (ECMAScriptValue::Undefined, "length".into())
+    => serr("TypeError: Undefined and null cannot be converted to objects");
+    "not convertable"
+)]
+fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKey)) -> Result<String, String> {
+    setup_test_agent();
+    let (v, p) = make_items();
+    v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
 }

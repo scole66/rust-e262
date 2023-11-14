@@ -917,7 +917,7 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     if !iterator.is_object() {
         return Err(create_type_error("not an object"));
     }
-    let next_method = getv(&iterator, &"next".into())?;
+    let next_method = iterator.get(&"next".into())?;
     let iterator = Object::try_from(iterator).expect("iterator previously proved");
     let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
