@@ -14,7 +14,7 @@ mod add_entries_from_iterable {
         let key = to_string(args.next_arg())?;
         let value = args.next_arg();
         let this = to_object(this_value)?;
-        set(&this, key.into(), value, true)?;
+        this.set(key, value, true)?;
         Ok(ECMAScriptValue::Undefined)
     }
 

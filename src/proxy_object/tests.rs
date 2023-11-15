@@ -20,9 +20,9 @@ mod proxy_object {
     } => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
     #[test_case(|| {
         let proxy_target = ordinary_object_create(None, &[]);
-        set(&proxy_target, "marker".into(), "testcase proxy target".into(), true).unwrap();
+        proxy_target.set("marker", "testcase proxy target", true).unwrap();
         let proxy_handler = ordinary_object_create(None, &[]);
-        set(&proxy_handler, "marker".into(), "testcase proxy handler".into(), true).unwrap();
+        proxy_handler.set("marker", "testcase proxy handler", true).unwrap();
         ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
             proxy_items: Some(ProxyItems{proxy_target, proxy_handler})
@@ -51,9 +51,9 @@ mod proxy_object {
         )
     }
     fn record(handler: &Object, arguments: &[ECMAScriptValue], message: &str) {
-        set(handler, "callback_message".into(), ECMAScriptValue::from(message), true).unwrap();
+        handler.set("callback_message", message, true).unwrap();
         let arg_obj = create_array_from_list(arguments);
-        set(handler, "arguments".into(), ECMAScriptValue::from(arg_obj), true).unwrap();
+        handler.set("arguments", arg_obj, true).unwrap();
     }
 
     // Behaviors
@@ -263,7 +263,7 @@ mod proxy_object {
                 }
             };
             let handler = Object::try_from(this_value).unwrap();
-            set(&handler, "callback_message".into(), msg.into(), true).unwrap();
+            handler.set("callback_message", msg, true).unwrap();
         }
 
         fn fn_checks_arg_returns_true() -> Object {
@@ -379,7 +379,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 Ok(false.into())
             }
             cbf(behavior)
@@ -392,7 +392,7 @@ mod proxy_object {
                 _: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_false_no_checks called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_false_no_checks called", true).unwrap();
                 Ok(false.into())
             }
             cbf(behavior)
@@ -477,7 +477,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 Ok(false.into())
             }
             cbf(behavior)
@@ -491,7 +491,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_true called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_true called", true).unwrap();
                 Ok(true.into())
             }
             cbf(behavior)
@@ -503,7 +503,7 @@ mod proxy_object {
                 _arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_true_no_checks called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_true_no_checks called", true).unwrap();
                 Ok(true.into())
             }
             cbf(behavior)
@@ -600,7 +600,7 @@ mod proxy_object {
                     Some(obj) => ECMAScriptValue::from(obj),
                 };
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_new_value called".into(), true).unwrap();
+                handler.set("callback_message", "fn_new_value called", true).unwrap();
                 Ok(rval)
             }
             cbf(behavior)
@@ -617,7 +617,7 @@ mod proxy_object {
                     Some(obj) => ECMAScriptValue::from(obj),
                 };
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_new_value_no_checks called".into(), true).unwrap();
+                handler.set("callback_message", "fn_new_value_no_checks called", true).unwrap();
                 Ok(rval)
             }
             cbf(behavior)
@@ -636,7 +636,7 @@ mod proxy_object {
                     Some(obj) => ECMAScriptValue::from(obj),
                 };
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_invalid_pd called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_invalid_pd called", true).unwrap();
                 Ok(rval)
             }
             cbf(behavior)
@@ -663,7 +663,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_undef called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_undef called", true).unwrap();
                 Ok(ECMAScriptValue::Undefined)
             }
             cbf(behavior)
@@ -676,7 +676,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_nonconfig called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_nonconfig called", true).unwrap();
                 let ppd = PotentialPropertyDescriptor::new().value("unconfig").writable(true).configurable(false);
                 let rval = match from_property_descriptor(Some(ppd)) {
                     None => ECMAScriptValue::Null,
@@ -694,7 +694,7 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_nonconfig_nonwrite called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_nonconfig_nonwrite called", true).unwrap();
                 let ppd = PotentialPropertyDescriptor::new().value("unconfig").writable(false).configurable(false);
                 let rval = match from_property_descriptor(Some(ppd)) {
                     None => ECMAScriptValue::Null,
@@ -912,13 +912,13 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_true called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_true called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
                 let target = Object::try_from(args.next_arg()).unwrap();
                 let key = args.next_arg();
                 let descriptor_obj = args.next_arg();
-                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
-                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                handler.set("observed_key", key.clone(), true).unwrap();
+                handler.set("observed_descriptor", descriptor_obj.clone(), true).unwrap();
                 target
                     .o
                     .define_own_property(key.try_into().unwrap(), to_property_descriptor(&descriptor_obj).unwrap())
@@ -945,13 +945,13 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_false called".into(), true).unwrap();
+                handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
                 let _target = Object::try_from(args.next_arg()).unwrap();
                 let key = args.next_arg();
                 let descriptor_obj = args.next_arg();
-                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
-                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                handler.set("observed_key", key.clone(), true).unwrap();
+                handler.set("observed_descriptor", descriptor_obj.clone(), true).unwrap();
                 Ok(ECMAScriptValue::from(false))
             }
             cbf(behavior)
@@ -964,14 +964,13 @@ mod proxy_object {
             ) -> Completion<ECMAScriptValue> {
                 check_arg(&this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
-                set(&handler, "callback_message".into(), "fn_returns_true_without_setting called".into(), true)
-                    .unwrap();
+                handler.set("callback_message", "fn_returns_true_without_setting called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
                 let _target = Object::try_from(args.next_arg()).unwrap();
                 let key = args.next_arg();
                 let descriptor_obj = args.next_arg();
-                set(&handler, "observed_key".into(), key.clone(), true).unwrap();
-                set(&handler, "observed_descriptor".into(), descriptor_obj.clone(), true).unwrap();
+                handler.set("observed_key", key.clone(), true).unwrap();
+                handler.set("observed_descriptor", descriptor_obj.clone(), true).unwrap();
                 Ok(ECMAScriptValue::from(true))
             }
             cbf(behavior)

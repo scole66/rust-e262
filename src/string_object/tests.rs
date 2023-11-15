@@ -11,7 +11,7 @@ mod string_object {
         let proto = intrinsic(IntrinsicId::StringPrototype);
         let o = StringObject::object("sentinel".into(), Some(proto));
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 

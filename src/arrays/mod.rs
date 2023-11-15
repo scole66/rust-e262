@@ -674,7 +674,7 @@ fn array_constructor_function(
                     1
                 }
             };
-            set(&array, "length".into(), int_len.into(), true).expect("Set should succeed");
+            array.set("length", int_len, true).expect("Set should succeed");
             Ok(array.into())
         }
         _ => {

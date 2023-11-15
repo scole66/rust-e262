@@ -51,7 +51,7 @@ mod array_object {
     fn make() -> Object {
         let o = ArrayObject::create(0, None).unwrap();
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 
@@ -243,7 +243,7 @@ mod array_object {
             let previous = this.get(&"has_already_run".into()).unwrap();
             match previous {
                 ECMAScriptValue::Undefined => {
-                    set(&this, "has_already_run".into(), true.into(), true).unwrap();
+                    this.set("has_already_run", true, true).unwrap();
                     Ok(320.0.into())
                 }
                 _ => Err(create_type_error("valueOf called too many times")),
@@ -426,9 +426,9 @@ mod array_object {
         fn three_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
             let aobj = ArrayObject::create(9000, None).unwrap();
-            set(&aobj, "0".into(), "blue".into(), true).unwrap();
-            set(&aobj, "100".into(), "green".into(), true).unwrap();
-            set(&aobj, "500".into(), "red".into(), true).unwrap();
+            aobj.set("0", "blue", true).unwrap();
+            aobj.set("100", "green", true).unwrap();
+            aobj.set("500", "red", true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
@@ -478,7 +478,7 @@ mod array_object {
         fn frozen_middle(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
             let aobj = ArrayObject::create(9000, None).unwrap();
-            set(&aobj, "0".into(), "blue".into(), true).unwrap();
+            aobj.set("0", "blue", true).unwrap();
             define_property_or_throw(
                 &aobj,
                 "100",
@@ -491,7 +491,7 @@ mod array_object {
                 },
             )
             .unwrap();
-            set(&aobj, "500".into(), "red".into(), true).unwrap();
+            aobj.set("500", "red", true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
@@ -965,7 +965,7 @@ mod array_iterator {
         let iter_obj = super::create_array_iterator(array, kind);
         let thrower =
             create_builtin_function(throwing_next, false, 0.0, "next".into(), BUILTIN_FUNCTION_SLOTS, None, None, None);
-        set(&iter_obj, "next".into(), thrower.into(), true).map_err(unwind_any_error)?;
+        iter_obj.set("next", thrower, true).map_err(unwind_any_error)?;
         let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
         let mut result = vec![];
         loop {
@@ -1002,7 +1002,7 @@ mod array_iterator {
         } else {
             generator_resume_abrupt(this_value, create_type_error("thrown from generator"), "%ArrayIteratorPrototype%")?
         };
-        set(&obj, "called_count".into(), ECMAScriptValue::from(so_far + 1.0), true)?;
+        obj.set("called_count", ECMAScriptValue::from(so_far + 1.0), true)?;
         Ok(result)
     }
 }

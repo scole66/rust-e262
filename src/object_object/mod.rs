@@ -306,7 +306,7 @@ fn object_assign(
                 if let Some(desc) = option_desc {
                     if desc.enumerable {
                         let prop_value = from.get(&next_key)?;
-                        set(&to, next_key, prop_value, true)?;
+                        to.set(next_key, prop_value, true)?;
                     }
                 }
             }

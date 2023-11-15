@@ -378,7 +378,7 @@ mod generator_object {
     fn common_object_data() {
         setup_test_agent();
         let obj = make();
-        super::set(&obj, "test".into(), "sentinel".into(), true).unwrap();
+        obj.set("test", "sentinel", true).unwrap();
 
         let cod = obj.o.common_object_data().borrow();
         assert_eq!(cod.properties.len(), 1);

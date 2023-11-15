@@ -1767,25 +1767,38 @@ impl ECMAScriptValue {
     }
 }
 
-// Set ( O, P, V, Throw )
-//
-// The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language value), and
-// Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new value for the
-// property. It performs the following steps when called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Assert: Type(Throw) is Boolean.
-//  4. Let success be ? O.[[Set]](P, V, O).
-//  5. If success is false and Throw is true, throw a TypeError exception.
-//  6. Return success.
-pub fn set(obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
-    let objval = ECMAScriptValue::Object(obj.clone());
-    let success = obj.o.set(propkey, value, &objval)?;
-    if !success && throw {
-        Err(create_type_error("Cannot add property, for one of many different possible reasons"))
-    } else {
-        Ok(success)
+impl Object {
+    /// Set the value of a specific property for an object
+    ///
+    /// See [Set](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-set-o-p-v-throw) in ECMA-262.
+    pub fn set(
+        &self,
+        propkey: impl Into<PropertyKey>,
+        value: impl Into<ECMAScriptValue>,
+        throw: bool,
+    ) -> Completion<bool> {
+        self.set_internal(propkey.into(), value.into(), throw)
+    }
+    fn set_internal(&self, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
+        // Set ( O, P, V, Throw )
+        //
+        // The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language
+        // value), and Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new
+        // value for the property. It performs the following steps when called:
+        //
+        //  1. Assert: Type(O) is Object.
+        //  2. Assert: IsPropertyKey(P) is true.
+        //  3. Assert: Type(Throw) is Boolean.
+        //  4. Let success be ? O.[[Set]](P, V, O).
+        //  5. If success is false and Throw is true, throw a TypeError exception.
+        //  6. Return success.
+        let receiver = ECMAScriptValue::Object(self.clone());
+        let success = self.o.set(propkey, value, &receiver)?;
+        if !success && throw {
+            Err(create_type_error("Cannot add property, for one of many different possible reasons"))
+        } else {
+            Ok(success)
+        }
     }
 }
 

@@ -561,7 +561,7 @@ mod potential_property_descriptor {
     #[test_case(|| JSString::from("jsstring") => "jsstring"; "value is JSString")]
     #[test_case(|| ECMAScriptValue::Null => "null"; "value is ECMAScriptValue")]
     #[test_case(|| true => "true"; "value is boolean")]
-    #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    #[test_case(|| { let o = ordinary_object_create(None, &[]); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
     fn value<T>(maker: impl FnOnce() -> T) -> String
     where
         T: Into<ECMAScriptValue>,
@@ -570,7 +570,7 @@ mod potential_property_descriptor {
         let val = maker();
         PotentialPropertyDescriptor::new().value(val).value.unwrap().test_result_string()
     }
-    #[test_case(|| { let o = ordinary_object_create(None, &[]); set(&o, "propkey".into(), "propvalue".into(), true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    #[test_case(|| { let o = ordinary_object_create(None, &[]); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
     #[test_case(|| true => "true"; "value is bool")]
     fn ppd_set<T>(maker: impl FnOnce() -> T) -> String
     where
@@ -1482,7 +1482,7 @@ mod ordinary_has_property {
     #[test_case(
         || {
             let obj = ordinary_object_create(None, &[]);
-            set(&obj, PropertyKey::from("test_key"), "value".into(), true).unwrap();
+            obj.set("test_key", "value", true).unwrap();
             (obj, PropertyKey::from("test_key"))
         }
         => Ok(true);
@@ -1626,7 +1626,7 @@ mod ordinary_get {
     #[test_case(
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            set(&proto, "test_key".into(), "thirteen".into(), true).unwrap();
+            proto.set("test_key", "thirteen", true).unwrap();
             withoutprop(ordinary_object_create(Some(proto), &[]))
         }
         => sok("thirteen");
@@ -1933,7 +1933,7 @@ fn test_setter(
     let key = PropertyKey::from("result");
     let mut args = arguments.iter();
     let val = args.next().cloned().unwrap_or(ECMAScriptValue::Undefined);
-    set(&obj, key, val, true)?;
+    obj.set(key, val, true)?;
     Ok(ECMAScriptValue::Undefined)
 }
 #[test]
@@ -2509,7 +2509,7 @@ fn set_and_get() {
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(56.7);
 
-    set(&obj, key.clone(), value, false).unwrap();
+    obj.set(key.clone(), value, false).unwrap();
     let result = obj.get(&key).unwrap();
 
     assert_eq!(result, ECMAScriptValue::Number(56.7));
@@ -3532,8 +3532,8 @@ mod object {
         #[test_case(
             || {
                 let obj = ordinary_object_create(None, &[]);
-                set(&obj, "key_1".into(), "value_1".into(), true).unwrap();
-                set(&obj, "key_2".into(), "value_2".into(), true).unwrap();
+                obj.set("key_1", "value_1", true).unwrap();
+                obj.set("key_2", "value_2", true).unwrap();
                 obj.into()
             }
             => Ok("key_1:value_1,key_2:value_2".to_string());
@@ -3551,8 +3551,8 @@ mod object {
         #[test_case(
             || {
                 let obj = ordinary_object_create(None, &[]);
-                set(&obj, "key_1".into(), "value_1".into(), true).unwrap();
-                set(&obj, "key_2".into(), "value_2".into(), true).unwrap();
+                obj.set("key_1", "value_1", true).unwrap();
+                obj.set("key_2", "value_2", true).unwrap();
                 obj.into()
             }
             => Ok("key_1:value_1,key_2:value_2".to_string());
@@ -3873,6 +3873,63 @@ mod object {
                 .map(|_| ECMAScriptValue::from(obj).test_result_string())
         }
     }
+
+    #[test_case(|| (ordinary_object_create(None, &[]), "value"), "key", true => Ok(true); "simple set")]
+    #[test_case(
+        || (TestObject::object(&[FunctionId::Set(Some("key".into()))]), "value"), "key", true
+        => serr("TypeError: [[Set]] called on TestObject");
+        "[[set]] fails"
+    )]
+    #[test_case(
+        || ({
+            let obj = ordinary_object_create(None, &[]);
+            obj.o.prevent_extensions().unwrap();
+            obj
+        }, "value"),
+        "key",
+        true
+        => serr("TypeError: Cannot add property, for one of many different possible reasons");
+        "setting returned false"
+    )]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), "val"), "str", true => Ok(true); "&str:&str")]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), String::from("string")), "str", true => Ok(true); "&str:String")]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), true), "str", true => Ok(true); "&str:bool")]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), 27_i32), "str", true => Ok(true); "&str:i32")]
+    #[test_case(
+        || (intrinsic(IntrinsicId::Object), intrinsic(IntrinsicId::Object)), "str", true
+        => Ok(true);
+        "&str:Object"
+    )]
+    #[test_case(
+        || (intrinsic(IntrinsicId::Object), ECMAScriptValue::Null), "str", true
+        => Ok(true);
+        "&str:ECMAScriptValue"
+    )]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), wks(WksId::ToStringTag)), "str", true => Ok(true); "&str:Symbol")]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), 27_u32), "str", true => Ok(true); "&str:u32")]
+    #[test_case(
+        || (intrinsic(IntrinsicId::Object), ECMAScriptValue::Null), JSString::from("jsstring"), true
+        => Ok(true);
+        "JSString:ECMAScriptValue"
+    )]
+    #[test_case(
+        || (intrinsic(IntrinsicId::Object), ECMAScriptValue::Null), PropertyKey::from("key"), true
+        => Ok(true);
+        "PropertyKey:ECMASciptValue"
+    )]
+    #[test_case(|| (intrinsic(IntrinsicId::Object), 32_u32), 33_usize, true => Ok(true); "usize:u32")]
+    fn set<X>(
+        make_parts: impl FnOnce() -> (Object, X),
+        key: impl Into<PropertyKey>,
+        throw: bool,
+    ) -> Result<bool, String>
+    where
+        X: Into<ECMAScriptValue>,
+    {
+        setup_test_agent();
+        let (o, v) = make_parts();
+        o.set(key, v, throw).map_err(unwind_any_error)
+    }
 }
 
 mod test_integrity_level {
@@ -3992,7 +4049,7 @@ mod create_list_from_array_like {
 
     fn not_arraylike() -> ECMAScriptValue {
         let obj = ordinary_object_create(None, &[]);
-        set(&obj, "length".into(), wks(WksId::AsyncIterator).into(), true).unwrap();
+        obj.set("length", wks(WksId::AsyncIterator), true).unwrap();
         obj.into()
     }
     fn three_numbers() -> ECMAScriptValue {
@@ -4001,7 +4058,7 @@ mod create_list_from_array_like {
     }
     fn evil_get() -> ECMAScriptValue {
         let obj = ordinary_object_create(None, &[]);
-        set(&obj, "length".into(), 10.into(), true).unwrap();
+        obj.set("length", 10, true).unwrap();
         let thrower = intrinsic(IntrinsicId::ThrowTypeError);
         let desc = PotentialPropertyDescriptor::new().get(thrower);
         define_property_or_throw(&obj, "0", desc).unwrap();
@@ -4104,7 +4161,7 @@ mod define_property_or_throw {
 #[test_case(
     || {
         let cstr = intrinsic(IntrinsicId::Object);
-        set(&cstr, "sentinel".into(), "test response".into(), true).unwrap();
+        cstr.set("sentinel", "test response", true).unwrap();
         ECMAScriptValue::from(cstr)
     }
     => Some("test response".to_string());
@@ -4126,7 +4183,7 @@ mod ordinary_object {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let o = OrdinaryObject::object(Some(proto), true);
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 
@@ -4193,7 +4250,7 @@ mod immutable_prototype_exotic_object {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let o = ImmutablePrototypeExoticObject::object(Some(proto));
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 
