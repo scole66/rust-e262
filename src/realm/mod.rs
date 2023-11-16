@@ -406,42 +406,8 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
 
     provision_function_intrinsic(&realm_rec);
+    provision_boolean_intrinsic(&realm_rec);
 
-    ///////////////////////////////////////////////////////////////////
-    // %Boolean% and %Boolean.prototype%
-    let boolean_prototype = ordinary_object_create(Some(object_prototype), &[InternalSlotName::BooleanData]);
-    realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
-    let bool_constructor = create_builtin_function(
-        throw_type_error,
-        false,
-        1_f64,
-        PropertyKey::from("Boolean"),
-        BUILTIN_FUNCTION_SLOTS,
-        Some(realm_rec.clone()),
-        Some(function_prototype.clone()),
-        None,
-    );
-    define_property_or_throw(
-        &bool_constructor,
-        "prototype",
-        PotentialPropertyDescriptor::new()
-            .value(&boolean_prototype)
-            .writable(false)
-            .enumerable(false)
-            .configurable(false),
-    )
-    .unwrap();
-    realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
-    define_property_or_throw(
-        &boolean_prototype,
-        "constructor",
-        PotentialPropertyDescriptor::new()
-            .value(bool_constructor) // consumes bool_constructor
-            .writable(true)
-            .enumerable(false)
-            .configurable(true),
-    )
-    .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
     provision_number_intrinsic(&realm_rec);

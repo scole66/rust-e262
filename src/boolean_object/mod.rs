@@ -198,5 +198,153 @@ pub fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
     }
 }
 
+pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
+    let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+
+    let boolean_prototype = BooleanObject::object(Some(object_prototype));
+    realm.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
+
+    // The Boolean constructor:
+    //
+    //  * is %Boolean%.
+    //  * is the initial value of the "Boolean" property of the global object.
+    //  * creates and initializes a new Boolean object when called as a constructor.
+    //  * performs a type conversion when called as a function rather than as a constructor.
+    //  * may be used as the value of an extends clause of a class definition. Subclass constructors that
+    //    intend to inherit the specified Boolean behaviour must include a super call to the Boolean
+    //    constructor to create and initialize the subclass instance with a [[BooleanData]] internal slot.
+    //
+    // Properties of the Boolean Constructor
+    //
+    // The Boolean constructor:
+    //
+    //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+    let bool_constructor = create_builtin_function(
+        boolean_constructor_function,
+        true,
+        1_f64,
+        PropertyKey::from("Boolean"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    realm.borrow_mut().intrinsics.boolean = bool_constructor.clone();
+
+    // Boolean.prototype
+    // The initial value of Boolean.prototype is the Boolean prototype object.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
+    let bool_proto_ppd = PotentialPropertyDescriptor::new()
+        .value(&boolean_prototype)
+        .writable(false)
+        .enumerable(false)
+        .configurable(false);
+    define_property_or_throw(&bool_constructor, "prototype", bool_proto_ppd).unwrap();
+
+    // The Boolean prototype object:
+    //
+    //  * is %Boolean.prototype%.
+    //  * is an ordinary object.
+    //  * is itself a Boolean object; it has a [[BooleanData]] internal slot with the value false.
+    //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
+
+    // Boolean.prototype.constructor
+    // The initial value of Boolean.prototype.constructor is %Boolean%.
+    define_property_or_throw(
+        &boolean_prototype,
+        "constructor",
+        PotentialPropertyDescriptor::new()
+            .value(bool_constructor.clone())
+            .writable(true)
+            .enumerable(false)
+            .configurable(true),
+    )
+    .unwrap();
+
+    // Prototype function properties
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &boolean_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+    prototype_function!(boolean_prototype_to_string, "toString", 0.0); // ( )
+    prototype_function!(boolean_prototype_value_of, "valueOf", 0.0); // ( )
+}
+
+fn boolean_constructor_function(
+    _this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Boolean ( value )
+    // This function performs the following steps when called:
+    //
+    //  1. Let b be ToBoolean(value).
+    //  2. If NewTarget is undefined, return b.
+    //  3. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Boolean.prototype%", « [[BooleanData]] »).
+    //  4. Set O.[[BooleanData]] to b.
+    //  5. Return O.
+    let mut args = FuncArgs::from(arguments);
+    let value = args.next_arg();
+    let b = to_boolean(value);
+    match new_target {
+        None => Ok(b.into()),
+        Some(obj) => {
+            let o =
+                ordinary_create_from_constructor(obj, IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])?;
+            let bool_obj = o.o.to_boolean_obj().expect("we just crafted a boolean object");
+            *bool_obj.boolean_data().borrow_mut() = b;
+            Ok(o.into())
+        }
+    }
+}
+
+fn boolean_prototype_to_string(
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Boolean.prototype.toString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let b be ? ThisBooleanValue(this value).
+    //  2. If b is true, return "true"; else return "false".
+    Ok(if this_boolean_value(&this_value)? { "true" } else { "false" }.into())
+}
+
+fn boolean_prototype_value_of(
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Boolean.prototype.valueOf ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Return ? ThisBooleanValue(this value).
+    Ok(this_boolean_value(&this_value)?.into())
+}
+
 #[cfg(test)]
 mod tests;
