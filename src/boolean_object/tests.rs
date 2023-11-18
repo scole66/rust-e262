@@ -275,3 +275,34 @@ fn boolean_constructor_function(
             _ => panic!("Bad value back"),
         })
 }
+
+#[test]
+fn provision_boolean_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+
+    let boolean = intrinsic(IntrinsicId::Boolean);
+    let global = get_global_object().unwrap();
+    let global_boolean = global.o.get_own_property(&"Boolean".into()).unwrap().unwrap();
+    let booleanfcn = Object::try_from(func_validation(global_boolean, "Boolean", 1)).unwrap();
+    assert_eq!(booleanfcn, boolean);
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let boolean_constructor_prototype = boolean.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(boolean_constructor_prototype, function_prototype);
+
+    let prototype_pd = boolean.o.get_own_property(&"prototype".into()).unwrap().unwrap();
+    let proto_intrinsic = intrinsic(IntrinsicId::BooleanPrototype);
+    let prototype = Object::try_from(data_validation(prototype_pd, false, false, false)).unwrap();
+    assert_eq!(proto_intrinsic, prototype);
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+    let boolean_prototype_prototype = prototype.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(boolean_prototype_prototype, object_prototype);
+    assert!(prototype.o.is_boolean_object());
+
+    func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
+    func_validation(prototype.o.get_own_property(&"valueOf".into()).unwrap().unwrap(), "valueOf", 0);
+
+    let constructor_pd = prototype.o.get_own_property(&"constructor".into()).unwrap().unwrap();
+    let constructor = data_validation(constructor_pd, true, false, true);
+    assert_eq!(constructor, boolean.into());
+}
