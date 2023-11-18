@@ -1255,7 +1255,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    let result = copy_data_properties(&obj, value, &[]);
+                    let result = obj.copy_data_properties(value, &[]);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
@@ -1279,7 +1279,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .expect("dest should be a value"),
                     )
                     .expect("dest should be an object");
-                    let result = copy_data_properties(&dest, value, &exclusions);
+                    let result = dest.copy_data_properties(value, &exclusions);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(dest)),
                         Err(e) => Err(e),

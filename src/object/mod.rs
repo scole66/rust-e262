@@ -845,19 +845,39 @@ fn og_internal(obj: &dyn ObjectInterface, p: &PropertyKey, receiver: &ECMAScript
     }
 }
 
-// OrdinarySet ( O, P, V, Receiver )
-//
-// The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
-// value), and Receiver (an ECMAScript language value). It performs the following steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
-//  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>
+/// The default implementation of \[\[Set]]
+///
+/// This attaches the given value to the given property key on the provided object, using the existing property
+/// descriptor, if it exists.
+///
+/// See [OrdinarySet](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-ordinaryset) in
+/// ECMA-262.
+pub fn ordinary_set<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    os_internal(o.into(), p.into(), v.into(), receiver)
+}
+
+fn os_internal(
+    obj: &dyn ObjectInterface,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool> {
+    // OrdinarySet ( O, P, V, Receiver )
+    //
+    // The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
+    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Assert: IsPropertyKey(P) is true.
+    //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
+    //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
     let own_desc = obj.get_own_property(&p)?;
     ordinary_set_with_own_descriptor(obj, p, v, receiver, own_desc)
 }
@@ -2738,24 +2758,50 @@ pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Comple
     }
 }
 
-/// Copy enumerable data properties from a source to a target, potentially excluding some
-///
-/// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-pub fn copy_data_properties(target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
-    if !(source.is_undefined() || source.is_null()) {
-        let from = to_object(source).unwrap();
-        let keys = from.o.own_property_keys()?;
-        for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
-            let desc = from.o.get_own_property(next_key)?;
-            if let Some(desc) = desc {
-                if desc.enumerable {
-                    let prop_value = from.get(next_key)?;
-                    target.create_data_property_or_throw(next_key.clone(), prop_value).unwrap();
+impl Object {
+    /// Copy enumerable data properties from a source to a target, potentially excluding some
+    ///
+    /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
+    pub fn copy_data_properties(&self, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+        // CopyDataProperties ( target, source, excludedItems )
+        // The abstract operation CopyDataProperties takes arguments target (an Object), source (an ECMAScript language
+        // value), and excludedItems (a List of property keys) and returns either a normal completion containing UNUSED
+        // or a throw completion. It performs the following steps when called:
+        //
+        //  1. If source is either undefined or null, return UNUSED.
+        //  2. Let from be ! ToObject(source).
+        //  3. Let keys be ? from.[[OwnPropertyKeys]]().
+        //  4. For each element nextKey of keys, do
+        //      a. Let excluded be false.
+        //      b. For each element e of excludedItems, do
+        //          i. If SameValue(e, nextKey) is true, then
+        //              1. Set excluded to true.
+        //      c. If excluded is false, then
+        //          i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+        //          ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+        //              1. Let propValue be ? Get(from, nextKey).
+        //              2. Perform ! CreateDataPropertyOrThrow(target, nextKey, propValue).
+        //  5. Return UNUSED.
+        //
+        // NOTE    The target passed in here is always a newly created object which is not directly accessible in case
+        //         of an error being thrown.
+        if !(source.is_undefined() || source.is_null()) {
+            let from = to_object(source)
+                .expect("a value which is neither null nor undefined should be convertable to an object");
+            let keys = from.o.own_property_keys()?;
+            for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
+                let desc = from.o.get_own_property(next_key)?;
+                if let Some(desc) = desc {
+                    if desc.enumerable {
+                        let prop_value = from.get(next_key)?;
+                        self.create_data_property_or_throw(next_key.clone(), prop_value)
+                            .expect("data property creation should work fine for newly created objects");
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(test)]
