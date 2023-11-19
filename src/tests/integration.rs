@@ -435,6 +435,15 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     process_ecmascript(&program).map_err(|e| e.to_string())
 }
 
+// Optional Chains
+//  OptionalExpression: MemberExpression OptionalChain
+//    a[4]?.b -> ReferenceError
+//    new Proxy({}, {"get": () => new TypeError("value-get-fail")})?.b -> TypeError
+//    undefined?.b -> Undefined
+//    null?.b -> Undefined
+//
+
+
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

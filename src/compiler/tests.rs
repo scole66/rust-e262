@@ -1392,7 +1392,24 @@ mod left_hand_side_expression {
         "FLOAT 0 (0)",
         "CALL"
     ]); "call non-strict")]
-    #[test_case("a?.b", true => panics "not yet implemented"; "optional")]
+    #[test_case("a?.b", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 20",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 14",
+        "JUMP_NOT_NULLISH 5",
+        "POP",
+        "POP",
+        "UNDEFINED",
+        "JUMP 9",
+        "UNWIND 1",
+        "STRING 1 (b)",
+        "STRICT_REF",
+        "JUMP 2",
+        "UNWIND 1"
+    ]); "optional")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).left_hand_side_expression();
         let mut c = Chunk::new("x");
