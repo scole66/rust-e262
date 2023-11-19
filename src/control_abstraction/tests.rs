@@ -431,13 +431,13 @@ mod create_iterator_from_closure {
     use super::*;
 
     async fn goofy_values(co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from("Once, []"), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from("Once, []"), false));
         let res = generator_yield(&co, val).await?;
         let res_str = format!("Twice, [{}]", to_string(res).unwrap());
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(res_str), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from(res_str), false));
         let res = generator_yield(&co, val).await?;
         let res_str = format!("Three times a lady, [{}]", to_string(res).unwrap());
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(res_str), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from(res_str), false));
         let res = generator_yield(&co, val).await?;
         Ok(res)
     }
@@ -470,10 +470,10 @@ mod generator_resume {
     use super::*;
 
     async fn gen_vals(co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
         let res = generator_yield(&co, val).await?;
         let res_str = format!("Token 2: [{}]", to_string(res).unwrap());
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(res_str), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from(res_str), false));
         let res = generator_yield(&co, val).await?;
         Ok(res)
     }
@@ -537,7 +537,7 @@ mod generator_resume_abrupt {
     use super::*;
 
     async fn gen_vals(co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
         let res_full = generator_yield(&co, val).await;
         let res = match res_full {
             Ok(val) => val,
@@ -553,7 +553,7 @@ mod generator_resume_abrupt {
             },
         };
         let res_str = format!("Token 2: [{}]", to_string(res).unwrap());
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(res_str), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from(res_str), false));
         let res = generator_yield(&co, val).await?;
         Ok(res)
     }
@@ -652,10 +652,10 @@ mod generator_yield {
 
     // generator_yield can only be used inside generator functions, making the testing of it a bit indirect.
     async fn gen_vals(co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
-        let mut val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from("Primed!"), false));
+        let mut val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from("Primed!"), false));
         loop {
             let res_full = generator_yield(&co, val).await;
-            val = ECMAScriptValue::from(create_iter_result_object(
+            val = ECMAScriptValue::from(crate::create_iter_result_object(
                 match res_full {
                     Ok(normal) => ECMAScriptValue::from(to_string(normal).unwrap()),
                     Err(ac) => match ac {
@@ -699,7 +699,7 @@ mod gen_caller {
     use super::*;
 
     async fn multi(co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Completion<ECMAScriptValue> {
-        let val = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
+        let val = ECMAScriptValue::from(crate::create_iter_result_object(ECMAScriptValue::from("Token 1"), false));
         generator_yield(&co, val).await?;
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1089,7 +1089,7 @@ mod iterator_record {
         let this_sentinel = this_value.get(&"sentinel".into()).unwrap();
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
         let value = ECMAScriptValue::from(JSString::from(format!("{this_sentinel}({arg})")));
-        let obj = create_iter_result_object(value, false);
+        let obj = crate::create_iter_result_object(value, false);
         Ok(obj.into())
     }
     fn iterator_ok_next(
@@ -1217,7 +1217,7 @@ mod iterator_record {
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn instantly_done() -> IteratorRecord {
-        create_list_iterator_record(vec![])
+        crate::create_list_iterator_record(vec![])
     }
 
     #[test_case(makes_good_ir => Ok(Some(("Iterator(This)(undefined)".into(), false))); "happy path")]
@@ -1239,7 +1239,7 @@ mod iterator_record {
     }
 
     fn tracker(this_value: ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
-        let result = create_iter_result_object(ECMAScriptValue::from(""), true);
+        let result = crate::create_iter_result_object(ECMAScriptValue::from(""), true);
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
         let report = ECMAScriptValue::from(format!("{name}({arg})"));
         let tracking_array = Object::try_from(this_value.get(&"tracker".into()).unwrap()).unwrap();
@@ -1315,16 +1315,16 @@ mod iterator_record {
         Ok((r.try_into().unwrap(), tracks))
     }
 
-    #[test_case(|| create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
+    #[test_case(|| crate::create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
     fn debug(make_ir: impl FnOnce() -> IteratorRecord) -> String {
         setup_test_agent();
         let ir = make_ir();
         format!("{ir:?}")
     }
 
-    #[test_case(|| create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
+    #[test_case(|| crate::create_list_iterator_record(vec![1.into()]) => with |s| assert_ne!(s, ""); "list iterator")]
     #[test_case(|| {
-        let ir = create_list_iterator_record(vec![]);
+        let ir = crate::create_list_iterator_record(vec![]);
         ir.done.set(true);
         ir
     } => with |s| assert_ne!(s, ""); "completed iterator")]
@@ -1361,7 +1361,7 @@ mod iterator_step {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(|| create_list_iterator_record(vec![ECMAScriptValue::from(300)]) => Ok(Some((ECMAScriptValue::from(300), false))); "happy")]
+    #[test_case(|| crate::create_list_iterator_record(vec![ECMAScriptValue::from(300)]) => Ok(Some((ECMAScriptValue::from(300), false))); "happy")]
     fn call(make_ir: impl FnOnce() -> IteratorRecord) -> Result<Option<(ECMAScriptValue, bool)>, String> {
         setup_test_agent();
         let ir = make_ir();
