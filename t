@@ -553,6 +553,11 @@ test_defs[array_constructor_function]="array_constructor_function array_construc
 test_defs[array_species_create]="array_species_create array_species_create arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
+test_defs[BooleanObject]="BooleanObject boolean_object boolean_object"
+test_defs[provision_boolean_intrinsic]="provision_boolean_intrinsic provision_boolean_intrinsic boolean_object"
+test_defs[boolean_constructor_function]="boolean_constructor_function boolean_constructor_function boolean_object"
+test_defs[boolean_prototype_to_string]="boolean_prototype_to_string boolean_prototype_to_string boolean_object"
+test_defs[boolean_prototype_value_of]="boolean_prototype_value_of boolean_prototype_value_of boolean_object"
 
 test_defs[ErrorObject_own_property_keys]="ErrorObject@object::ObjectInterface::own_property_keys error_object_own_property_keys errors"
 
