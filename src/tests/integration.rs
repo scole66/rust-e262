@@ -438,11 +438,25 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // Optional Chains
 //  OptionalExpression: MemberExpression OptionalChain
 //    a[4]?.b -> ReferenceError
-//    new Proxy({}, {"get": () => new TypeError("value-get-fail")})?.b -> TypeError
+//    new Proxy({}, {"get": () => { throw new TypeError("value-get-fail"); }})?.b -> TypeError
 //    undefined?.b -> Undefined
 //    null?.b -> Undefined
-//
-
+//    ({"b": 10})?.b -> 10
+//    ({"b": 10})?.x[4] -> TypeError
+#[test_case("a[4]?.b" => serr("Thrown: ReferenceError: Unresolvable Reference"); "oe: me oc ; me eval fails")]
+#[test_case(
+    "new Proxy({}, {'get': () => { throw new TypeError('value-get-fail'); }})?.b"
+    => serr("Thrown: TypeError: value-get-fail");
+    "oe: me oc; get-value fails"
+)]
+#[test_case("undefined?.b" => Ok(ECMAScriptValue::Undefined); "oe: me oc ; me undefined value")]
+#[test_case("null?.b" => Ok(ECMAScriptValue::Undefined); "oe: me oc ; me null value")]
+#[test_case("({'b': 10})?.b" => vok(10); "oe: me oc ; me ok, oc ok")]
+#[test_case(
+    "({'b': 10})?.x[4]"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "oe: me oc ; oc fails"
+)]
 
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
