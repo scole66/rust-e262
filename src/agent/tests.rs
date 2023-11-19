@@ -163,15 +163,15 @@ mod agent {
 
             let first_realm = create_named_realm("first");
             let first_context = ExecutionContext::new(None, first_realm, None);
-            push_execution_context(first_context);
+            crate::push_execution_context(first_context);
 
             let second_realm = create_named_realm("second");
             let second_context = ExecutionContext::new(None, second_realm, None);
-            push_execution_context(second_context);
+            crate::push_execution_context(second_context);
 
             assert_eq!(get_realm_name(), "second");
 
-            pop_execution_context();
+            crate::pop_execution_context();
 
             assert_eq!(get_realm_name(), "first");
         }
@@ -1705,7 +1705,7 @@ mod for_in_iterator_prototype_next {
         object.create_data_property_or_throw("on_object", 999).unwrap();
         object.create_data_property_or_throw(wks(WksId::ToStringTag), "TestObject").unwrap();
         object.create_data_property_or_throw("masked", 99).unwrap();
-        create_for_in_iterator(object).into()
+        crate::agent::create_for_in_iterator(object).into()
     }
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
@@ -1715,7 +1715,7 @@ mod for_in_iterator_prototype_next {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         });
-        create_for_in_iterator(o).into()
+        crate::agent::create_for_in_iterator(o).into()
     }
     fn gop_failure(this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         if *key != "sequoia".into() || !to_boolean(this.get(&"primed".into(), &ECMAScriptValue::Undefined).unwrap()) {
@@ -1731,15 +1731,15 @@ mod for_in_iterator_prototype_next {
         });
         o.create_data_property_or_throw("sequoia", 0).unwrap();
         o.create_data_property_or_throw("primed", true).unwrap();
-        create_for_in_iterator(o).into()
+        crate::agent::create_for_in_iterator(o).into()
     }
 
-    #[test_case(|| create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
     #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
-    #[test_case(|| create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
+    #[test_case(|| crate::agent::create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
     #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
     #[test_case(get_own_property_failure => serr("TypeError: [[GetOwnProperty]] fails"); "get_own_property fails")]
-    #[test_case(|| create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
+    #[test_case(|| crate::agent::create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
     fn call(make_this: fn() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let this = make_this();

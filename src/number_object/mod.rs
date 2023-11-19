@@ -1001,6 +1001,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
+                #[allow(clippy::never_loop)]
                 loop {
                     fraction_cursor -= 1;
                     if fraction_cursor == KBUFFERSIZE / 2 {
