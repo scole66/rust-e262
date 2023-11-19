@@ -816,5 +816,102 @@ impl ProxyObject {
     }
 }
 
+pub fn proxy_create(target: ECMAScriptValue, handler: ECMAScriptValue) -> Completion<ECMAScriptValue> {
+    match (target, handler) {
+        (ECMAScriptValue::Object(tgt), ECMAScriptValue::Object(hand)) => {
+            Ok(ProxyObject::object(Some((tgt, hand))).into())
+        }
+        (ECMAScriptValue::Object(_), _) => Err(create_type_error("Proxy handler must be an object")),
+        (_, ECMAScriptValue::Object(_)) => Err(create_type_error("Proxy target must be an object")),
+        _ => Err(create_type_error("Proxy target and handler must be objects")),
+    }
+}
+
+pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+
+    // The Proxy constructor:
+    //
+    //  * is %Proxy%.
+    //  * is the initial value of the "Proxy" property of the global object.
+    //  * creates and initializes a new Proxy object when called as a constructor.
+    //  * is not intended to be called as a function and will throw an exception when called in that manner.
+
+    // Properties of the Proxy Constructor
+    // The Proxy constructor:
+    //
+    //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+    //  * does not have a "prototype" property because Proxy objects do not have a [[Prototype]] internal slot
+    //    that requires initialization.
+
+    let proxy_constructor = create_builtin_function(
+        proxy_constructor_function,
+        true,
+        2_f64,
+        PropertyKey::from("Proxy"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    realm.borrow_mut().intrinsics.proxy = proxy_constructor.clone();
+
+    // Constructor Function Properties
+    macro_rules! constructor_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &proxy_constructor,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+    constructor_function!(proxy_revocable, "revocable", 2.0);
+}
+
+fn proxy_constructor_function(
+    _this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Proxy ( target, handler )
+    // This function performs the following steps when called:
+    //
+    //  1. If NewTarget is undefined, throw a TypeError exception.
+    //  2. Return ? ProxyCreate(target, handler).
+    let mut args = FuncArgs::from(arguments);
+    let target = args.next_arg();
+    let handler = args.next_arg();
+
+    match new_target {
+        None => Err(create_type_error("Proxy may not be called as a function")),
+        Some(_) => proxy_create(target, handler),
+    }
+}
+
+fn proxy_revocable(
+    _: ECMAScriptValue,
+    _: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests;

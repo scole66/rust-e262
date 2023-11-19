@@ -30,6 +30,7 @@ pub enum IntrinsicId {
     Object,
     ObjectPrototype,
     ObjectPrototypeToString,
+    Proxy,
     RangeError,
     RangeErrorPrototype,
     ReferenceError,
@@ -259,6 +260,7 @@ impl Intrinsics {
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
             IntrinsicId::ObjectPrototypeToString => &self.object_prototype_to_string,
+            IntrinsicId::Proxy => &self.proxy,
             IntrinsicId::RangeError => &self.range_error,
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
@@ -307,6 +309,7 @@ impl Intrinsics {
             o if o == &self.object => Some(IntrinsicId::Object),
             o if o == &self.object_prototype => Some(IntrinsicId::ObjectPrototype),
             o if o == &self.object_prototype_to_string => Some(IntrinsicId::ObjectPrototypeToString),
+            o if o == &self.proxy => Some(IntrinsicId::Proxy),
             o if o == &self.range_error => Some(IntrinsicId::RangeError),
             o if o == &self.range_error_prototype => Some(IntrinsicId::RangeErrorPrototype),
             o if o == &self.reference_error => Some(IntrinsicId::ReferenceError),
@@ -427,6 +430,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_generator_function_intrinsics(&realm_rec);
     provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_proxy_intrinsic(&realm_rec);
 
     add_restricted_function_properties(&function_prototype, realm_rec);
 }
