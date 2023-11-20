@@ -4052,8 +4052,8 @@ mod object {
 
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
-        }    
-        fn just_throw(_:&AdaptableObject) -> Completion<PropertyDescriptor> {
+        }
+        fn just_throw(_: &AdaptableObject) -> Completion<PropertyDescriptor> {
             Err(create_type_error("Test Case Thrower"))
         }
 
@@ -4068,7 +4068,7 @@ mod object {
         #[test_case(|| ECMAScriptValue::from("bob"), || vec!["1".into(), "0".into()] => sok("2:b"); "check exclusion")]
         #[test_case(
             || AdaptableObject::object(
-                AdaptableMethods { 
+                AdaptableMethods {
                     own_property_keys_override: Some(lying_ownprops),
                     ..Default::default()
                 }
