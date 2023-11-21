@@ -725,66 +725,135 @@ fn ordinary_get_prototype_of_01() {
     assert_eq!(result, Some(object_proto));
 }
 
-#[test]
-fn ordinary_set_prototype_of_01() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let new_proto = ordinary_object_create(Some(object_proto.clone()), &[]);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+mod ordinary_set_prototype_of {
+    use super::*;
+    use test_case::test_case;
 
-    let result = ordinary_set_prototype_of(&obj, Some(new_proto.clone()));
-    assert!(result);
-    assert_eq!(ordinary_get_prototype_of(&obj), Some(new_proto));
-}
-#[test]
-fn ordinary_set_prototype_of_02() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Undefined)
+    }
 
-    let result = ordinary_set_prototype_of(&obj, None);
-    assert!(result);
-    assert_eq!(ordinary_get_prototype_of(&obj), None);
-}
-#[test]
-fn ordinary_set_prototype_of_03() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
-
-    let result = ordinary_set_prototype_of(&obj, Some(object_proto.clone()));
-    assert!(result);
-    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
-}
-#[test]
-fn ordinary_set_prototype_of_04() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(None, &[]);
-
-    let result = ordinary_set_prototype_of(&obj, Some(object_proto.clone()));
-    assert!(result);
-    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
-}
-#[test]
-fn ordinary_set_prototype_of_05() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
-    obj.o.prevent_extensions().unwrap();
-
-    let result = ordinary_set_prototype_of(&obj, None);
-    assert!(!result);
-    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
-}
-#[test]
-fn ordinary_set_prototype_of_06() {
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
-
-    let result = ordinary_set_prototype_of(&obj, Some(obj.clone()));
-    assert!(!result);
-    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
+    #[test_case(
+        || {
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            object_proto.create_data_property("sentinel", "original").unwrap();
+            let new_proto = ordinary_object_create(Some(object_proto.clone()), &[]);
+            new_proto.create_data_property("sentinel", "replacement").unwrap();
+            let obj = ordinary_object_create(Some(object_proto), &[]);
+            (obj, Some(new_proto))
+        }
+        => (true, Some("replacement".to_string()));
+        "straightforward ordinary"
+    )]
+    #[test_case(
+        || (ordinary_object_create(None, &[]), None)
+        => (true, None);
+        "none replaced with none"
+    )]
+    #[test_case(
+        || {
+            let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            object_proto.create_data_property("sentinel", "original").unwrap();
+            let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
+            (obj, Some(object_proto))
+        }
+        => (true, Some("original".to_string()));
+        "intrinsic replaced with intrinsic"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            proto.create_data_property("sentinel", "intrinsic").unwrap();
+            (ordinary_object_create(None, &[]), Some(intrinsic(IntrinsicId::ObjectPrototype)))
+        }
+        => (true, ssome("intrinsic"));
+        "missing proto replaced by intrinsic"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            proto.create_data_property("sentinel", "intrinsic").unwrap();
+            let obj = ordinary_object_create(Some(proto), &[]);
+            obj.o.prevent_extensions().unwrap();
+            (obj, None)
+        }
+        => (false, ssome("intrinsic"));
+        "remove proto from frozen object"
+    )]
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            proto.create_data_property("sentinel", "intrinsic").unwrap();
+            let obj = ordinary_object_create(Some(proto), &[]);
+            (obj.clone(), Some(obj))
+        }
+        => (false, ssome("intrinsic"));
+        "making circular proto loop"
+    )]
+    #[test_case(
+        || (
+            FunctionObject::new(
+                None,
+                current_realm_record().unwrap().borrow().global_env.clone().unwrap(),
+                None,
+                ParamSource::FormalParameters(Maker::new("").formal_parameters()),
+                BodySource::Function(Maker::new("{}").function_body()),
+                ConstructorKind::Base,
+                current_realm_record().unwrap(),
+                None,
+                ThisMode::Lexical,
+                true,
+                None,
+                "",
+                vec![],
+                vec![],
+                ClassName::Empty,
+                false,
+                Rc::new(Chunk::new("test"))
+            ),
+            None
+        )
+        => (true, None);
+        "using FunctionObject"
+    )]
+    #[test_case(|| (OrdinaryObject::new(None, true), None) => (true, None); "using OrdinaryObject")]
+    #[test_case(|| (TestObject::new(None, &[]), None) => (true, None); "using TestObject")]
+    #[test_case(
+        || (AdaptableObject::new(None, AdaptableMethods { ..Default::default() }), None)
+        => (true, None);
+        "using AdaptableObject"
+    )]
+    #[test_case(|| (ArrayObject::new(None), None) => (true, None); "using ArrayObject")]
+    #[test_case(|| (NumberObject::new(None), None) => (true, None); "using NumberObject")]
+    #[test_case(
+        || (ForInIteratorObject::new(None, intrinsic(IntrinsicId::ObjectPrototype)), None)
+        => (true, None);
+        "using ForInIteratorObject"
+    )]
+    #[test_case(
+        || (BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, false), None)
+        => (true, None);
+        "using BuiltInFunctionObject"
+    )]
+    #[test_case(|| (ArgumentsObject::new(None, None), None) => (true, None); "using ArgumentsObject")]
+    #[test_case(|| (BooleanObject::new(None), None) => (true, None); "using BooleanObject")]
+    #[test_case(|| (SymbolObject::new(None), None) => (true, None); "using SymbolObject")]
+    #[test_case(
+        || (GeneratorObject::new(None, GeneratorState::Undefined, ""), None)
+        => (true, None);
+        "using GeneratorObject"
+    )]
+    #[test_case(|| (StringObject::new("".into(), None), None) => (true, None); "using StringObject")]
+    #[test_case(|| (ErrorObject::new(None), None) => (true, None); "using ErrorObject")]
+    fn t<O>(make_items: impl FnOnce() -> (O, Option<Object>)) -> (bool, Option<String>)
+    where
+        for<'a> &'a O: Into<&'a dyn ObjectInterface>,
+    {
+        setup_test_agent();
+        let (obj, new_proto) = make_items();
+        let result = ordinary_set_prototype_of(&obj, new_proto);
+        (result, ordinary_get_prototype_of(&obj).map(|o| o.get(&"sentinel".into()).unwrap().test_result_string()))
+    }
 }
 
 #[test]
@@ -4056,34 +4125,69 @@ mod object {
         fn just_throw(_: &AdaptableObject) -> Completion<PropertyDescriptor> {
             Err(create_type_error("Test Case Thrower"))
         }
+        fn second_kabloom_throws(ao: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+            if *key == PropertyKey::from("kabloom") {
+                let state = ao.something.get();
+                if state == 0 {
+                    ao.something.set(1);
+                } else {
+                    return Err(create_type_error("[[GetOwnProperty]] called on kabloom"));
+                }
+            }
+            Ok(ordinary_get_own_property(ao, key))
+        }
+        fn throwing_get_own_property() -> Object {
+            let throwing_key = PropertyKey::from("kabloom");
+            let obj = AdaptableObject::object(AdaptableMethods {
+                get_own_property_override: Some(second_kabloom_throws),
+                ..Default::default()
+            });
+            obj.create_data_property_or_throw(throwing_key, "boom").unwrap();
+            obj
+        }
+        fn throwing_get() -> Object {
+            let throwing_key = PropertyKey::from("kabloom");
+            let obj = TestObject::object(&[FunctionId::Get(Some(throwing_key.clone()))]);
+            obj.create_data_property_or_throw(throwing_key, "boom").unwrap();
+            obj
+        }
 
-        #[test_case(|| ECMAScriptValue::Undefined, || Vec::new() => sok(""); "source undefined")]
-        #[test_case(|| ECMAScriptValue::Null, || Vec::new() => sok(""); "source null")]
-        #[test_case(|| ECMAScriptValue::from("bob"), || Vec::new() => sok("0:b,1:o,2:b"); "source string")]
+        #[test_case(|| ECMAScriptValue::Undefined, Vec::new => sok(""); "source undefined")]
+        #[test_case(|| ECMAScriptValue::Null, Vec::new => sok(""); "source null")]
+        #[test_case(|| "bob", Vec::new => sok("0:b,1:o,2:b"); "source string")]
         #[test_case(
-            || ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys])), || Vec::new()
+            || ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys])), Vec::new
             => serr("TypeError: [[OwnPropertyKeys]] called on TestObject");
             "[[OwnPropertyKeys]] fails"
         )]
-        #[test_case(|| ECMAScriptValue::from("bob"), || vec!["1".into(), "0".into()] => sok("2:b"); "check exclusion")]
+        #[test_case(|| "bob", || vec!["1".into(), "0".into()] => sok("2:b"); "check exclusion")]
         #[test_case(
             || AdaptableObject::object(
                 AdaptableMethods {
                     own_property_keys_override: Some(lying_ownprops),
                     ..Default::default()
                 }
-            ).into(),
+            ),
             || Vec::new()
             => sok("");
             "property names without descriptors"
         )]
-        fn t(
-            make_source: impl FnOnce() -> ECMAScriptValue,
+        #[test_case(
+            throwing_get_own_property, Vec::new
+            => serr("TypeError: [[GetOwnProperty]] called on kabloom");
+            "[[GetOwnProperty]] fails"
+        )]
+        #[test_case(throwing_get, Vec::new => serr("TypeError: [[Get]] called on TestObject"); "[[Get]] fails")]
+        fn t<X>(
+            make_source: impl FnOnce() -> X,
             make_excluded: impl FnOnce() -> Vec<PropertyKey>,
-        ) -> Result<String, String> {
+        ) -> Result<String, String>
+        where
+            X: Into<ECMAScriptValue>,
+        {
             setup_test_agent();
             let target = ordinary_object_create(None, &[]);
-            let source = make_source();
+            let source = make_source().into();
             let excluded = make_excluded();
             target
                 .copy_data_properties(source, excluded.as_slice())

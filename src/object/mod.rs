@@ -449,6 +449,9 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
+    ospo_internal(obj, val)
+}
+fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
     let current = obj.common_object_data().borrow().prototype.clone();
     if current == val {
         return true;

@@ -524,6 +524,8 @@ test_defs[getv]="values::ECMAScriptValue::get ecmascriptvalue_get object"
 test_defs[ordinary_set]="ordinary_set ordinary_set:: object"
 test_defs[os_internal]="os_internal ordinary_set:: object"
 test_defs[Object_copy_data_properties]="Object::copy_data_properties object::copy_data_properties object"
+test_defs[ordinary_set_prototype_of]="ordinary_set_prototype_of ordinary_set_prototype_of object"
+test_defs[ospo_internal]="ospo_internal ordinary_set_prototype_of object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
