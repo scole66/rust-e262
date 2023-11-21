@@ -3047,7 +3047,7 @@ mod private_set {
     use super::*;
     use test_case::test_case;
 
-    fn setup() -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
+    fn setup() -> (Object, PrivateName, PrivateName, PrivateName, PrivateName, PrivateName) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(object_proto), &[]);
 
@@ -3055,6 +3055,7 @@ mod private_set {
         let method_name = PrivateName::new("method");
         let setter_name = PrivateName::new("setter");
         let nosetter_name = PrivateName::new("nosetter");
+        let broken_setter_name = PrivateName::new("brokenSetter");
 
         private_field_add(&obj, field_name.clone(), ECMAScriptValue::from("FIELD")).unwrap();
         let method = PrivateElement {
@@ -3103,8 +3104,13 @@ mod private_set {
         let nosetter =
             PrivateElement { key: nosetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
         private_method_or_accessor_add(&obj, Rc::new(nosetter)).unwrap();
+        let broken_setter = PrivateElement {
+            key: broken_setter_name.clone(),
+            kind: PrivateElementKind::Accessor { get: None, set: Some(intrinsic(IntrinsicId::ThrowTypeError)) },
+        };
+        private_method_or_accessor_add(&obj, Rc::new(broken_setter)).unwrap();
 
-        (obj, field_name, method_name, setter_name, nosetter_name)
+        (obj, field_name, method_name, setter_name, nosetter_name, broken_setter_name)
     }
     enum FieldName {
         Field,
@@ -3112,6 +3118,7 @@ mod private_set {
         Setter,
         NoSetter,
         Unavailable,
+        BrokenSetter,
     }
 
     #[test_case(FieldName::Field => Ok(ECMAScriptValue::from("NEW VALUE")); "field")]
@@ -3119,9 +3126,10 @@ mod private_set {
     #[test_case(FieldName::Setter => Ok(ECMAScriptValue::from("NEW VALUE")); "setter")]
     #[test_case(FieldName::NoSetter => Err(String::from("PrivateName has no setter")); "no-setter")]
     #[test_case(FieldName::Unavailable => Err(String::from("PrivateName not defined")); "undefined")]
+    #[test_case(FieldName::BrokenSetter => serr("Generic TypeError"); "bad setter")]
     fn f(field: FieldName) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        let (obj, field_name, method_name, setter_name, nosetter_name) = setup();
+        let (obj, field_name, method_name, setter_name, nosetter_name, broken_setter_name) = setup();
         let new_value = ECMAScriptValue::from("NEW VALUE");
         let query = match field {
             FieldName::Field => field_name,
@@ -3129,6 +3137,7 @@ mod private_set {
             FieldName::Setter => setter_name,
             FieldName::NoSetter => nosetter_name,
             FieldName::Unavailable => PrivateName::new("unavailable"),
+            FieldName::BrokenSetter => broken_setter_name,
         };
 
         private_set(&obj, &query, new_value).map_err(unwind_type_error)?;

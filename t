@@ -531,6 +531,7 @@ test_defs[to_constructor]="to_constructor to_constructor object"
 test_defs[validate_and_apply_property_descriptor]="validate_and_apply_property_descriptor validate_and_apply_property_descriptor object"
 test_defs[PropertyInfo]="PropertyInfo property_info object"
 test_defs[PropertyInfoKind]="PropertyInfoKind property_info_kind object"
+test_defs[private_set]="private_set private_set object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
