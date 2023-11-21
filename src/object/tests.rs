@@ -4838,3 +4838,82 @@ fn define_field(make_obj: impl FnOnce() -> Object, fdr: ClassFieldDefinitionReco
     let obj = make_obj();
     super::define_field(&obj, &fdr).map_err(unwind_any_error)
 }
+
+mod property_info {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug_fmt() {
+        let item = PropertyInfo {
+            name: "name".into(),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        };
+        assert_ne!(format!("{item:?}"), "");
+    }
+
+    #[test_case(
+        PropertyInfo {
+            name: "name".into(),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        },
+        PropertyInfo {
+            name: "name".into(),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        }
+        => true;
+        "equal"
+    )]
+    #[test_case(
+        PropertyInfo {
+            name: "name".into(),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        },
+        PropertyInfo {
+            name: "name".into(),
+            enumerable: true,
+            configurable: false,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        }
+        => false;
+        "not equal"
+    )]
+    fn eq(left: PropertyInfo, right: PropertyInfo) -> bool {
+        left == right
+    }
+}
+
+mod property_info_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug_fmt() {
+        let item = PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true };
+        assert_ne!(format!("{item:?}"), "");
+    }
+
+    #[test_case(
+        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true }
+        => true;
+        "equal"
+    )]
+    #[test_case(
+        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: false }
+        => false;
+        "not equal"
+    )]
+    fn eq(left: PropertyInfoKind, right: PropertyInfoKind) -> bool {
+        left == right
+    }
+}
