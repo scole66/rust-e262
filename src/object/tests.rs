@@ -916,119 +916,212 @@ fn ordinary_get_own_property_02() {
     }
 }
 
-#[test]
-fn ordinary_define_own_property_01() {
-    // Add a new property, object is extensible (the default)
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
-    let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(10)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
+mod ordinary_define_own_property {
+    use super::*;
+    use test_case::test_case;
 
-    let result = ordinary_define_own_property(&obj, key.clone(), ppd).unwrap();
-
-    assert!(result);
-    let prop = obj.o.get_own_property(&key).unwrap().unwrap();
-    assert_eq!(prop.configurable, true);
-    assert_eq!(prop.enumerable, true);
-    assert!(matches!(prop.property, PropertyKind::Data(..)));
-    if let PropertyKind::Data(data) = &prop.property {
-        assert_eq!(data.value, ECMAScriptValue::from(10));
-        assert_eq!(data.writable, true);
+    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Undefined)
     }
-}
-#[test]
-fn ordinary_define_own_property_02() {
-    // Add a new property, object is not extensible
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
-    let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(10)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    obj.o.prevent_extensions().unwrap();
 
-    let result = ordinary_define_own_property(&obj, key, ppd).unwrap();
-
-    assert!(!result);
-}
-#[test]
-fn ordinary_define_own_property_03() {
-    // Change an existing property
-    setup_test_agent();
-    let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
-    let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(10)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-    define_property_or_throw(&obj, key.clone(), initial).unwrap();
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), ..Default::default() };
-
-    let result = ordinary_define_own_property(&obj, key.clone(), ppd).unwrap();
-
-    assert!(result);
-    let prop = obj.o.get_own_property(&key).unwrap().unwrap();
-    assert_eq!(prop.configurable, true);
-    assert_eq!(prop.enumerable, true);
-    assert!(matches!(prop.property, PropertyKind::Data(..)));
-    if let PropertyKind::Data(data) = &prop.property {
-        assert_eq!(data.value, ECMAScriptValue::from(0));
-        assert_eq!(data.writable, true);
+    #[test_case(
+        || ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]),
+        || "a",
+        || PotentialPropertyDescriptor::new().value(10).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:10,writable:true,enumerable:true,configurable:true")));
+        "ordinary extensible"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            obj.o.prevent_extensions().unwrap();
+            obj
+        },
+        || "a",
+        || PotentialPropertyDescriptor::new().value(10).writable(true).enumerable(true).configurable(true)
+        => Ok((false, None));
+        "ordinary non-extensible"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            obj.create_data_property("a", 10).unwrap();
+            obj
+        },
+        || "a",
+        || PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:0,writable:true,enumerable:true,configurable:true")));
+        "ordinary change"
+    )]
+    #[test_case(
+        || TestObject::object(&[FunctionId::GetOwnProperty(None)]),
+        || "a",
+        || PotentialPropertyDescriptor::new().value(10).writable(true).enumerable(true).configurable(true)
+        => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+        "[[GetOwnProperty]] fails"
+    )]
+    #[test_case(
+        || TestObject::object(&[FunctionId::IsExtensible]),
+        || "a",
+        || PotentialPropertyDescriptor::new().value(10).writable(true).enumerable(true).configurable(true)
+        => serr("TypeError: [[IsExtensible]] called on TestObject");
+        "[[IsExtensible]] fails"
+    )]
+    #[test_case(
+        || ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object)),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ForInIteratorObject"
+    )]
+    #[test_case(
+        || ArgumentsObject::new(None, None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ArgumentsObject"
+    )]
+    #[test_case(
+        || ArrayObject::new(None),
+        || "pk",
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ArrayObject:&str"
+    )]
+    #[test_case(
+        || ArrayObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ArrayObject:PropertyKey"
+    )]
+    #[test_case(
+        || BooleanObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using BooleanObject"
+    )]
+    #[test_case(
+        || GeneratorObject::new(None, GeneratorState::Undefined, ""),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using GeneratorObject"
+    )]
+    #[test_case(
+        || ErrorObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ErrorObject"
+    )]
+    #[test_case(
+        || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, false),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using BuiltInFunctionObject"
+    )]
+    #[test_case(
+        || FunctionObject::new(
+            None,
+            current_realm_record().unwrap().borrow().global_env.clone().unwrap(),
+            None,
+            ParamSource::FormalParameters(Maker::new("").formal_parameters()),
+            BodySource::Function(Maker::new("{}").function_body()),
+            ConstructorKind::Base,
+            current_realm_record().unwrap(),
+            None,
+            ThisMode::Lexical,
+            true,
+            None,
+            "",
+            vec![],
+            vec![],
+            ClassName::Empty,
+            false,
+            Rc::new(Chunk::new("test"))
+        ),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using FunctionObject"
+    )]
+    #[test_case(
+        || NumberObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using NumberObject"
+    )]
+    #[test_case(
+        || ImmutablePrototypeExoticObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using ImmutablePrototypeExoticObject"
+    )]
+    #[test_case(
+        || OrdinaryObject::new(None, true),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using OrdinaryObject"
+    )]
+    #[test_case(
+        || StringObject::new("".into(), None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using StringObject"
+    )]
+    #[test_case(
+        || SymbolObject::new(None),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using SymbolObject"
+    )]
+    #[test_case(
+        || AdaptableObject::new(None, AdaptableMethods::default()),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using AdaptableObject"
+    )]
+    #[test_case(
+        || TestObject::new(None, &[]),
+        || PropertyKey::from("pk"),
+        || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
+        => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
+        "using TestObject"
+    )]
+    fn t<O, K, D>(
+        make_obj: impl FnOnce() -> O,
+        make_key: impl FnOnce() -> K,
+        make_ppd: impl FnOnce() -> D,
+    ) -> Result<(bool, Option<String>), String>
+    where
+        for<'a> &'a O: Into<&'a dyn ObjectInterface>,
+        K: Into<PropertyKey> + Clone,
+        D: Into<PotentialPropertyDescriptor>,
+    {
+        setup_test_agent();
+        let obj = make_obj();
+        let key = make_key();
+        let key_dup: PropertyKey = key.clone().into();
+        let ppd = make_ppd();
+        ordinary_define_own_property(&obj, key, ppd).map_err(unwind_any_error).map(|x| {
+            let o: &dyn ObjectInterface = (&obj).into();
+            (
+                x,
+                o.get_own_property(&key_dup).unwrap().map(|prop| {
+                    ECMAScriptValue::from(from_property_descriptor(Some(prop)).unwrap()).test_result_string()
+                }),
+            )
+        })
     }
-}
-#[test]
-fn ordinary_define_own_property_04() {
-    // [[GetOwnProperty]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::GetOwnProperty(None)]);
-    let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(10)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-
-    let result = ordinary_define_own_property(&obj, key, ppd).unwrap_err();
-
-    let msg = unwind_type_error(result);
-    assert_eq!(msg, "[[GetOwnProperty]] called on TestObject");
-}
-#[test]
-fn ordinary_define_own_property_05() {
-    // [[IsExtensible]] throws
-    setup_test_agent();
-    let obj = TestObject::object(&[FunctionId::IsExtensible]);
-    let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::from(10)),
-        writable: Some(true),
-        enumerable: Some(true),
-        configurable: Some(true),
-        ..Default::default()
-    };
-
-    let result = ordinary_define_own_property(&obj, key, ppd).unwrap_err();
-
-    let msg = unwind_type_error(result);
-    assert_eq!(msg, "[[IsExtensible]] called on TestObject");
 }
 
 #[test]
@@ -4168,7 +4261,7 @@ mod object {
                     ..Default::default()
                 }
             ),
-            || Vec::new()
+            Vec::new
             => sok("");
             "property names without descriptors"
         )]
@@ -4737,4 +4830,11 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     setup_test_agent();
     let (v, p) = make_items();
     v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
+}
+
+#[test_case(|| ordinary_object_create(None, &[]), ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
+fn define_field(make_obj: impl FnOnce() -> Object, fdr: ClassFieldDefinitionRecord) -> Result<(), String> {
+    setup_test_agent();
+    let obj = make_obj();
+    super::define_field(&obj, &fdr).map_err(unwind_any_error)
 }

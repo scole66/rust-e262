@@ -542,11 +542,17 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>
+pub fn ordinary_define_own_property<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    desc: impl Into<PotentialPropertyDescriptor>,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    odop_internal(o.into(), p.into(), desc.into())
+}
+fn odop_internal(obj: &dyn ObjectInterface, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
     let current = obj.get_own_property(&p)?;
     let extensible = is_extensible(obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
