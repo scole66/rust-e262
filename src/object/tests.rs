@@ -4319,6 +4319,25 @@ mod object {
     }
 }
 
+mod integrity_level {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(IntegrityLevel::Sealed => with |s| assert_ne!(s, ""); "sealed")]
+    #[test_case(IntegrityLevel::Frozen => with |s| assert_ne!(s, ""); "frozen")]
+    fn debug_fmt(item: IntegrityLevel) -> String {
+        format!("{item:?}")
+    }
+
+    #[test_case(IntegrityLevel::Sealed, IntegrityLevel::Sealed => true; "sealed/sealed")]
+    #[test_case(IntegrityLevel::Frozen, IntegrityLevel::Sealed => false; "frozen/sealed")]
+    #[test_case(IntegrityLevel::Sealed, IntegrityLevel::Frozen => false; "sealed/frozen")]
+    #[test_case(IntegrityLevel::Frozen, IntegrityLevel::Frozen => true; "frozen/frozen")]
+    fn eq(left: IntegrityLevel, right: IntegrityLevel) -> bool {
+        left == right
+    }
+}
+
 mod test_integrity_level {
     use super::*;
     use test_case::test_case;
@@ -5107,4 +5126,45 @@ mod dead_object {
     }
 
     default_id_test!();
+}
+
+mod get_prototype_from_constructor {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || {
+            let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+            object_prototype.create_data_property_or_throw("sentinel", "prototype").unwrap();
+            ordinary_object_create(None, &[])
+        },
+        IntrinsicId::ObjectPrototype
+        => sok("prototype");
+        "constructor has no prototype property"
+    )]
+    #[test_case(
+        || {
+            let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+            object_prototype.create_data_property_or_throw("sentinel", "object prototype").unwrap();
+            let error_prototype = intrinsic(IntrinsicId::ErrorPrototype);
+            error_prototype.create_data_property_or_throw("sentinel", "error prototype").unwrap();
+            intrinsic(IntrinsicId::Object)
+        },
+        IntrinsicId::ErrorPrototype
+        => sok("object prototype");
+        "Object constructor; but error prototype chosen as default"
+    )]
+    #[test_case(
+        || TestObject::object(&[FunctionId::Get(Some("prototype".into()))]),
+        IntrinsicId::ObjectPrototype
+        => serr("TypeError: [[Get]] called on TestObject");
+        "constructor object is broken"
+    )]
+    fn t(make_obj: impl FnOnce() -> Object, iproto: IntrinsicId) -> Result<String, String> {
+        setup_test_agent();
+        let cstr = make_obj();
+        get_prototype_from_constructor(&cstr, iproto)
+            .map_err(unwind_any_error)
+            .map(|obj| obj.get(&"sentinel".into()).unwrap().test_result_string())
+    }
 }

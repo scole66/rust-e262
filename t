@@ -545,6 +545,8 @@ test_defs[DeadObject_set]="DeadObject@ObjectInterface::set dead_object::set:: ob
 test_defs[DeadObject_delete]="DeadObject@ObjectInterface::delete dead_object::delete object"
 test_defs[DeadObject_own_property_keys]="DeadObject@ObjectInterface::own_property_keys dead_object::own_property_keys object"
 test_defs[ConciseProperties]="ConciseProperties concise_properties object"
+test_defs[IntegrityLevel]="IntegrityLevel integrity_level object"
+test_defs[get_prototype_from_constructor]="get_prototype_from_constructor get_prototype_from_constructor object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
