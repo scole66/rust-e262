@@ -375,6 +375,26 @@ fn concise_property_descriptor_debug() {
     printer_validate(|w| write!(w, "{:?}", c3));
 }
 
+mod concise_properties {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pd = PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: 10.into(), writable: true }),
+            enumerable: true,
+            configurable: true,
+            spot: 10,
+        };
+        let key = PropertyKey::from("alice");
+        let mut map: AHashMap<PropertyKey, PropertyDescriptor> = AHashMap::new();
+        map.insert(key, pd);
+        let item = ConciseProperties::from(&map);
+
+        assert_ne!(format!("{item:?}"), "");
+    }
+}
+
 mod potential_property_descriptor {
     use super::*;
     use test_case::test_case;
@@ -4925,4 +4945,166 @@ mod property_info_kind {
     fn eq(left: PropertyInfoKind, right: PropertyInfoKind) -> bool {
         left == right
     }
+}
+
+mod dead_object {
+    use super::*;
+    //use test_case::test_case;
+
+    fn make() -> Object {
+        DeadObject::object()
+    }
+
+    none_function!(to_symbol_obj);
+    false_function!(is_plain_object);
+    none_function!(to_string_obj);
+    none_function!(to_generator_object);
+    false_function!(is_generator_object);
+    none_function!(to_arguments_object);
+    false_function!(is_symbol_object);
+    false_function!(uses_ordinary_get_prototype_of);
+    false_function!(is_date_object);
+    none_function!(to_callable_obj);
+    none_function!(to_array_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_constructable);
+    none_function!(to_proxy_object);
+    none_function!(to_error_obj);
+    none_function!(to_for_in_iterator);
+    none_function!(to_number_obj);
+    none_function!(to_function_obj);
+    none_function!(to_builtin_function_obj);
+    false_function!(is_error_object);
+    false_function!(is_string_object);
+    false_function!(is_callable_obj);
+    false_function!(is_number_object);
+    false_function!(is_arguments_object);
+    false_function!(is_regexp_object);
+    false_function!(is_proxy_object);
+    false_function!(is_array_object);
+    false_function!(is_boolean_object);
+
+    #[test]
+    fn is_extensible() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.is_extensible().unwrap_err()),
+            "TypeError: is_extensible called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn define_own_property() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(
+                make().o.define_own_property("key".into(), PotentialPropertyDescriptor::new()).unwrap_err()
+            ),
+            "TypeError: define_own_property called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn get_prototype_of() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.get_prototype_of().unwrap_err()),
+            "TypeError: get_prototype_of called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn set_prototype_of() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.set_prototype_of(None).unwrap_err()),
+            "TypeError: set_prototype_of called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn prevent_extensions() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.prevent_extensions().unwrap_err()),
+            "TypeError: prevent_extensions called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn get_own_property() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.get_own_property(&"key".into()).unwrap_err()),
+            "TypeError: get_own_property called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn has_property() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.has_property(&"a".into()).unwrap_err()),
+            "TypeError: has_property called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn delete() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.delete(&"a".into()).unwrap_err()),
+            "TypeError: delete called on DeadObject"
+        );
+    }
+
+    #[test]
+    fn own_property_keys() {
+        setup_test_agent();
+        assert_eq!(
+            unwind_any_error(make().o.own_property_keys().unwrap_err()),
+            "TypeError: own_property_keys called on DeadObject"
+        );
+    }
+
+    mod get {
+        use super::*;
+        #[test]
+        fn get() {
+            setup_test_agent();
+            assert_eq!(
+                unwind_any_error(make().o.get(&"d".into(), &ECMAScriptValue::Null).unwrap_err()),
+                "TypeError: get called on DeadObject"
+            );
+        }
+    }
+
+    mod set {
+        use super::*;
+        #[test]
+        fn set() {
+            setup_test_agent();
+            assert_eq!(
+                unwind_any_error(
+                    make().o.set("d".into(), ECMAScriptValue::Undefined, &ECMAScriptValue::Null).unwrap_err()
+                ),
+                "TypeError: set called on DeadObject"
+            );
+        }
+    }
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        assert_ne!(format!("{:?}", make()), "");
+    }
+
+    #[should_panic]
+    #[test]
+    fn common_object_data() {
+        setup_test_agent();
+        make().o.common_object_data();
+    }
+
+    default_id_test!();
 }
