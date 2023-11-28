@@ -9,7 +9,7 @@ pub struct ProxyItems {
 #[derive(Debug)]
 pub struct ProxyObject {
     common: RefCell<CommonObjectData>,
-    pub proxy_items: Option<ProxyItems>,
+    pub proxy_items: RefCell<Option<ProxyItems>>,
 }
 
 impl ObjectInterface for ProxyObject {
@@ -791,6 +791,15 @@ impl ObjectInterface for ProxyObject {
 }
 
 impl ProxyObject {
+    pub fn new(target_and_handler: Option<(Object, Object)>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
+            proxy_items: RefCell::new(
+                target_and_handler.map(|(t, h)| ProxyItems { proxy_handler: h, proxy_target: t }),
+            ),
+        }
+    }
+
     pub fn validate_non_revoked(&self) -> Completion<(Object, Object)> {
         // ValidateNonRevokedProxy ( proxy )
         // The abstract operation ValidateNonRevokedProxy takes argument proxy (a Proxy exotic object) and
@@ -800,19 +809,18 @@ impl ProxyObject {
         //  1. If proxy.[[ProxyTarget]] is null, throw a TypeError exception.
         //  2. Assert: proxy.[[ProxyHandler]] is not null.
         //  3. Return UNUSED.
-        match &self.proxy_items {
+        match self.proxy_items.borrow().as_ref() {
             None => Err(create_type_error("Proxy has been revoked")),
             Some(items) => Ok((items.proxy_target.clone(), items.proxy_handler.clone())),
         }
     }
 
     pub fn object(target_and_handler: Option<(Object, Object)>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-                proxy_items: target_and_handler.map(|(t, h)| ProxyItems { proxy_handler: h, proxy_target: t }),
-            }),
-        }
+        Object { o: Rc::new(Self::new(target_and_handler)) }
+    }
+
+    pub fn revoke(&self) {
+        *self.proxy_items.borrow_mut() = None;
     }
 }
 

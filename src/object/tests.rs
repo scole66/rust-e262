@@ -5132,6 +5132,50 @@ mod get_prototype_from_constructor {
     use super::*;
     use test_case::test_case;
 
+    fn cbf(
+        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    ) -> Object {
+        create_builtin_function(
+            behavior,
+            false,
+            0.0,
+            "f".into(),
+            BUILTIN_FUNCTION_SLOTS,
+            current_realm_record(),
+            Some(intrinsic(IntrinsicId::FunctionPrototype)),
+            None,
+        )
+    }
+
+    fn fn_returning_target_then_revoking() -> Object {
+        fn behavior(
+            _this_value: ECMAScriptValue,
+            _new_target: Option<&Object>,
+            arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            let key = PropertyKey::try_from(args.next_arg()).unwrap();
+            let receiver = args.next_arg();
+            let value = target.o.get(&key, &receiver);
+
+            let global = get_global_object().unwrap();
+            let test_proxy = global.get(&"test_proxy".into()).unwrap();
+            let proxy_object = to_object(test_proxy).unwrap();
+            let proxy_interface = proxy_object.o.to_proxy_object().unwrap();
+            proxy_interface.revoke();
+            value
+        }
+        cbf(behavior)
+    }
+
+    fn make_handler(fcn: Object) -> Object {
+        let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let ppd = PotentialPropertyDescriptor::new().value(fcn);
+        define_property_or_throw(&handler, "get", ppd).unwrap();
+        handler
+    }
+
     #[test_case(
         || {
             let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
@@ -5159,6 +5203,21 @@ mod get_prototype_from_constructor {
         IntrinsicId::ObjectPrototype
         => serr("TypeError: [[Get]] called on TestObject");
         "constructor object is broken"
+    )]
+    #[test_case(
+        || {
+            let po = ProxyObject::object(Some((
+                intrinsic(IntrinsicId::ObjectPrototype),
+                make_handler(fn_returning_target_then_revoking())
+            )));
+            let val = po.clone();
+            let global = get_global_object().unwrap();
+            global.set("test_proxy", val, true).unwrap();
+            po
+        },
+        IntrinsicId::ErrorPrototype
+        => serr("TypeError: Proxy has been revoked");
+        "get_function_realm fails"
     )]
     fn t(make_obj: impl FnOnce() -> Object, iproto: IntrinsicId) -> Result<String, String> {
         setup_test_agent();

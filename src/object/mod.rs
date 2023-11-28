@@ -2629,14 +2629,16 @@ pub fn get_function_realm(obj: &Object) -> Completion<Rc<RefCell<Realm>>> {
         Ok(f.function_data().borrow().realm.clone())
     } else if let Some(b) = obj.o.to_builtin_function_obj() {
         Ok(b.builtin_function_data().borrow().realm.clone())
+    } else if let Some(po) = obj.o.to_proxy_object() {
+        let (target, _) = po.validate_non_revoked()?;
+        get_function_realm(&target)
     } else {
         // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
         // a realm slot was _not_ present.
         assert!(!obj.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
 
         // Add the bound-function check
-        // Add the proxy check
-        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
+        eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
 
         Ok(current_realm_record().unwrap())
     }
