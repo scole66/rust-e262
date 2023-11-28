@@ -3001,7 +3001,7 @@ fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompl
     match &target {
         ECMAScriptValue::Object(_) => {
             let hi = wks(WksId::HasInstance);
-            let instof_handler = get_method(&target, &hi.into())?;
+            let instof_handler = target.get_method(&hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
                     if !is_callable(&target) {

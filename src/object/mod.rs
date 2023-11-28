@@ -1885,14 +1885,16 @@ fn internal_define_property_or_throw(
 //  3. If func is either undefined or null, return undefined.
 //  4. If IsCallable(func) is false, throw a TypeError exception.
 //  5. Return func.
-pub fn get_method(val: &ECMAScriptValue, key: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let func = val.get(key)?;
-    if func.is_undefined() || func.is_null() {
-        Ok(ECMAScriptValue::Undefined)
-    } else if !is_callable(&func) {
-        Err(create_type_error("item is not callable"))
-    } else {
-        Ok(func)
+impl ECMAScriptValue {
+    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+        let func = self.get(key)?;
+        if func.is_undefined() || func.is_null() {
+            Ok(ECMAScriptValue::Undefined)
+        } else if !is_callable(&func) {
+            Err(create_type_error("item is not callable"))
+        } else {
+            Ok(func)
+        }
     }
 }
 

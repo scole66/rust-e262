@@ -5227,3 +5227,56 @@ mod get_prototype_from_constructor {
             .map(|obj| obj.get(&"sentinel".into()).unwrap().test_result_string())
     }
 }
+
+mod get_method {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ECMAScriptValue::Undefined, "something" 
+        => serr("TypeError: Undefined and null cannot be converted to objects"); 
+        "Not an object"
+    )]
+    #[test_case(
+        || intrinsic(IntrinsicId::Object), "nothing"
+        => sok("undefined");
+        "property is undefined"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("some_key", ECMAScriptValue::Null).unwrap();
+            obj
+        },
+        "some_key"
+        => sok("undefined");
+        "property is null"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("some_key", "some_string").unwrap();
+            obj
+        },
+        "some_key"
+        => serr("TypeError: item is not callable");
+        "property is not callable"
+    )]
+    #[test_case(|| intrinsic(IntrinsicId::Object), "create" => sok("create"); "a real method")]
+    fn t<X>(make_val: impl FnOnce() -> X, key: impl Into<PropertyKey>) -> Result<String, String>
+    where
+        X: Into<ECMAScriptValue>,
+    {
+        setup_test_agent();
+        let val = make_val().into();
+        let key = key.into();
+        val.get_method(&key).map_err(unwind_any_error).map(|fval| {
+            if fval.is_undefined() {
+                "undefined".to_string()
+            } else {
+                let fobj = to_object(fval).unwrap();
+                fobj.get(&"name".into()).unwrap().test_result_string()
+            }
+        })
+    }
+}

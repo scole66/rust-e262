@@ -59,7 +59,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"getPrototypeOf".into())?;
+        let trap = handler.get_method(&"getPrototypeOf".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get_prototype_of();
         }
@@ -115,7 +115,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"setPrototypeOf".into())?;
+        let trap = handler.get_method(&"setPrototypeOf".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.set_prototype_of(v);
         }
@@ -170,7 +170,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"isExtensible".into())?;
+        let trap = handler.get_method(&"isExtensible".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.is_extensible();
         }
@@ -210,7 +210,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"preventExtensions".into())?;
+        let trap = handler.get_method(&"preventExtensions".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.prevent_extensions();
         }
@@ -277,7 +277,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"getOwnPropertyDescriptor".into())?;
+        let trap = handler.get_method(&"getOwnPropertyDescriptor".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get_own_property(key);
         }
@@ -376,7 +376,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"defineProperty".into())?;
+        let trap = handler.get_method(&"defineProperty".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.define_own_property(key, desc);
         }
@@ -460,7 +460,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"has".into())?;
+        let trap = handler.get_method(&"has".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.has_property(key);
         }
@@ -511,7 +511,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"get".into())?;
+        let trap = handler.get_method(&"get".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.get(key, receiver);
         }
@@ -576,7 +576,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"set".into())?;
+        let trap = handler.get_method(&"set".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.set(key, value, receiver);
         }
@@ -642,7 +642,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"deleteProperty".into())?;
+        let trap = handler.get_method(&"deleteProperty".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.delete(key);
         }
@@ -721,7 +721,7 @@ impl ObjectInterface for ProxyObject {
         let (proxy_target, proxy_handler) = self.validate_non_revoked()?;
         let target = &proxy_target;
         let handler = ECMAScriptValue::from(proxy_handler);
-        let trap = get_method(&handler, &"ownKeys".into())?;
+        let trap = handler.get_method(&"ownKeys".into())?;
         if matches!(trap, ECMAScriptValue::Undefined) {
             return target.o.own_property_keys();
         }

@@ -547,6 +547,7 @@ test_defs[DeadObject_own_property_keys]="DeadObject@ObjectInterface::own_propert
 test_defs[ConciseProperties]="ConciseProperties concise_properties object"
 test_defs[IntegrityLevel]="IntegrityLevel integrity_level object"
 test_defs[get_prototype_from_constructor]="get_prototype_from_constructor get_prototype_from_constructor object"
+test_defs[get_method]="values::ECMAScriptValue::get_method get_method object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
