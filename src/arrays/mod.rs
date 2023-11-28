@@ -169,7 +169,7 @@ impl ArrayObject {
         );
         ordinary_define_own_property(
             &a,
-            "length".into(),
+            "length",
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
         )
         .unwrap();
@@ -238,7 +238,7 @@ impl ArrayObject {
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
         let old_len = to_uint32(old_len_desc.value).unwrap();
         if new_len >= old_len {
-            return ordinary_define_own_property(self, "length".into(), new_len_desc);
+            return ordinary_define_own_property(self, "length", new_len_desc);
         }
         if !old_len_desc.writable {
             return Ok(false);
@@ -249,7 +249,7 @@ impl ArrayObject {
             new_len_desc.writable = Some(true);
             false
         };
-        let succeeded = ordinary_define_own_property(self, "length".into(), new_len_desc.clone()).unwrap();
+        let succeeded = ordinary_define_own_property(self, "length", new_len_desc.clone()).unwrap();
         if !succeeded {
             return Ok(false);
         }
@@ -271,13 +271,12 @@ impl ArrayObject {
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
-                ordinary_define_own_property(self, "length".into(), new_len_desc).unwrap();
+                ordinary_define_own_property(self, "length", new_len_desc).unwrap();
                 return Ok(false);
             }
         }
         if !new_writable {
-            ordinary_define_own_property(self, "length".into(), PotentialPropertyDescriptor::new().writable(false))
-                .unwrap();
+            ordinary_define_own_property(self, "length", PotentialPropertyDescriptor::new().writable(false)).unwrap();
         }
         Ok(true)
     }
@@ -318,7 +317,7 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
-        let realm_c = get_function_realm(&c_obj)?;
+        let realm_c = c_obj.get_function_realm()?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
@@ -654,7 +653,7 @@ fn array_constructor_function(
         Some(obj) => obj.clone(),
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
-    let proto = get_prototype_from_constructor(&nt, IntrinsicId::ArrayPrototype)?;
+    let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
     let number_of_args = arguments.len() as u64;
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
@@ -674,7 +673,7 @@ fn array_constructor_function(
                     1
                 }
             };
-            set(&array, "length".into(), int_len.into(), true).expect("Set should succeed");
+            array.set("length", int_len, true).expect("Set should succeed");
             Ok(array.into())
         }
         _ => {

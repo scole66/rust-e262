@@ -449,6 +449,9 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
+    ospo_internal(obj, val)
+}
+fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
     let current = obj.common_object_data().borrow().prototype.clone();
     if current == val {
         return true;
@@ -539,11 +542,17 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>
+pub fn ordinary_define_own_property<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    desc: impl Into<PotentialPropertyDescriptor>,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    odop_internal(o.into(), p.into(), desc.into())
+}
+fn odop_internal(obj: &dyn ObjectInterface, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
     let current = obj.get_own_property(&p)?;
     let extensible = is_extensible(obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
@@ -845,19 +854,39 @@ fn og_internal(obj: &dyn ObjectInterface, p: &PropertyKey, receiver: &ECMAScript
     }
 }
 
-// OrdinarySet ( O, P, V, Receiver )
-//
-// The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
-// value), and Receiver (an ECMAScript language value). It performs the following steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
-//  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>
+/// The default implementation of \[\[Set]]
+///
+/// This attaches the given value to the given property key on the provided object, using the existing property
+/// descriptor, if it exists.
+///
+/// See [OrdinarySet](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-ordinaryset) in
+/// ECMA-262.
+pub fn ordinary_set<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    os_internal(o.into(), p.into(), v.into(), receiver)
+}
+
+fn os_internal(
+    obj: &dyn ObjectInterface,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool> {
+    // OrdinarySet ( O, P, V, Receiver )
+    //
+    // The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
+    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Assert: IsPropertyKey(P) is true.
+    //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
+    //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
     let own_desc = obj.get_own_property(&p)?;
     ordinary_set_with_own_descriptor(obj, p, v, receiver, own_desc)
 }
@@ -1767,25 +1796,38 @@ impl ECMAScriptValue {
     }
 }
 
-// Set ( O, P, V, Throw )
-//
-// The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language value), and
-// Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new value for the
-// property. It performs the following steps when called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Assert: Type(Throw) is Boolean.
-//  4. Let success be ? O.[[Set]](P, V, O).
-//  5. If success is false and Throw is true, throw a TypeError exception.
-//  6. Return success.
-pub fn set(obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
-    let objval = ECMAScriptValue::Object(obj.clone());
-    let success = obj.o.set(propkey, value, &objval)?;
-    if !success && throw {
-        Err(create_type_error("Cannot add property, for one of many different possible reasons"))
-    } else {
-        Ok(success)
+impl Object {
+    /// Set the value of a specific property for an object
+    ///
+    /// See [Set](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-set-o-p-v-throw) in ECMA-262.
+    pub fn set(
+        &self,
+        propkey: impl Into<PropertyKey>,
+        value: impl Into<ECMAScriptValue>,
+        throw: bool,
+    ) -> Completion<bool> {
+        self.set_internal(propkey.into(), value.into(), throw)
+    }
+    fn set_internal(&self, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
+        // Set ( O, P, V, Throw )
+        //
+        // The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language
+        // value), and Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new
+        // value for the property. It performs the following steps when called:
+        //
+        //  1. Assert: Type(O) is Object.
+        //  2. Assert: IsPropertyKey(P) is true.
+        //  3. Assert: Type(Throw) is Boolean.
+        //  4. Let success be ? O.[[Set]](P, V, O).
+        //  5. If success is false and Throw is true, throw a TypeError exception.
+        //  6. Return success.
+        let receiver = ECMAScriptValue::Object(self.clone());
+        let success = self.o.set(propkey, value, &receiver)?;
+        if !success && throw {
+            Err(create_type_error("Cannot add property, for one of many different possible reasons"))
+        } else {
+            Ok(success)
+        }
     }
 }
 
@@ -1843,14 +1885,16 @@ fn internal_define_property_or_throw(
 //  3. If func is either undefined or null, return undefined.
 //  4. If IsCallable(func) is false, throw a TypeError exception.
 //  5. Return func.
-pub fn get_method(val: &ECMAScriptValue, key: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let func = val.get(key)?;
-    if func.is_undefined() || func.is_null() {
-        Ok(ECMAScriptValue::Undefined)
-    } else if !is_callable(&func) {
-        Err(create_type_error("item is not callable"))
-    } else {
-        Ok(func)
+impl ECMAScriptValue {
+    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+        let func = self.get(key)?;
+        if func.is_undefined() || func.is_null() {
+            Ok(ECMAScriptValue::Undefined)
+        } else if !is_callable(&func) {
+            Err(create_type_error("item is not callable"))
+        } else {
+            Ok(func)
+        }
     }
 }
 
@@ -2304,7 +2348,7 @@ pub fn ordinary_create_from_constructor(
     intrinsic_default_proto: IntrinsicId,
     internal_slots_list: &[InternalSlotName],
 ) -> Completion<Object> {
-    let proto = get_prototype_from_constructor(constructor, intrinsic_default_proto)?;
+    let proto = constructor.get_prototype_from_constructor(intrinsic_default_proto)?;
     Ok(ordinary_object_create(Some(proto), internal_slots_list))
 }
 
@@ -2326,17 +2370,16 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-pub fn get_prototype_from_constructor(
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-) -> Completion<Object> {
-    let proto = constructor.get(&PropertyKey::from("prototype"))?;
-    match proto {
-        ECMAScriptValue::Object(obj) => Ok(obj),
-        _ => {
-            let realm = get_function_realm(constructor)?;
-            let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
-            Ok(proto)
+impl Object {
+    pub fn get_prototype_from_constructor(&self, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
+        let proto = self.get(&PropertyKey::from("prototype"))?;
+        match proto {
+            ECMAScriptValue::Object(obj) => Ok(obj),
+            _ => {
+                let realm = self.get_function_realm()?;
+                let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
+                Ok(proto)
+            }
         }
     }
 }
@@ -2582,21 +2625,25 @@ pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Objec
 //
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
-pub fn get_function_realm(obj: &Object) -> Completion<Rc<RefCell<Realm>>> {
-    if let Some(f) = obj.o.to_function_obj() {
-        Ok(f.function_data().borrow().realm.clone())
-    } else if let Some(b) = obj.o.to_builtin_function_obj() {
-        Ok(b.builtin_function_data().borrow().realm.clone())
-    } else {
-        // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
-        // a realm slot was _not_ present.
-        assert!(!obj.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
+impl Object {
+    pub fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
+        if let Some(f) = self.o.to_function_obj() {
+            Ok(f.function_data().borrow().realm.clone())
+        } else if let Some(b) = self.o.to_builtin_function_obj() {
+            Ok(b.builtin_function_data().borrow().realm.clone())
+        } else if let Some(po) = self.o.to_proxy_object() {
+            let (target, _) = po.validate_non_revoked()?;
+            target.get_function_realm()
+        } else {
+            // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
+            // a realm slot was _not_ present.
+            assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
 
-        // Add the bound-function check
-        // Add the proxy check
-        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
+            // Add the bound-function check
+            eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
 
-        Ok(current_realm_record().unwrap())
+            Ok(current_realm_record().unwrap())
+        }
     }
 }
 
@@ -2725,24 +2772,50 @@ pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Comple
     }
 }
 
-/// Copy enumerable data properties from a source to a target, potentially excluding some
-///
-/// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-pub fn copy_data_properties(target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
-    if !(source.is_undefined() || source.is_null()) {
-        let from = to_object(source).unwrap();
-        let keys = from.o.own_property_keys()?;
-        for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
-            let desc = from.o.get_own_property(next_key)?;
-            if let Some(desc) = desc {
-                if desc.enumerable {
-                    let prop_value = from.get(next_key)?;
-                    target.create_data_property_or_throw(next_key.clone(), prop_value).unwrap();
+impl Object {
+    /// Copy enumerable data properties from a source to a target, potentially excluding some
+    ///
+    /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
+    pub fn copy_data_properties(&self, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+        // CopyDataProperties ( target, source, excludedItems )
+        // The abstract operation CopyDataProperties takes arguments target (an Object), source (an ECMAScript language
+        // value), and excludedItems (a List of property keys) and returns either a normal completion containing UNUSED
+        // or a throw completion. It performs the following steps when called:
+        //
+        //  1. If source is either undefined or null, return UNUSED.
+        //  2. Let from be ! ToObject(source).
+        //  3. Let keys be ? from.[[OwnPropertyKeys]]().
+        //  4. For each element nextKey of keys, do
+        //      a. Let excluded be false.
+        //      b. For each element e of excludedItems, do
+        //          i. If SameValue(e, nextKey) is true, then
+        //              1. Set excluded to true.
+        //      c. If excluded is false, then
+        //          i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+        //          ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+        //              1. Let propValue be ? Get(from, nextKey).
+        //              2. Perform ! CreateDataPropertyOrThrow(target, nextKey, propValue).
+        //  5. Return UNUSED.
+        //
+        // NOTE    The target passed in here is always a newly created object which is not directly accessible in case
+        //         of an error being thrown.
+        if !(source.is_undefined() || source.is_null()) {
+            let from = to_object(source)
+                .expect("a value which is neither null nor undefined should be convertable to an object");
+            let keys = from.o.own_property_keys()?;
+            for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
+                let desc = from.o.get_own_property(next_key)?;
+                if let Some(desc) = desc {
+                    if desc.enumerable {
+                        let prop_value = from.get(next_key)?;
+                        self.create_data_property_or_throw(next_key.clone(), prop_value)
+                            .expect("data property creation should work fine for newly created objects");
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(test)]

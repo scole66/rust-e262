@@ -520,8 +520,8 @@ pub fn set_default_global_bindings() {
 //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
 //  11. Create any host-defined global object properties on globalObj.
 //  12. Return NormalCompletion(empty).
-pub fn initialize_host_defined_realm(install_test_hooks: bool) {
-    let realm = create_realm();
+pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
+    let realm = create_realm(id);
     let new_context = ExecutionContext::new(None, realm, None);
     push_execution_context(new_context);
     set_realm_global_object(None, None);
@@ -1255,7 +1255,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    let result = copy_data_properties(&obj, value, &[]);
+                    let result = obj.copy_data_properties(value, &[]);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
@@ -1279,7 +1279,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .expect("dest should be a value"),
                     )
                     .expect("dest should be an object");
-                    let result = copy_data_properties(&dest, value, &exclusions);
+                    let result = dest.copy_data_properties(value, &exclusions);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(dest)),
                         Err(e) => Err(e),
@@ -3001,7 +3001,7 @@ fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompl
     match &target {
         ECMAScriptValue::Object(_) => {
             let hi = wks(WksId::HasInstance);
-            let instof_handler = get_method(&target, &hi.into())?;
+            let instof_handler = target.get_method(&hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
                     if !is_callable(&target) {

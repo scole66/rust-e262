@@ -712,7 +712,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = get_method(&input, &PropertyKey::from(wks(WksId::ToPrimitive)))?;
+        let exotic_to_prim = input.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",

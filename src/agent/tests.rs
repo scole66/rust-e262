@@ -98,7 +98,7 @@ mod agent {
         let afo = super::active_function_object();
         assert!(afo.is_none());
 
-        super::initialize_host_defined_realm(true);
+        super::initialize_host_defined_realm(100, true);
         // Now there's an execution context, but still no active function, so this should still be None.
         let afo = super::active_function_object();
         assert!(afo.is_none());
@@ -763,7 +763,7 @@ mod agent {
             for (idx, (name, value)) in zip(names, values).enumerate() {
                 let val = ao.get(&idx.into()).unwrap();
                 assert_eq!(&val, value);
-                set(&ao, idx.into(), (idx as u32).into(), true).unwrap();
+                ao.set(idx, idx as u32, true).unwrap();
                 let val = lex.get_binding_value(name, true).unwrap();
                 assert_eq!(val, ECMAScriptValue::from(idx as u32));
             }
@@ -1539,7 +1539,7 @@ mod begin_call_evaluation {
 
     fn object_this() -> NormalCompletion {
         let obj = ordinary_object_create(None, &[]);
-        set(&obj, "marker".into(), ECMAScriptValue::from("legitimate this"), true).unwrap();
+        obj.set("marker", "legitimate this", true).unwrap();
         let base = ECMAScriptValue::from(ordinary_object_create(None, &[]));
         let r = Reference::new(Base::Value(base), "callee", true, Some(ECMAScriptValue::from(obj)));
         NormalCompletion::from(r)
@@ -1605,7 +1605,7 @@ mod for_in_iterator_object {
         let a = array_create(0, None);
         let o = ForInIteratorObject::object(Some(proto), a.unwrap());
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 

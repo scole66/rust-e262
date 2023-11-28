@@ -945,7 +945,7 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
         IteratorKind::Async => todo!(),
         IteratorKind::Sync => {
             let iter_symbol = wks(WksId::Iterator);
-            get_method(obj, &iter_symbol.into())?
+            obj.get_method(&iter_symbol.into())?
         }
     };
     if method.is_undefined() {
@@ -1030,7 +1030,7 @@ impl IteratorRecord {
         //  7. If innerResult.[[Value]] is not an Object, throw a TypeError exception.
         //  8. Return ? completion.
         let iterator = &ECMAScriptValue::from(&self.iterator);
-        let inner_result = match get_method(iterator, &"return".into()) {
+        let inner_result = match iterator.get_method(&"return".into()) {
             Ok(return_v) => {
                 if return_v.is_undefined() {
                     return completion;

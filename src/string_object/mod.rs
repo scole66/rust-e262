@@ -460,7 +460,7 @@ fn string_constructor_function(
         to_string(value.clone())?
     };
     if let Some(nt) = new_target {
-        let prototype = get_prototype_from_constructor(nt, IntrinsicId::StringPrototype)?;
+        let prototype = nt.get_prototype_from_constructor(IntrinsicId::StringPrototype)?;
         let s_obj = string_create(s, Some(prototype));
         Ok(ECMAScriptValue::from(s_obj))
     } else {

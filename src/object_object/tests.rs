@@ -39,7 +39,7 @@ mod prototype {
             // Return an object whose @@toStringTag property has the value "Grease"
             let to_string_tag_symbol = wks(WksId::ToStringTag);
             let obj = ordinary_object_create(None, &[]);
-            set(&obj, PropertyKey::from(to_string_tag_symbol), ECMAScriptValue::from("Grease"), false).unwrap();
+            obj.set(PropertyKey::from(to_string_tag_symbol), ECMAScriptValue::from("Grease"), false).unwrap();
             ECMAScriptValue::from(obj)
         }
 

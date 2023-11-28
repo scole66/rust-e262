@@ -469,7 +469,6 @@ fn error_prototype_data_props() {
     assert_eq!(val, ECMAScriptValue::from("Error"));
 }
 
-use crate::object::{define_property_or_throw, invoke, set};
 #[test]
 fn error_prototype_tostring_01() {
     setup_test_agent();
@@ -485,8 +484,8 @@ fn error_prototype_tostring_02() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
-    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
-    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
+    errobj.set(PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob: you have a phone call"));
@@ -497,8 +496,8 @@ fn error_prototype_tostring_03() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
-    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
-    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+    errobj.set(PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    errobj.set(PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error"));
@@ -509,8 +508,8 @@ fn error_prototype_tostring_04() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
-    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
-    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+    errobj.set(PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    errobj.set(PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob"));
@@ -521,8 +520,8 @@ fn error_prototype_tostring_05() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
-    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
-    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+    errobj.set(PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error: Message"));
@@ -533,8 +532,8 @@ fn error_prototype_tostring_06() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
-    set(&errobj, PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
-    set(&errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+    errobj.set(PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
+    errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Message"));
@@ -578,7 +577,7 @@ fn error_prototype_tostring_09() {
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
     let sym = ECMAScriptValue::from(Symbol::new(None));
-    set(&errobj, PropertyKey::from("name"), sym, false).unwrap();
+    errobj.set(PropertyKey::from("name"), sym, false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
@@ -590,7 +589,7 @@ fn error_prototype_tostring_10() {
     let errobjval = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(errobjval.clone()).unwrap();
     let sym = ECMAScriptValue::from(Symbol::new(None));
-    set(&errobj, PropertyKey::from("message"), sym, false).unwrap();
+    errobj.set(PropertyKey::from("message"), sym, false).unwrap();
 
     let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");

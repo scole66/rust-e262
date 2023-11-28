@@ -180,9 +180,9 @@ mod arguments_object {
     fn test_unmapped() -> Object {
         let obj = ArgumentsObject::object(None);
 
-        super::set(&obj, "0".into(), "value of 'from'".into(), false).unwrap();
-        super::set(&obj, "1".into(), "value of 'the'".into(), false).unwrap();
-        super::set(&obj, "2".into(), "value of 'test'".into(), false).unwrap();
+        obj.set("0", "value of 'from'", false).unwrap();
+        obj.set("1", "value of 'the'", false).unwrap();
+        obj.set("2", "value of 'test'", false).unwrap();
 
         obj
     }
