@@ -30,6 +30,7 @@ pub enum IntrinsicId {
     Object,
     ObjectPrototype,
     ObjectPrototypeToString,
+    Proxy,
     RangeError,
     RangeErrorPrototype,
     ReferenceError,
@@ -259,6 +260,7 @@ impl Intrinsics {
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
             IntrinsicId::ObjectPrototypeToString => &self.object_prototype_to_string,
+            IntrinsicId::Proxy => &self.proxy,
             IntrinsicId::RangeError => &self.range_error,
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
@@ -307,6 +309,7 @@ impl Intrinsics {
             o if o == &self.object => Some(IntrinsicId::Object),
             o if o == &self.object_prototype => Some(IntrinsicId::ObjectPrototype),
             o if o == &self.object_prototype_to_string => Some(IntrinsicId::ObjectPrototypeToString),
+            o if o == &self.proxy => Some(IntrinsicId::Proxy),
             o if o == &self.range_error => Some(IntrinsicId::RangeError),
             o if o == &self.range_error_prototype => Some(IntrinsicId::RangeErrorPrototype),
             o if o == &self.reference_error => Some(IntrinsicId::ReferenceError),
@@ -333,6 +336,8 @@ impl fmt::Debug for Intrinsics {
     }
 }
 
+pub type RealmId = u64;
+
 pub struct Realm {
     // NOTE NOTE NOTE NOTE: Realm is a circular structure. The function objects in the Intrinsics field each have their
     // own Realm pointer, which points back to this structure. They _should_ be weak pointers, because of that, except
@@ -347,15 +352,22 @@ pub struct Realm {
     pub global_object: Option<Object>,
     pub global_env: Option<Rc<GlobalEnvironmentRecord>>,
     // TemplateMap: later, when needed
+    id: RealmId,
 }
 
 impl fmt::Debug for Realm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Realm")
+        f.debug_struct(format!("Realm({})", self.id).as_str())
             .field("intrinsics", &self.intrinsics)
             .field("global_object", &ConciseOptionalObject::from(&self.global_object))
             .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.as_ref().map(Rc::clone)))
             .finish()
+    }
+}
+
+impl Realm {
+    pub fn id(&self) -> RealmId {
+        self.id
     }
 }
 
@@ -369,8 +381,8 @@ impl fmt::Debug for Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm() -> Rc<RefCell<Realm>> {
-    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None }));
+pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
+    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
     create_intrinsics(r.clone());
     r
 }
@@ -406,42 +418,8 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
 
     provision_function_intrinsic(&realm_rec);
+    provision_boolean_intrinsic(&realm_rec);
 
-    ///////////////////////////////////////////////////////////////////
-    // %Boolean% and %Boolean.prototype%
-    let boolean_prototype = ordinary_object_create(Some(object_prototype), &[InternalSlotName::BooleanData]);
-    realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
-    let bool_constructor = create_builtin_function(
-        throw_type_error,
-        false,
-        1_f64,
-        PropertyKey::from("Boolean"),
-        BUILTIN_FUNCTION_SLOTS,
-        Some(realm_rec.clone()),
-        Some(function_prototype.clone()),
-        None,
-    );
-    define_property_or_throw(
-        &bool_constructor,
-        "prototype",
-        PotentialPropertyDescriptor::new()
-            .value(&boolean_prototype)
-            .writable(false)
-            .enumerable(false)
-            .configurable(false),
-    )
-    .unwrap();
-    realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
-    define_property_or_throw(
-        &boolean_prototype,
-        "constructor",
-        PotentialPropertyDescriptor::new()
-            .value(bool_constructor) // consumes bool_constructor
-            .writable(true)
-            .enumerable(false)
-            .configurable(true),
-    )
-    .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
     provision_number_intrinsic(&realm_rec);
@@ -461,6 +439,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_generator_function_intrinsics(&realm_rec);
     provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_proxy_intrinsic(&realm_rec);
 
     add_restricted_function_properties(&function_prototype, realm_rec);
 }

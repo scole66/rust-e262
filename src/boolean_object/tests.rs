@@ -1,5 +1,6 @@
 use super::*;
 use crate::tests::*;
+use test_case::test_case;
 
 #[test]
 fn create_boolean_object_01() {
@@ -208,4 +209,100 @@ fn bool_object_debug() {
     setup_test_agent();
     let bool_obj = create_boolean_object(true);
     assert_ne!(format!("{:?}", bool_obj), "");
+}
+
+#[test_case(|| true => Ok(true); "true value")]
+#[test_case(|| false => Ok(false); "false value")]
+#[test_case(|| to_object(true).unwrap() => Ok(true); "true object")]
+#[test_case(|| to_object(false).unwrap() => Ok(false); "false object")]
+#[test_case(|| 0 => serr("TypeError: Value is not boolean"); "not a boolean")]
+fn boolean_prototype_value_of<X>(make_val: impl FnOnce() -> X) -> Result<bool, String>
+where
+    X: Into<ECMAScriptValue>,
+{
+    setup_test_agent();
+    let value = make_val().into();
+    super::boolean_prototype_value_of(value, None, &[]).map_err(unwind_any_error).map(to_boolean)
+}
+
+#[test_case(|| true => sok("true"); "true value")]
+#[test_case(|| false => sok("false"); "false value")]
+#[test_case(|| to_object(true).unwrap() => sok("true"); "true object")]
+#[test_case(|| to_object(false).unwrap() => sok("false"); "false object")]
+#[test_case(|| 0 => serr("TypeError: Value is not boolean"); "not a boolean")]
+fn boolean_prototype_to_string<X>(make_val: impl FnOnce() -> X) -> Result<String, String>
+where
+    X: Into<ECMAScriptValue>,
+{
+    setup_test_agent();
+    let value = make_val().into();
+    super::boolean_prototype_to_string(value, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
+}
+
+#[test_case(
+    || Some(intrinsic(IntrinsicId::Boolean)), || vec![true.into()]
+    => Ok((true, "Object(true): ".to_string()));
+    "new Boolean(true)"
+)]
+#[test_case(
+    || Some(intrinsic(IntrinsicId::Boolean)), || vec![false.into()]
+    => Ok((false, "Object(false): ".to_string()));
+    "new Boolean(false)"
+)]
+#[test_case(|| None, || vec![true.into()] => Ok((true, "Boolean(true)".into())); "Boolean(true)")]
+#[test_case(|| None, || vec![false.into()] => Ok((false, "Boolean(false)".into())); "Boolean(false)")]
+#[test_case(
+    || Some(TestObject::object(&[FunctionId::Get(Some("prototype".into()))])), || vec![true.into()]
+    => serr("TypeError: [[Get]] called on TestObject");
+    "broken constructor"
+)]
+fn boolean_constructor_function(
+    make_nt: impl FnOnce() -> Option<Object>,
+    make_args: impl FnOnce() -> Vec<ECMAScriptValue>,
+) -> Result<(bool, String), String> {
+    setup_test_agent();
+    let new_target = make_nt();
+    let arguments = make_args();
+    super::boolean_constructor_function(ECMAScriptValue::Undefined, new_target.as_ref(), arguments.as_slice())
+        .map_err(unwind_any_error)
+        .map(|v| match &v {
+            ECMAScriptValue::Boolean(b) => (*b, format!("Boolean({b})")),
+            ECMAScriptValue::Object(o) => {
+                let bo = o.o.to_boolean_obj().unwrap();
+                let b = *bo.boolean_data().borrow();
+                (b, format!("Object({b}): {}", v.test_result_string()))
+            }
+            _ => panic!("Bad value back"),
+        })
+}
+
+#[test]
+fn provision_boolean_intrinsic() {
+    setup_test_agent();
+    // Just setting up the test agent will complete coverage, so we're really just checking the result.
+
+    let boolean = intrinsic(IntrinsicId::Boolean);
+    let global = get_global_object().unwrap();
+    let global_boolean = global.o.get_own_property(&"Boolean".into()).unwrap().unwrap();
+    let booleanfcn = Object::try_from(func_validation(global_boolean, "Boolean", 1)).unwrap();
+    assert_eq!(booleanfcn, boolean);
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let boolean_constructor_prototype = boolean.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(boolean_constructor_prototype, function_prototype);
+
+    let prototype_pd = boolean.o.get_own_property(&"prototype".into()).unwrap().unwrap();
+    let proto_intrinsic = intrinsic(IntrinsicId::BooleanPrototype);
+    let prototype = Object::try_from(data_validation(prototype_pd, false, false, false)).unwrap();
+    assert_eq!(proto_intrinsic, prototype);
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+    let boolean_prototype_prototype = prototype.o.get_prototype_of().unwrap().unwrap();
+    assert_eq!(boolean_prototype_prototype, object_prototype);
+    assert!(prototype.o.is_boolean_object());
+
+    func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
+    func_validation(prototype.o.get_own_property(&"valueOf".into()).unwrap().unwrap(), "valueOf", 0);
+
+    let constructor_pd = prototype.o.get_own_property(&"constructor".into()).unwrap().unwrap();
+    let constructor = data_validation(constructor_pd, true, false, true);
+    assert_eq!(constructor, boolean.into());
 }

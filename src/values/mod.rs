@@ -231,6 +231,21 @@ impl From<Symbol> for ECMAScriptValue {
     }
 }
 
+impl From<&Symbol> for ECMAScriptValue {
+    fn from(value: &Symbol) -> Self {
+        Self::Symbol(value.clone())
+    }
+}
+
+impl From<&PropertyKey> for ECMAScriptValue {
+    fn from(value: &PropertyKey) -> Self {
+        match value {
+            PropertyKey::String(s) => s.into(),
+            PropertyKey::Symbol(sym) => sym.into(),
+        }
+    }
+}
+
 impl TryFrom<ECMAScriptValue> for Numeric {
     type Error = anyhow::Error;
     fn try_from(src: ECMAScriptValue) -> Result<Self, Self::Error> {
@@ -658,7 +673,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
         }
     };
     for name in method_names.iter() {
-        let method = get(obj, name)?;
+        let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
@@ -697,7 +712,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = get_method(&input, &PropertyKey::from(wks(WksId::ToPrimitive)))?;
+        let exotic_to_prim = input.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",

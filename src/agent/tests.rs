@@ -98,7 +98,7 @@ mod agent {
         let afo = super::active_function_object();
         assert!(afo.is_none());
 
-        super::initialize_host_defined_realm(true);
+        super::initialize_host_defined_realm(100, true);
         // Now there's an execution context, but still no active function, so this should still be None.
         let afo = super::active_function_object();
         assert!(afo.is_none());
@@ -163,15 +163,15 @@ mod agent {
 
             let first_realm = create_named_realm("first");
             let first_context = ExecutionContext::new(None, first_realm, None);
-            push_execution_context(first_context);
+            crate::push_execution_context(first_context);
 
             let second_realm = create_named_realm("second");
             let second_context = ExecutionContext::new(None, second_realm, None);
-            push_execution_context(second_context);
+            crate::push_execution_context(second_context);
 
             assert_eq!(get_realm_name(), "second");
 
-            pop_execution_context();
+            crate::pop_execution_context();
 
             assert_eq!(get_realm_name(), "first");
         }
@@ -581,14 +581,14 @@ mod agent {
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
                     .unwrap()
             });
-            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            assert_eq!(ao.get(&"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
+                assert_eq!(&ao.get(&idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let type_error_generator = intrinsic(IntrinsicId::ThrowTypeError);
             let iterator_sym = super::super::wks(WksId::Iterator);
-            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(ao.get(&iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
             let callee = ao.o.get_own_property(&"callee".into()).unwrap().unwrap();
             assert_eq!(
                 callee.property,
@@ -679,14 +679,14 @@ mod agent {
                 Object::try_from(ECMAScriptValue::try_from(stack[stack_size - 1].as_ref().unwrap().clone()).unwrap())
                     .unwrap()
             });
-            assert_eq!(get(&ao, &"length".into()).unwrap(), ECMAScriptValue::from(num_values));
+            assert_eq!(ao.get(&"length".into()).unwrap(), ECMAScriptValue::from(num_values));
             for (idx, val) in values.iter().enumerate() {
-                assert_eq!(&get(&ao, &idx.into()).unwrap(), val);
+                assert_eq!(&ao.get(&idx.into()).unwrap(), val);
             }
             let args_iterator = intrinsic(IntrinsicId::ArrayPrototypeValues);
             let iterator_sym = super::super::wks(WksId::Iterator);
-            assert_eq!(get(&ao, &iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
-            assert_eq!(get(&ao, &"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
+            assert_eq!(ao.get(&iterator_sym.into()).unwrap(), ECMAScriptValue::from(args_iterator));
+            assert_eq!(ao.get(&"callee".into()).unwrap(), ECMAScriptValue::from(func_obj));
         }
 
         #[test]
@@ -761,9 +761,9 @@ mod agent {
             }
 
             for (idx, (name, value)) in zip(names, values).enumerate() {
-                let val = get(&ao, &idx.into()).unwrap();
+                let val = ao.get(&idx.into()).unwrap();
                 assert_eq!(&val, value);
-                set(&ao, idx.into(), (idx as u32).into(), true).unwrap();
+                ao.set(idx, idx as u32, true).unwrap();
                 let val = lex.get_binding_value(name, true).unwrap();
                 assert_eq!(val, ECMAScriptValue::from(idx as u32));
             }
@@ -1112,7 +1112,7 @@ mod fcn_def {
 
         part.instantiate_function_object(env, None, true, &src)
             .map_err(|err| err.to_string())
-            .map(|value| getv(&value, &"name".into()).unwrap().to_string())
+            .map(|value| value.get(&"name".into()).unwrap().to_string())
     }
 }
 
@@ -1515,7 +1515,7 @@ mod begin_call_evaluation {
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let my_this = match this_value {
-            ECMAScriptValue::Object(o) => get(&o, &"marker".into()).unwrap(),
+            ECMAScriptValue::Object(o) => o.get(&"marker".into()).unwrap(),
             _ => this_value,
         };
         let this_repr = String::from(to_string(my_this).unwrap());
@@ -1539,7 +1539,7 @@ mod begin_call_evaluation {
 
     fn object_this() -> NormalCompletion {
         let obj = ordinary_object_create(None, &[]);
-        set(&obj, "marker".into(), ECMAScriptValue::from("legitimate this"), true).unwrap();
+        obj.set("marker", "legitimate this", true).unwrap();
         let base = ECMAScriptValue::from(ordinary_object_create(None, &[]));
         let r = Reference::new(Base::Value(base), "callee", true, Some(ECMAScriptValue::from(obj)));
         NormalCompletion::from(r)
@@ -1556,7 +1556,7 @@ mod begin_call_evaluation {
     fn with_env() -> NormalCompletion {
         let objproto = intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(Some(objproto), &[]);
-        create_data_property_or_throw(&obj, "marker", "with-object").unwrap();
+        obj.create_data_property_or_throw("marker", "with-object").unwrap();
         let we = ObjectEnvironmentRecord::new(obj, true, None, "with_env test");
         Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
     }
@@ -1605,7 +1605,7 @@ mod for_in_iterator_object {
         let a = array_create(0, None);
         let o = ForInIteratorObject::object(Some(proto), a.unwrap());
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        super::set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 
@@ -1699,13 +1699,13 @@ mod for_in_iterator_prototype_next {
 
     fn make_busy_object() -> ECMAScriptValue {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        create_data_property_or_throw(&object_proto, "proto_prop", 67).unwrap();
-        create_data_property_or_throw(&object_proto, "masked", 0).unwrap();
+        object_proto.create_data_property_or_throw("proto_prop", 67).unwrap();
+        object_proto.create_data_property_or_throw("masked", 0).unwrap();
         let object = ordinary_object_create(Some(object_proto), &[]);
-        create_data_property_or_throw(&object, "on_object", 999).unwrap();
-        create_data_property_or_throw(&object, wks(WksId::ToStringTag), "TestObject").unwrap();
-        create_data_property_or_throw(&object, "masked", 99).unwrap();
-        create_for_in_iterator(object).into()
+        object.create_data_property_or_throw("on_object", 999).unwrap();
+        object.create_data_property_or_throw(wks(WksId::ToStringTag), "TestObject").unwrap();
+        object.create_data_property_or_throw("masked", 99).unwrap();
+        crate::agent::create_for_in_iterator(object).into()
     }
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
@@ -1715,7 +1715,7 @@ mod for_in_iterator_prototype_next {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         });
-        create_for_in_iterator(o).into()
+        crate::agent::create_for_in_iterator(o).into()
     }
     fn gop_failure(this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         if *key != "sequoia".into() || !to_boolean(this.get(&"primed".into(), &ECMAScriptValue::Undefined).unwrap()) {
@@ -1729,17 +1729,17 @@ mod for_in_iterator_prototype_next {
             get_own_property_override: Some(gop_failure),
             ..Default::default()
         });
-        create_data_property_or_throw(&o, "sequoia", 0).unwrap();
-        create_data_property_or_throw(&o, "primed", true).unwrap();
-        create_for_in_iterator(o).into()
+        o.create_data_property_or_throw("sequoia", 0).unwrap();
+        o.create_data_property_or_throw("primed", true).unwrap();
+        crate::agent::create_for_in_iterator(o).into()
     }
 
-    #[test_case(|| create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
     #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
-    #[test_case(|| create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
+    #[test_case(|| crate::agent::create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
     #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
     #[test_case(get_own_property_failure => serr("TypeError: [[GetOwnProperty]] fails"); "get_own_property fails")]
-    #[test_case(|| create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
+    #[test_case(|| crate::agent::create_for_in_iterator(TestObject::object(&[FunctionId::GetPrototypeOf])).into() => serr("TypeError: [[GetPrototypeOf]] called on TestObject"); "getprototypeof fails")]
     fn call(make_this: fn() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let this = make_this();

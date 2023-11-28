@@ -169,15 +169,18 @@ impl ArrayObject {
         );
         ordinary_define_own_property(
             &a,
-            "length".into(),
+            "length",
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
         )
         .unwrap();
         Ok(a)
     }
 
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }
+    }
     pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 
     // ArraySetLength ( A, Desc )
@@ -235,7 +238,7 @@ impl ArrayObject {
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
         let old_len = to_uint32(old_len_desc.value).unwrap();
         if new_len >= old_len {
-            return ordinary_define_own_property(self, "length".into(), new_len_desc);
+            return ordinary_define_own_property(self, "length", new_len_desc);
         }
         if !old_len_desc.writable {
             return Ok(false);
@@ -246,7 +249,7 @@ impl ArrayObject {
             new_len_desc.writable = Some(true);
             false
         };
-        let succeeded = ordinary_define_own_property(self, "length".into(), new_len_desc.clone()).unwrap();
+        let succeeded = ordinary_define_own_property(self, "length", new_len_desc.clone()).unwrap();
         if !succeeded {
             return Ok(false);
         }
@@ -268,13 +271,12 @@ impl ArrayObject {
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
-                ordinary_define_own_property(self, "length".into(), new_len_desc).unwrap();
+                ordinary_define_own_property(self, "length", new_len_desc).unwrap();
                 return Ok(false);
             }
         }
         if !new_writable {
-            ordinary_define_own_property(self, "length".into(), PotentialPropertyDescriptor::new().writable(false))
-                .unwrap();
+            ordinary_define_own_property(self, "length", PotentialPropertyDescriptor::new().writable(false)).unwrap();
         }
         Ok(true)
     }
@@ -311,18 +313,18 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     if !is_array {
         return Ok(ArrayObject::create(length, None)?.into());
     }
-    let mut c = get(original_array, &"constructor".into())?;
+    let mut c = original_array.get(&"constructor".into())?;
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
-        let realm_c = get_function_realm(&c_obj)?;
+        let realm_c = c_obj.get_function_realm()?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
     }
     if c.is_object() {
         let c_obj = Object::try_from(&c).unwrap();
-        let species = get(&c_obj, &wks(WksId::Species).into())?;
+        let species = c_obj.get(&wks(WksId::Species).into())?;
         if species.is_null() {
             c = ECMAScriptValue::Undefined;
         } else {
@@ -532,7 +534,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // Array.prototype [ @@iterator ] ( )
     // The initial value of the @@iterator property is %Array.prototype.values%,
     let array_prototype_values =
-        get(&array_prototype, &"values".into()).expect("a property just added should be gettable");
+        array_prototype.get(&"values".into()).expect("a property just added should be gettable");
     let values_ppd = PotentialPropertyDescriptor::new()
         .value(array_prototype_values.clone())
         .enumerable(false)
@@ -651,7 +653,7 @@ fn array_constructor_function(
         Some(obj) => obj.clone(),
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
-    let proto = get_prototype_from_constructor(&nt, IntrinsicId::ArrayPrototype)?;
+    let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
     let number_of_args = arguments.len() as u64;
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
@@ -667,11 +669,11 @@ fn array_constructor_function(
                     int_len
                 }
                 _ => {
-                    create_data_property_or_throw(&array, "0", len).expect("Property creation should be successful");
+                    array.create_data_property_or_throw("0", len).expect("Property creation should be successful");
                     1
                 }
             };
-            set(&array, "length".into(), int_len.into(), true).expect("Set should succeed");
+            array.set("length", int_len, true).expect("Set should succeed");
             Ok(array.into())
         }
         _ => {
@@ -679,7 +681,8 @@ fn array_constructor_function(
                 .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
             for k in 0..number_of_args {
                 let pk = format!("{k}");
-                create_data_property_or_throw(&array, pk, arguments[k as usize].clone())
+                array
+                    .create_data_property_or_throw(pk, arguments[k as usize].clone())
                     .expect("property creation should succeed");
             }
             Ok(array.into())
@@ -865,7 +868,7 @@ fn array_prototype_join(
         if k > 0 {
             r = r.concat(sep.clone());
         }
-        let element = get(&o, &to_string(k).expect("numbers should be string-able").into())?;
+        let element = o.get(&to_string(k).expect("numbers should be string-able").into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
         k += 1;
@@ -1007,7 +1010,7 @@ fn array_prototype_to_string(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let array = to_object(this_value)?;
-    let mut func = get(&array, &"join".into())?;
+    let mut func = array.get(&"join".into())?;
     if !is_callable(&func) {
         func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
     }
@@ -1102,7 +1105,7 @@ async fn array_iterator(
             generator_yield(&co, res).await?;
         } else {
             let element_key = to_string(index).expect("numbers should always have string representations");
-            let element_value = get(&array, &element_key.into())?;
+            let element_value = array.get(&element_key.into())?;
             if kind == KeyValueKind::Value {
                 let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
                 generator_yield(&co, res).await?;
