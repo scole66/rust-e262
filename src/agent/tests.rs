@@ -98,7 +98,7 @@ mod agent {
         let afo = super::active_function_object();
         assert!(afo.is_none());
 
-        super::initialize_host_defined_realm(true);
+        super::initialize_host_defined_realm(100, true);
         // Now there's an execution context, but still no active function, so this should still be None.
         let afo = super::active_function_object();
         assert!(afo.is_none());

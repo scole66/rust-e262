@@ -336,6 +336,8 @@ impl fmt::Debug for Intrinsics {
     }
 }
 
+pub type RealmId = u64;
+
 pub struct Realm {
     // NOTE NOTE NOTE NOTE: Realm is a circular structure. The function objects in the Intrinsics field each have their
     // own Realm pointer, which points back to this structure. They _should_ be weak pointers, because of that, except
@@ -350,15 +352,22 @@ pub struct Realm {
     pub global_object: Option<Object>,
     pub global_env: Option<Rc<GlobalEnvironmentRecord>>,
     // TemplateMap: later, when needed
+    id: RealmId,
 }
 
 impl fmt::Debug for Realm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Realm")
+        f.debug_struct(format!("Realm({})", self.id).as_str())
             .field("intrinsics", &self.intrinsics)
             .field("global_object", &ConciseOptionalObject::from(&self.global_object))
             .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.as_ref().map(Rc::clone)))
             .finish()
+    }
+}
+
+impl Realm {
+    pub fn id(&self) -> RealmId {
+        self.id
     }
 }
 
@@ -372,8 +381,8 @@ impl fmt::Debug for Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm() -> Rc<RefCell<Realm>> {
-    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None }));
+pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
+    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
     create_intrinsics(r.clone());
     r
 }

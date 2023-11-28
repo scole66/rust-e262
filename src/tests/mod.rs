@@ -136,7 +136,7 @@ pub fn setup_test_agent() {
         agent.reset();
         agent.set_global_symbol_registry(sym_registry);
     });
-    initialize_host_defined_realm(true);
+    initialize_host_defined_realm(0, true);
 }
 
 #[derive(Debug)]
@@ -541,7 +541,7 @@ use crate::object::define_property_or_throw;
 use crate::realm::{create_realm, Realm};
 
 pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
-    let r = create_realm();
+    let r = create_realm(9999);
     let op = r.borrow().intrinsics.get(IntrinsicId::ObjectPrototype);
     define_property_or_throw(
         &op,

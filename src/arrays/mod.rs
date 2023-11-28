@@ -317,7 +317,7 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
-        let realm_c = get_function_realm(&c_obj)?;
+        let realm_c = c_obj.get_function_realm()?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
@@ -653,7 +653,7 @@ fn array_constructor_function(
         Some(obj) => obj.clone(),
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
-    let proto = get_prototype_from_constructor(&nt, IntrinsicId::ArrayPrototype)?;
+    let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
     let number_of_args = arguments.len() as u64;
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),

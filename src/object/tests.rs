@@ -5222,7 +5222,7 @@ mod get_prototype_from_constructor {
     fn t(make_obj: impl FnOnce() -> Object, iproto: IntrinsicId) -> Result<String, String> {
         setup_test_agent();
         let cstr = make_obj();
-        get_prototype_from_constructor(&cstr, iproto)
+        cstr.get_prototype_from_constructor(iproto)
             .map_err(unwind_any_error)
             .map(|obj| obj.get(&"sentinel".into()).unwrap().test_result_string())
     }
@@ -5233,8 +5233,8 @@ mod get_method {
     use test_case::test_case;
 
     #[test_case(
-        || ECMAScriptValue::Undefined, "something" 
-        => serr("TypeError: Undefined and null cannot be converted to objects"); 
+        || ECMAScriptValue::Undefined, "something"
+        => serr("TypeError: Undefined and null cannot be converted to objects");
         "Not an object"
     )]
     #[test_case(
@@ -5278,5 +5278,52 @@ mod get_method {
                 fobj.get(&"name".into()).unwrap().test_result_string()
             }
         })
+    }
+}
+
+mod get_function_realm {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| ProxyObject::object(None) => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
+    #[test_case(
+        || ProxyObject::object(Some((intrinsic(IntrinsicId::Object), ordinary_object_create(None, &[]))))
+        => Ok(0);
+        "through the proxy"
+    )]
+    #[test_case(|| ordinary_object_create(None, &[]) => Ok(0); "not actually a function")]
+    #[test_case(
+        || {
+            initialize_host_defined_realm(1, false);
+            let obj = FunctionObject::object(
+                None,
+                current_realm_record().unwrap().borrow().global_env.clone().unwrap(),
+                None,
+                ParamSource::FormalParameters(Maker::new("").formal_parameters()),
+                BodySource::Function(Maker::new("{}").function_body()),
+                ConstructorKind::Base,
+                current_realm_record().unwrap(),
+                None,
+                ThisMode::Lexical,
+                true,
+                None,
+                "",
+                vec![],
+                vec![],
+                ClassName::Empty,
+                false,
+                Rc::new(Chunk::new("test"))
+            );
+            pop_execution_context();
+            obj
+        }
+        => Ok(1);
+        "normal function, alternate realm"
+    )]
+    #[test_case(|| intrinsic(IntrinsicId::Object) => Ok(0); "normal builtin, default realm")]
+    fn t(make_fobj: impl FnOnce() -> Object) -> Result<RealmId, String> {
+        setup_test_agent();
+        let fobj = make_fobj();
+        fobj.get_function_realm().map_err(unwind_any_error).map(|realm| realm.borrow().id())
     }
 }

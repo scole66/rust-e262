@@ -2348,7 +2348,7 @@ pub fn ordinary_create_from_constructor(
     intrinsic_default_proto: IntrinsicId,
     internal_slots_list: &[InternalSlotName],
 ) -> Completion<Object> {
-    let proto = get_prototype_from_constructor(constructor, intrinsic_default_proto)?;
+    let proto = constructor.get_prototype_from_constructor(intrinsic_default_proto)?;
     Ok(ordinary_object_create(Some(proto), internal_slots_list))
 }
 
@@ -2370,17 +2370,16 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-pub fn get_prototype_from_constructor(
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-) -> Completion<Object> {
-    let proto = constructor.get(&PropertyKey::from("prototype"))?;
-    match proto {
-        ECMAScriptValue::Object(obj) => Ok(obj),
-        _ => {
-            let realm = get_function_realm(constructor)?;
-            let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
-            Ok(proto)
+impl Object {
+    pub fn get_prototype_from_constructor(&self, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
+        let proto = self.get(&PropertyKey::from("prototype"))?;
+        match proto {
+            ECMAScriptValue::Object(obj) => Ok(obj),
+            _ => {
+                let realm = self.get_function_realm()?;
+                let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
+                Ok(proto)
+            }
         }
     }
 }
@@ -2626,23 +2625,25 @@ pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Objec
 //
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
-pub fn get_function_realm(obj: &Object) -> Completion<Rc<RefCell<Realm>>> {
-    if let Some(f) = obj.o.to_function_obj() {
-        Ok(f.function_data().borrow().realm.clone())
-    } else if let Some(b) = obj.o.to_builtin_function_obj() {
-        Ok(b.builtin_function_data().borrow().realm.clone())
-    } else if let Some(po) = obj.o.to_proxy_object() {
-        let (target, _) = po.validate_non_revoked()?;
-        get_function_realm(&target)
-    } else {
-        // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
-        // a realm slot was _not_ present.
-        assert!(!obj.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
+impl Object {
+    pub fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
+        if let Some(f) = self.o.to_function_obj() {
+            Ok(f.function_data().borrow().realm.clone())
+        } else if let Some(b) = self.o.to_builtin_function_obj() {
+            Ok(b.builtin_function_data().borrow().realm.clone())
+        } else if let Some(po) = self.o.to_proxy_object() {
+            let (target, _) = po.validate_non_revoked()?;
+            target.get_function_realm()
+        } else {
+            // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
+            // a realm slot was _not_ present.
+            assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
 
-        // Add the bound-function check
-        eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
+            // Add the bound-function check
+            eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
 
-        Ok(current_realm_record().unwrap())
+            Ok(current_realm_record().unwrap())
+        }
     }
 }
 

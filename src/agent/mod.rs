@@ -520,8 +520,8 @@ pub fn set_default_global_bindings() {
 //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
 //  11. Create any host-defined global object properties on globalObj.
 //  12. Return NormalCompletion(empty).
-pub fn initialize_host_defined_realm(install_test_hooks: bool) {
-    let realm = create_realm();
+pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
+    let realm = create_realm(id);
     let new_context = ExecutionContext::new(None, realm, None);
     push_execution_context(new_context);
     set_realm_global_object(None, None);
