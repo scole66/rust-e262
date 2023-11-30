@@ -723,7 +723,7 @@ impl CallableObject for FunctionObject {
         //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         let kind = self.function_data().borrow().constructor_kind;
         let this_argument = if kind == ConstructorKind::Base {
-            let ta = ordinary_create_from_constructor(new_target, IntrinsicId::ObjectPrototype, &[]);
+            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[]);
             match ta {
                 Err(err) => {
                     ec_push(Err(err));

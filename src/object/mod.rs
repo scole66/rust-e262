@@ -923,15 +923,24 @@ fn os_internal(
 //  8. Return true.
 pub fn ordinary_set_with_own_descriptor<'a, T>(
     o: T,
-    p: PropertyKey,
-    v: ECMAScriptValue,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
     receiver: &ECMAScriptValue,
     pot_own_desc: Option<PropertyDescriptor>,
 ) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ordinary_set_with_own_descriptor_internal(o.into(), p.into(), v.into(), receiver, pot_own_desc)
+}
+
+fn ordinary_set_with_own_descriptor_internal(
+    obj: &dyn ObjectInterface,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+    pot_own_desc: Option<PropertyDescriptor>,
+) -> Completion<bool> {
     let own_desc = match pot_own_desc {
         None => {
             let pot_parent = obj.get_prototype_of()?;
@@ -1001,17 +1010,17 @@ pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ordinary_delete_internal(o.into(), p)
+}
+fn ordinary_delete_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Completion<bool> {
     let desc = obj.get_own_property(p)?;
     match desc {
         None => Ok(true),
-        Some(desc) => match desc.configurable {
-            true => {
-                obj.common_object_data().borrow_mut().properties.remove(p);
-                Ok(true)
-            }
-            false => Ok(false),
-        },
+        Some(PropertyDescriptor { configurable: true, .. }) => {
+            obj.common_object_data().borrow_mut().properties.remove(p);
+            Ok(true)
+        }
+        Some(PropertyDescriptor { configurable: false, .. }) => Ok(false),
     }
 }
 
@@ -1178,20 +1187,6 @@ pub trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
-// This is really for debugging. It's the output structure from propdump.
-#[derive(Debug, PartialEq)]
-pub enum PropertyInfoKind {
-    Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
-    Data { value: ECMAScriptValue, writable: bool },
-}
-#[derive(Debug, PartialEq)]
-pub struct PropertyInfo {
-    pub name: PropertyKey,
-    pub enumerable: bool,
-    pub configurable: bool,
-    pub kind: PropertyInfoKind,
-}
-
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -1213,31 +1208,6 @@ impl CommonObjectData {
             slots: Vec::from(slots),
             private_elements: vec![],
         }
-    }
-
-    pub fn propdump(&self) -> Vec<PropertyInfo> {
-        // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
-        // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
-        let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
-        keys.sort_by_cached_key(|a| self.properties.get(*a).unwrap().spot);
-        let mut result = vec![];
-        for key in keys {
-            let prop = self.properties.get(key).unwrap();
-            result.push(PropertyInfo {
-                name: key.clone(),
-                enumerable: prop.enumerable,
-                configurable: prop.configurable,
-                kind: match &prop.property {
-                    PropertyKind::Data(DataProperty { value, writable }) => {
-                        PropertyInfoKind::Data { value: value.clone(), writable: *writable }
-                    }
-                    PropertyKind::Accessor(AccessorProperty { get, set }) => {
-                        PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() }
-                    }
-                },
-            });
-        }
-        result
     }
 }
 
@@ -1923,8 +1893,10 @@ pub fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
 //  3. Let desc be ? O.[[GetOwnProperty]](P).
 //  4. If desc is undefined, return false.
 //  5. Return true.
-pub fn has_own_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
-    Ok(obj.o.get_own_property(p)?.is_some())
+impl Object {
+    pub fn has_own_property(&self, p: &PropertyKey) -> Completion<bool> {
+        Ok(self.o.get_own_property(p)?.is_some())
+    }
 }
 
 // Call ( F, V [ , argumentsList ] )
@@ -2204,9 +2176,11 @@ pub fn create_list_from_array_like(
 //  2. If argumentsList is not present, set argumentsList to a new empty List.
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
-pub fn invoke(v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    let func = v.get(p)?;
-    call(&func, &v, arguments_list)
+impl ECMAScriptValue {
+    pub fn invoke(&self, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        let func = self.get(p)?;
+        call(&func, self, arguments_list)
+    }
 }
 
 pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
@@ -2343,13 +2317,15 @@ pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_l
 //     corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 //  2. Let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
-pub fn ordinary_create_from_constructor(
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-    internal_slots_list: &[InternalSlotName],
-) -> Completion<Object> {
-    let proto = constructor.get_prototype_from_constructor(intrinsic_default_proto)?;
-    Ok(ordinary_object_create(Some(proto), internal_slots_list))
+impl Object {
+    pub fn ordinary_create_from_constructor(
+        &self,
+        intrinsic_default_proto: IntrinsicId,
+        internal_slots_list: &[InternalSlotName],
+    ) -> Completion<Object> {
+        let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
+        Ok(ordinary_object_create(Some(proto), internal_slots_list))
+    }
 }
 
 // GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto )
