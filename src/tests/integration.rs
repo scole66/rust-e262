@@ -481,12 +481,24 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 //    ({'a': null})?.a?.b -> undefined
 //    ({'a': 'b'})?.a?.length -> 1
 //    ({'a': 'b'})?.a?.[(() => { throw 0; })()] -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
-#[test_case("a[4]?.c?.d" => serr("Thrown: ReferenceError: Unresolvable Reference"); "oe: oe oc; oe eval fails")]
-#[test_case("new Proxy({}, {'get': () => { throw 0; } })?.x?.y" => serr("Thrown: 0"); "oe: oe oc; GetValue(baseReference) fails")]
+#[test_case(
+    "a[4]?.c?.d"
+    => serr("Thrown: ReferenceError: Unresolvable Reference");
+    "oe: oe oc; oe eval fails"
+)]
+#[test_case(
+    "new Proxy({}, {'get': () => { throw 0; } })?.x?.y"
+    => serr("Thrown: 0");
+    "oe: oe oc; GetValue(baseReference) fails"
+)]
 #[test_case("undefined?.a?.b" => Ok(ECMAScriptValue::Undefined); "oe: oe oc; baseValue is undefined")]
 #[test_case("({'a': null})?.a?.b" => Ok(ECMAScriptValue::Undefined); "oe: oe oc; baseValue is null")]
 #[test_case("({'a': 'b'})?.a?.length" => vok(1); "oe: oe oc; ChainEvaluation of OptionalChain successful")]
-#[test_case("({'a': 'b'})?.a?.[(() => { throw 0; })()]" => serr("Thrown: 0"); "oe: oe oc; ChainEvaluation of OptionalChain fails")]
+#[test_case(
+    "({'a': 'b'})?.a?.[(() => { throw 0; })()]"
+    => serr("Thrown: 0");
+    "oe: oe oc; ChainEvaluation of OptionalChain fails"
+)]
 
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
