@@ -168,9 +168,9 @@ mod constructor {
                     assert_eq!(to.get(&PropertyKey::from("bee")).unwrap(), ECMAScriptValue::from(6));
                     assert_eq!(to.get(&PropertyKey::from("dog")).unwrap(), ECMAScriptValue::from(4));
                     assert_eq!(to.get(&PropertyKey::from("worm")).unwrap(), ECMAScriptValue::from(0));
-                    assert!(!has_own_property(&to, &PropertyKey::from("not_visible")).unwrap());
-                    assert!(!has_own_property(&to, &PropertyKey::from("once")).unwrap());
-                    assert!(!has_own_property(&to, &PropertyKey::from("twice")).unwrap());
+                    assert!(!to.has_own_property(&PropertyKey::from("not_visible")).unwrap());
+                    assert!(!to.has_own_property(&PropertyKey::from("once")).unwrap());
+                    assert!(!to.has_own_property(&PropertyKey::from("twice")).unwrap());
                 }
                 _ => {
                     panic!("Got a non-object back: {:?}", result);

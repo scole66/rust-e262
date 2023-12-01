@@ -1226,7 +1226,7 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
             self.declarative_record.delete_binding(name)
         } else {
             let global_object = &self.object_record.binding_object;
-            if has_own_property(global_object, &name.clone().into())? {
+            if global_object.has_own_property(&name.clone().into())? {
                 let status = self.object_record.delete_binding(name)?;
                 if status {
                     self.var_names.borrow_mut().remove(name);
@@ -1368,7 +1368,7 @@ impl GlobalEnvironmentRecord {
     //  5. Return ? IsExtensible(globalObject).
     pub fn can_declare_global_var(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
-        Ok(has_own_property(global_object, &name.clone().into())? || is_extensible(global_object)?)
+        Ok(global_object.has_own_property(&name.clone().into())? || is_extensible(global_object)?)
     }
 
     // CanDeclareGlobalFunction ( N )
@@ -1416,7 +1416,7 @@ impl GlobalEnvironmentRecord {
     //  8. Return NormalCompletion(empty).
     pub fn create_global_var_binding(&self, name: JSString, deletable: bool) -> Completion<()> {
         let global_object = &self.object_record.binding_object;
-        let has_property = has_own_property(global_object, &name.clone().into())?;
+        let has_property = global_object.has_own_property(&name.clone().into())?;
         let extensible = is_extensible(global_object)?;
         if !has_property && extensible {
             self.object_record.create_mutable_binding(name.clone(), deletable)?;

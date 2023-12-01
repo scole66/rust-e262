@@ -403,7 +403,7 @@ fn error_constructor_function_02() {
     let obj = to_object(result).unwrap();
 
     assert!(obj.o.is_error_object());
-    assert!(!has_own_property(&obj, &PropertyKey::from("message")).unwrap());
+    assert!(!obj.has_own_property(&PropertyKey::from("message")).unwrap());
     assert_eq!(obj.get(&PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
@@ -475,7 +475,7 @@ fn error_prototype_tostring_01() {
     let error_constructor = intrinsic(IntrinsicId::Error);
     let errobj = construct(&error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
 
-    let result = invoke(errobj, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobj.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error: ErrorMessage"));
 }
 #[test]
@@ -487,7 +487,7 @@ fn error_prototype_tostring_02() {
     errobj.set(PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
     errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob: you have a phone call"));
 }
 #[test]
@@ -499,7 +499,7 @@ fn error_prototype_tostring_03() {
     errobj.set(PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
     errobj.set(PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error"));
 }
 #[test]
@@ -511,7 +511,7 @@ fn error_prototype_tostring_04() {
     errobj.set(PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
     errobj.set(PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob"));
 }
 #[test]
@@ -523,7 +523,7 @@ fn error_prototype_tostring_05() {
     errobj.set(PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
     errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Error: Message"));
 }
 #[test]
@@ -535,7 +535,7 @@ fn error_prototype_tostring_06() {
     errobj.set(PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
     errobj.set(PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Message"));
 }
 #[test]
@@ -551,7 +551,7 @@ fn error_prototype_tostring_07() {
     };
     define_property_or_throw(&errobj, PropertyKey::from("name"), desc).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 #[test]
@@ -567,7 +567,7 @@ fn error_prototype_tostring_08() {
     };
     define_property_or_throw(&errobj, PropertyKey::from("message"), desc).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Generic TypeError");
 }
 #[test]
@@ -579,7 +579,7 @@ fn error_prototype_tostring_09() {
     let sym = ECMAScriptValue::from(Symbol::new(None));
     errobj.set(PropertyKey::from("name"), sym, false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
 }
 #[test]
@@ -591,7 +591,7 @@ fn error_prototype_tostring_10() {
     let sym = ECMAScriptValue::from(Symbol::new(None));
     errobj.set(PropertyKey::from("message"), sym, false).unwrap();
 
-    let result = invoke(errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    let result = errobjval.invoke(&PropertyKey::from("toString"), &[]).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
 }
 #[test]

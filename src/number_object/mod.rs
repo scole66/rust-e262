@@ -382,9 +382,9 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 // 6. Return O.
 pub fn create_number_object(n: f64) -> Object {
     let constructor = intrinsic(IntrinsicId::Number);
-    let o =
-        ordinary_create_from_constructor(&constructor, IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-            .unwrap();
+    let o = constructor
+        .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
+        .unwrap();
     *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
     o
 }
@@ -424,7 +424,7 @@ fn number_constructor_function(
         None => Ok(ECMAScriptValue::from(n)),
         Some(nt) => {
             let o =
-                ordinary_create_from_constructor(nt, IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
+                nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
             *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
             Ok(ECMAScriptValue::from(o))
         }

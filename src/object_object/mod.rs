@@ -255,7 +255,8 @@ fn object_constructor_function(
     if let Some(nt) = new_target {
         if let Some(afo) = active_function_object() {
             if *nt != afo {
-                return ordinary_create_from_constructor(nt, IntrinsicId::ObjectPrototype, &[])
+                return nt
+                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[])
                     .map(ECMAScriptValue::from);
             }
         }
@@ -722,7 +723,7 @@ fn object_has_own(
     let p = args.next_arg();
     let obj = to_object(o)?;
     let key = to_property_key(p)?;
-    has_own_property(&obj, &key).map(ECMAScriptValue::from)
+    obj.has_own_property(&key).map(ECMAScriptValue::from)
 }
 
 fn object_is(
