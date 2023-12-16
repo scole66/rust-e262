@@ -499,6 +499,34 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: 0");
     "oe: oe oc; ChainEvaluation of OptionalChain fails"
 )]
+//  OptionalChain: ?. Arguments
+//    String?.('a')  -> 'a'  (EvaluateCall succeeds)
+//    (() => { throw 0; })?.()  -> Uncaught 0 (EvaluateCall fails)
+#[test_case("String?.('a')" => vok("a"); "oc: args; call ok")]
+#[test_case("(() => { throw 0; })?.()" => serr("Thrown: 0"); "oc: args; call fails")]
+//  OptionalChain: ?. [ Expression ]
+//    [3]?.[0] -> 3 (EvaluatePropertyAccessWithExpressionKey succeeds)
+//    [3]?.[(() => { throw 0; })()] -> Uncaught 0 (EvaluatePropertyAccessWithExpressionKey fails)
+#[test_case("[3]?.[0]" => vok(3); "oc: expr; expr ok")]
+#[test_case("[3]?.[(() => { throw 0; })()]" => serr("Thrown: 0"); "oc: expr; expr fails")]
+//  OptionalChain: ?. IdentifierName
+//    ({'a': 3})?.a -> 3 (cannot fail, as it only makes a reference)
+#[test_case("({'a': 3})?.a" => vok(3); "oc: id; cannot fail")]
+//  OptionalChain: ?. PrivateIdentifier
+//    Todo: this needs classes
+//  OptionalChain: OptionalChain Arguments
+//    (() => { throw 0; })?.()() -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a()  -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':3})?.a() -> Uncaught TypeError (EvaluateCall fails)
+//    String?.fromCharCode(60) -> '<' (EvaluateCall ok)
+#[test_case("(() => { throw 0; })?.()()" => serr("Thrown: 0"); "oc: oc args; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a()"
+    => serr("Thrown: 0");
+    "oc: oc args; GetValue(newReference) fails"
+)]
+#[test_case("({'a':3})?.a()" => serr("Thrown: TypeError: not an object"); "oc: oc args; EvaluateCall fails")]
+#[test_case("String?.fromCharCode(60)" => vok("<"); "oc: oc args; no errors")]
 
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
@@ -524,7 +552,11 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 ; "handle errors in function parameter binding patterns with initializers")]
 // 4/24/2023: if an array pattern had unfinished iterators, it would fail
 #[test_case("var [] = [];" => Ok(ECMAScriptValue::Undefined); "incomplete iterators finished")]
-#[test_case("var v = 1; for (let v of [v]) ;" => serr("Thrown: ReferenceError: Binding not initialized"); "let decl doesn't see outer scope")]
+#[test_case(
+    "var v = 1; for (let v of [v]) ;"
+    => serr("Thrown: ReferenceError: Binding not initialized");
+    "let decl doesn't see outer scope"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -2432,24 +2432,41 @@ impl OptionalChain {
                 //  6. Return ? EvaluateCall(newValue, newReference, Arguments, tailCall).
 
                 // start                            val ref
-                //   <oc.chain_evaluation>          val/ref/err
-                //   GET_VALUE                      val/err
-                //   JUMP_IF_ABRUPT exit            val
+                //   <oc.chain_evaluation>          ref/err
+                //   JUMP_IF_ABRUPT exit            ref
+                //   DUP                            ref ref
+                //   GET_VALUE                      val/err ref
+                //   JUMP_IF_ABRUPT unwind          val ref
                 //   <EvalCall>                     val/err
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
                 // exit:
                 let status = oc.chain_evaluation(chunk, strict, text)?;
+                let exit =
+                if status.maybe_abrupt() {
+                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else { None };
+                chunk.op(Insn::Dup);
                 if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.maybe_ref() || status.maybe_abrupt() {
+                let unwind = if status.maybe_ref() || status.maybe_abrupt() {
                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
                 } else {
                     None
                 };
 
                 compile_call(chunk, strict, text, args)?;
-                if let Some(mark) = exit {
-                    chunk.fixup(mark)?;
+
+                if let Some(unwind) = unwind {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit2).expect("Jump too short to fail");
+                }
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
                 }
                 Ok(CompilerStatusFlags::new().reference(false).abrupt(true))
             }
