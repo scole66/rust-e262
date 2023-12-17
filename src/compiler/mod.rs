@@ -2443,10 +2443,7 @@ impl OptionalChain {
                 //   UNWIND 1
                 // exit:
                 let status = oc.chain_evaluation(chunk, strict, text)?;
-                let exit =
-                if status.maybe_abrupt() {
-                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
-                } else { None };
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 chunk.op(Insn::Dup);
                 if status.maybe_ref() {
                     chunk.op(Insn::GetValue);

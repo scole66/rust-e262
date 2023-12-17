@@ -11167,7 +11167,11 @@ mod optional_expression {
         let mut c = complex_filled_chunk("x", what);
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt(), flags.maybe_ref())
+            (
+                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+                flags.maybe_ref(),
+            )
         })
     }
 }
