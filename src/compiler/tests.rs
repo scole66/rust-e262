@@ -11015,3 +11015,159 @@ mod class_static_block {
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }
+
+mod optional_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        "a?.b", true, &[]
+        => Ok((svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "JUMP_IF_ABRUPT 20",
+            "DUP",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 14",
+            "JUMP_NOT_NULLISH 5",
+            "POP",
+            "POP",
+            "UNDEFINED",
+            "JUMP 9",
+            "UNWIND 1",
+            "STRING 1 (b)",
+            "STRICT_REF",
+            "JUMP 2",
+            "UNWIND 1"
+        ]), true, true));
+        "oe: me oc; ok"
+    )]
+    #[test_case(
+        "a[1n]?.b", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "oe: me oc; me compile fails"
+    )]
+    #[test_case(
+        "({})?.b", false, &[]
+        => Ok((svec(&[
+            "OBJECT",
+            "DUP",
+            "JUMP_NOT_NULLISH 5",
+            "POP",
+            "POP",
+            "UNDEFINED",
+            "JUMP 5",
+            "UNWIND 1",
+            "STRING 0 (b)",
+            "REF"
+        ]), false, true));
+        "oe: me oc; nonabrupt me"
+    )]
+    #[test_case(
+        "({})?.[1n]", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "oe: me oc; oc compile fails"
+    )]
+    #[test_case(
+        "a?.[@@@]", false, &[]
+        => serr("out of range integral type conversion attempted");
+        "oc: me oc; me is ref + oc too big"
+    )]
+    #[test_case(
+        "({})?.[@@@]", false, &[]
+        => serr("out of range integral type conversion attempted");
+        "oc: me oc; me not ref + oc too big"
+    )]
+    #[test_case(
+        "a?.[@@(26)]", false, &[]
+        => serr("out of range integral type conversion attempted");
+        "oc: me oc; me fallible + oc too big (but smaller)"
+    )]
+    #[test_case(
+        "a()?.b", false, &[]
+        => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "RESOLVE",
+                "DUP",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL 4",
+                "UNWIND 1",
+                "JUMP 3",
+                "FLOAT 0 (0)",
+                "CALL",
+                "JUMP_IF_ABRUPT 13",
+                "DUP",
+                "JUMP_NOT_NULLISH 5",
+                "POP",
+                "POP",
+                "UNDEFINED",
+                "JUMP 5",
+                "UNWIND 1",
+                "STRING 1 (b)",
+                "REF"
+            ]),
+            true,
+            true,
+        ));
+        "oc: ce oc; success"
+    )]
+    #[test_case(
+        "a(1n)?.b", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "oc: ce oc; ce compile fails"
+    )]
+    #[test_case(
+        "a?.b?.c", false, &[]
+        => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "RESOLVE",
+                "JUMP_IF_ABRUPT 20",
+                "DUP",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 14",
+                "JUMP_NOT_NULLISH 5",
+                "POP",
+                "POP",
+                "UNDEFINED",
+                "JUMP 9",
+                "UNWIND 1",
+                "STRING 1 (b)",
+                "REF",
+                "JUMP 2",
+                "UNWIND 1",
+                "JUMP_IF_ABRUPT 20",
+                "DUP",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 14",
+                "JUMP_NOT_NULLISH 5",
+                "POP",
+                "POP",
+                "UNDEFINED",
+                "JUMP 9",
+                "UNWIND 1",
+                "STRING 2 (c)",
+                "REF",
+                "JUMP 2",
+                "UNWIND 1"
+            ]),
+            true,
+            true
+        ));
+        "oc: oe oc; success"
+    )]
+    #[test_case(
+        "a(1n)?.b?.c", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "oc: oe oc; oe compile fails"
+    )]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).optional_expression();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt(), flags.maybe_ref())
+        })
+    }
+}
