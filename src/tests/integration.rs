@@ -527,6 +527,32 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 )]
 #[test_case("({'a':3})?.a()" => serr("Thrown: TypeError: not an object"); "oc: oc args; EvaluateCall fails")]
 #[test_case("String?.fromCharCode(60)" => vok("<"); "oc: oc args; no errors")]
+//  OptionalChain: OptionalChain [ Expression ]
+//    (() => {throw 0;})?.()[1] -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a[1] -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':1})?.a[(() => { throw 0; })()] -> Uncaught 0 (EvaluatePropertyAccessWithExpressionKey fails)
+//    ({'a':[9]})?.a[0] -> 9 (EvaluatePropertyAccessWithExpressionKey ok)
+#[test_case("(() => {throw 0;})?.()[1]" => serr("Thrown: 0"); "oc: oc exp; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a[1]"
+    => serr("Thrown: 0");
+    "oc: oc exp; getValue fails"
+)]
+#[test_case("({'a':1})?.a[(() => { throw 0; })()]" => serr("Thrown: 0"); "oc: oc exp; exp fails")]
+#[test_case("({'a':[9]})?.a[0]" => vok(9); "oc: oc exp; success")]
+//  OptionalChain: OptionalChain . IdentifierName
+//    (() => { throw 0; })?.().a -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a.a -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':{'b':'c'}})?.a.b => 'c' (EvaluatePropertyAccessWithIdentifierKey ok)
+#[test_case("(() => { throw 0; })?.().a" => serr("Thrown: 0"); "oc: oc id; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a.a"
+    => serr("Thrown: 0");
+    "oc: oc id; getValue fails"
+)]
+#[test_case("({'a':{'b':'c'}})?.a.b" => vok("c"); "oc: oc id; success")]
+//  OptionalChain: OptionalChain . PrivateIdentifier
+//    Todo: this needs classes
 
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
