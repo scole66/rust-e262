@@ -2445,10 +2445,8 @@ impl OptionalChain {
                 let status = oc.chain_evaluation(chunk, strict, text)?;
                 let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 chunk.op(Insn::Dup);
-                if status.maybe_ref() {
+                let unwind = if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
-                }
-                let unwind = if status.maybe_ref() || status.maybe_abrupt() {
                     Some(chunk.op_jump(Insn::JumpIfAbrupt))
                 } else {
                     None
@@ -2487,16 +2485,12 @@ impl OptionalChain {
                 if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.maybe_ref() || status.maybe_abrupt() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
-                } else {
-                    None
-                };
+                assert!(status.maybe_ref() || status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 evaluate_property_access_with_expression_key(chunk, exp, strict, text)?;
-                if let Some(mark) = exit {
-                    chunk.fixup(mark)?;
-                }
-                Ok(CompilerStatusFlags::new().reference(true).abrupt(status.maybe_abrupt()))
+                chunk.fixup(exit)?;
+
+                Ok(CompilerStatusFlags::new().reference(true).abrupt(true))
             }
             OptionalChain::PlusIdent(oc, id, _) => {
                 // OptionalChain : OptionalChain . IdentifierName
@@ -2518,16 +2512,11 @@ impl OptionalChain {
                 if status.maybe_ref() {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.maybe_ref() || status.maybe_abrupt() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
-                } else {
-                    None
-                };
+                assert!(status.maybe_ref() || status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 evaluate_property_access_with_identifier_key(chunk, id, strict)?;
-                if let Some(mark) = exit {
-                    chunk.fixup(mark).expect("Jump should be too short to fail");
-                }
-                Ok(CompilerStatusFlags::new().reference(true).abrupt(status.maybe_abrupt()))
+                chunk.fixup(exit).expect("Jump should be too short to fail");
+                Ok(CompilerStatusFlags::from(AlwaysAbruptRefResult))
             }
             OptionalChain::PlusTemplate(_, _) => todo!(),
             OptionalChain::PlusPrivateId(_, _, _) => todo!(),
