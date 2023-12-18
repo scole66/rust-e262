@@ -148,13 +148,14 @@ impl NumberObjectInterface for NumberObject {
 }
 
 impl NumberObject {
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
-                number_data: RefCell::new(0_f64),
-            }),
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
+            number_data: RefCell::new(0_f64),
         }
+    }
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 
@@ -381,9 +382,9 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 // 6. Return O.
 pub fn create_number_object(n: f64) -> Object {
     let constructor = intrinsic(IntrinsicId::Number);
-    let o =
-        ordinary_create_from_constructor(&constructor, IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-            .unwrap();
+    let o = constructor
+        .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
+        .unwrap();
     *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
     o
 }
@@ -423,7 +424,7 @@ fn number_constructor_function(
         None => Ok(ECMAScriptValue::from(n)),
         Some(nt) => {
             let o =
-                ordinary_create_from_constructor(nt, IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
+                nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
             *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
             Ok(ECMAScriptValue::from(o))
         }
@@ -1000,6 +1001,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
+                #[allow(clippy::never_loop)]
                 loop {
                     fraction_cursor -= 1;
                     if fraction_cursor == KBUFFERSIZE / 2 {

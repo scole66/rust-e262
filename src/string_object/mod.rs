@@ -100,7 +100,7 @@ impl ObjectInterface for StringObject {
         let string_desc = self.string_get_own_property(&key);
         if let Some(string_desc) = string_desc {
             let extensible = self.common.borrow().extensible;
-            Ok(is_compatible_property_descriptor(extensible, desc, &string_desc))
+            Ok(is_compatible_property_descriptor(extensible, desc, Some(&string_desc)))
         } else {
             ordinary_define_own_property(self, key, desc)
         }
@@ -192,6 +192,13 @@ pub fn create_string_object(s: JSString) -> Object {
 }
 
 impl StringObject {
+    pub fn new(value: JSString, prototype: Option<Object>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
+            string_data: RefCell::new(value),
+        }
+    }
+
     pub fn object(value: JSString, prototype: Option<Object>) -> Object {
         // StringCreate ( value, prototype )
         //
@@ -210,12 +217,7 @@ impl StringObject {
         //    [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
         let length = value.len() as f64;
-        let s = Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
-                string_data: RefCell::new(value),
-            }),
-        };
+        let s = Object { o: Rc::new(Self::new(value, prototype)) };
         define_property_or_throw(
             &s,
             "length",
@@ -458,7 +460,7 @@ fn string_constructor_function(
         to_string(value.clone())?
     };
     if let Some(nt) = new_target {
-        let prototype = get_prototype_from_constructor(nt, IntrinsicId::StringPrototype)?;
+        let prototype = nt.get_prototype_from_constructor(IntrinsicId::StringPrototype)?;
         let s_obj = string_create(s, Some(prototype));
         Ok(ECMAScriptValue::from(s_obj))
     } else {

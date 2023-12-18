@@ -552,7 +552,7 @@ mod put_value {
         let reference = Reference::new(Base::Unresolvable, "blue", false, None);
         put_value(Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
         let global = get_global_object().unwrap();
-        let from_global = get(&global, &PropertyKey::from("blue")).unwrap();
+        let from_global = global.get(&PropertyKey::from("blue")).unwrap();
         assert_eq!(from_global, value);
     }
     #[test]
@@ -614,7 +614,7 @@ mod put_value {
 
         put_value(Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
-        let from_object = get(&normal_object, &key).unwrap();
+        let from_object = normal_object.get(&key).unwrap();
         assert_eq!(from_object, value);
     }
     #[test]
@@ -667,7 +667,7 @@ mod put_value {
 
         let r = put_value(Ok(NormalCompletion::from(reference)), Ok(value)).map_err(unwind_type_error);
 
-        let from_obj = get(&normal_object, &key).unwrap();
+        let from_obj = normal_object.get(&key).unwrap();
         assert_eq!(from_obj, ECMAScriptValue::Undefined);
 
         r

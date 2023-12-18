@@ -77,7 +77,7 @@ fn object_prototype_to_string(
         "Object"
     };
     let to_string_tag_symbol = wks(WksId::ToStringTag);
-    let tag = get(&o, &PropertyKey::from(to_string_tag_symbol))?;
+    let tag = o.get(&PropertyKey::from(to_string_tag_symbol))?;
     let tag_string = match tag {
         ECMAScriptValue::String(s) => s,
         _ => JSString::from(builtin_tag),
@@ -233,7 +233,7 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     realm.borrow_mut().intrinsics.object = object_constructor;
 
-    let tostring = Object::try_from(get(&object_prototype, &"toString".into()).expect("toString should exist"))
+    let tostring = Object::try_from(object_prototype.get(&"toString".into()).expect("toString should exist"))
         .expect("toString should be a function object");
     realm.borrow_mut().intrinsics.object_prototype_to_string = tostring;
 }
@@ -255,7 +255,8 @@ fn object_constructor_function(
     if let Some(nt) = new_target {
         if let Some(afo) = active_function_object() {
             if *nt != afo {
-                return ordinary_create_from_constructor(nt, IntrinsicId::ObjectPrototype, &[])
+                return nt
+                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[])
                     .map(ECMAScriptValue::from);
             }
         }
@@ -305,8 +306,8 @@ fn object_assign(
                 let option_desc = from.o.get_own_property(&next_key)?;
                 if let Some(desc) = option_desc {
                     if desc.enumerable {
-                        let prop_value = get(&from, &next_key)?;
-                        set(&to, next_key, prop_value, true)?;
+                        let prop_value = from.get(&next_key)?;
+                        to.set(next_key, prop_value, true)?;
                     }
                 }
             }
@@ -375,7 +376,7 @@ fn object_define_properties_helper(o: Object, properties: ECMAScriptValue) -> Co
         let prop_desc = props.o.get_own_property(&next_key)?;
         if let Some(pd) = prop_desc {
             if pd.enumerable {
-                let desc_obj = get(&props, &next_key)?;
+                let desc_obj = props.get(&next_key)?;
                 let desc = to_property_descriptor(&desc_obj)?;
                 descriptors.push((next_key, desc));
             }
@@ -561,7 +562,7 @@ fn object_from_entries(
         let key = args.next_arg();
         let value = args.next_arg();
         let property_key = to_property_key(key)?;
-        create_data_property_or_throw(&this_obj, property_key, value).unwrap();
+        this_obj.create_data_property_or_throw(property_key, value).unwrap();
         let result: Completion<ECMAScriptValue> = Ok(ECMAScriptValue::Undefined);
         result
     };
@@ -622,7 +623,7 @@ fn object_get_own_property_descriptors(
         let desc = obj.o.get_own_property(&key)?;
         let descriptor = from_property_descriptor(desc);
         if let Some(descriptor) = descriptor {
-            create_data_property_or_throw(&descriptors, key, descriptor).expect("Simple property addition should work");
+            descriptors.create_data_property_or_throw(key, descriptor).expect("Simple property addition should work");
         }
     }
     Ok(ECMAScriptValue::from(descriptors))
@@ -722,7 +723,7 @@ fn object_has_own(
     let p = args.next_arg();
     let obj = to_object(o)?;
     let key = to_property_key(p)?;
-    has_own_property(&obj, &key).map(ECMAScriptValue::from)
+    obj.has_own_property(&key).map(ECMAScriptValue::from)
 }
 
 fn object_is(

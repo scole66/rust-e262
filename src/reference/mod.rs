@@ -310,7 +310,8 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
                     Err(create_reference_error("Unknown reference"))
                 } else {
                     let global_object = get_global_object().unwrap();
-                    set(&global_object, r.referenced_name.try_into().unwrap(), w, false)?;
+                    let key: PropertyKey = r.referenced_name.try_into().unwrap();
+                    global_object.set(key, w, false)?;
                     Ok(())
                 }
             }

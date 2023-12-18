@@ -506,10 +506,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         } else if !self.is_with_environment {
             Ok(true)
         } else {
-            let unscopables = get(binding_object, &PropertyKey::from(wks(WksId::Unscopables)))?;
+            let unscopables = binding_object.get(&PropertyKey::from(wks(WksId::Unscopables)))?;
             match &unscopables {
                 ECMAScriptValue::Object(unscopables_obj) => {
-                    let blocked = to_boolean(get(unscopables_obj, &name_key)?);
+                    let blocked = to_boolean(unscopables_obj.get(&name_key)?);
                     Ok(!blocked)
                 }
                 _ => Ok(true),
@@ -583,7 +583,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         if !still_exists && strict {
             Err(create_reference_error("Reference no longer exists"))
         } else {
-            set(binding_object, name_key, value, strict)?;
+            binding_object.set(name_key, value, strict)?;
             Ok(())
         }
     }
@@ -611,7 +611,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
                 Err(create_reference_error("Unresolvable reference"))
             }
         } else {
-            get(binding_object, &name_key)
+            binding_object.get(&name_key)
         }
     }
 
@@ -1226,7 +1226,7 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
             self.declarative_record.delete_binding(name)
         } else {
             let global_object = &self.object_record.binding_object;
-            if has_own_property(global_object, &name.clone().into())? {
+            if global_object.has_own_property(&name.clone().into())? {
                 let status = self.object_record.delete_binding(name)?;
                 if status {
                     self.var_names.borrow_mut().remove(name);
@@ -1368,7 +1368,7 @@ impl GlobalEnvironmentRecord {
     //  5. Return ? IsExtensible(globalObject).
     pub fn can_declare_global_var(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
-        Ok(has_own_property(global_object, &name.clone().into())? || is_extensible(global_object)?)
+        Ok(global_object.has_own_property(&name.clone().into())? || is_extensible(global_object)?)
     }
 
     // CanDeclareGlobalFunction ( N )
@@ -1416,7 +1416,7 @@ impl GlobalEnvironmentRecord {
     //  8. Return NormalCompletion(empty).
     pub fn create_global_var_binding(&self, name: JSString, deletable: bool) -> Completion<()> {
         let global_object = &self.object_record.binding_object;
-        let has_property = has_own_property(global_object, &name.clone().into())?;
+        let has_property = global_object.has_own_property(&name.clone().into())?;
         let extensible = is_extensible(global_object)?;
         if !has_property && extensible {
             self.object_record.create_mutable_binding(name.clone(), deletable)?;
@@ -1469,7 +1469,7 @@ impl GlobalEnvironmentRecord {
             _ => PotentialPropertyDescriptor::new().value(val.clone()),
         };
         define_property_or_throw(global_object, prop_key.clone(), desc)?;
-        set(global_object, prop_key, val, false)?;
+        global_object.set(prop_key, val, false)?;
         self.var_names.borrow_mut().insert(name);
         Ok(())
     }

@@ -282,8 +282,8 @@ pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     //  4. Return obj.
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(Some(object_prototype), &[]);
-    create_data_property_or_throw(&obj, "value", value).unwrap();
-    create_data_property_or_throw(&obj, "done", done).unwrap();
+    obj.create_data_property_or_throw("value", value).unwrap();
+    obj.create_data_property_or_throw("done", done).unwrap();
     obj
 }
 
@@ -566,17 +566,18 @@ impl fmt::Display for GeneratorError {
 impl Error for GeneratorError {}
 
 impl GeneratorObject {
-    pub fn object(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, GENERATOR_OBJECT_SLOTS)),
-                generator_data: RefCell::new(GeneratorData {
-                    generator_state: state,
-                    generator_context: None,
-                    generator_brand: brand.to_owned(),
-                }),
+    pub fn new(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, GENERATOR_OBJECT_SLOTS)),
+            generator_data: RefCell::new(GeneratorData {
+                generator_state: state,
+                generator_context: None,
+                generator_brand: brand.to_owned(),
             }),
         }
+    }
+    pub fn object(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
+        Object { o: Rc::new(Self::new(prototype, state, brand)) }
     }
 
     pub fn validate(&self, generator_brand: &str) -> Result<GeneratorState, GeneratorError> {
@@ -916,7 +917,7 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     if !iterator.is_object() {
         return Err(create_type_error("not an object"));
     }
-    let next_method = getv(&iterator, &"next".into())?;
+    let next_method = iterator.get(&"next".into())?;
     let iterator = Object::try_from(iterator).expect("iterator previously proved");
     let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
@@ -944,7 +945,7 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
         IteratorKind::Async => todo!(),
         IteratorKind::Sync => {
             let iter_symbol = wks(WksId::Iterator);
-            get_method(obj, &iter_symbol.into())?
+            obj.get_method(&iter_symbol.into())?
         }
     };
     if method.is_undefined() {
@@ -1029,7 +1030,7 @@ impl IteratorRecord {
         //  7. If innerResult.[[Value]] is not an Object, throw a TypeError exception.
         //  8. Return ? completion.
         let iterator = &ECMAScriptValue::from(&self.iterator);
-        let inner_result = match get_method(iterator, &"return".into()) {
+        let inner_result = match iterator.get_method(&"return".into()) {
             Ok(return_v) => {
                 if return_v.is_undefined() {
                     return completion;
@@ -1064,7 +1065,7 @@ pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     // throw completion. It performs the following steps when called:
     //
     //  1. Return ToBoolean(? Get(iterResult, "done")).
-    Ok(to_boolean(get(iter_result, &"done".into())?))
+    Ok(to_boolean(iter_result.get(&"done".into())?))
 }
 
 pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
@@ -1076,7 +1077,7 @@ pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     // when called:
     //
     //  1. Return ? Get(iterResult, "value").
-    get(iter_result, &"value".into())
+    iter_result.get(&"value".into())
 }
 
 pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {

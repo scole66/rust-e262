@@ -177,6 +177,15 @@ impl From<u64> for ECMAScriptValue {
     }
 }
 
+impl From<usize> for ECMAScriptValue {
+    fn from(val: usize) -> Self {
+        if val <= 1 << 53 {
+            Self::from(val as f64)
+        } else {
+            Self::from(BigInt::from(val))
+        }
+    }
+}
 impl From<i64> for ECMAScriptValue {
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
@@ -229,6 +238,21 @@ impl From<&Numeric> for ECMAScriptValue {
 impl From<Symbol> for ECMAScriptValue {
     fn from(source: Symbol) -> Self {
         Self::Symbol(source)
+    }
+}
+
+impl From<&Symbol> for ECMAScriptValue {
+    fn from(value: &Symbol) -> Self {
+        Self::Symbol(value.clone())
+    }
+}
+
+impl From<&PropertyKey> for ECMAScriptValue {
+    fn from(value: &PropertyKey) -> Self {
+        match value {
+            PropertyKey::String(s) => s.into(),
+            PropertyKey::Symbol(sym) => sym.into(),
+        }
     }
 }
 
@@ -465,6 +489,18 @@ impl fmt::Display for Symbol {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ValueKind {
+    Undefined,
+    Null,
+    Boolean,
+    String,
+    Symbol,
+    Number,
+    BigInt,
+    Object,
+}
+
 // Private Names
 //
 // The Private Name specification type is used to describe a globally unique value (one which differs from any other
@@ -647,7 +683,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
         }
     };
     for name in method_names.iter() {
-        let method = get(obj, name)?;
+        let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
@@ -686,7 +722,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = get_method(&input, &PropertyKey::from(wks(WksId::ToPrimitive)))?;
+        let exotic_to_prim = input.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
@@ -1306,6 +1342,19 @@ impl ECMAScriptValue {
             | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Symbol(_))
             | (ECMAScriptValue::Object(_), ECMAScriptValue::Object(_)) => self.same_value_non_numeric(other),
             _ => false,
+        }
+    }
+
+    pub fn kind(&self) -> ValueKind {
+        match self {
+            ECMAScriptValue::Undefined => ValueKind::Undefined,
+            ECMAScriptValue::Null => ValueKind::Null,
+            ECMAScriptValue::Boolean(_) => ValueKind::Boolean,
+            ECMAScriptValue::String(_) => ValueKind::String,
+            ECMAScriptValue::Number(_) => ValueKind::Number,
+            ECMAScriptValue::BigInt(_) => ValueKind::BigInt,
+            ECMAScriptValue::Symbol(_) => ValueKind::Symbol,
+            ECMAScriptValue::Object(_) => ValueKind::Object,
         }
     }
 }

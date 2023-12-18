@@ -162,6 +162,25 @@ impl PotentialPropertyDescriptor {
         self.set = Some(set.into());
         self
     }
+
+    pub fn complete(self) -> PropertyDescriptor {
+        PropertyDescriptor {
+            property: if self.is_accessor_descriptor() {
+                PropertyKind::Accessor(AccessorProperty {
+                    get: self.get.unwrap_or(ECMAScriptValue::Undefined),
+                    set: self.set.unwrap_or(ECMAScriptValue::Undefined),
+                })
+            } else {
+                PropertyKind::Data(DataProperty {
+                    value: self.value.unwrap_or(ECMAScriptValue::Undefined),
+                    writable: self.writable.unwrap_or(false),
+                })
+            },
+            enumerable: self.enumerable.unwrap_or(false),
+            configurable: self.configurable.unwrap_or(false),
+            ..Default::default()
+        }
+    }
 }
 
 impl DescriptorKind for PotentialPropertyDescriptor {
@@ -176,6 +195,46 @@ impl DescriptorKind for PotentialPropertyDescriptor {
     }
     fn is_writable(&self) -> Option<bool> {
         self.writable
+    }
+}
+
+impl TryFrom<PotentialPropertyDescriptor> for PropertyDescriptor {
+    type Error = anyhow::Error;
+
+    fn try_from(value: PotentialPropertyDescriptor) -> Result<Self, Self::Error> {
+        Ok(PropertyDescriptor {
+            property: if value.is_data_descriptor() {
+                PropertyKind::Data(DataProperty {
+                    value: value.value.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                    writable: value.writable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                })
+            } else {
+                PropertyKind::Accessor(AccessorProperty {
+                    get: value.get.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                    set: value.set.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+                })
+            },
+            configurable: value.configurable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+            enumerable: value.enumerable.map_or_else(|| Err(anyhow!("incomplete descriptor")), Ok)?,
+            ..Default::default()
+        })
+    }
+}
+
+impl From<PropertyDescriptor> for PotentialPropertyDescriptor {
+    fn from(v: PropertyDescriptor) -> Self {
+        let (writable, value, get, set) = match v.property {
+            PropertyKind::Data(DataProperty { value, writable }) => (Some(writable), Some(value), None, None),
+            PropertyKind::Accessor(AccessorProperty { get, set }) => (None, None, Some(get), Some(set)),
+        };
+        PotentialPropertyDescriptor {
+            value,
+            writable,
+            get,
+            set,
+            enumerable: Some(v.enumerable),
+            configurable: Some(v.configurable),
+        }
     }
 }
 
@@ -245,26 +304,33 @@ where
 //  9. If Desc has a [[Configurable]] field, then
 //      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
 //  10. Return obj.
-pub fn from_property_descriptor(desc: Option<PropertyDescriptor>) -> Option<Object> {
-    match desc {
-        Some(d) => {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            match &d.property {
-                PropertyKind::Data(DataProperty { value, writable }) => {
-                    create_data_property_or_throw(&obj, "value", value.clone()).unwrap();
-                    create_data_property_or_throw(&obj, "writable", *writable).unwrap();
-                }
-                PropertyKind::Accessor(AccessorProperty { get, set }) => {
-                    create_data_property_or_throw(&obj, "get", get.clone()).unwrap();
-                    create_data_property_or_throw(&obj, "set", set.clone()).unwrap();
-                }
-            }
-            create_data_property_or_throw(&obj, "enumerable", d.enumerable).unwrap();
-            create_data_property_or_throw(&obj, "configurable", d.configurable).unwrap();
-            Some(obj)
-        }
-        None => None,
+fn fpd(d: PotentialPropertyDescriptor) -> Object {
+    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    if let Some(value) = d.value {
+        obj.create_data_property_or_throw("value", value).unwrap();
     }
+    if let Some(writable) = d.writable {
+        obj.create_data_property_or_throw("writable", writable).unwrap();
+    }
+    if let Some(get) = d.get {
+        obj.create_data_property_or_throw("get", get).unwrap();
+    }
+    if let Some(set) = d.set {
+        obj.create_data_property_or_throw("set", set).unwrap();
+    }
+    if let Some(enumerable) = d.enumerable {
+        obj.create_data_property_or_throw("enumerable", enumerable).unwrap();
+    }
+    if let Some(configurable) = d.configurable {
+        obj.create_data_property_or_throw("configurable", configurable).unwrap();
+    }
+    obj
+}
+pub fn from_property_descriptor<T>(desc: Option<T>) -> Option<Object>
+where
+    T: Into<PotentialPropertyDescriptor>,
+{
+    desc.map(|d| fpd(d.into()))
 }
 
 // ToPropertyDescriptor ( Obj )
@@ -306,7 +372,7 @@ fn get_pd_prop(obj: &Object, key: impl Into<PropertyKey>) -> Completion<Option<E
     Ok({
         let key = key.into();
         if has_property(obj, &key)? {
-            Some(get(obj, &key)?)
+            Some(obj.get(&key)?)
         } else {
             None
         }
@@ -383,6 +449,9 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
+    ospo_internal(obj, val)
+}
+fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
     let current = obj.common_object_data().borrow().prototype.clone();
     if current == val {
         return true;
@@ -473,11 +542,17 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>
+pub fn ordinary_define_own_property<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    desc: impl Into<PotentialPropertyDescriptor>,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    odop_internal(o.into(), p.into(), desc.into())
+}
+fn odop_internal(obj: &dyn ObjectInterface, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
     let current = obj.get_own_property(&p)?;
     let extensible = is_extensible(obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
@@ -548,13 +623,23 @@ fn validate_and_apply_property_descriptor<'a, T>(
 where
     T: Into<&'a dyn ObjectInterface>,
 {
+    let converted = oo.map(|x| x.into());
+    internal_validate_and_apply_property_descriptor(converted, p, extensible, desc, current)
+}
+fn internal_validate_and_apply_property_descriptor(
+    oo: Option<&dyn ObjectInterface>,
+    p: Option<PropertyKey>,
+    extensible: bool,
+    desc: PotentialPropertyDescriptor,
+    current: Option<&PropertyDescriptor>,
+) -> bool {
     match current {
         None => {
             if !extensible {
                 false
             } else {
                 if let Some(o) = oo {
-                    let mut data = o.into().common_object_data().borrow_mut();
+                    let mut data = o.common_object_data().borrow_mut();
                     let property_descriptor = PropertyDescriptor {
                         enumerable: desc.enumerable.unwrap_or(false),
                         configurable: desc.configurable.unwrap_or(false),
@@ -629,7 +714,7 @@ where
                     }
                 }
                 if let Some(o) = oo {
-                    let mut data = o.into().common_object_data().borrow_mut();
+                    let mut data = o.common_object_data().borrow_mut();
                     let pd = data.properties.get_mut(&p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
@@ -685,10 +770,10 @@ where
 pub fn is_compatible_property_descriptor(
     extensible: bool,
     desc: PotentialPropertyDescriptor,
-    current: &PropertyDescriptor,
+    current: Option<&PropertyDescriptor>,
 ) -> bool {
     let oo: Option<&dyn ObjectInterface> = None;
-    validate_and_apply_property_descriptor(oo, None, extensible, desc, Some(current))
+    validate_and_apply_property_descriptor(oo, None, extensible, desc, current)
 }
 
 // OrdinaryHasProperty ( O, P )
@@ -707,7 +792,9 @@ pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ohp_internal(o.into(), p)
+}
+fn ohp_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Completion<bool> {
     let has_own = obj.get_own_property(p)?;
     match has_own {
         Some(_) => Ok(true),
@@ -741,7 +828,10 @@ pub fn ordinary_get<'a, T>(o: T, p: &PropertyKey, receiver: &ECMAScriptValue) ->
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    og_internal(o.into(), p, receiver)
+}
+
+fn og_internal(obj: &dyn ObjectInterface, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
     let pot_desc = obj.get_own_property(p)?;
     match pot_desc {
         None => {
@@ -764,36 +854,39 @@ where
     }
 }
 
-pub fn get_agentless(o: &Object, p: &PropertyKey) -> Option<ECMAScriptValue> {
-    let desc = ordinary_get_own_property(o, p);
-    match desc {
-        None => {
-            let parent = ordinary_get_prototype_of(o);
-            match parent {
-                None => None,
-                Some(parent) => get_agentless(&parent, p),
-            }
-        }
-        Some(desc) => match desc.property {
-            PropertyKind::Data(data_fields) => Some(data_fields.value),
-            PropertyKind::Accessor(_) => None,
-        },
-    }
-}
-
-// OrdinarySet ( O, P, V, Receiver )
-//
-// The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
-// value), and Receiver (an ECMAScript language value). It performs the following steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
-//  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>
+/// The default implementation of \[\[Set]]
+///
+/// This attaches the given value to the given property key on the provided object, using the existing property
+/// descriptor, if it exists.
+///
+/// See [OrdinarySet](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-ordinaryset) in
+/// ECMA-262.
+pub fn ordinary_set<'a, T>(
+    o: T,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    os_internal(o.into(), p.into(), v.into(), receiver)
+}
+
+fn os_internal(
+    obj: &dyn ObjectInterface,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool> {
+    // OrdinarySet ( O, P, V, Receiver )
+    //
+    // The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language
+    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
+    //
+    //  1. Assert: IsPropertyKey(P) is true.
+    //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
+    //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
     let own_desc = obj.get_own_property(&p)?;
     ordinary_set_with_own_descriptor(obj, p, v, receiver, own_desc)
 }
@@ -830,15 +923,24 @@ where
 //  8. Return true.
 pub fn ordinary_set_with_own_descriptor<'a, T>(
     o: T,
-    p: PropertyKey,
-    v: ECMAScriptValue,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
     receiver: &ECMAScriptValue,
     pot_own_desc: Option<PropertyDescriptor>,
 ) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ordinary_set_with_own_descriptor_internal(o.into(), p.into(), v.into(), receiver, pot_own_desc)
+}
+
+fn ordinary_set_with_own_descriptor_internal(
+    obj: &dyn ObjectInterface,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+    pot_own_desc: Option<PropertyDescriptor>,
+) -> Completion<bool> {
     let own_desc = match pot_own_desc {
         None => {
             let pot_parent = obj.get_prototype_of()?;
@@ -873,7 +975,7 @@ where
                                 }
                             },
                         },
-                        None => create_data_property(receiver, p, v),
+                        None => receiver.create_data_property(p, v),
                     }
                 }
                 _ => Ok(false),
@@ -908,17 +1010,17 @@ pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    ordinary_delete_internal(o.into(), p)
+}
+fn ordinary_delete_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Completion<bool> {
     let desc = obj.get_own_property(p)?;
     match desc {
         None => Ok(true),
-        Some(desc) => match desc.configurable {
-            true => {
-                obj.common_object_data().borrow_mut().properties.remove(p);
-                Ok(true)
-            }
-            false => Ok(false),
-        },
+        Some(PropertyDescriptor { configurable: true, .. }) => {
+            obj.common_object_data().borrow_mut().properties.remove(p);
+            Ok(true)
+        }
+        Some(PropertyDescriptor { configurable: false, .. }) => Ok(false),
     }
 }
 
@@ -940,6 +1042,9 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
+    ordinary_own_property_keys_internal(obj)
+}
+fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<PropertyKey> {
     let data = obj.common_object_data().borrow();
     let mut keys: Vec<PropertyKey> = Vec::with_capacity(data.properties.len());
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
@@ -1015,6 +1120,9 @@ pub trait ObjectInterface: Debug {
     fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
         None
     }
+    fn to_proxy_object(&self) -> Option<&ProxyObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
@@ -1079,20 +1187,6 @@ pub trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
-// This is really for debugging. It's the output structure from propdump.
-#[derive(Debug, PartialEq)]
-pub enum PropertyInfoKind {
-    Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
-    Data { value: ECMAScriptValue, writable: bool },
-}
-#[derive(Debug, PartialEq)]
-pub struct PropertyInfo {
-    pub name: PropertyKey,
-    pub enumerable: bool,
-    pub configurable: bool,
-    pub kind: PropertyInfoKind,
-}
-
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -1114,31 +1208,6 @@ impl CommonObjectData {
             slots: Vec::from(slots),
             private_elements: vec![],
         }
-    }
-
-    pub fn propdump(&self) -> Vec<PropertyInfo> {
-        // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
-        // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
-        let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
-        keys.sort_by_cached_key(|a| self.properties.get(*a).unwrap().spot);
-        let mut result = vec![];
-        for key in keys {
-            let prop = self.properties.get(key).unwrap();
-            result.push(PropertyInfo {
-                name: key.clone(),
-                enumerable: prop.enumerable,
-                configurable: prop.configurable,
-                kind: match &prop.property {
-                    PropertyKind::Data(DataProperty { value, writable }) => {
-                        PropertyInfoKind::Data { value: value.clone(), writable: *writable }
-                    }
-                    PropertyKind::Accessor(AccessorProperty { get, set }) => {
-                        PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() }
-                    }
-                },
-            });
-        }
-        result
     }
 }
 
@@ -1379,13 +1448,18 @@ impl fmt::Display for Object {
     }
 }
 
+impl OrdinaryObject {
+    pub fn new(prototype: Option<Object>, extensible: bool) -> Self {
+        Self { data: RefCell::new(CommonObjectData::new(prototype, extensible, ORDINARY_OBJECT_SLOTS)) }
+    }
+    pub fn object(prototype: Option<Object>, extensible: bool) -> Object {
+        Object { o: Rc::new(Self::new(prototype, extensible)) }
+    }
+}
+
 impl Object {
     fn new(prototype: Option<Object>, extensible: bool) -> Self {
-        Self {
-            o: Rc::new(OrdinaryObject {
-                data: RefCell::new(CommonObjectData::new(prototype, extensible, ORDINARY_OBJECT_SLOTS)),
-            }),
-        }
+        OrdinaryObject::object(prototype, extensible)
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Object {}>", self.o.id())
@@ -1405,8 +1479,9 @@ impl Object {
     pub fn is_array(&self) -> Completion<bool> {
         if self.o.is_array_object() {
             Ok(true)
-        } else if self.o.is_proxy_object() {
-            todo!()
+        } else if let Some(po) = self.o.to_proxy_object() {
+            let (target, _handler) = po.validate_non_revoked()?;
+            target.is_array()
         } else {
             Ok(false)
         }
@@ -1414,6 +1489,97 @@ impl Object {
 
     pub fn is_typed_array(&self) -> bool {
         false
+    }
+
+    /// Create a new own property of an object
+    ///
+    /// The function creates a property whose attributes are set to the same defaults used for properties created by the
+    /// ECMAScript language assignment operator. If the property already exists but is not configurable, or if the
+    /// object is not extensible, `false` is returned.
+    ///
+    /// See [CreateDataProperty](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-createdataproperty) in
+    /// ECMA-262.
+    pub fn create_data_property(&self, p: impl Into<PropertyKey>, v: impl Into<ECMAScriptValue>) -> Completion<bool> {
+        // Implementation in an internal function, to separate type conversion from the logic, for easier coverage
+        // testing.
+        self.internal_cdp(p.into(), v.into())
+    }
+    fn internal_cdp(&self, p: PropertyKey, v: ECMAScriptValue) -> Completion<bool> {
+        // CreateDataProperty ( O, P, V )
+        //
+        // The abstract operation CreateDataProperty takes arguments O (an Object), P (a property key), and V (an
+        // ECMAScript language value). It is used to create a new own property of an object. It performs the following
+        // steps when called:
+        //
+        //  1. Assert: Type(O) is Object.
+        //  2. Assert: IsPropertyKey(P) is true.
+        //  3. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: true,
+        //     [[Configurable]]: true }.
+        //  4. Return ? O.[[DefineOwnProperty]](P, newDesc).
+        //
+        // NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for
+        //          properties created by the ECMAScript language assignment operator. Normally, the property will not
+        //          already exist. If it does exist and is not configurable or if O is not extensible,
+        //          [[DefineOwnProperty]] will return false.
+        let new_desc = PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(true);
+        self.o.define_own_property(p, new_desc)
+    }
+
+    /// Create a new own property of an object or throw
+    ///
+    /// The function creates a property whose attributes are set to the same defaults used for properties created by the
+    /// ECMAScript language assignment operator. If the property already exists but is not configurable, or if the
+    /// object is not extensible, a TypeError is thrown.
+    ///
+    /// See
+    /// [CreateDataPropertyOrThrow](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-createdatapropertyorthrow)
+    /// in ECMA-262.
+    pub fn create_data_property_or_throw(
+        &self,
+        p: impl Into<PropertyKey>,
+        v: impl Into<ECMAScriptValue>,
+    ) -> Completion<()> {
+        self.create_data_property_or_throw_internal(p.into(), v.into())
+    }
+    fn create_data_property_or_throw_internal(&self, p: PropertyKey, v: ECMAScriptValue) -> Completion<()> {
+        // CreateDataPropertyOrThrow ( O, P, V )
+        //
+        // The abstract operation CreateDataPropertyOrThrow takes arguments O (an Object), P (a property key), and V (an
+        // ECMAScript language value). It is used to create a new own property of an object. It throws a TypeError
+        // exception if the requested property update cannot be performed. It performs the following steps when called:
+        //
+        //  1. Let success be ? CreateDataProperty(O, P, V).
+        //  2. If success is false, throw a TypeError exception.
+        //  3. Return success.
+        //
+        // NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for
+        //          properties created by the ECMAScript language assignment operator. Normally, the property will not
+        //          already exist. If it does exist and is not configurable or if O is not extensible,
+        //          [[DefineOwnProperty]] will return false causing this operation to throw a TypeError exception.
+        let success = self.create_data_property(p, v)?;
+        if !success {
+            Err(create_type_error("Unable to create data property"))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Look up the value of an object's property
+    ///
+    /// This uses all of the object's prototype chain, and calls accessor functions, unlike GetOwnProperty.
+    ///
+    /// See [Get](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-get-o-p) in ECMA-262.
+    pub fn get(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+        // Get ( O, P )
+        //
+        // The abstract operation Get takes arguments O (an Object) and P (a property key). It is used to retrieve the value of
+        // a specific property of an object. It performs the following steps when called:
+        //
+        //  1. Assert: Type(O) is Object.
+        //  2. Assert: IsPropertyKey(P) is true.
+        //  3. Return ? O.[[Get]](P, O).
+        let receiver = ECMAScriptValue::Object(self.clone());
+        self.o.get(key, &receiver)
     }
 }
 
@@ -1471,6 +1637,9 @@ pub enum InternalSlotName {
     ObjectWasVisited,
     VisitedKeys,
     RemainingKeys,
+    // Proxy Objects
+    ProxyTarget,
+    ProxyHandler,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1527,6 +1696,7 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::VisitedKeys,
     InternalSlotName::RemainingKeys,
 ];
+pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1572,119 +1742,101 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
     }
 }
 
-// Get ( O, P )
-//
-// The abstract operation Get takes arguments O (an Object) and P (a property key). It is used to retrieve the value of
-// a specific property of an object. It performs the following steps when called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Return ? O.[[Get]](P, O).
-pub fn get(obj: &Object, key: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let val = ECMAScriptValue::Object(obj.clone());
-    obj.o.get(key, &val)
-}
-
-// GetV ( V, P )
-//
-// The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is used to
-// retrieve the value of a specific property of an ECMAScript language value. If the value is not an object, the
-// property lookup is performed using a wrapper object appropriate for the type of the value. It performs the following
-// steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. Let O be ? ToObject(V).
-//  3. Return ? O.[[Get]](P, V).
-pub fn getv(v: &ECMAScriptValue, p: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let o = to_object(v.clone())?;
-    o.o.get(p, v)
-}
-
-// Set ( O, P, V, Throw )
-//
-// The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language value), and
-// Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new value for the
-// property. It performs the following steps when called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Assert: Type(Throw) is Boolean.
-//  4. Let success be ? O.[[Set]](P, V, O).
-//  5. If success is false and Throw is true, throw a TypeError exception.
-//  6. Return success.
-pub fn set(obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
-    let objval = ECMAScriptValue::Object(obj.clone());
-    let success = obj.o.set(propkey, value, &objval)?;
-    if !success && throw {
-        Err(create_type_error("Cannot add property, for one of many different possible reasons"))
-    } else {
-        Ok(success)
+impl ECMAScriptValue {
+    /// Convert a value to an object, and then do a property lookup
+    ///
+    /// This is useful for things like `"str".length`, which takes the value `"str"`, promotes it to an object, and then
+    /// returns the `length` property. It's also useful if you have an object in a value, and just want to do lookups
+    /// without needing to do the to-object conversion.
+    ///
+    /// See [GetV](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-get) from ECMA-262.
+    pub fn get(&self, p: &PropertyKey) -> Completion<ECMAScriptValue> {
+        // GetV ( V, P )
+        //
+        // The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is
+        // used to retrieve the value of a specific property of an ECMAScript language value. If the value is not an
+        // object, the property lookup is performed using a wrapper object appropriate for the type of the value. It
+        // performs the following steps when called:
+        //
+        //  1. Assert: IsPropertyKey(P) is true.
+        //  2. Let O be ? ToObject(V).
+        //  3. Return ? O.[[Get]](P, V).
+        let o = to_object(self.clone())?;
+        o.o.get(p, self)
     }
 }
 
-// CreateDataProperty ( O, P, V )
-//
-// The abstract operation CreateDataProperty takes arguments O (an Object), P (a property key), and V (an ECMAScript
-// language value). It is used to create a new own property of an object. It performs the following steps when called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }.
-//  4. Return ? O.[[DefineOwnProperty]](P, newDesc).
-//
-// NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for properties
-//          created by the ECMAScript language assignment operator. Normally, the property will not already exist. If it
-//          does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]] will return false.
-pub fn create_data_property(obj: &Object, p: PropertyKey, v: ECMAScriptValue) -> Completion<bool> {
-    let new_desc = PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(true);
-    obj.o.define_own_property(p, new_desc)
-}
-
-// CreateDataPropertyOrThrow ( O, P, V )
-//
-// The abstract operation CreateDataPropertyOrThrow takes arguments O (an Object), P (a property key), and V (an
-// ECMAScript language value). It is used to create a new own property of an object. It throws a TypeError exception if
-// the requested property update cannot be performed. It performs the following steps when called:
-//
-//  1. Let success be ? CreateDataProperty(O, P, V).
-//  2. If success is false, throw a TypeError exception.
-//  3. Return success.
-//
-// NOTE     | This abstract operation creates a property whose attributes are set to the same defaults used for
-//          | properties created by the ECMAScript language assignment operator. Normally, the property will not
-//          | already exist. If it does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]]
-//          | will return false causing this operation to throw a TypeError exception.
-pub fn create_data_property_or_throw(
-    obj: &Object,
-    p: impl Into<PropertyKey>,
-    v: impl Into<ECMAScriptValue>,
-) -> Completion<()> {
-    let success = create_data_property(obj, p.into(), v.into())?;
-    if !success {
-        Err(create_type_error("Unable to create data property"))
-    } else {
-        Ok(())
+impl Object {
+    /// Set the value of a specific property for an object
+    ///
+    /// See [Set](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-set-o-p-v-throw) in ECMA-262.
+    pub fn set(
+        &self,
+        propkey: impl Into<PropertyKey>,
+        value: impl Into<ECMAScriptValue>,
+        throw: bool,
+    ) -> Completion<bool> {
+        self.set_internal(propkey.into(), value.into(), throw)
+    }
+    fn set_internal(&self, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
+        // Set ( O, P, V, Throw )
+        //
+        // The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language
+        // value), and Throw (a Boolean). It is used to set the value of a specific property of an object. V is the new
+        // value for the property. It performs the following steps when called:
+        //
+        //  1. Assert: Type(O) is Object.
+        //  2. Assert: IsPropertyKey(P) is true.
+        //  3. Assert: Type(Throw) is Boolean.
+        //  4. Let success be ? O.[[Set]](P, V, O).
+        //  5. If success is false and Throw is true, throw a TypeError exception.
+        //  6. Return success.
+        let receiver = ECMAScriptValue::Object(self.clone());
+        let success = self.o.set(propkey, value, &receiver)?;
+        if !success && throw {
+            Err(create_type_error("Cannot add property, for one of many different possible reasons"))
+        } else {
+            Ok(success)
+        }
     }
 }
 
-// DefinePropertyOrThrow ( O, P, desc )
-//
-// The abstract operation DefinePropertyOrThrow takes arguments O (an Object), P (a property key), and desc (a Property
-// Descriptor). It is used to call the [[DefineOwnProperty]] internal method of an object in a manner that will throw a
-// TypeError exception if the requested property update cannot be performed. It performs the following steps when
-// called:
-//
-//  1. Assert: Type(O) is Object.
-//  2. Assert: IsPropertyKey(P) is true.
-//  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
-//  4. If success is false, throw a TypeError exception.
-//  5. Return success.
+/// For the given object, attach the given property descriptor to a given key.
+///
+/// This calls the \[\[DefineOwnProperty]] internal method of the object, throwing an error if that definition fails.
+/// This function is the primary way other internal functions set properties on objects, as it allows for the greatest
+/// expressiveness in the Property Descriptor. (Unlike, say, the \[\[Set]] internal method.)
+///
+/// See [DefinePropertyOrThrow](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-definepropertyorthrow)
+/// from the ECMA-262 spec.
 pub fn define_property_or_throw(
     obj: &Object,
     p: impl Into<PropertyKey>,
     desc: PotentialPropertyDescriptor,
 ) -> Completion<()> {
-    let success = obj.o.define_own_property(p.into(), desc)?;
+    // We have a separate "internal" function to isolate functionality from type conversion. This makes it easier to get
+    // 100% code coverage in the tests.
+    internal_define_property_or_throw(obj, p.into(), desc)
+}
+
+fn internal_define_property_or_throw(
+    obj: &Object,
+    p: PropertyKey,
+    desc: PotentialPropertyDescriptor,
+) -> Completion<()> {
+    // DefinePropertyOrThrow ( O, P, desc )
+    //
+    // The abstract operation DefinePropertyOrThrow takes arguments O (an Object), P (a property key), and desc (a
+    // Property Descriptor). It is used to call the [[DefineOwnProperty]] internal method of an object in a manner that
+    // will throw a TypeError exception if the requested property update cannot be performed. It performs the following
+    // steps when called:
+    //
+    //  1. Assert: Type(O) is Object.
+    //  2. Assert: IsPropertyKey(P) is true.
+    //  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
+    //  4. If success is false, throw a TypeError exception.
+    //  5. Return success.
+    let success = obj.o.define_own_property(p, desc)?;
     if !success {
         Err(create_type_error("Property cannot be assigned to"))
     } else {
@@ -1721,14 +1873,16 @@ pub fn delete_property_or_throw(obj: &Object, p: &PropertyKey) -> Completion<()>
 //  3. If func is either undefined or null, return undefined.
 //  4. If IsCallable(func) is false, throw a TypeError exception.
 //  5. Return func.
-pub fn get_method(val: &ECMAScriptValue, key: &PropertyKey) -> Completion<ECMAScriptValue> {
-    let func = getv(val, key)?;
-    if func.is_undefined() || func.is_null() {
-        Ok(ECMAScriptValue::Undefined)
-    } else if !is_callable(&func) {
-        Err(create_type_error("item is not callable"))
-    } else {
-        Ok(func)
+impl ECMAScriptValue {
+    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+        let func = self.get(key)?;
+        if func.is_undefined() || func.is_null() {
+            Ok(ECMAScriptValue::Undefined)
+        } else if !is_callable(&func) {
+            Err(create_type_error("item is not callable"))
+        } else {
+            Ok(func)
+        }
     }
 }
 
@@ -1757,8 +1911,10 @@ pub fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
 //  3. Let desc be ? O.[[GetOwnProperty]](P).
 //  4. If desc is undefined, return false.
 //  5. Return true.
-pub fn has_own_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
-    Ok(obj.o.get_own_property(p)?.is_some())
+impl Object {
+    pub fn has_own_property(&self, p: &PropertyKey) -> Completion<bool> {
+        Ok(self.o.get_own_property(p)?.is_some())
+    }
 }
 
 // Call ( F, V [ , argumentsList ] )
@@ -1956,7 +2112,7 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
     let array = array_create(0, None).unwrap();
     for (n, e) in elements.iter().enumerate() {
         let key = to_string(u64::try_from(n).unwrap()).unwrap();
-        create_data_property_or_throw(&array, key, e.clone()).unwrap();
+        array.create_data_property_or_throw(key, e.clone()).unwrap();
     }
     array
 }
@@ -1974,7 +2130,56 @@ pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
     //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
     //
     // An array-like object is any object for which this operation returns a normal completion.
-    to_length(get(obj, &"length".into())?)
+    to_length(obj.get(&"length".into())?)
+}
+
+pub fn create_list_from_array_like(
+    obj: ECMAScriptValue,
+    element_types: Option<&[ValueKind]>,
+) -> Completion<Vec<ECMAScriptValue>> {
+    // CreateListFromArrayLike ( obj [ , elementTypes ] )
+    // The abstract operation CreateListFromArrayLike takes argument obj (an ECMAScript language value) and optional
+    // argument elementTypes (a List of names of ECMAScript Language Types) and returns either a normal completion
+    // containing a List of ECMAScript language values or a throw completion. It is used to create a List value whose
+    // elements are provided by the indexed properties of obj. elementTypes contains the names of ECMAScript Language
+    // Types that are allowed for element values of the List that is created. It performs the following steps when
+    // called:
+    //
+    //  1. If elementTypes is not present, set elementTypes to « Undefined, Null, Boolean, String, Symbol, Number,
+    //     BigInt, Object ».
+    //  2. If obj is not an Object, throw a TypeError exception.
+    //  3. Let len be ? LengthOfArrayLike(obj).
+    //  4. Let list be a new empty List.
+    //  5. Let index be 0.
+    //  6. Repeat, while index < len,
+    //      a. Let indexName be ! ToString(𝔽(index)).
+    //      b. Let next be ? Get(obj, indexName).
+    //      c. If elementTypes does not contain Type(next), throw a TypeError exception.
+    //      d. Append next to list.
+    //      e. Set index to index + 1.
+    //  7. Return list.
+    let element_types = element_types.unwrap_or(&[
+        ValueKind::Undefined,
+        ValueKind::Null,
+        ValueKind::Boolean,
+        ValueKind::String,
+        ValueKind::Symbol,
+        ValueKind::Number,
+        ValueKind::BigInt,
+        ValueKind::Object,
+    ]);
+    let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
+    let len = length_of_array_like(&obj)?;
+    let mut list = Vec::new();
+    for index in 0..len as usize {
+        let index_name = to_string(index).expect("number to string works");
+        let next = obj.get(&index_name.into())?;
+        if !element_types.contains(&next.kind()) {
+            return Err(create_type_error("Invalid kind for array"));
+        }
+        list.push(next);
+    }
+    Ok(list)
 }
 
 // Invoke ( V, P [ , argumentsList ] )
@@ -1989,9 +2194,11 @@ pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
 //  2. If argumentsList is not present, set argumentsList to a new empty List.
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
-pub fn invoke(v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    let func = getv(&v, p)?;
-    call(&func, &v, arguments_list)
+impl ECMAScriptValue {
+    pub fn invoke(&self, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        let func = self.get(p)?;
+        call(&func, self, arguments_list)
+    }
 }
 
 pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
@@ -2021,7 +2228,7 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
     let c = to_object(c.clone()).expect("Callables must be objects");
     match o {
         ECMAScriptValue::Object(obj) => {
-            let p = get(&c, &"prototype".into())?;
+            let p = c.get(&"prototype".into())?;
             if !p.is_object() {
                 return Err(create_type_error("Bad prototype chain in 'instanceof'"));
             }
@@ -2075,7 +2282,7 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
                     if kind == KeyValueKind::Key {
                         properties.push(ECMAScriptValue::from(key));
                     } else {
-                        let value = get(obj, &key)?;
+                        let value = obj.get(&key)?;
                         if kind == KeyValueKind::Value {
                             properties.push(value);
                         } else {
@@ -2128,13 +2335,15 @@ pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_l
 //     corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 //  2. Let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
-pub fn ordinary_create_from_constructor(
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-    internal_slots_list: &[InternalSlotName],
-) -> Completion<Object> {
-    let proto = get_prototype_from_constructor(constructor, intrinsic_default_proto)?;
-    Ok(ordinary_object_create(Some(proto), internal_slots_list))
+impl Object {
+    pub fn ordinary_create_from_constructor(
+        &self,
+        intrinsic_default_proto: IntrinsicId,
+        internal_slots_list: &[InternalSlotName],
+    ) -> Completion<Object> {
+        let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
+        Ok(ordinary_object_create(Some(proto), internal_slots_list))
+    }
 }
 
 // GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto )
@@ -2155,17 +2364,16 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-pub fn get_prototype_from_constructor(
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-) -> Completion<Object> {
-    let proto = get(constructor, &PropertyKey::from("prototype"))?;
-    match proto {
-        ECMAScriptValue::Object(obj) => Ok(obj),
-        _ => {
-            let realm = get_function_realm(constructor)?;
-            let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
-            Ok(proto)
+impl Object {
+    pub fn get_prototype_from_constructor(&self, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
+        let proto = self.get(&PropertyKey::from("prototype"))?;
+        match proto {
+            ECMAScriptValue::Object(obj) => Ok(obj),
+            _ => {
+                let realm = self.get_function_realm()?;
+                let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
+                Ok(proto)
+            }
         }
     }
 }
@@ -2239,7 +2447,9 @@ pub fn set_immutable_prototype<'a, T>(o: T, val: Option<Object>) -> Completion<b
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let obj = o.into();
+    set_immutable_prototype_internal(o.into(), val)
+}
+fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> Completion<bool> {
     let current = obj.get_prototype_of()?;
     Ok(current == val)
 }
@@ -2377,12 +2587,18 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     }
 }
 
-pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Object {
-    Object {
-        o: Rc::new(ImmutablePrototypeExoticObject {
-            data: RefCell::new(CommonObjectData::new(proto.cloned(), true, ORDINARY_OBJECT_SLOTS)),
-        }),
+impl ImmutablePrototypeExoticObject {
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { data: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)) }
     }
+
+    pub fn object(prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(ImmutablePrototypeExoticObject::new(prototype)) }
+    }
+}
+
+pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Object {
+    ImmutablePrototypeExoticObject::object(proto.cloned())
 }
 
 // GetFunctionRealm ( obj )
@@ -2403,21 +2619,25 @@ pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Objec
 //
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
-pub fn get_function_realm(obj: &Object) -> Completion<Rc<RefCell<Realm>>> {
-    if let Some(f) = obj.o.to_function_obj() {
-        Ok(f.function_data().borrow().realm.clone())
-    } else if let Some(b) = obj.o.to_builtin_function_obj() {
-        Ok(b.builtin_function_data().borrow().realm.clone())
-    } else {
-        // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
-        // a realm slot was _not_ present.
-        assert!(!obj.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
+impl Object {
+    pub fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
+        if let Some(f) = self.o.to_function_obj() {
+            Ok(f.function_data().borrow().realm.clone())
+        } else if let Some(b) = self.o.to_builtin_function_obj() {
+            Ok(b.builtin_function_data().borrow().realm.clone())
+        } else if let Some(po) = self.o.to_proxy_object() {
+            let (target, _) = po.validate_non_revoked()?;
+            target.get_function_realm()
+        } else {
+            // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
+            // a realm slot was _not_ present.
+            assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
 
-        // Add the bound-function check
-        // Add the proxy check
-        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
+            // Add the bound-function check
+            eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
 
-        Ok(current_realm_record().unwrap())
+            Ok(current_realm_record().unwrap())
+        }
     }
 }
 
@@ -2546,24 +2766,50 @@ pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Comple
     }
 }
 
-/// Copy enumerable data properties from a source to a target, potentially excluding some
-///
-/// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-pub fn copy_data_properties(target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
-    if !(source.is_undefined() || source.is_null()) {
-        let from = to_object(source).unwrap();
-        let keys = from.o.own_property_keys()?;
-        for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
-            let desc = from.o.get_own_property(next_key)?;
-            if let Some(desc) = desc {
-                if desc.enumerable {
-                    let prop_value = get(&from, next_key)?;
-                    create_data_property_or_throw(target, next_key.clone(), prop_value).unwrap();
+impl Object {
+    /// Copy enumerable data properties from a source to a target, potentially excluding some
+    ///
+    /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
+    pub fn copy_data_properties(&self, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+        // CopyDataProperties ( target, source, excludedItems )
+        // The abstract operation CopyDataProperties takes arguments target (an Object), source (an ECMAScript language
+        // value), and excludedItems (a List of property keys) and returns either a normal completion containing UNUSED
+        // or a throw completion. It performs the following steps when called:
+        //
+        //  1. If source is either undefined or null, return UNUSED.
+        //  2. Let from be ! ToObject(source).
+        //  3. Let keys be ? from.[[OwnPropertyKeys]]().
+        //  4. For each element nextKey of keys, do
+        //      a. Let excluded be false.
+        //      b. For each element e of excludedItems, do
+        //          i. If SameValue(e, nextKey) is true, then
+        //              1. Set excluded to true.
+        //      c. If excluded is false, then
+        //          i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+        //          ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+        //              1. Let propValue be ? Get(from, nextKey).
+        //              2. Perform ! CreateDataPropertyOrThrow(target, nextKey, propValue).
+        //  5. Return UNUSED.
+        //
+        // NOTE    The target passed in here is always a newly created object which is not directly accessible in case
+        //         of an error being thrown.
+        if !(source.is_undefined() || source.is_null()) {
+            let from = to_object(source)
+                .expect("a value which is neither null nor undefined should be convertable to an object");
+            let keys = from.o.own_property_keys()?;
+            for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
+                let desc = from.o.get_own_property(next_key)?;
+                if let Some(desc) = desc {
+                    if desc.enumerable {
+                        let prop_value = from.get(next_key)?;
+                        self.create_data_property_or_throw(next_key.clone(), prop_value)
+                            .expect("data property creation should work fine for newly created objects");
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(test)]

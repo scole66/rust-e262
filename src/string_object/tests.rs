@@ -7,6 +7,14 @@ mod string_object {
     use super::*;
     use test_case::test_case;
 
+    fn make() -> Object {
+        let proto = intrinsic(IntrinsicId::StringPrototype);
+        let o = StringObject::object("sentinel".into(), Some(proto));
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
+        o
+    }
+
     #[test]
     fn debug() {
         setup_test_agent();
@@ -24,111 +32,25 @@ mod string_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject::object("orange".into(), Some(prototype));
 
-        let length = super::get(&so, &"length".into()).unwrap();
+        let length = so.get(&"length".into()).unwrap();
         assert_eq!(length, ECMAScriptValue::from(6));
 
         let sobj = so.o.to_string_obj().unwrap();
         assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
     }
 
-    #[test]
-    fn is_boolean_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_boolean_object());
-    }
-
-    #[test]
-    fn is_date_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_date_object());
-    }
-
-    #[test]
-    fn is_array_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_array_object());
-    }
-
-    #[test]
-    fn is_proxy_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_proxy_object());
-    }
-
-    #[test]
-    fn is_symbol_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_symbol_object());
-    }
-
-    #[test]
-    fn is_number_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_number_object());
-    }
-
-    #[test]
-    fn is_arguments_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_arguments_object());
-    }
-
-    #[test]
-    fn is_plain_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_plain_object());
-    }
-
-    #[test]
-    fn is_regexp_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_regexp_object());
-    }
-
-    #[test]
-    fn is_error_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_error_object());
-    }
-
-    #[test]
-    fn is_callable_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(!so.o.is_callable_obj());
-    }
+    false_function!(is_boolean_object);
+    false_function!(is_date_object);
+    false_function!(is_array_object);
+    false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
+    false_function!(is_number_object);
+    false_function!(is_arguments_object);
+    false_function!(is_plain_object);
+    false_function!(is_regexp_object);
+    false_function!(is_error_object);
+    false_function!(is_callable_obj);
+    false_function!(is_generator_object);
 
     #[test]
     fn is_string_object() {
@@ -148,86 +70,18 @@ mod string_object {
         assert!(so.o.uses_ordinary_get_prototype_of());
     }
 
-    #[test]
-    fn to_arguments_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_arguments_object().is_none());
-    }
-
-    #[test]
-    fn to_boolean_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_boolean_obj().is_none());
-    }
-
-    #[test]
-    fn to_array_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_array_object().is_none());
-    }
-
-    #[test]
-    fn to_callable_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_callable_obj().is_none());
-    }
-
-    #[test]
-    fn to_function_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_function_obj().is_none());
-    }
-
-    #[test]
-    fn to_error_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_error_obj().is_none());
-    }
-
-    #[test]
-    fn to_builtin_function_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_builtin_function_obj().is_none());
-    }
-
-    #[test]
-    fn to_symbol_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_symbol_obj().is_none());
-    }
-
-    #[test]
-    fn to_number_obj() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.to_number_obj().is_none());
-    }
+    none_function!(to_arguments_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_array_object);
+    none_function!(to_callable_obj);
+    none_function!(to_function_obj);
+    none_function!(to_error_obj);
+    none_function!(to_builtin_function_obj);
+    none_function!(to_symbol_obj);
+    none_function!(to_number_obj);
+    none_function!(to_generator_object);
+    none_function!(to_for_in_iterator);
+    none_function!(to_proxy_object);
 
     #[test]
     fn to_constructable() {
@@ -738,11 +592,11 @@ mod provision_string_intrinsic {
             ToKey::Symbol(id) => PropertyKey::from(wks(id)),
         };
         let proto = intrinsic(IntrinsicId::StringPrototype);
-        let val = super::get(&proto, &key).unwrap();
+        let val = proto.get(&key).unwrap();
         assert!(is_callable(&val));
-        let name = getv(&val, &"name".into()).unwrap();
+        let name = val.get(&"name".into()).unwrap();
         let name = to_string(name).unwrap();
-        let length = getv(&val, &"length".into()).unwrap();
+        let length = val.get(&"length".into()).unwrap();
         let length = to_string(length).unwrap();
         format!("{};{}", String::from(name), length)
     }
@@ -755,7 +609,7 @@ mod provision_string_intrinsic {
 
         // The String constructor: is the initial value of the "String" property of the global object.
         let global = current_realm_record().unwrap().borrow().global_object.as_ref().unwrap().clone();
-        let sfg_val = get(&global, &"String".into()).unwrap();
+        let sfg_val = global.get(&"String".into()).unwrap();
         let string_from_global = to_object(sfg_val).unwrap();
         assert_eq!(string_object, string_from_global);
 
@@ -790,11 +644,11 @@ mod provision_string_intrinsic {
             ToKey::Symbol(id) => PropertyKey::from(wks(id)),
         };
         let cstr = intrinsic(IntrinsicId::String);
-        let val = super::get(&cstr, &key).unwrap();
+        let val = cstr.get(&key).unwrap();
         assert!(is_callable(&val));
-        let name = getv(&val, &"name".into()).unwrap();
+        let name = val.get(&"name".into()).unwrap();
         let name = to_string(name).unwrap();
-        let length = getv(&val, &"length".into()).unwrap();
+        let length = val.get(&"length".into()).unwrap();
         let length = to_string(length).unwrap();
         format!("{};{}", String::from(name), length)
     }
