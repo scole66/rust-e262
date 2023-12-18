@@ -980,7 +980,7 @@ fn object_prototype_has_own_property(
     let v = args.next_arg();
     let p = to_property_key(v)?;
     let o = to_object(this_value)?;
-    has_own_property(&o, &p).map(ECMAScriptValue::from)
+    o.has_own_property(&p).map(ECMAScriptValue::from)
 }
 
 fn object_prototype_is_prototype_of(
@@ -1061,7 +1061,7 @@ fn object_prototype_to_locale_string(
     //
     //  1. Let O be the this value.
     //  2. Return ? Invoke(O, "toString").
-    invoke(this_value, &"toString".into(), &[])
+    this_value.invoke(&"toString".into(), &[])
 }
 
 #[cfg(test)]

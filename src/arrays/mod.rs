@@ -936,14 +936,14 @@ fn array_prototype_pop(
     let o = to_object(this_value)?;
     let len = length_of_array_like(&o)?;
     if len == 0 {
-        set(&o, "length".into(), (0.0).into(), true)?;
+        o.set("length", 0.0, true)?;
         Ok(ECMAScriptValue::Undefined)
     } else {
         let newlen = len - 1;
         let index = PropertyKey::from(format!("{newlen}"));
-        let element = get(&o, &index)?;
+        let element = o.get(&index)?;
         delete_property_or_throw(&o, &index)?;
-        set(&o, "length".into(), newlen.into(), true)?;
+        o.set("length", newlen, true)?;
         Ok(element)
     }
 }
@@ -979,10 +979,10 @@ fn array_prototype_push(
         return Err(create_type_error("Array too large"));
     }
     for (idx, e) in arguments.iter().cloned().enumerate() {
-        set(&o, PropertyKey::from(format!("{}", len + idx)), e, true)?;
+        o.set(PropertyKey::from(format!("{}", len + idx)), e, true)?;
     }
     let new_len = ECMAScriptValue::from(len + arg_count);
-    set(&o, "length".into(), new_len.clone(), true)?;
+    o.set("length", new_len.clone(), true)?;
     Ok(new_len)
 }
 

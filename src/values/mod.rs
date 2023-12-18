@@ -196,16 +196,6 @@ impl From<i64> for ECMAScriptValue {
     }
 }
 
-impl From<usize> for ECMAScriptValue {
-    fn from(val: usize) -> Self {
-        if val <= 1 << 53 {
-            Self::from(val as f64)
-        } else {
-            Self::from(BigInt::from(val))
-        }
-    }
-}
-
 impl From<BigInt> for ECMAScriptValue {
     fn from(source: BigInt) -> Self {
         Self::BigInt(Rc::new(source))
