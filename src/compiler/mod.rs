@@ -2308,12 +2308,228 @@ impl CallMemberExpression {
     }
 }
 
+impl OptionalExpression {
+    fn common_portion(
+        status: CompilerStatusFlags,
+        oc: &Rc<OptionalChain>,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<CompilerStatusFlags> {
+        let exit_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::Dup);
+        let unwind_1 = if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        let cont = chunk.op_jump(Insn::JumpIfNotNullish);
+        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop);
+        chunk.op(Insn::Undefined);
+        let exit_b = chunk.op_jump(Insn::Jump);
+        chunk.fixup(cont).expect("Jump should be too short to fail");
+        let chain_status = oc.chain_evaluation(chunk, strict, text)?;
+        if let Some(mark) = unwind_1 {
+            let exit_c = chunk.op_jump(Insn::Jump);
+            chunk.fixup(mark)?;
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.fixup(exit_c).expect("Jump should be too short to fail");
+        }
+        chunk.fixup(exit_b)?;
+        if let Some(mark) = exit_a {
+            chunk.fixup(mark)?;
+        }
+
+        Ok(CompilerStatusFlags::new()
+            .reference(chain_status.maybe_ref())
+            .abrupt(chain_status.maybe_abrupt() || status.maybe_abrupt()))
+    }
+
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            OptionalExpression::Member(me, oc) => {
+                // OptionalExpression :
+                //      MemberExpression OptionalChain
+                //  1. Let baseReference be ? Evaluation of MemberExpression.
+                //  2. Let baseValue be ? GetValue(baseReference).
+                //  3. If baseValue is either undefined or null, then
+                //      a. Return undefined.
+                //  4. Return ? ChainEvaluation of OptionalChain with arguments baseValue and baseReference.
+
+                //   <ME>                               ref/err
+                //   JUMP_IF_ABRUPT exit                ref
+                //   DUP                                ref ref
+                //   GET_VALUE                          val/err ref
+                //   JUMP_IF_ABRUPT unwind_1            val ref
+                //   JUMP_IF_NOT_NULLISH continue
+                //   POP                                ref
+                //   POP
+                //   UNDEFINED                          undefined
+                //   JUMP exit
+                // continue:                            val ref
+                //   <OC.chain_evaluation>              ref/val/err
+                //   JUMP exit
+                // unwind_1:                            err ref
+                //   UNWIND 1                           err
+                // exit:                                ref/val/err
+                let status = me.compile(chunk, strict, text)?;
+                Self::common_portion(status, oc, chunk, strict, text)
+            }
+            OptionalExpression::Call(ce, oc) => {
+                let status = ce.compile(chunk, strict, text)?;
+                Self::common_portion(status, oc, chunk, strict, text)
+            }
+            OptionalExpression::Opt(oe, oc) => {
+                let status = oe.compile(chunk, strict, text)?;
+                Self::common_portion(status, oc, chunk, strict, text)
+            }
+        }
+    }
+}
+
+impl OptionalChain {
+    fn chain_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        // The syntax-directed operation ChainEvaluation takes arguments baseValue (an ECMAScript language
+        // value) and baseReference (an ECMAScript language value or a Reference Record) and returns either a
+        // normal completion containing either an ECMAScript language value or a Reference Record, or an
+        // abrupt completion. It is defined piecewise over the following productions:
+        match self {
+            OptionalChain::Args(args, _) => {
+                // OptionalChain : ?. Arguments
+                //  1. Let thisChain be this OptionalChain.
+                //  2. Let tailCall be IsInTailPosition(thisChain).
+                //  3. Return ? EvaluateCall(baseValue, baseReference, Arguments, tailCall).
+                compile_call(chunk, strict, text, args).map(CompilerStatusFlags::from)
+            }
+            OptionalChain::Exp(ex, _) => {
+                // OptionalChain : ?. [ Expression ]
+                //  1. If the source text matched by this OptionalChain is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  2. Return ? EvaluatePropertyAccessWithExpressionKey(baseValue, Expression, strict).
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                evaluate_property_access_with_expression_key(chunk, ex, strict, text).map(CompilerStatusFlags::from)
+            }
+            OptionalChain::Ident(id, _) => {
+                // OptionalChain : ?. IdentifierName
+                //  1. If the source text matched by this OptionalChain is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  2. Return EvaluatePropertyAccessWithIdentifierKey(baseValue, IdentifierName, strict).
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                evaluate_property_access_with_identifier_key(chunk, id, strict).map(CompilerStatusFlags::from)
+            }
+            OptionalChain::Template(_, _) => todo!(),
+            OptionalChain::PrivateId(_, _) => todo!(),
+            OptionalChain::PlusArgs(oc, args) => {
+                // OptionalChain : OptionalChain Arguments
+                //  1. Let optionalChain be OptionalChain.
+                //  2. Let newReference be ? ChainEvaluation of optionalChain with arguments baseValue and
+                //     baseReference.
+                //  3. Let newValue be ? GetValue(newReference).
+                //  4. Let thisChain be this OptionalChain.
+                //  5. Let tailCall be IsInTailPosition(thisChain).
+                //  6. Return ? EvaluateCall(newValue, newReference, Arguments, tailCall).
+
+                // start                            val ref
+                //   <oc.chain_evaluation>          ref/err
+                //   JUMP_IF_ABRUPT exit            ref
+                //   DUP                            ref ref
+                //   GET_VALUE                      val/err ref
+                //   JUMP_IF_ABRUPT unwind          val ref
+                //   <EvalCall>                     val/err
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
+                // exit:
+                let status = oc.chain_evaluation(chunk, strict, text)?;
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                chunk.op(Insn::Dup);
+                let unwind = if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+
+                compile_call(chunk, strict, text, args)?;
+
+                if let Some(unwind) = unwind {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit2).expect("Jump too short to fail");
+                }
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok(CompilerStatusFlags::new().reference(false).abrupt(true))
+            }
+            OptionalChain::PlusExp(oc, exp, _) => {
+                // OptionalChain : OptionalChain [ Expression ]
+                //  1. Let optionalChain be OptionalChain.
+                //  2. Let newReference be ? ChainEvaluation of optionalChain with arguments baseValue and
+                //     baseReference.
+                //  3. Let newValue be ? GetValue(newReference).
+                //  4. If the source text matched by this OptionalChain is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  5. Return ? EvaluatePropertyAccessWithExpressionKey(newValue, Expression, strict).
+
+                // start                            val ref
+                //   <oc.chain_evaluation>          val/ref/err
+                //   GET_VALUE                      val/err
+                //   JUMP_IF_ABRUPT exit            val
+                //   <EPAWEK>                       ref/err
+                // exit:
+                let status = oc.chain_evaluation(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                assert!(status.maybe_ref() || status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                evaluate_property_access_with_expression_key(chunk, exp, strict, text)?;
+                chunk.fixup(exit)?;
+
+                Ok(CompilerStatusFlags::new().reference(true).abrupt(true))
+            }
+            OptionalChain::PlusIdent(oc, id, _) => {
+                // OptionalChain : OptionalChain . IdentifierName
+                //  1. Let optionalChain be OptionalChain.
+                //  2. Let newReference be ? ChainEvaluation of optionalChain with arguments baseValue and
+                //     baseReference.
+                //  3. Let newValue be ? GetValue(newReference).
+                //  4. If the source text matched by this OptionalChain is strict mode code, let strict be
+                //     true; else let strict be false.
+                //  5. Return EvaluatePropertyAccessWithIdentifierKey(newValue, IdentifierName, strict).
+
+                // start                            val ref
+                //   <oc.chain_evaluation>          val/ref/err
+                //   GET_VALUE                      val/err
+                //   JUMP_IF_ABRUPT exit            val
+                //   <EPAWIK>                       ref/err
+                // exit:
+                let status = oc.chain_evaluation(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                assert!(status.maybe_ref() || status.maybe_abrupt());
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                chunk.fixup(exit).expect("Jump should be too short to fail");
+                Ok(CompilerStatusFlags::from(AlwaysAbruptRefResult))
+            }
+            OptionalChain::PlusTemplate(_, _) => todo!(),
+            OptionalChain::PlusPrivateId(_, _, _) => todo!(),
+        }
+    }
+}
+
 impl LeftHandSideExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LeftHandSideExpression::New(ne) => ne.compile(chunk, strict, text),
             LeftHandSideExpression::Call(ce) => ce.compile(chunk, strict, text),
-            LeftHandSideExpression::Optional(_) => todo!(),
+            LeftHandSideExpression::Optional(oe) => oe.compile(chunk, strict, text),
         }
     }
 }

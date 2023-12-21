@@ -208,6 +208,8 @@ test_defs[CompilerForDeclaration]="parser::iteration_statements::ForDeclaration 
 test_defs[CompilerAssignmentPattern]="parser::assignment_operators::AssignmentPattern assignment_pattern compiler"
 test_defs[CompilerForInOfStatement_for_in_of_evaluation]="parser::iteration_statements::ForInOfStatement::for_in_of_evaluation for_in_of_statement::for_in_of_evaluation compiler"
 test_defs[CompilerForInOfStatement_for_in_of_body_evaluation]="parser::iteration_statements::ForInOfStatement::for_in_of_body_evaluation for_in_of_statement::for_in_of_body_evaluation compiler"
+test_defs[CompilerOptionalExpression]="parser::left_hand_side_expressions::OptionalExpression optional_expression compiler"
+test_defs[CompilerOptionalChain]="parser::left_hand_side_expressions::OptionalChain optional_chain compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
