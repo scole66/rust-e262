@@ -568,11 +568,13 @@ pub fn provision_uri_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.uri_error_prototype = prototype;
 }
 
+#[cfg(test)]
 /// Transform an ECMAScript Error object into a Rust string
 pub fn unwind_any_error_value(err: ECMAScriptValue) -> String {
     to_string(err).unwrap().into()
 }
 
+#[cfg(test)]
 /// Transform an ECMAScript Throw Completion into a Rust string
 pub fn unwind_any_error(completion: AbruptCompletion) -> String {
     match completion {

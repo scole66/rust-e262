@@ -913,12 +913,8 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     //  4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator,
     //     [[NextMethod]]: nextMethod, [[Done]]: false }.
     //  5. Return iteratorRecord.
-    let iterator = call(method, obj, &[])?;
-    if !iterator.is_object() {
-        return Err(create_type_error("not an object"));
-    }
+    let iterator = Object::try_from(call(method, obj, &[])?).map_err(|_| create_type_error("not an object"))?;
     let next_method = iterator.get(&"next".into())?;
-    let iterator = Object::try_from(iterator).expect("iterator previously proved");
     let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
 }

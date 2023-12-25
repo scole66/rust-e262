@@ -362,11 +362,32 @@ fn error_object_other_automatic_functions() {
     assert!(no.o.to_builtin_function_obj().is_none());
     assert!(!no.o.is_callable_obj());
     assert!(no.o.to_boolean_obj().is_none());
-    //assert!(no.o.to_number_obj().is_none());
+    assert!(no.o.to_number_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
     assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
+}
+
+mod error_object {
+    use super::*;
+    fn make() -> Object {
+        create_error_object()
+    }
+
+    false_function!(is_array_object);
+    none_function!(to_string_obj);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
+    none_function!(to_for_in_iterator);
+    none_function!(to_array_object);
+    none_function!(to_number_obj);
+    false_function!(is_symbol_object);
+    none_function!(to_generator_object);
+    none_function!(to_symbol_obj);
+    none_function!(to_arguments_object);
+    none_function!(to_proxy_object);
+    false_function!(is_generator_object);
 }
 
 #[test]
