@@ -8,7 +8,7 @@ fn create_native_error_object(
     proto_id: IntrinsicId,
     location: Option<Location>,
 ) -> Object {
-    let o = ordinary_create_from_constructor(&error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
+    let o = error_constructor.ordinary_create_from_constructor(proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc =
         PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(&o, "message", desc).unwrap();
@@ -479,7 +479,7 @@ fn native_error_constructor_function(
             &afo
         }
     };
-    let o = ordinary_create_from_constructor(nt, intrinsic_id, &[InternalSlotName::ErrorData])?;
+    let o = nt.ordinary_create_from_constructor(intrinsic_id, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(message)?;
         let msg_desc =
