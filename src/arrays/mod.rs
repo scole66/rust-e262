@@ -341,21 +341,6 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     construct(&c_obj, &[length.into()], None)
 }
 
-// IsArray ( argument )
-//
-// The abstract operation IsArray takes argument argument. It performs the following steps when called:
-//
-//  1. If Type(argument) is not Object, return false.
-//  2. If argument is an Array exotic object, return true.
-//  3. If argument is a Proxy exotic object, then
-//      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
-//      b. Let target be argument.[[ProxyTarget]].
-//      c. Return ? IsArray(target).
-//  4. Return false.
-pub fn is_array(argument: &ECMAScriptValue) -> Completion<bool> {
-    argument.is_array()
-}
-
 pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
@@ -708,7 +693,7 @@ fn array_is_array(
     //  1. Return ? IsArray(arg).
     let mut args = FuncArgs::from(arguments);
     let arg = args.next_arg();
-    is_array(&arg).map(ECMAScriptValue::from)
+    arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
     _this_value: ECMAScriptValue,
@@ -942,7 +927,7 @@ fn array_prototype_pop(
         let newlen = len - 1;
         let index = PropertyKey::from(format!("{newlen}"));
         let element = o.get(&index)?;
-        delete_property_or_throw(&o, &index)?;
+        o.delete_property_or_throw(&index)?;
         o.set("length", newlen, true)?;
         Ok(element)
     }
@@ -962,7 +947,7 @@ fn array_prototype_push(
     //  1. Let O be ? ToObject(this value).
     //  2. Let len be ? LengthOfArrayLike(O).
     //  3. Let argCount be the number of elements in items.
-    //  4. If len + argCount > 253 - 1, throw a TypeError exception.
+    //  4. If len + argCount > 2^53 - 1, throw a TypeError exception.
     //  5. For each element E of items, do
     //      a. Perform ? Set(O, ! ToString(𝔽(len)), E, true).
     //      b. Set len to len + 1.
@@ -975,15 +960,15 @@ fn array_prototype_push(
     let o = to_object(this_value)?;
     let len = length_of_array_like(&o)? as usize;
     let arg_count = arguments.len();
-    if len + arg_count > 1 << 53 - 1 {
+    let new_len = len + arg_count;
+    if new_len >= 1 << 53 {
         return Err(create_type_error("Array too large"));
     }
     for (idx, e) in arguments.iter().cloned().enumerate() {
         o.set(PropertyKey::from(format!("{}", len + idx)), e, true)?;
     }
-    let new_len = ECMAScriptValue::from(len + arg_count);
-    o.set("length", new_len.clone(), true)?;
-    Ok(new_len)
+    o.set("length", new_len, true)?;
+    Ok(new_len.into())
 }
 
 fn array_prototype_reduce(

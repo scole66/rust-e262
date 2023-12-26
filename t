@@ -557,6 +557,7 @@ test_defs[ordinary_delete]="ordinary_delete ordinary_delete object"
 test_defs[ordinary_delete_internal]="ordinary_delete_internal ordinary_delete object"
 test_defs[ordinary_prevent_extensions]="ordinary_prevent_extensions ordinary_prevent_extensions object"
 test_defs[has_own_property]="Object::has_own_property has_own_property object"
+test_defs[delete_property_or_throw]="Object::delete_property_or_throw delete_property_or_throw object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
@@ -590,6 +591,9 @@ test_defs[create_array_iterator]="create_array_iterator array_iterator::standard
 test_defs[array_constructor_function]="array_constructor_function array_constructor_function arrays"
 test_defs[array_species_create]="array_species_create array_species_create arrays"
 test_defs[array_is_array]="array_is_array array_is_array arrays"
+test_defs[array_species]="array_species array_species:: arrays"
+test_defs[array_prototype_pop]="array_prototype_pop array_prototype_pop arrays"
+test_defs[array_prototype_push]="array_prototype_push array_prototype_push arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 test_defs[BooleanObject]="BooleanObject boolean_object boolean_object"
@@ -714,6 +718,10 @@ test_defs[object_prevent_extensions]="object_prevent_extensions constructor::pre
 test_defs[object_seal]="object_seal constructor::seal object_object"
 test_defs[object_set_prototype_of]="object_set_prototype_of constructor::set_prototype_of object_object"
 test_defs[object_values]="object_values constructor::values object_object"
+test_defs[object_prototype_has_own_property]="object_prototype_has_own_property prototype::has_own_property object_object"
+test_defs[object_prototype_is_prototype_of]="object_prototype_is_prototype_of prototype::is_prototype_of object_object"
+test_defs[object_prototype_property_is_enumerable]="object_prototype_property_is_enumerable prototype::property_is_enumerable object_object"
+test_defs[object_prototype_to_locale_string]="object_prototype_to_locale_string prototype::to_locale_string object_object"
 
 test_defs[provision_iterator_prototype]="provision_iterator_prototype provision_iterator_prototype control_abstraction"
 test_defs[iterator_prototype_iterator]="iterator_prototype_iterator iterator_prototype_iterator control_abstraction"
