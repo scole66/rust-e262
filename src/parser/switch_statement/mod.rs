@@ -7,8 +7,8 @@ use std::io::Write;
 //      switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct SwitchStatement {
-    expression: Rc<Expression>,
-    case_block: Rc<CaseBlock>,
+    pub expression: Rc<Expression>,
+    pub case_block: Rc<CaseBlock>,
     location: Location,
 }
 
@@ -445,6 +445,24 @@ impl CaseBlock {
         }
         list
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        let (before, default, after) = match self {
+            CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(before, def, after, _) => (before.as_ref(), Some(def), after.as_ref()),
+        };
+        let mut list = vec![];
+        if let Some(before) = before {
+            list.extend(before.lexically_scoped_declarations());
+        }
+        if let Some(def) = default {
+            list.extend(def.lexically_scoped_declarations());
+        }
+        if let Some(after) = after {
+            list.extend(after.lexically_scoped_declarations());
+        }
+        list
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -629,14 +647,36 @@ impl CaseClauses {
             }
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            CaseClauses::Item(cc) => cc.lexically_scoped_declarations(),
+            CaseClauses::List(clauses, clause) => {
+                let mut list = clauses.lexically_scoped_declarations();
+                list.extend(clause.lexically_scoped_declarations());
+                list
+            }
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<Rc<CaseClause>> {
+        match self {
+            CaseClauses::Item(item) => vec![item.clone()],
+            CaseClauses::List(list, item) => {
+                let mut result = list.to_vec();
+                result.push(item.clone());
+                result
+            }
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
 //      case Expression[+In, ?Yield, ?Await] : StatementList[?Yield, ?Await, ?Return]opt
 #[derive(Debug)]
 pub struct CaseClause {
-    expression: Rc<Expression>,
-    statements: Option<Rc<StatementList>>,
+    pub expression: Rc<Expression>,
+    pub statements: Option<Rc<StatementList>>,
 }
 
 impl fmt::Display for CaseClause {
@@ -785,12 +825,19 @@ impl CaseClause {
             vec![]
         }
     }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match &self.statements {
+            Some(sl) => sl.lexically_scoped_declarations(),
+            None => vec![],
+        }
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
 //      default : StatementList[?Yield, ?Await, ?Return]opt
 #[derive(Debug)]
-pub struct DefaultClause(Option<Rc<StatementList>>);
+pub struct DefaultClause(pub Option<Rc<StatementList>>);
 
 impl fmt::Display for DefaultClause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -930,6 +977,13 @@ impl DefaultClause {
             stmt.var_scoped_declarations()
         } else {
             vec![]
+        }
+    }
+
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match &self.0 {
+            Some(stmt) => stmt.lexically_scoped_declarations(),
+            None => vec![],
         }
     }
 }

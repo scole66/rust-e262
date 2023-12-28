@@ -502,7 +502,7 @@ impl fmt::Display for HoistableDeclPart {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DeclPart {
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
