@@ -341,21 +341,6 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     construct(&c_obj, &[length.into()], None)
 }
 
-// IsArray ( argument )
-//
-// The abstract operation IsArray takes argument argument. It performs the following steps when called:
-//
-//  1. If Type(argument) is not Object, return false.
-//  2. If argument is an Array exotic object, return true.
-//  3. If argument is a Proxy exotic object, then
-//      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
-//      b. Let target be argument.[[ProxyTarget]].
-//      c. Return ? IsArray(target).
-//  4. Return false.
-pub fn is_array(argument: &ECMAScriptValue) -> Completion<bool> {
-    argument.is_array()
-}
-
 pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
@@ -700,9 +685,15 @@ fn array_from(
 fn array_is_array(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.isArray ( arg )
+    // This function performs the following steps when called:
+    //
+    //  1. Return ? IsArray(arg).
+    let mut args = FuncArgs::from(arguments);
+    let arg = args.next_arg();
+    arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
     _this_value: ECMAScriptValue,
@@ -712,11 +703,16 @@ fn array_of(
     todo!()
 }
 fn array_species(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // get Array [ @@species ]
+    // Array[@@species] is an accessor property whose set accessor function is undefined. Its get accessor
+    // function performs the following steps when called:
+    //
+    //  1. Return the this value.
+    Ok(this_value)
 }
 fn array_prototype_at(
     _this_value: ECMAScriptValue,
@@ -898,19 +894,83 @@ fn array_prototype_map(
     todo!()
 }
 fn array_prototype_pop(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.pop ( )
+    // NOTE 1 This method removes the last element of the array and returns it.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If len = 0, then
+    //      a. Perform ? Set(O, "length", +0𝔽, true).
+    //      b. Return undefined.
+    //  4. Else,
+    //      a. Assert: len > 0.
+    //      b. Let newLen be 𝔽(len - 1).
+    //      c. Let index be ! ToString(newLen).
+    //      d. Let element be ? Get(O, index).
+    //      e. Perform ? DeletePropertyOrThrow(O, index).
+    //      f. Perform ? Set(O, "length", newLen, true).
+    //      g. Return element.
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)?;
+    if len == 0 {
+        o.set("length", 0.0, true)?;
+        Ok(ECMAScriptValue::Undefined)
+    } else {
+        let newlen = len - 1;
+        let index = PropertyKey::from(format!("{newlen}"));
+        let element = o.get(&index)?;
+        o.delete_property_or_throw(&index)?;
+        o.set("length", newlen, true)?;
+        Ok(element)
+    }
 }
+
 fn array_prototype_push(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.push ( ...items )
+    // NOTE 1 This method appends the arguments to the end of the array, in the order in which they appear. It
+    // returns the new length of the array.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. Let argCount be the number of elements in items.
+    //  4. If len + argCount > 2^53 - 1, throw a TypeError exception.
+    //  5. For each element E of items, do
+    //      a. Perform ? Set(O, ! ToString(𝔽(len)), E, true).
+    //      b. Set len to len + 1.
+    //  6. Perform ? Set(O, "length", 𝔽(len), true).
+    //  7. Return 𝔽(len).
+    // The "length" property of this method is 1𝔽.
+    //
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)? as usize;
+    let arg_count = arguments.len();
+    let new_len = len + arg_count;
+    if new_len >= 1 << 53 {
+        return Err(create_type_error("Array too large"));
+    }
+    for (idx, e) in arguments.iter().cloned().enumerate() {
+        o.set(PropertyKey::from(format!("{}", len + idx)), e, true)?;
+    }
+    o.set("length", new_len, true)?;
+    Ok(new_len.into())
 }
+
 fn array_prototype_reduce(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

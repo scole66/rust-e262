@@ -963,32 +963,105 @@ fn object_values(
 }
 
 fn object_prototype_has_own_property(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.prototype.hasOwnProperty ( V )
+    // This method performs the following steps when called:
+    //
+    //  1. Let P be ? ToPropertyKey(V).
+    //  2. Let O be ? ToObject(this value).
+    //  3. Return ? HasOwnProperty(O, P).
+    // NOTE The ordering of steps 1 and 2 is chosen to ensure that any exception that would have been thrown
+    // by step 1 in previous editions of this specification will continue to be thrown even if the this value
+    // is undefined or null.
+    let mut args = FuncArgs::from(arguments);
+    let v = args.next_arg();
+    let p = to_property_key(v)?;
+    let o = to_object(this_value)?;
+    o.has_own_property(&p).map(ECMAScriptValue::from)
 }
+
 fn object_prototype_is_prototype_of(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.prototype.isPrototypeOf ( V )
+    // This method performs the following steps when called:
+    //
+    //  1. If V is not an Object, return false.
+    //  2. Let O be ? ToObject(this value).
+    //  3. Repeat,
+    //      a. Set V to ? V.[[GetPrototypeOf]]().
+    //      b. If V is null, return false.
+    //      c. If SameValue(O, V) is true, return true.
+    // NOTE The ordering of steps 1 and 2 preserves the behaviour specified by previous editions of this
+    // specification for the case where V is not an object and the this value is undefined or null.
+    let mut args = FuncArgs::from(arguments);
+    let v = args.next_arg();
+    match v {
+        ECMAScriptValue::Object(mut v) => {
+            let o = to_object(this_value)?;
+            loop {
+                match v.o.get_prototype_of()? {
+                    None => return Ok(ECMAScriptValue::from(false)),
+                    Some(new_v) => {
+                        v = new_v;
+                        if o == v {
+                            return Ok(ECMAScriptValue::from(true));
+                        }
+                    }
+                }
+            }
+        }
+        _ => Ok(ECMAScriptValue::from(false)),
+    }
 }
+
 fn object_prototype_property_is_enumerable(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.prototype.propertyIsEnumerable ( V )
+    // This method performs the following steps when called:
+    //
+    //  1. Let P be ? ToPropertyKey(V).
+    //  2. Let O be ? ToObject(this value).
+    //  3. Let desc be ? O.[[GetOwnProperty]](P).
+    //  4. If desc is undefined, return false.
+    //  5. Return desc.[[Enumerable]].
+    //
+    // NOTE 1 This method does not consider objects in the prototype chain.
+    //
+    // NOTE 2 The ordering of steps 1 and 2 is chosen to ensure that any exception that would have been thrown
+    // by step 1 in previous editions of this specification will continue to be thrown even if the this value
+    // is undefined or null.
+    let mut args = FuncArgs::from(arguments);
+    let v = args.next_arg();
+    let p = to_property_key(v)?;
+    let o = to_object(this_value)?;
+    let desc = o.o.get_own_property(&p)?;
+    Ok(match desc {
+        None => false,
+        Some(desc) => desc.enumerable,
+    }
+    .into())
 }
+
 fn object_prototype_to_locale_string(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Object.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be the this value.
+    //  2. Return ? Invoke(O, "toString").
+    this_value.invoke(&"toString".into(), &[])
 }
 
 #[cfg(test)]

@@ -3,6 +3,7 @@ use crate::tests::*;
 
 mod prototype {
     use super::*;
+    use test_case::test_case;
 
     mod valueof {
         use super::*;
@@ -63,6 +64,198 @@ mod prototype {
                 Err(err) => unwind_type_error(err),
             }
         }
+    }
+
+    #[test_case(
+        || ECMAScriptValue::Undefined,
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            fn behavior(
+                _: ECMAScriptValue,
+                _: Option<&Object>,
+                _: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                Err(create_type_error("toPrimitive throws"))
+            }
+            let to_primitive_method =
+                create_builtin_function(
+                    behavior,
+                    false,
+                    0.0,
+                    "f".into(),
+                    BUILTIN_FUNCTION_SLOTS,
+                    current_realm_record(),
+                    Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                    None,
+                );
+            let ppd = PotentialPropertyDescriptor::new().value(to_primitive_method);
+            define_property_or_throw(&obj, wks(WksId::ToPrimitive), ppd).unwrap();
+            obj.into()
+        }
+        => serr("TypeError: toPrimitive throws");
+        "toPrimitive throws"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Undefined,
+        || 0.into()
+        => serr("TypeError: Undefined and null cannot be converted to objects");
+        "toObject throws"
+    )]
+    #[test_case(
+        || intrinsic(IntrinsicId::ObjectPrototype).into(),
+        || "hasOwnProperty".into()
+        => sok("true");
+        "standard success"
+    )]
+    fn has_own_property(
+        make_this: impl FnOnce() -> ECMAScriptValue,
+        make_key: impl FnOnce() -> ECMAScriptValue,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let this = make_this();
+        let key = make_key();
+        object_prototype_has_own_property(this, None, &[key]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    }
+
+    #[test_case(
+        || {
+            let proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let obj = ordinary_object_create(Some(proto), &[]);
+            obj.into()
+        }
+        => sok("[object Object]");
+        "success"
+    )]
+    fn to_locale_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+        let this = make_this();
+        object_prototype_to_locale_string(this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    }
+
+    #[test_case(
+        || (ECMAScriptValue::Undefined, 0.into())
+        => sok("false");
+        "v not object, even if this is bad"
+    )]
+    #[test_case(
+        || (ECMAScriptValue::Undefined, ordinary_object_create(None, &[]).into())
+        => serr("TypeError: Undefined and null cannot be converted to objects");
+        "bad this"
+    )]
+    #[test_case(
+        || (
+            ordinary_object_create(None, &[]).into(),
+            TestObject::object(&[FunctionId::GetPrototypeOf]).into()
+        )
+        => serr("TypeError: [[GetPrototypeOf]] called on TestObject");
+        "GetPrototypeOf throws"
+    )]
+    #[test_case(
+        || (ordinary_object_create(None, &[]).into(), ordinary_object_create(None, &[]).into())
+        => sok("false");
+        "No shared prototypes"
+    )]
+    #[test_case(
+        || (intrinsic(IntrinsicId::ArrayPrototype).into(), create_array_from_list(&["bob".into()]).into())
+        => sok("true");
+        "in chain"
+    )]
+    #[test_case(
+        || (
+            intrinsic(IntrinsicId::ObjectPrototype).into(),
+            {
+                let proto = intrinsic(IntrinsicId::ObjectPrototype);
+                let parent = ordinary_object_create(Some(proto), &[]);
+                let child = ordinary_object_create(Some(parent), &[]);
+                child.into()
+            }
+        )
+        => sok("true");
+        "deep in chain"
+    )]
+    fn is_prototype_of(make_items: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue)) -> Result<String, String> {
+        setup_test_agent();
+        let (this, val) = make_items();
+        object_prototype_is_prototype_of(this, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    }
+
+    #[test_case(
+        || ECMAScriptValue::Undefined,
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            fn behavior(
+                _: ECMAScriptValue,
+                _: Option<&Object>,
+                _: &[ECMAScriptValue],
+            ) -> Completion<ECMAScriptValue> {
+                Err(create_type_error("toPrimitive throws"))
+            }
+            let to_primitive_method =
+                create_builtin_function(
+                    behavior,
+                    false,
+                    0.0,
+                    "f".into(),
+                    BUILTIN_FUNCTION_SLOTS,
+                    current_realm_record(),
+                    Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                    None,
+                );
+            let ppd = PotentialPropertyDescriptor::new().value(to_primitive_method);
+            define_property_or_throw(&obj, wks(WksId::ToPrimitive), ppd).unwrap();
+            obj.into()
+        }
+        => serr("TypeError: toPrimitive throws");
+        "ToPropertyKey throws"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Undefined, || 0.into()
+        => serr("TypeError: Undefined and null cannot be converted to objects");
+        "ToObject throws"
+    )]
+    #[test_case(
+        || TestObject::object(&[FunctionId::GetOwnProperty(Some("prop".into()))]).into(),
+        || "prop".into()
+        => serr("TypeError: [[GetOwnProperty]] called on TestObject");
+        "GetOwnProperty throws"
+    )]
+    #[test_case(
+        || ordinary_object_create(None, &[]).into(),
+        || 0.into()
+        => sok("false");
+        "success; no property"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("prop", 10).unwrap();
+            obj.into()
+        },
+        || "prop".into()
+        => sok("true");
+        "success; prop match"
+    )]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let ppd = PotentialPropertyDescriptor::new().value(10).enumerable(false);
+            define_property_or_throw(&obj, "prop", ppd).unwrap();
+            obj.into()
+        },
+        || "prop".into()
+        => sok("false");
+        "success; prop is hidden"
+    )]
+    fn property_is_enumerable(
+        make_this: impl FnOnce() -> ECMAScriptValue,
+        make_val: impl FnOnce() -> ECMAScriptValue,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let this = make_this();
+        let val = make_val();
+        object_prototype_property_is_enumerable(this, None, &[val])
+            .map_err(unwind_any_error)
+            .map(|v| v.test_result_string())
     }
 }
 

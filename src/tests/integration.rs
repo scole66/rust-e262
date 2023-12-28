@@ -554,6 +554,122 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 //  OptionalChain: OptionalChain . PrivateIdentifier
 //    Todo: this needs classes
 
+// Array Functions
+// Array.isArray
+//   Array.isArray(13) -> false
+//   Array.isArray([1, 2, 3]) -> true
+//   Array.isArray((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})()) -> TypeError
+#[test_case("Array.isArray(13)" => vok(false); "Array.isArray on not-array")]
+#[test_case("Array.isArray([1, 2, 3])" => vok(true); "Array.isArray on an array")]
+#[test_case(
+    "Array.isArray((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})())"
+    => panics "not yet implemented";
+    "Array.isArray throws"
+)]
+// get Array[@@species]
+//   Array[Symbol.species] == Array    -> true
+#[test_case("Array[Symbol.species] == Array" => vok(true); "get Array[@@species]")]
+// Array.prototype
+//  Array.prototype.pop
+//   { let a = [1, 2, 3]; let r = a.pop(); a.length == 2 && r == 3 && !a.hasOwnProperty('2') } -> true
+//   [].pop() -> undefined
+//   Array.prototype.pop.call(undefined) -> TypeError (ToObject fails)
+//   Array.prototype.pop.call({ length: Symbol.iterator }) -> TypeError (LengthOfArrayLike fails)
+//   { let a = { length: -1 }; let r = Array.prototype.pop.call(a); a.length == 0 && r === undefined } -> true
+//   { let a = { length: -1 }; Object.freeze(a); Array.prototype.pop.call(a); } -> TypeError (first Set fails)
+//   Array.prototype.pop.call(new Proxy({}, {'get':(r,key)=>{if(key=='length'){return 3;}throw 0;}})) -> Uncaught 0 (Get fails)
+//   { let a = [1,2]; Object.freeze(a); a.pop() } -> TypeError (DeletePropertyOrThrow fails)
+//   Array.prototype.pop.call(new Proxy([1],{'set':()=>{throw 0;}})) -> Uncaught 0 (second Set fails)
+#[test_case(
+    "{ let a = [1, 2, 3]; let r = a.pop(); a.length == 2 && r == 3 && !a.hasOwnProperty('2') }"
+    => vok(true);
+    "Array.prototype.pop nonempty list"
+)]
+#[test_case("[].pop()" => vok(ECMAScriptValue::Undefined); "Array.prototype.pop empty list")]
+#[test_case(
+    "Array.prototype.pop.call(undefined)"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "Array.prototype.pop: ToObject throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call({ length: Symbol.iterator })"
+    => serr("Thrown: TypeError: Symbol values cannot be converted to Number values");
+    "Array.prototype.pop: LengthOfArrayLike throws"
+)]
+#[test_case(
+    "{ let a = { length: -1 }; let r = Array.prototype.pop.call(a); a.length == 0 && r === undefined }"
+    => vok(true);
+    "Array.prototype.pop: setting length to zero on an empty arraylike"
+)]
+#[test_case(
+    "{ let a = { length: -1 }; Object.freeze(a); Array.prototype.pop.call(a); }"
+    => serr("Thrown: TypeError: Cannot add property, for one of many different possible reasons");
+    "Array.prototype.pop: first Set throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call(new Proxy({}, {'get':(r,key)=>{if(key=='length'){return 3;}throw 0;}}))"
+    => serr("Thrown: 0");
+    "Array.prototype.pop: Get throws"
+)]
+#[test_case(
+    "{ let a = [1,2]; Object.freeze(a); a.pop() }"
+    => serr("Thrown: TypeError: Property could not be deleted");
+    "Array.prototype.pop: DeletePropertyOrThrow throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call(new Proxy([1],{'set':()=>{throw 0;}}))"
+    => serr("Thrown: 0");
+    "Array.prototype.pop: second Set throws"
+)]
+//  Array.prototype.push
+//   { let a = [1, 2, 3]; let r = a.push(4, 5, 6); r === 6 && a.join(',') === "1,2,3,4,5,6"; } -> true
+//
+#[test_case(
+    "{ let a = [1, 2, 3]; let r = a.push(4, 5, 6); r === 6 && a.join(',') === '1,2,3,4,5,6'; }"
+    => vok(true);
+    "Array.prototype.push: success"
+)]
+#[test_case(
+    "Array.prototype.push.call(undefined)"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "Array.prototype.push: ToObject throws"
+)]
+#[test_case(
+    "Array.prototype.push.call({ length: Symbol.iterator })"
+    => serr("Thrown: TypeError: Symbol values cannot be converted to Number values");
+    "Array.prototype.push: LengthOfArrayLike throws"
+)]
+#[test_case(
+    "Array.prototype.push.call({'length': 2**53 - 1}, 10)"
+    => serr("Thrown: TypeError: Array too large");
+    "Array.prototype.push: length check"
+)]
+#[test_case(
+    "{ let a = [1, 2, 3]; Object.freeze(a); Array.prototype.push.call(a, 10); }"
+    => serr("Thrown: TypeError: Cannot add property, for one of many different possible reasons");
+    "Array.prototype.push: first Set fails"
+)]
+#[test_case(
+    r"
+    Array.prototype.push.call(
+        new Proxy(
+            {
+                'length': 0
+            },
+            {
+                'set': (target, key, value) => {
+                    if (key == 'length') { throw 0; }
+                    target[key]=value;
+                    return true;
+                }
+            }
+        ),
+        1
+    )
+    "
+    => serr("Thrown: 0");
+    "Array.prototype.push: second Set fails"
+)]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

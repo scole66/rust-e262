@@ -5501,3 +5501,40 @@ fn has_own_property(make_val: impl FnOnce() -> Object, key: impl Into<PropertyKe
     let key = key.into();
     obj.has_own_property(&key).map_err(unwind_any_error)
 }
+
+#[test_case(|| ordinary_object_create(None, &[]), "bob" => sok(""); "prop not there")]
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("named", 27).unwrap();
+        obj.create_data_property_or_throw("other", 12).unwrap();
+        obj
+    },
+    "named"
+    => sok("other:12");
+    "good deletion"
+)]
+#[test_case(
+    || TestObject::object(&[FunctionId::Delete(Some("named".into()))]), "named"
+    => serr("TypeError: [[Delete]] called on TestObject");
+    "delete throws"
+)]
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("named", 11).unwrap();
+        set_integrity_level(&obj, IntegrityLevel::Frozen).unwrap();
+        obj
+    },
+    "named"
+    => serr("TypeError: Property could not be deleted");
+    "delete fail switched to error"
+)]
+fn delete_property_or_throw(make_obj: impl FnOnce() -> Object, key: impl Into<PropertyKey>) -> Result<String, String> {
+    setup_test_agent();
+    let obj = make_obj();
+    let key = key.into();
+    obj.delete_property_or_throw(&key)
+        .map_err(unwind_any_error)
+        .map(|_| ECMAScriptValue::from(obj).test_result_string())
+}
