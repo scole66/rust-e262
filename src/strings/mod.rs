@@ -4,18 +4,15 @@ use std::rc::Rc;
 
 // So: JS String.
 //
-// At it's core, this is simply a Vec<u16>, but interned for speed & storage.
-//
-// The API for pulling out pieces of them hasn't really been defined yet.
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct JSString {
-    s: Rc<Vec<u16>>,
+    s: Rc<[u16]>,
 }
 
 impl JSString {
     pub fn as_slice(&self) -> &[u16] {
-        self.s.as_slice()
+        &self.s
     }
 
     pub fn len(&self) -> usize {
@@ -28,10 +25,8 @@ impl JSString {
 
     pub fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
-        let mut new_vec = Vec::with_capacity(self.len() + tail.len());
-        new_vec.extend(self.s.iter());
-        new_vec.extend(tail.s.iter());
-        JSString { s: Rc::new(new_vec) }
+        let combined = [self.clone().s, tail.s].concat().into_boxed_slice();
+        JSString { s: Rc::from(combined) }
     }
 
     pub fn index_of(&self, search_value: &JSString, from_index: u64) -> i64 {
@@ -52,7 +47,7 @@ impl JSString {
 
 impl From<Vec<u16>> for JSString {
     fn from(source: Vec<u16>) -> Self {
-        Self { s: Rc::new(source) }
+        Self { s: Rc::from(source.into_boxed_slice()) }
     }
 }
 
