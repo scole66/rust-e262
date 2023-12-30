@@ -2,7 +2,7 @@ use super::*;
 use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::rc::Rc;
@@ -125,9 +125,7 @@ pub fn unwind_range_error_object(err: Object) -> String {
 }
 
 pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
-    let mut s = factory.build_hasher();
-    t.hash(&mut s);
-    s.finish()
+    factory.hash_one(t)
 }
 
 pub fn setup_test_agent() {

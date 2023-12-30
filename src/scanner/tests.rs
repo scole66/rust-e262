@@ -4,7 +4,7 @@ use super::*;
 use crate::tests::*;
 use ahash::RandomState;
 use num::traits::Zero;
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 
 #[test]
 fn jsstring_from_str() {
@@ -1740,9 +1740,7 @@ fn template_data_ne() {
 }
 
 fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
-    let mut s = factory.build_hasher();
-    t.hash(&mut s);
-    s.finish()
+    factory.hash_one(t)
 }
 
 mod scanner {
