@@ -210,6 +210,11 @@ test_defs[CompilerForInOfStatement_for_in_of_evaluation]="parser::iteration_stat
 test_defs[CompilerForInOfStatement_for_in_of_body_evaluation]="parser::iteration_statements::ForInOfStatement::for_in_of_body_evaluation for_in_of_statement::for_in_of_body_evaluation compiler"
 test_defs[CompilerOptionalExpression]="parser::left_hand_side_expressions::OptionalExpression optional_expression compiler"
 test_defs[CompilerOptionalChain]="parser::left_hand_side_expressions::OptionalChain optional_chain compiler"
+test_defs[block_declaration_instantiation]="block_declaration_instantiation block:: compiler"
+test_defs[CompilerSwitchStatement]="parser::switch_statement::SwitchStatement switch_statement compiler"
+test_defs[CompilerCaseBlock]="parser::switch_statement::CaseBlock case_block compiler"
+test_defs[CompilerDefaultClause]="parser::switch_statement::DefaultClause default_clause compiler"
+test_defs[CompilerCaseClause]="parser::switch_statement::CaseClause case_clause compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"

@@ -4940,6 +4940,33 @@ impl FcnDef {
     }
 }
 
+fn block_declaration_instantiation(
+    chunk: &mut Chunk,
+    strict: bool,
+    text: &str,
+    declarations: &[DeclPart],
+) -> anyhow::Result<()> {
+    for d in declarations {
+        let is_constant = d.is_constant_declaration();
+        for dn in d.bound_names() {
+            let string_idx = chunk.add_to_string_pool(dn)?;
+            if is_constant {
+                chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx);
+            } else {
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
+            }
+        }
+        if let Ok(fcn) = FcnDef::try_from(d.clone()) {
+            let fcn_name = fcn.bound_name();
+            let string_idx =
+                chunk.add_to_string_pool(fcn_name).expect("should find an index, as fcn_name is already in the pool");
+            fcn.compile_fo_instantiation(chunk, strict, text)?;
+            chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+        }
+    }
+    Ok(())
+}
+
 impl Block {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match &self.statements {
@@ -4950,25 +4977,8 @@ impl Block {
             Some(sl) => {
                 chunk.op(Insn::PushNewLexEnv);
                 let declarations = sl.lexically_scoped_declarations();
-                for d in declarations {
-                    let is_constant = d.is_constant_declaration();
-                    for dn in d.bound_names() {
-                        let string_idx = chunk.add_to_string_pool(dn)?;
-                        if is_constant {
-                            chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx);
-                        } else {
-                            chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
-                        }
-                    }
-                    let x: Result<FcnDef, anyhow::Error> = FcnDef::try_from(d);
-                    if let Ok(fcn) = x {
-                        let fcn_name = fcn.bound_name();
-                        let string_idx =
-                            chunk.add_to_string_pool(fcn_name).expect("will work, because we're re-adding this");
-                        fcn.compile_fo_instantiation(chunk, strict, text)?;
-                        chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
-                    }
-                }
+
+                block_declaration_instantiation(chunk, strict, text, &declarations)?;
 
                 let statement_status = sl.compile(chunk, strict, text)?;
                 chunk.op(Insn::PopLexEnv);
@@ -6443,9 +6453,402 @@ impl ReturnStatement {
 }
 
 impl SwitchStatement {
-    #[allow(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        todo!()
+        // SwitchStatement : switch ( Expression ) CaseBlock
+        //  1. Let exprRef be ? Evaluation of Expression.
+        //  2. Let switchValue be ? GetValue(exprRef).
+        //  3. Let oldEnv be the running execution context's LexicalEnvironment.
+        //  4. Let blockEnv be NewDeclarativeEnvironment(oldEnv).
+        //  5. Perform BlockDeclarationInstantiation(CaseBlock, blockEnv).
+        //  6. Set the running execution context's LexicalEnvironment to blockEnv.
+        //  7. Let R be Completion(CaseBlockEvaluation of CaseBlock with argument switchValue).
+        //  8. Set the running execution context's LexicalEnvironment to oldEnv.
+        //  9. Return R.
+        // NOTE: No matter how control leaves the SwitchStatement the LexicalEnvironment is always restored to
+        // its former state.
+
+        // start:
+        //   <evaluation of Expression>                exprRef/err
+        //   GET_VALUE                                 switchValue/err
+        //   JUMP_IF_ABRUPT exit                       switchValue
+        //   PNLE                                      switchValue
+        //   <BDI(CaseBlock)>                          switchValue
+        //   <CaseBlock.CaseBlockEvalution>            R/err
+        //   PLE                                       R/err
+        // exit:
+
+        let status = self.expression.compile(chunk, strict, text)?;
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let exit =
+            if status.maybe_ref() || status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::PushNewLexEnv);
+        let declarations = self.case_block.lexically_scoped_declarations();
+        block_declaration_instantiation(chunk, strict, text, &declarations)?;
+        let blocks_status = self.case_block.case_block_evaluation(chunk, strict, text)?;
+        chunk.op(Insn::PopLexEnv);
+        if let Some(exit) = exit {
+            chunk.fixup(exit)?;
+        }
+        Ok(AbruptResult::from(status.maybe_ref() || status.maybe_abrupt() || blocks_status.maybe_abrupt()))
+    }
+}
+
+impl CaseBlock {
+    fn case_block_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        // The syntax-directed operation CaseBlockEvaluation takes argument input (an ECMAScript language
+        // value) and returns either a normal completion containing an ECMAScript language value or an abrupt
+        // completion.
+        match self {
+            CaseBlock::NoDefault(None, _) => {
+                // CaseBlock : { }
+                //  1. Return undefined.
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::Undefined);
+                Ok(AbruptResult::Never)
+            }
+            CaseBlock::NoDefault(Some(clauses), _) => {
+                // CaseBlock : { CaseClauses }
+                //  1. Let V be undefined.
+                //  2. Let A be the List of CaseClause items in CaseClauses, in source text order.
+                //  3. Let found be false.
+                //  4. For each CaseClause C of A, do
+                //      a. If found is false, then
+                //          i. Set found to ? CaseClauseIsSelected(C, input).
+                //      b. If found is true, then
+                //          i. Let R be Completion(Evaluation of C).
+                //          ii. If R.[[Value]] is not EMPTY, set V to R.[[Value]].
+                //          iii. If R is an abrupt completion, return ? UpdateEmpty(R, V).
+                //  5. Return V.
+
+                // start:                               input
+                //  UNDEFINED                           V  input
+                //  SWAP                                input  V
+                //  FALSE                               false  input  V
+                //  --------REPEAT FOR EACH CASE CLAUSE-----------------
+                //                                      (false input)/true V
+                //  JUMP_IF_TRUE do_eval_cont           false input V
+                //  POP                                 input V
+                //  <C.CaseClauseIsSelected>            true/false/err input V
+                //  JUMP_IF_ABRUPT unwind_2             true/false input V
+                //  JUMP_IF_FALSE skip_eval             true input V
+                //  POP                                 input V
+                // do_eval_cont:                        input/true V
+                //  POP                                 V
+                //  <C.evaluate>                        val/err V
+                //  UPDATE_EMPTY                        V/err
+                //  JUMP_IF_ABRUPT exit                 V
+                //  TRUE                                true V
+                // skip_eval:                           (false input)/true V
+                //  -----------------------------------------------------
+                //  JUMP_POP_IF_TRUE exit               input V
+                //  POP                                 V
+                //  JUMP exit
+                // unwind_2:                            err input V
+                //  UNWIND 2                            err
+                // exit:                                V/err
+
+                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::False);
+
+                let mut unwind_2 = vec![];
+                let mut exit = vec![];
+
+                for clause in clauses.to_vec() {
+                    let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue);
+                    chunk.op(Insn::Pop);
+                    let check_status = clause.case_clause_is_selected(chunk, strict, text)?;
+                    if check_status.maybe_abrupt() {
+                        unwind_2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    let skip_eval = chunk.op_jump(Insn::JumpIfFalse);
+                    chunk.op(Insn::Pop);
+                    chunk.fixup(do_eval_cont)?;
+                    chunk.op(Insn::Pop);
+                    let clause_status = clause.compile(chunk, strict, text)?;
+                    chunk.op(Insn::UpdateEmpty);
+                    if clause_status.maybe_abrupt() {
+                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    chunk.op(Insn::True);
+                    chunk.fixup(skip_eval)?;
+                }
+
+                exit.push(chunk.op_jump(Insn::JumpPopIfTrue));
+                chunk.op(Insn::Pop);
+                let maybe_abrupt = !unwind_2.is_empty() || exit.len() > 1;
+                if !unwind_2.is_empty() {
+                    exit.push(chunk.op_jump(Insn::Jump));
+                    for u in unwind_2 {
+                        chunk.fixup(u)?;
+                    }
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                }
+                for e in exit {
+                    chunk.fixup(e)?;
+                }
+
+                Ok(AbruptResult::from(maybe_abrupt))
+            }
+            CaseBlock::HasDefault(before, default, after, _) => {
+                // CaseBlock : { CaseClausesopt DefaultClause CaseClausesopt }
+                //  1. Let V be undefined.
+                //  2. If the first CaseClauses is present, then
+                //      a. Let A be the List of CaseClause items in the first CaseClauses, in source text order.
+                //  3. Else,
+                //      a. Let A be a new empty List.
+                //  4. Let found be false.
+                //  5. For each CaseClause C of A, do
+                //      a. If found is false, then
+                //          i. Set found to ? CaseClauseIsSelected(C, input).
+                //      b. If found is true, then
+                //          i. Let R be Completion(Evaluation of C).
+                //          ii. If R.[[Value]] is not EMPTY, set V to R.[[Value]].
+                //          iii. If R is an abrupt completion, return ? UpdateEmpty(R, V).
+                //  6. Let foundInB be false.
+                //  7. If the second CaseClauses is present, then
+                //      a. Let B be the List of CaseClause items in the second CaseClauses, in source text order.
+                //  8. Else,
+                //      a. Let B be a new empty List.
+                //  9. If found is false, then
+                //      a. For each CaseClause C of B, do
+                //          i. If foundInB is false, then
+                //              1. Set foundInB to ? CaseClauseIsSelected(C, input).
+                //          ii. If foundInB is true, then
+                //              1. Let R be Completion(Evaluation of CaseClause C).
+                //              2. If R.[[Value]] is not EMPTY, set V to R.[[Value]].
+                //              3. If R is an abrupt completion, return ? UpdateEmpty(R, V).
+                //  10. If foundInB is true, return V.
+                //  11. Let defaultR be Completion(Evaluation of DefaultClause).
+                //  12. If defaultR.[[Value]] is not EMPTY, set V to defaultR.[[Value]].
+                //  13. If defaultR is an abrupt completion, return ? UpdateEmpty(defaultR, V).
+                //  14. NOTE: The following is another complete iteration of the second CaseClauses.
+                //  15. For each CaseClause C of B, do
+                //      a. Let R be Completion(Evaluation of CaseClause C).
+                //      b. If R.[[Value]] is not EMPTY, set V to R.[[Value]].
+                //      c. If R is an abrupt completion, return ? UpdateEmpty(R, V).
+                //  16. Return V.
+
+                // start:                               input
+                //  UNDEFINED                           V  input
+                //  SWAP                                input  V
+                //  FALSE                               found input V
+                //  --------REPEAT FOR EACH FIRST CASE CLAUSE-----------------
+                //                                      found input V
+                //  JUMP_IF_TRUE do_eval_cont           false input V
+                //  POP                                 input V
+                //  <C.CaseClauseIsSelected>            found/err input V
+                //  JUMP_IF_ABRUPT unwind_2             found input V
+                //  JUMP_IF_FALSE skip_eval             found input V
+                // do_eval_cont:                        found input V
+                //  ROTATE_UP 3                         V found input
+                //  <C.evaluate>                        val/err V found input
+                //  UPDATE_EMPTY                        V/err found input
+                //  JUMP_IF_ABRUPT unwind_2             V found input
+                //  ROTATE_DOWN 3                       found input V
+                // skip_eval:                           found input V
+                // ------------------------------------------------------------
+                //  FALSE                               foundInB found input V
+                //  SWAP                                found foundInB input V
+                //  JUMP_POP_IF_TRUE skip_second_clauses  foundInB input V
+                //  --------REPEAT FOR EACH SECOND CASE CLAUSE-----------------
+                //                                      foundInB input V
+                //  JUMP_IF_TRUE do_eval2               foundInB input V
+                //  POP                                 input V
+                //  <C.CaseClauseIsSelected>            foundInB/err input V
+                //  JUMP_IF_ABRUPT unwind_2             foundInB input V
+                //  JUMP_IF_FALSE skip_eval2            foundInB input V
+                // do_eval2:                            foundInB input V
+                //  ROTATE_UP 3                         V foundInB input
+                //  <C.evaluate>                        val/err V foundInB input
+                //  UPDATE_EMPTY                        V/err foundInB input
+                //  JUMP_IF_ABRUPT unwind_2             V foundInB input
+                //  ROTATE_DOWN 3                       foundInB input V
+                // skip_eval2:                          foundInB input V
+                // ------------------------------------------------------------
+                // skip_second_clauses:                 foundInB input V
+                //  SWAP                                input foundInB V
+                //  POP                                 foundInB V
+                //  JUMP_POP_IF_TRUE exit               V
+                //  <default.evaluate>                  val/err V
+                //  UPDATE_EMPTY                        V/err
+                //  JUMP_IF_ABRUPT exit                 V
+                //  --------REPEAT FOR EACH SECOND CASE CLAUSE-----------------
+                //  <C.evaluate>                        val/err V
+                //  UPDATE_EMPTY                        V/err
+                //  JUMP_IF_ABRUPT exit                 V
+                // ------------------------------------------------------------
+                //  JUMP exit
+                // unwind_2:
+                //  UNWIND 2
+                // exit:
+
+                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::False);
+                let mut unwind2 = vec![];
+                let mut exit = vec![];
+                if let Some(clauses) = before.as_ref() {
+                    for clause in clauses.to_vec() {
+                        let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue);
+                        chunk.op(Insn::Pop);
+                        let check_status = clause.case_clause_is_selected(chunk, strict, text)?;
+                        if check_status.maybe_abrupt() {
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        }
+                        let skip_eval = chunk.op_jump(Insn::JumpIfFalse);
+                        chunk.fixup(do_eval_cont)?;
+                        chunk.op_plus_arg(Insn::RotateUp, 3);
+                        let compute_status = clause.compile(chunk, strict, text)?;
+                        chunk.op(Insn::UpdateEmpty);
+                        if compute_status.maybe_abrupt() {
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        }
+                        chunk.op_plus_arg(Insn::RotateDown, 3);
+                        chunk.fixup(skip_eval)?;
+                    }
+                }
+                chunk.op(Insn::False);
+                chunk.op(Insn::Swap);
+                if let Some(clauses) = after.as_ref() {
+                    let skip_second_clauses = chunk.op_jump(Insn::JumpPopIfTrue);
+                    for clause in clauses.to_vec() {
+                        let do_eval2 = chunk.op_jump(Insn::JumpIfTrue);
+                        chunk.op(Insn::Pop);
+                        let check_status = clause.case_clause_is_selected(chunk, strict, text)?;
+                        if check_status.maybe_abrupt() {
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        }
+                        let skip_eval2 = chunk.op_jump(Insn::JumpIfFalse);
+                        chunk.fixup(do_eval2)?;
+                        chunk.op_plus_arg(Insn::RotateUp, 3);
+                        let compute_status = clause.compile(chunk, strict, text)?;
+                        chunk.op(Insn::UpdateEmpty);
+                        if compute_status.maybe_abrupt() {
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        }
+                        chunk.op_plus_arg(Insn::RotateDown, 3);
+                        chunk.fixup(skip_eval2)?;
+                    }
+                    chunk.fixup(skip_second_clauses)?;
+                } else {
+                    chunk.op(Insn::Pop);
+                }
+                chunk.op(Insn::Swap);
+                chunk.op(Insn::Pop);
+                exit.push(chunk.op_jump(Insn::JumpPopIfTrue));
+                let default_status = default.compile(chunk, strict, text)?;
+                chunk.op(Insn::UpdateEmpty);
+                if let Some(clauses) = after.as_ref() {
+                    if default_status.maybe_abrupt() {
+                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    }
+                    for clause in clauses.to_vec() {
+                        let status = clause
+                            .compile(chunk, strict, text)
+                            .expect("This compiled once before, it should compile fine now, too.");
+                        chunk.op(Insn::UpdateEmpty);
+                        if status.maybe_abrupt() {
+                            exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        }
+                    }
+                }
+                let maybe_abrupt = !unwind2.is_empty() || default_status.maybe_abrupt();
+                if !unwind2.is_empty() {
+                    exit.push(chunk.op_jump(Insn::Jump));
+                    for mark in unwind2 {
+                        chunk.fixup(mark)?;
+                    }
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                }
+                for mark in exit {
+                    chunk.fixup(mark)?;
+                }
+
+                Ok(AbruptResult::from(maybe_abrupt))
+            }
+        }
+    }
+}
+
+impl DefaultClause {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match &self.0 {
+            Some(sl) => {
+                // DefaultClause : default : StatementList
+                //  1. Return ? Evaluation of StatementList.
+                sl.compile(chunk, strict, text)
+            }
+            None => {
+                // DefaultClause : default :
+                //  1. Return EMPTY.
+                chunk.op(Insn::Empty);
+                Ok(AbruptResult::Never)
+            }
+        }
+    }
+}
+
+impl CaseClause {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match &self.statements {
+            Some(sl) => {
+                // CaseClause : case Expression : StatementList
+                //  1. Return ? Evaluation of StatementList.
+                sl.compile(chunk, strict, text)
+            }
+            None => {
+                // CaseClause : case Expression :
+                //  1. Return EMPTY.
+                chunk.op(Insn::Empty);
+                Ok(AbruptResult::Never)
+            }
+        }
+    }
+
+    fn case_clause_is_selected(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        // The abstract operation CaseClauseIsSelected takes arguments C (a CaseClause Parse Node) and input
+        // (an ECMAScript language value) and returns either a normal completion containing a Boolean or an
+        // abrupt completion. It determines whether C matches input. It performs the following steps when
+        // called:
+        //
+        //  1. Assert: C is an instance of the production CaseClause : case Expression : StatementListopt .
+        //  2. Let exprRef be ? Evaluation of the Expression of C.
+        //  3. Let clauseSelector be ? GetValue(exprRef).
+        //  4. Return IsStrictlyEqual(input, clauseSelector).
+        // NOTE: This operation does not execute C's StatementList (if any). The CaseBlock algorithm uses its
+        // return value to determine which StatementList to start executing.
+
+        // start:                        input
+        //  DUP                          input input
+        //  <expression.evaluate>        val/ref/err input input
+        //  GET_VALUE                    val/err input input
+        //  JUMP_IF_ABRUPT unwind_1      val input input
+        //  SEQ                          bool input
+        //  JUMP exit
+        // unwind_1:                     err input input
+        //  UNWIND 1                     err input
+        // exit:                         bool/err input
+
+        chunk.op(Insn::Dup);
+        let status = self.expression.compile(chunk, strict, text)?;
+        if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let unwind_1 =
+            if status.maybe_ref() || status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::StrictEqual);
+        if let Some(unwind) = unwind_1 {
+            let exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("Short jump should fit");
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.fixup(exit).expect("Short jump should fit");
+            Ok(AbruptResult::Maybe)
+        } else {
+            Ok(AbruptResult::Never)
+        }
     }
 }
 
