@@ -13,13 +13,20 @@ pub enum IntrinsicId {
     ArrayIteratorPrototype,
     Boolean,
     BooleanPrototype,
+    DecodeURI,
+    DecodeURIComponent,
+    EncodeURI,
+    EncodeURIComponent,
     Error,
     ErrorPrototype,
+    Eval,
     EvalError,
     EvalErrorPrototype,
     ForInIteratorPrototype,
     Function,
     FunctionPrototype,
+    IsFinite,
+    IsNaN,
     IteratorPrototype,
     GeneratorFunction,
     GeneratorFunctionPrototype,
@@ -30,6 +37,8 @@ pub enum IntrinsicId {
     Object,
     ObjectPrototype,
     ObjectPrototypeToString,
+    ParseFloat,
+    ParseInt,
     Proxy,
     RangeError,
     RangeErrorPrototype,
@@ -243,13 +252,20 @@ impl Intrinsics {
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
+            IntrinsicId::DecodeURI => &self.decode_uri,
+            IntrinsicId::DecodeURIComponent => &self.decode_uri_component,
+            IntrinsicId::EncodeURI => &self.encode_uri,
+            IntrinsicId::EncodeURIComponent => &self.encode_uri_component,
             IntrinsicId::Error => &self.error,
             IntrinsicId::ErrorPrototype => &self.error_prototype,
+            IntrinsicId::Eval => &self.eval,
             IntrinsicId::EvalError => &self.eval_error,
             IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
             IntrinsicId::ForInIteratorPrototype => &self.for_in_iterator_prototype,
             IntrinsicId::Function => &self.function,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
+            IntrinsicId::IsFinite => &self.is_finite,
+            IntrinsicId::IsNaN => &self.is_nan,
             IntrinsicId::IteratorPrototype => &self.iterator_prototype,
             IntrinsicId::GeneratorFunction => &self.generator_function,
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
@@ -260,6 +276,8 @@ impl Intrinsics {
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
             IntrinsicId::ObjectPrototypeToString => &self.object_prototype_to_string,
+            IntrinsicId::ParseFloat => &self.parse_float,
+            IntrinsicId::ParseInt => &self.parse_int,
             IntrinsicId::Proxy => &self.proxy,
             IntrinsicId::RangeError => &self.range_error,
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
@@ -288,13 +306,20 @@ impl Intrinsics {
             o if o == &self.array_iterator_prototype => Some(IntrinsicId::ArrayIteratorPrototype),
             o if o == &self.boolean => Some(IntrinsicId::Boolean),
             o if o == &self.boolean_prototype => Some(IntrinsicId::BooleanPrototype),
+            o if o == &self.decode_uri => Some(IntrinsicId::DecodeURI),
+            o if o == &self.decode_uri_component => Some(IntrinsicId::DecodeURIComponent),
+            o if o == &self.encode_uri => Some(IntrinsicId::EncodeURI),
+            o if o == &self.encode_uri_component => Some(IntrinsicId::EncodeURIComponent),
             o if o == &self.error => Some(IntrinsicId::Error),
             o if o == &self.error_prototype => Some(IntrinsicId::ErrorPrototype),
+            o if o == &self.eval => Some(IntrinsicId::Eval),
             o if o == &self.eval_error => Some(IntrinsicId::EvalError),
             o if o == &self.eval_error_prototype => Some(IntrinsicId::EvalErrorPrototype),
             o if o == &self.for_in_iterator_prototype => Some(IntrinsicId::ForInIteratorPrototype),
             o if o == &self.function => Some(IntrinsicId::Function),
             o if o == &self.function_prototype => Some(IntrinsicId::FunctionPrototype),
+            o if o == &self.is_finite => Some(IntrinsicId::IsFinite),
+            o if o == &self.is_nan => Some(IntrinsicId::IsNaN),
             o if o == &self.iterator_prototype => Some(IntrinsicId::IteratorPrototype),
             o if o == &self.generator_function => Some(IntrinsicId::GeneratorFunction),
             o if o == &self.generator_function_prototype => Some(IntrinsicId::GeneratorFunctionPrototype),
@@ -309,6 +334,8 @@ impl Intrinsics {
             o if o == &self.object => Some(IntrinsicId::Object),
             o if o == &self.object_prototype => Some(IntrinsicId::ObjectPrototype),
             o if o == &self.object_prototype_to_string => Some(IntrinsicId::ObjectPrototypeToString),
+            o if o == &self.parse_float => Some(IntrinsicId::ParseFloat),
+            o if o == &self.parse_int => Some(IntrinsicId::ParseInt),
             o if o == &self.proxy => Some(IntrinsicId::Proxy),
             o if o == &self.range_error => Some(IntrinsicId::RangeError),
             o if o == &self.range_error_prototype => Some(IntrinsicId::RangeErrorPrototype),
@@ -441,6 +468,31 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_proxy_intrinsic(&realm_rec);
 
+    macro_rules! intrinsic_function {
+        ( $intrinsicid:ident, $name:expr, $length:expr ) => {
+            let function_object = create_builtin_function(
+                $intrinsicid,
+                false,
+                $length as f64,
+                PropertyKey::from($name),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm_rec.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            realm_rec.borrow_mut().intrinsics.$intrinsicid = function_object;
+        };
+    }
+    intrinsic_function!(decode_uri, "decodeURI", 1);
+    intrinsic_function!(decode_uri_component, "decodeURIComponent", 1);
+    intrinsic_function!(encode_uri, "encodeURI", 1);
+    intrinsic_function!(encode_uri_component, "encodeURIComponent", 1);
+    intrinsic_function!(eval, "eval", 1);
+    intrinsic_function!(is_finite, "isFinite", 1);
+    intrinsic_function!(is_nan, "isNaN", 1);
+    intrinsic_function!(parse_float, "parseFloat", 1);
+    intrinsic_function!(parse_int, "parseInt", 2);
+
     add_restricted_function_properties(&function_prototype, realm_rec);
 }
 
@@ -525,6 +577,71 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     .unwrap();
 
     fcn
+}
+
+fn decode_uri(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn decode_uri_component(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn encode_uri(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn encode_uri_component(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn eval(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn is_finite(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn is_nan(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+fn parse_float(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+fn parse_int(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
 }
 
 #[cfg(test)]

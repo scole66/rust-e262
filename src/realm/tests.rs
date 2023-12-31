@@ -1,6 +1,7 @@
 use super::*;
 use crate::tests::*;
 use ahash::RandomState;
+use test_case::test_case;
 
 const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::Array,
@@ -9,13 +10,20 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::ArrayIteratorPrototype,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
+    IntrinsicId::DecodeURI,
+    IntrinsicId::DecodeURIComponent,
+    IntrinsicId::EncodeURI,
+    IntrinsicId::EncodeURIComponent,
     IntrinsicId::Error,
     IntrinsicId::ErrorPrototype,
+    IntrinsicId::Eval,
     IntrinsicId::EvalError,
     IntrinsicId::EvalErrorPrototype,
     IntrinsicId::ForInIteratorPrototype,
     IntrinsicId::Function,
     IntrinsicId::FunctionPrototype,
+    IntrinsicId::IsFinite,
+    IntrinsicId::IsNaN,
     IntrinsicId::IteratorPrototype,
     IntrinsicId::GeneratorFunction,
     IntrinsicId::GeneratorFunctionPrototype,
@@ -24,6 +32,8 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
     IntrinsicId::ObjectPrototypeToString,
+    IntrinsicId::ParseFloat,
+    IntrinsicId::ParseInt,
     IntrinsicId::Number,
     IntrinsicId::NumberPrototype,
     IntrinsicId::RangeError,
@@ -98,13 +108,20 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
         assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::DecodeURI), intrinsics.decode_uri);
+        assert_eq!(intrinsics.get(IntrinsicId::DecodeURIComponent), intrinsics.decode_uri_component);
+        assert_eq!(intrinsics.get(IntrinsicId::EncodeURI), intrinsics.encode_uri);
+        assert_eq!(intrinsics.get(IntrinsicId::EncodeURIComponent), intrinsics.encode_uri_component);
         assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
         assert_eq!(intrinsics.get(IntrinsicId::ErrorPrototype), intrinsics.error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Eval), intrinsics.eval);
         assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
         assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ForInIteratorPrototype), intrinsics.for_in_iterator_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Function), intrinsics.function);
         assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::IsFinite), intrinsics.is_finite);
+        assert_eq!(intrinsics.get(IntrinsicId::IsNaN), intrinsics.is_nan);
         assert_eq!(intrinsics.get(IntrinsicId::IteratorPrototype), intrinsics.iterator_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunction), intrinsics.generator_function);
         assert_eq!(intrinsics.get(IntrinsicId::GeneratorFunctionPrototype), intrinsics.generator_function_prototype);
@@ -121,6 +138,8 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
         assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototypeToString), intrinsics.object_prototype_to_string);
+        assert_eq!(intrinsics.get(IntrinsicId::ParseFloat), intrinsics.parse_float);
+        assert_eq!(intrinsics.get(IntrinsicId::ParseInt), intrinsics.parse_int);
         assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);
         assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
@@ -144,13 +163,20 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::ArrayIteratorPrototype) => Some(IntrinsicId::ArrayIteratorPrototype); "id: ArrayIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Boolean) => Some(IntrinsicId::Boolean); "id: Boolean")]
     #[test_case(|| intrinsic(IntrinsicId::BooleanPrototype) => Some(IntrinsicId::BooleanPrototype); "id: BooleanPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::DecodeURI) => Some(IntrinsicId::DecodeURI); "id: DecodeURI")]
+    #[test_case(|| intrinsic(IntrinsicId::DecodeURIComponent) => Some(IntrinsicId::DecodeURIComponent); "id: DecodeURIComponent")]
+    #[test_case(|| intrinsic(IntrinsicId::EncodeURI) => Some(IntrinsicId::EncodeURI); "id: EncodeURI")]
+    #[test_case(|| intrinsic(IntrinsicId::EncodeURIComponent) => Some(IntrinsicId::EncodeURIComponent); "id: EncodeURIComponent")]
     #[test_case(|| intrinsic(IntrinsicId::Error) => Some(IntrinsicId::Error); "id: Error")]
     #[test_case(|| intrinsic(IntrinsicId::ErrorPrototype) => Some(IntrinsicId::ErrorPrototype); "id: ErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Eval) => Some(IntrinsicId::Eval); "id: Eval")]
     #[test_case(|| intrinsic(IntrinsicId::EvalError) => Some(IntrinsicId::EvalError); "id: EvalError")]
     #[test_case(|| intrinsic(IntrinsicId::EvalErrorPrototype) => Some(IntrinsicId::EvalErrorPrototype); "id: EvalErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ForInIteratorPrototype) => Some(IntrinsicId::ForInIteratorPrototype); "id: ForInIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Function) => Some(IntrinsicId::Function); "id: Function")]
     #[test_case(|| intrinsic(IntrinsicId::FunctionPrototype) => Some(IntrinsicId::FunctionPrototype); "id: FunctionPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::IsFinite) => Some(IntrinsicId::IsFinite); "id: IsFinite")]
+    #[test_case(|| intrinsic(IntrinsicId::IsNaN) => Some(IntrinsicId::IsNaN); "id: IsNaN")]
     #[test_case(|| intrinsic(IntrinsicId::IteratorPrototype) => Some(IntrinsicId::IteratorPrototype); "id: IteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunction) => Some(IntrinsicId::GeneratorFunction); "id: GeneratorFunction")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototype) => Some(IntrinsicId::GeneratorFunctionPrototype); "id: GeneratorFunctionPrototype")]
@@ -161,6 +187,8 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::Object) => Some(IntrinsicId::Object); "id: Object")]
     #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype) => Some(IntrinsicId::ObjectPrototype); "id: ObjectPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ObjectPrototypeToString) => Some(IntrinsicId::ObjectPrototypeToString); "id: ObjectPrototypeToString")]
+    #[test_case(|| intrinsic(IntrinsicId::ParseFloat) => Some(IntrinsicId::ParseFloat); "id: ParseFloat")]
+    #[test_case(|| intrinsic(IntrinsicId::ParseInt) => Some(IntrinsicId::ParseInt); "id: ParseInt")]
     #[test_case(|| intrinsic(IntrinsicId::RangeError) => Some(IntrinsicId::RangeError); "id: RangeError")]
     #[test_case(|| intrinsic(IntrinsicId::RangeErrorPrototype) => Some(IntrinsicId::RangeErrorPrototype); "id: RangeErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ReferenceError) => Some(IntrinsicId::ReferenceError); "id: ReferenceError")]
@@ -200,4 +228,18 @@ fn throw_type_error_test() {
     let err = throw_type_error(ECMAScriptValue::Undefined, None, &[]).unwrap_err();
     let msg = unwind_type_error(err);
     assert_eq!(msg, "Generic TypeError");
+}
+
+#[test_case(super::decode_uri => panics "not yet implemented"; "decode_uri")]
+#[test_case(super::decode_uri_component => panics "not yet implemented"; "decode_uri_component")]
+#[test_case(super::encode_uri => panics "not yet implemented"; "encode_uri")]
+#[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
+#[test_case(super::eval => panics "not yet implemented"; "eval")]
+#[test_case(super::is_finite => panics "not yet implemented"; "is_finite")]
+#[test_case(super::is_nan => panics "not yet implemented"; "is_nan")]
+#[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
+#[test_case(super::parse_int => panics "not yet implemented"; "parse_int")]
+fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+    setup_test_agent();
+    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
