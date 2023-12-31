@@ -417,15 +417,29 @@ pub fn set_default_global_bindings() {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////       Function Properties of the Global Object
     //////////////////////////////////////////////////////////////////////////////////////////////////////
+    macro_rules! function_property {
+        ( $jsname:literal, $intrinsic:ident ) => {
+            global_data!($jsname, intrinsic(IntrinsicId::$intrinsic), true, false, true);
+        };
+    }
     // eval ( x )
+    function_property!("eval", Eval);
     // isFinite ( number )
+    function_property!("isFinite", IsFinite);
     // isNaN ( number )
+    function_property!("isNaN", IsNaN);
     // parseFloat ( string )
+    function_property!("parseFloat", ParseFloat);
     // parseInt ( string, radix )
+    function_property!("parseInt", ParseInt);
     // decodeURI ( encodedURI )
+    function_property!("decodeURI", DecodeURI);
     // decodeURIComponent ( encodedURIComponent )
+    function_property!("decodeURIComponent", DecodeURIComponent);
     // encodeURI ( uri )
+    function_property!("encodeURI", EncodeURI);
     // encodeURIComponent ( uriComponent )
+    function_property!("encodeURIComponent", EncodeURIComponent);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////       Constructor Properties of the Global Object
