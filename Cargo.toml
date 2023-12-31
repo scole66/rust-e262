@@ -28,6 +28,8 @@ genawaiter = "0.99.1"
 futures = "0.3.28"
 yaml-rust = "0.4.5"
 color-eyre = "0.6.2"
+tempfile = "3.9.0"
+clap = { version = "4.4.12", features = ["derive"] }
 
 [dev-dependencies]
 test-case = "2.0"

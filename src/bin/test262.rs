@@ -1,11 +1,15 @@
 #![allow(dead_code)]
 
 use color_eyre::eyre::{eyre, Result};
-use std::env;
+//use std::env;
+use clap::Parser;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
+use std::process::Command;
+use std::str::from_utf8;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -33,8 +37,28 @@ struct Negative {
     error_type: String,
 }
 #[derive(Debug)]
+enum Marker {
+    Raw,
+    Strict,
+    NonStrict,
+}
+impl fmt::Display for Marker {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Marker::Raw => write!(f, "raw"),
+            Marker::Strict => write!(f, "strict"),
+            Marker::NonStrict => write!(f, "non-strict"),
+        }
+    }
+}
+#[derive(Debug)]
+struct Source {
+    source: String,
+    mark: Marker,
+}
+#[derive(Debug)]
 struct TestInfo {
-    source: Vec<String>,
+    source: Vec<Source>,
     description: String,
     features: Vec<String>,
     negative: Option<Negative>,
@@ -69,7 +93,7 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
 
         let description = info
             .get(&Yaml::String("description".into()))
-            .map(|x| x.as_str().unwrap().to_string())
+            .map(|x| x.as_str().unwrap().trim().to_string())
             .unwrap_or_else(String::new);
         let includes = info
             .get(&Yaml::String("includes".into()))
@@ -111,7 +135,7 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
 
         if !(can_block && flag_can_block_is_false || !can_block && flag_can_block_is_true) {
             if flag_raw {
-                source.push(contents);
+                source.push(Source { source: contents, mark: Marker::Raw });
             } else {
                 for strict in [true, false] {
                     if (!strict && flag_only_strict) || (strict && flag_no_strict) {
@@ -130,7 +154,13 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
                         test_source.push_str(&load_harness_file(item)?);
                     }
                     test_source.push_str(&contents);
-                    source.push(test_source);
+                    source.push(Source {
+                        source: test_source,
+                        mark: match strict {
+                            true => Marker::Strict,
+                            false => Marker::NonStrict,
+                        },
+                    });
                 }
             }
         }
@@ -138,7 +168,7 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
         Ok(TestInfo { description, source, features, negative, module: flag_module, async_test: flag_async })
     } else {
         Ok(TestInfo {
-            source: vec![contents],
+            source: vec![Source { source: contents, mark: Marker::Raw }],
             description: String::new(),
             features: vec![],
             negative: None,
@@ -158,22 +188,111 @@ fn load_harness_file(filename: &str) -> Result<String> {
     Ok(contents)
 }
 
+fn pretty_line(line: &str, limit: usize) -> String {
+    let mut chars = line
+        .chars()
+        .map(|ch| match ch {
+            '\n' | '\r' => ' ',
+            ch => ch,
+        })
+        .take(limit + 1)
+        .collect::<Vec<char>>();
+
+    if chars.len() > limit {
+        chars[limit - 1] = '.';
+        chars[limit - 2] = '.';
+        chars[limit - 3] = '.';
+        chars.truncate(limit);
+    }
+
+    chars.iter().collect::<String>()
+}
+
+enum Status {
+    Pass,
+    Fail,
+}
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Status::Pass => "PASS",
+                Status::Fail => "FAIL",
+            }
+        )
+    }
+}
+
+#[derive(Parser, Debug, Default)]
+struct Arguments {
+    path: String,
+    #[arg(short, long, id = "OUTPATH")]
+    keep_constructed: Option<String>,
+}
+
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let args: Vec<String> = env::args().collect();
-    let test_name = &args[1];
-    let out_dir = &args[2];
-    let info = construct_test(Path::new(test_name), false)?;
+    // let args: Vec<String> = env::args().collect();
+    // let test_name = &args[1];
+    let args = Arguments::parse();
+    let test_name = args.path;
+    let info = construct_test(Path::new(&test_name), false)?;
 
-    for (idx, source) in info.source.iter().enumerate() {
-        let description = &info.description;
-        println!("Test-262: {test_name} -- {description}");
+    for source in info.source.iter() {
+        //let description = &info.description;
+        //println!("Test-262: {test_name} -- {}", source.mark);
 
-        let base = Path::new(test_name).file_stem().unwrap().to_str().unwrap();
-        let output_path = Path::new(out_dir).join(format!("{base}-{idx}.js"));
-        let mut file = File::create(output_path)?;
-        file.write_all(source.as_bytes())?;
+        let base = Path::new(&test_name).file_stem().unwrap().to_str().unwrap();
+        let mut output_file = tempfile::Builder::new().prefix(&format!("{base}-")).suffix(".js").tempfile()?;
+
+        //let output_path = Path::new(out_dir).join(format!("{base}-{idx}.js"));
+        //let mut file = File::create(output_path)?;
+        //println!("Writing the script to {:?}", output_file.path());
+        output_file.write_all(source.source.as_bytes())?;
+        if let Some(path) = args.keep_constructed.as_ref() {
+            let output_path = Path::new(path).join(format!("{}.js", source.mark));
+            let mut file = File::create(output_path)?;
+            file.write_all(source.source.as_bytes())?;
+        }
+
+        let result = Command::new("target/release/res").arg(output_file.path()).output()?;
+        let finished_ok = result.status.success();
+        let test_status = if finished_ok {
+            let stdout = from_utf8(result.stdout.as_slice())?;
+            let final_line = stdout.lines().last().unwrap_or("");
+            //let pretty = pretty_line(final_line, 40);
+            if let Some(Negative { phase, error_type }) = &info.negative {
+                match phase {
+                    Phase::Parse => {
+                        let expected = format!("During compilation: [{error_type}: ");
+                        if final_line.starts_with(&expected) {
+                            Status::Pass
+                        } else {
+                            Status::Fail
+                        }
+                    }
+                    Phase::Resolution => todo!(),
+                    Phase::Runtime => {
+                        let expected = format!("Thrown: {error_type}: ");
+                        if final_line.starts_with(&expected) {
+                            Status::Pass
+                        } else {
+                            Status::Fail
+                        }
+                    }
+                }
+            } else if final_line.starts_with("Thrown: ") {
+                Status::Fail
+            } else {
+                Status::Pass
+            }
+        } else {
+            Status::Fail
+        };
+        println!("{test_status}: {test_name} -- {}", source.mark);
     }
 
     //println!("{info:#?}");

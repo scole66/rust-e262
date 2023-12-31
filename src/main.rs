@@ -131,37 +131,20 @@ fn repl() {
 }
 
 fn run_file(fname: &str) {
-    println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
     match potential_file_content {
-        Err(e) => println!("{}", e),
+        Err(e) => println!("{e}"),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
             match process_ecmascript(&script_source) {
-                Ok(value) => println!("{:#?}", value),
-                Err(err) => {
-                    println!("{}", err);
-                    if let ProcessError::RuntimeError { error } = err {
-                        let repr = to_string(error);
-                        if let Ok(err) = repr {
-                            println!("{}", err);
-                        }
-                    }
-                }
+                Ok(value) => println!("{value:?}"),
+                Err(err) => println!("{err}"),
             }
-            //match interpret(vm, &script_source) {
-            //    Ok(value) => println!("{}", value),
-            //    Err(err) => println!("{}", err),
-            //}
         }
     }
 }
 
 fn run_app() -> Result<(), i32> {
-    println!("sizeof(FullCompletion): {}", std::mem::size_of::<FullCompletion>());
-    println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
-    println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
-
     VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {
