@@ -468,7 +468,7 @@ pub struct FunctionObjectData {
     formal_parameters: ParamSource,
     ecmascript_code: BodySource,
     compiled: Rc<Chunk>,
-    constructor_kind: ConstructorKind,
+    pub constructor_kind: ConstructorKind,
     pub realm: Rc<RefCell<Realm>>,
     script_or_module: Option<ScriptOrModule>,
     pub this_mode: ThisMode,

@@ -193,6 +193,7 @@ impl Chunk {
             | Insn::GetValue
             | Insn::PutValue
             | Insn::Call
+            | Insn::StrictCall
             | Insn::EndFunction
             | Insn::Return
             | Insn::UpdateEmpty

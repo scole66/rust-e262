@@ -125,6 +125,15 @@ pub trait EnvironmentRecord: Debug {
     fn name(&self) -> String;
     fn binding_names(&self) -> Vec<JSString>;
     fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+    fn get_function_object(&self) -> Option<Object> {
+        None
+    }
+    fn as_global_environment_record(&self) -> Option<&GlobalEnvironmentRecord> {
+        None
+    }
+    fn as_object_environment_record(&self) -> Option<&ObjectEnvironmentRecord> {
+        None
+    }
 }
 
 pub struct ConciselyPrintedEnvironmentRecord(pub Rc<dyn EnvironmentRecord>);
@@ -690,6 +699,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         let name = &self.name;
         write!(f, "ObjectEnvironmentRecord({name})")
     }
+
+    fn as_object_environment_record(&self) -> Option<&ObjectEnvironmentRecord> {
+        Some(self)
+    }
 }
 
 impl ObjectEnvironmentRecord {
@@ -878,6 +891,10 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = &self.name;
         write!(f, "FunctionEnvironmentRecord({name})")
+    }
+
+    fn get_function_object(&self) -> Option<Object> {
+        Some(self.function_object.clone())
     }
 }
 
@@ -1300,6 +1317,10 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
         let name = &self.name;
         write!(f, "GlobalEnvironmentRecord({name})")
     }
+
+    fn as_global_environment_record(&self) -> Option<&GlobalEnvironmentRecord> {
+        Some(self)
+    }
 }
 
 impl GlobalEnvironmentRecord {
@@ -1567,7 +1588,7 @@ pub fn get_identifier_reference(
 // +-----------------------------+-----------------------+-------------------------------------------------------------+
 #[derive(Debug)]
 pub struct PrivateEnvironmentRecord {
-    outer_private_environment: Option<Box<PrivateEnvironmentRecord>>,
+    pub outer_private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     pub names: Vec<PrivateName>,
 }
 
@@ -1579,7 +1600,7 @@ impl PrivateEnvironmentRecord {
     //
     //  1. Let names be a new empty List.
     //  2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
-    pub fn new(outer_priv_env: Option<Box<PrivateEnvironmentRecord>>) -> Self {
+    pub fn new(outer_priv_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) -> Self {
         PrivateEnvironmentRecord { outer_private_environment: outer_priv_env, names: vec![] }
     }
 
@@ -1599,7 +1620,7 @@ impl PrivateEnvironmentRecord {
     pub fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
         match self.names.iter().find(|&item| item.description == *identifier) {
             Some(x) => x.clone(),
-            None => self.outer_private_environment.as_ref().unwrap().resolve_private_identifier(identifier),
+            None => self.outer_private_environment.as_ref().unwrap().borrow().resolve_private_identifier(identifier),
         }
     }
 }

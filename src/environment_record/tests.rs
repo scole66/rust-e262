@@ -2249,26 +2249,26 @@ mod private_environment_record {
     mod resolve_private_identifier {
         use super::*;
 
-        fn setup() -> (Box<PrivateEnvironmentRecord>, PrivateName, PrivateName) {
-            let mut outer = Box::new(PrivateEnvironmentRecord::new(None));
+        fn setup() -> (Rc<RefCell<PrivateEnvironmentRecord>>, PrivateName, PrivateName) {
+            let outer = Rc::new(RefCell::new(PrivateEnvironmentRecord::new(None)));
             let outer_name = PrivateName::new("outer");
-            outer.names.push(outer_name.clone());
-            let mut inner = Box::new(PrivateEnvironmentRecord::new(Some(outer)));
+            outer.borrow_mut().names.push(outer_name.clone());
+            let inner = Rc::new(RefCell::new(PrivateEnvironmentRecord::new(Some(outer))));
             let inner_name = PrivateName::new("inner");
-            inner.names.push(inner_name.clone());
+            inner.borrow_mut().names.push(inner_name.clone());
             (inner, outer_name, inner_name)
         }
 
         #[test]
         fn outer() {
             let (env, outer_name, _) = setup();
-            let resolved = env.resolve_private_identifier(&JSString::from("outer"));
+            let resolved = env.borrow().resolve_private_identifier(&JSString::from("outer"));
             assert_eq!(resolved, outer_name);
         }
         #[test]
         fn inner() {
             let (env, _, inner_name) = setup();
-            let resolved = env.resolve_private_identifier(&JSString::from("inner"));
+            let resolved = env.borrow().resolve_private_identifier(&JSString::from("inner"));
             assert_eq!(resolved, inner_name);
         }
     }

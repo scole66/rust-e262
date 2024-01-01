@@ -1,4 +1,5 @@
 use super::*;
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -607,13 +608,17 @@ fn encode_uri_component(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn eval(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let x = args.next_arg();
+    perform_eval(x, EvalCallStatus::NotDirect)
 }
+
 fn is_finite(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -642,6 +647,245 @@ fn parse_int(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EvalCallStatus {
+    DirectWithStrictCaller,
+    DirectWithNonStrictCaller,
+    NotDirect,
+}
+
+pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completion<ECMAScriptValue> {
+    match x {
+        ECMAScriptValue::String(x) => {
+            let eval_realm = current_realm_record().unwrap();
+            let (in_function, in_method, in_derived_constructor, in_class_field_initializer) =
+                if call_state != EvalCallStatus::NotDirect {
+                    let this_env_rec = get_this_environment();
+                    if let Some(f) = this_env_rec.get_function_object() {
+                        let fo = f.o.to_function_obj().unwrap().function_data().borrow();
+                        (
+                            true,
+                            this_env_rec.has_super_binding(),
+                            fo.constructor_kind == ConstructorKind::Derived,
+                            fo.class_field_initializer_name != ClassName::Empty,
+                        )
+                    } else {
+                        (false, false, false, false)
+                    }
+                } else {
+                    (false, false, false, false)
+                };
+            let source_text = String::from(x);
+            let script = parse_text(&source_text, ParseGoal::Script);
+            match script {
+                ParsedText::Errors(errs) => {
+                    Err(create_syntax_error(errs.iter().map(unwind_any_error_object).join("; "), None))
+                }
+                ParsedText::Script(script) => match &script.body {
+                    Some(body) => {
+                        if !in_function && body.contains(ParseNodeKind::NewTarget) {
+                            Err(create_syntax_error("new.target cannot be used outside of functions", None))
+                        } else if !in_method && body.contains(ParseNodeKind::SuperProperty) {
+                            Err(create_syntax_error("super properties cannot be used outside of methods", None))
+                        } else if !in_derived_constructor && body.contains(ParseNodeKind::SuperCall) {
+                            Err(create_syntax_error(
+                                "calls to super() not allowed outside of derived constructors",
+                                None,
+                            ))
+                        } else if in_class_field_initializer && body.contains_arguments() {
+                            Err(create_syntax_error(
+                                "class field initializers may not use the 'arguments' identifier",
+                                None,
+                            ))
+                        } else {
+                            let strict_eval =
+                                call_state == EvalCallStatus::DirectWithStrictCaller || body.contains_use_strict();
+                            let (lex_env, var_env, private_env) = match call_state {
+                                EvalCallStatus::DirectWithStrictCaller | EvalCallStatus::DirectWithNonStrictCaller => {
+                                    let lex_env: Rc<dyn EnvironmentRecord> = Rc::new(
+                                        DeclarativeEnvironmentRecord::new(current_lexical_environment(), "eval"),
+                                    );
+                                    let var_env = match strict_eval {
+                                        true => lex_env.clone(),
+                                        false => current_variable_environment().unwrap(),
+                                    };
+                                    let private_env = current_private_environment();
+                                    (lex_env, var_env, private_env)
+                                }
+                                EvalCallStatus::NotDirect => {
+                                    let global_env =
+                                        eval_realm.borrow().global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+                                    let lex_env: Rc<dyn EnvironmentRecord> =
+                                        Rc::new(DeclarativeEnvironmentRecord::new(global_env.clone(), "eval"));
+                                    let var_env = match strict_eval {
+                                        true => lex_env.clone(),
+                                        false => global_env.unwrap(),
+                                    };
+                                    (lex_env, var_env, None)
+                                }
+                            };
+                            let mut eval_context = ExecutionContext::new(None, eval_realm, current_script_or_module());
+                            eval_context.variable_environment = Some(var_env.clone());
+                            eval_context.lexical_environment = Some(lex_env.clone());
+                            eval_context.private_environment = private_env.clone();
+                            push_execution_context(eval_context);
+                            let result = match eval_declaration_instantiation(
+                                body,
+                                var_env,
+                                lex_env,
+                                private_env,
+                                strict_eval,
+                                &source_text,
+                            ) {
+                                Ok(_) => {
+                                    let mut chunk = Chunk::new("eval code");
+                                    script.compile(&mut chunk, &source_text).unwrap();
+                                    for line in chunk.disassemble() {
+                                        println!("{line}");
+                                    }
+                                    evaluate(Rc::new(chunk), &source_text)
+                                }
+                                Err(e) => Err(e),
+                            };
+                            pop_execution_context();
+                            result
+                        }
+                    }
+                    None => Ok(ECMAScriptValue::Undefined),
+                },
+            }
+        }
+        _ => Ok(x),
+    }
+}
+
+fn eval_declaration_instantiation(
+    body: &Rc<ScriptBody>,
+    var_env: Rc<dyn EnvironmentRecord>,
+    lex_env: Rc<dyn EnvironmentRecord>,
+    private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    strict: bool,
+    source_text: &str,
+) -> Completion<()> {
+    let var_names = body.var_declared_names();
+    let var_declarations = body.var_scoped_declarations();
+    if !strict {
+        if let Some(ger) = var_env.as_global_environment_record() {
+            for name in var_names.iter() {
+                if ger.has_lexical_declaration(name) {
+                    return Err(create_syntax_error(
+                        format!("Cannot create lexical binding {name} as it would shadow a global"),
+                        None,
+                    ));
+                }
+            }
+        }
+        let mut this_env = lex_env.clone();
+        while !Rc::ptr_eq(&this_env, &var_env) {
+            if this_env.as_object_environment_record().is_none() {
+                for name in var_names.iter() {
+                    if this_env.has_binding(name).unwrap() {
+                        return Err(create_syntax_error(
+                            format!("Cannot create binding {name} as it would shadow an existing var name"),
+                            None,
+                        ));
+                    }
+                }
+            }
+            this_env = this_env.get_outer_env().unwrap();
+        }
+    }
+    let mut private_identifiers = vec![];
+    let mut pointer = private_env.clone();
+    while let Some(ref per) = pointer {
+        let outer = {
+            let penv = per.borrow();
+            for binding in penv.names.iter() {
+                if !private_identifiers.contains(&binding.description) {
+                    private_identifiers.push(binding.description.clone());
+                }
+            }
+            penv.outer_private_environment.clone()
+        };
+        pointer = outer;
+    }
+    if !body.all_private_identifiers_valid(&private_identifiers) {
+        return Err(create_syntax_error("Invalid private identifiers seen", None));
+    }
+    let mut functions_to_initialize = vec![];
+    let mut declared_function_names = vec![];
+    // step 10.
+    for d in var_declarations.iter().rev() {
+        if let Ok(fd) = FcnDef::try_from(d.clone()) {
+            let fname = fd.bound_name();
+            if !declared_function_names.contains(&fname) {
+                if let Some(ger) = var_env.as_global_environment_record() {
+                    if !ger.can_declare_global_function(&fname)? {
+                        return Err(create_type_error(format!("Cannot create global function {fname}")));
+                    }
+                }
+                declared_function_names.push(fname);
+                functions_to_initialize.insert(0, d);
+            }
+        }
+    }
+    // Step 11
+    let mut declared_var_names = vec![];
+    // Step 12
+    for d in var_declarations.iter() {
+        if matches!(d, VarScopeDecl::ForBinding(_) | VarScopeDecl::VariableDeclaration(_)) {
+            for vn in d.bound_names() {
+                if !declared_function_names.contains(&vn) {
+                    if let Some(ger) = var_env.as_global_environment_record() {
+                        if !ger.can_declare_global_var(&vn)? {
+                            return Err(create_type_error(format!("Cannot create global var {vn}")));
+                        }
+                    }
+                    if !declared_var_names.contains(&vn) {
+                        declared_var_names.push(vn);
+                    }
+                }
+            }
+        }
+    }
+    // Step 15
+    let lex_declarations = body.lexically_scoped_declarations();
+    // Step 16
+    for d in lex_declarations.iter() {
+        for dn in d.bound_names() {
+            if d.is_constant_declaration() {
+                lex_env.create_immutable_binding(dn, true)?;
+            } else {
+                lex_env.create_mutable_binding(dn, false)?;
+            }
+        }
+    }
+    // Step 17
+    for vsd in functions_to_initialize {
+        let f = FcnDef::try_from(vsd.clone()).unwrap();
+        let fname = f.bound_name();
+        let fo = f.instantiate_function_object(lex_env.clone(), private_env.clone(), strict, source_text).unwrap();
+        if let Some(ger) = var_env.as_global_environment_record() {
+            ger.create_global_function_binding(fname, fo, true)?;
+        } else if !var_env.has_binding(&fname).unwrap() {
+            var_env.create_mutable_binding(fname.clone(), true).unwrap();
+            var_env.initialize_binding(&fname, fo).unwrap();
+        } else {
+            var_env.set_mutable_binding(fname, fo, false).unwrap();
+        }
+    }
+    // Step 18
+    for vn in declared_var_names {
+        if let Some(ger) = var_env.as_global_environment_record() {
+            ger.create_global_var_binding(vn, true)?;
+        } else if !var_env.has_binding(&vn).unwrap() {
+            var_env.create_mutable_binding(vn.clone(), true).unwrap();
+            var_env.initialize_binding(&vn, ECMAScriptValue::Undefined).unwrap();
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

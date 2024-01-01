@@ -95,6 +95,18 @@ impl From<&VarScopeDecl> for String {
         src.to_string()
     }
 }
+impl VarScopeDecl {
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            VarScopeDecl::VariableDeclaration(node) => node.bound_names(),
+            VarScopeDecl::ForBinding(node) => node.bound_names(),
+            VarScopeDecl::FunctionDeclaration(node) => node.bound_names(),
+            VarScopeDecl::GeneratorDeclaration(node) => node.bound_names(),
+            VarScopeDecl::AsyncFunctionDeclaration(node) => node.bound_names(),
+            VarScopeDecl::AsyncGeneratorDeclaration(node) => node.bound_names(),
+        }
+    }
+}
 
 impl Script {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
@@ -334,6 +346,24 @@ impl ScriptBody {
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.statement_list.top_level_lexically_scoped_declarations()
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        self.statement_list.contains_arguments()
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.statement_list.all_private_identifiers_valid(names)
     }
 }
 
