@@ -274,7 +274,14 @@ fn main() -> Result<()> {
                             Status::Fail
                         }
                     }
-                    Phase::Resolution => todo!(),
+                    Phase::Resolution => {
+                        let expected = format!("During resolution: [{error_type}: ");
+                        if final_line.starts_with(&expected) {
+                            Status::Pass
+                        } else {
+                            Status::Fail
+                        }
+                    }
                     Phase::Runtime => {
                         let expected = format!("Thrown: {error_type}: ");
                         if final_line.starts_with(&expected) {
