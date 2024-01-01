@@ -3255,12 +3255,12 @@ pub struct WellKnownSymbols {
 }
 
 pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
-    let script = parse_text(source_text, ParseGoal::Script);
+    let script = parse_text(source_text, ParseGoal::Script, false, false);
     match script {
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk, source_text).unwrap();
+            script.compile(&mut chunk, false, source_text).unwrap();
             for line in chunk.disassemble() {
                 println!("{line}");
             }

@@ -141,7 +141,7 @@ mod script {
     fn early_errors(src: &str) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 
@@ -281,7 +281,7 @@ mod script_body {
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
         setup_test_agent();
         let mut errs = vec![];
-        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut errs);
+        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
     }
 

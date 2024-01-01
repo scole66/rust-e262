@@ -7156,17 +7156,17 @@ impl FunctionDeclaration {
 }
 
 impl Script {
-    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match &self.body {
             None => Ok(AbruptResult::Never),
-            Some(sb) => sb.compile(chunk, text),
+            Some(sb) => sb.compile(chunk, strict, text),
         }
     }
 }
 
 impl ScriptBody {
-    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
-        let strict = self.contains_use_strict();
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let strict = strict || self.contains_use_strict();
         self.statement_list.compile(chunk, strict, text)
     }
 }

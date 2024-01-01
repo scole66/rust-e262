@@ -3884,7 +3884,7 @@ mod script {
     fn compile(src: &str) -> Vec<String> {
         let node = Maker::new(src).script();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, src).unwrap();
+        node.compile(&mut c, false, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -3908,7 +3908,7 @@ mod script_body {
     fn compile(src: &str) -> Vec<String> {
         let node = Maker::new(src).script_body();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, src).unwrap();
+        node.compile(&mut c, false, src).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }

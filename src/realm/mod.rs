@@ -678,7 +678,12 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                     (false, false, false, false)
                 };
             let source_text = String::from(x);
-            let script = parse_text(&source_text, ParseGoal::Script);
+            let script = parse_text(
+                &source_text,
+                ParseGoal::Script,
+                call_state == EvalCallStatus::DirectWithStrictCaller,
+                call_state != EvalCallStatus::NotDirect,
+            );
             match script {
                 ParsedText::Errors(errs) => {
                     Err(create_syntax_error(errs.iter().map(unwind_any_error_object).join("; "), None))
@@ -741,7 +746,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                             ) {
                                 Ok(_) => {
                                     let mut chunk = Chunk::new("eval code");
-                                    script.compile(&mut chunk, &source_text).unwrap();
+                                    script.compile(&mut chunk, strict_eval, &source_text).unwrap();
                                     for line in chunk.disassemble() {
                                         println!("{line}");
                                     }
