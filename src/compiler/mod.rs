@@ -7865,8 +7865,17 @@ impl FormalParameterList {
         match self {
             FormalParameterList::Item(item) => item.compile_binding_initialization(chunk, strict, text, env),
             FormalParameterList::List(list, item) => {
+                // start:                             N arg[N-1] ... arg[0]
+                //    <list.compile_binding_init>     err/(M arg[M-1] ... arg[0])
+                //    JUMP_IF_ABRUPT exit             M arg[M-1] ... arg[0]
+                //    <item.compile_binding_init>     err/(Q arg[Q-1] ... arg[0])
+                // exit:
                 let list_status = list.compile_binding_initialization(chunk, strict, text, env)?;
+                let exit = if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let item_status = item.compile_binding_initialization(chunk, strict, text, env)?;
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
+                }
                 Ok(AbruptResult::from(list_status.maybe_abrupt() || item_status.maybe_abrupt()))
             }
         }
