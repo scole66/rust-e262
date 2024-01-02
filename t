@@ -581,6 +581,8 @@ test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInte
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
 test_defs[Realm]="Realm realm realm"
+test_defs[is_nan]="is_nan is_nan realm"
+test_defs[is_finite]="is_finite is_finite realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"

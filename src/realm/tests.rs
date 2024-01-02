@@ -234,11 +234,43 @@ fn throw_type_error_test() {
 #[test_case(super::decode_uri_component => panics "not yet implemented"; "decode_uri_component")]
 #[test_case(super::encode_uri => panics "not yet implemented"; "encode_uri")]
 #[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
-#[test_case(super::is_finite => panics "not yet implemented"; "is_finite")]
-#[test_case(super::is_nan => panics "not yet implemented"; "is_nan")]
 #[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
 #[test_case(super::parse_int => panics "not yet implemented"; "parse_int")]
 fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test_case(
+    || wks(WksId::Unscopables)
+    => serr("TypeError: Symbol values cannot be converted to Number values");
+    "to_number fails"
+)]
+#[test_case(|| 45 => sok("false"); "not nan")]
+#[test_case(|| f64::NAN => sok("true"); "is actually not-a-number")]
+fn is_nan<T>(make_val: impl FnOnce() -> T) -> Result<String, String>
+where
+    T: Into<ECMAScriptValue>,
+{
+    setup_test_agent();
+    let val = make_val().into();
+    super::is_nan(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+}
+
+#[test_case(
+    || wks(WksId::Unscopables)
+    => serr("TypeError: Symbol values cannot be converted to Number values");
+    "to_number fails"
+)]
+#[test_case(|| 45 => sok("true"); "ordinary number")]
+#[test_case(|| f64::NAN => sok("false"); "nan")]
+#[test_case(|| f64::INFINITY => sok("false"); "positive infinity")]
+#[test_case(|| f64::NEG_INFINITY => sok("false"); "negative infinity")]
+fn is_finite<T>(make_val: impl FnOnce() -> T) -> Result<String, String>
+where
+    T: Into<ECMAScriptValue>,
+{
+    setup_test_agent();
+    let val = make_val().into();
+    super::is_finite(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }

@@ -622,17 +622,39 @@ fn eval(
 fn is_finite(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // This function is the %isFinite% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let num be ? ToNumber(number).
+    //  2. If num is not finite, return false.
+    //  3. Otherwise, return true.
+    let mut args = FuncArgs::from(arguments);
+    let number = args.next_arg();
+    let num = to_number(number)?;
+    Ok(ECMAScriptValue::from(num.is_finite()))
 }
+
 fn is_nan(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // This function is the %isNaN% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let num be ? ToNumber(number).
+    //  2. If num is NaN, return true.
+    //  3. Otherwise, return false.
+    let mut args = FuncArgs::from(arguments);
+    let number = args.next_arg();
+    let num = to_number(number)?;
+    Ok(ECMAScriptValue::from(num.is_nan()))
 }
+
 fn parse_float(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
