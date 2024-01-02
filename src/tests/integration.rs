@@ -699,6 +699,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: ReferenceError: Binding not initialized");
     "let decl doesn't see outer scope"
 )]
+// 1/1/2024: argument processing doesn't handle errors
+#[test_case("(function (p = (() => { throw 'oops'; })(), q) {})()" => serr("Thrown: oops"); "errs in args")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
