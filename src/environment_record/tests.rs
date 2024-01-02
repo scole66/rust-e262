@@ -996,8 +996,6 @@ mod binding_status {
     }
 }
 
-// Function Environment Record testing should go here, but there's currently no good way to make a function object, so
-// testing is deferred.
 mod function_environment_record {
     use super::*;
     use test_case::test_case;
@@ -1059,6 +1057,148 @@ mod function_environment_record {
         fer.set_mutable_binding("bob".into(), "illegal".into(), true).expect_err("Should be immutable");
         let val = fer.get_binding_value(&"bob".into(), true).unwrap();
         assert_eq!(val, ECMAScriptValue::from("initialized"));
+    }
+
+    #[test]
+    fn create_mutable_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        assert_eq!(fer.binding_names(), &[JSString::from("bob")]);
+
+        // But was it mutable?
+        fer.initialize_binding(&"bob".into(), "initialized".into()).unwrap();
+        fer.set_mutable_binding("bob".into(), "altered".into(), true).unwrap();
+        let val = fer.get_binding_value(&"bob".into(), true).unwrap();
+        assert_eq!(val, ECMAScriptValue::from("altered"));
+    }
+
+    #[test]
+    fn has_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        assert!(fer.has_binding(&"bob".into()).unwrap());
+    }
+
+    #[test]
+    fn delete_binding() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+
+        fer.create_mutable_binding("bob".into(), true).unwrap();
+        fer.initialize_binding(&"bob".into(), "initialized".into()).unwrap();
+        fer.create_mutable_binding("alice".into(), false).unwrap();
+        fer.initialize_binding(&"alice".into(), "initialized".into()).unwrap();
+
+        assert!(fer.delete_binding(&"bob".into()).unwrap());
+        assert!(!fer.delete_binding(&"alice".into()).unwrap());
+        assert!(fer.has_binding(&"alice".into()).unwrap());
+        assert!(!fer.has_binding(&"bob".into()).unwrap());
+    }
+
+    #[test_case("function a(){}" => true; "non-lexical")]
+    #[test_case("() => 1" => false; "lexical")]
+    fn has_this_binding(src: &str) -> bool {
+        setup_test_agent();
+        let (_, fer) = make_fer(src, None);
+
+        fer.has_this_binding()
+    }
+
+    fn make_lexical() -> FunctionEnvironmentRecord {
+        make_fer("() => 3", None).1
+    }
+    fn make_uninit_this() -> FunctionEnvironmentRecord {
+        make_fer("function a() {}", None).1
+    }
+    fn make_init_this() -> FunctionEnvironmentRecord {
+        let (_, fer) = make_fer("function a(){}", None);
+        fer.bind_this_value(ECMAScriptValue::from("sentinel")).unwrap();
+        fer
+    }
+    #[test_case(make_lexical => panics "binding status may not be lexical"; "lexical")]
+    #[test_case(make_uninit_this => sok("core"); "uninit")]
+    #[test_case(make_init_this => serr("ReferenceError: This value already bound"); "already initialized")]
+    fn bind_this_value(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        let value = ECMAScriptValue::from("core");
+
+        fer.bind_this_value(value).map_err(unwind_any_error).map(|v| v.to_string())
+    }
+
+    #[test_case(make_lexical => panics "lexical functions never have a this binding"; "lexical")]
+    #[test_case(make_uninit_this => serr("ReferenceError: This binding uninitialized"); "uninitialized")]
+    #[test_case(make_init_this => Ok("sentinel".to_string()); "initialized")]
+    fn get_this_binding(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.get_this_binding().map_err(unwind_any_error).map(|v| to_string(v).unwrap().to_string())
+    }
+
+    fn make_super() -> FunctionEnvironmentRecord {
+        let (f, fer) = make_fer("function a(){}", None);
+        let home_object_prototype = create_string_object("Home Object Prototype".into());
+        let home_object = ordinary_object_create(Some(home_object_prototype), &[]);
+
+        let fo = f.o.to_function_obj().unwrap();
+        fo.function_data().borrow_mut().home_object = Some(home_object);
+        fer
+    }
+    #[test_case(make_lexical => Ok(None); "no home object")]
+    #[test_case(make_super => Ok(Some("Home Object Prototype".to_string())); "has home object")]
+    fn get_super_base(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<Option<String>, String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.get_super_base()
+            .map_err(unwind_any_error)
+            .map(|opt_obj| opt_obj.map(|obj| String::from(to_string(obj).unwrap())))
+    }
+
+    #[test_case(make_lexical => false; "lexical - no super")]
+    #[test_case(make_init_this => false; "non-lexical - no super")]
+    #[test_case(make_super => true; "has super")]
+    fn has_super_binding(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> bool {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.has_super_binding()
+    }
+
+    #[test_case(make_lexical => None; "lexical")]
+    fn with_base_object(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Option<String> {
+        setup_test_agent();
+        let fer = fer_maker();
+
+        fer.with_base_object().map(|obj| obj.get(&"sentinel".into()).unwrap().to_string())
+    }
+    #[test]
+    fn debug_fmt() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function a(){}", None);
+        let s = format!("{fer:#?}");
+        assert_ne!(s, "");
+    }
+    #[test]
+    fn concise() {
+        setup_test_agent();
+        let (_, fer) = make_fer("function b(){}", None);
+        let s = format!("{fer:?}");
+        assert_ne!(s, "");
+        assert!(!s.contains('\n'));
+    }
+
+    #[test]
+    fn get_outer_env() {
+        setup_test_agent();
+        let (_, fer) = make_fer("() => 10", None);
+        assert_eq!(fer.get_outer_env().map(|er| er.name()), Some("realm-global".to_string()));
     }
 }
 
@@ -1350,7 +1490,7 @@ mod global_environment_record {
             ger.initialize_binding(&test_name, ECMAScriptValue::from(223)).unwrap();
 
             // Validate
-            let val = get(&global_object, &PropertyKey::from(test_name)).unwrap();
+            let val = global_object.get(&PropertyKey::from(test_name)).unwrap();
             assert_eq!(val, ECMAScriptValue::from(223));
         }
     }
@@ -2109,27 +2249,78 @@ mod private_environment_record {
     mod resolve_private_identifier {
         use super::*;
 
-        fn setup() -> (Box<PrivateEnvironmentRecord>, PrivateName, PrivateName) {
-            let mut outer = Box::new(PrivateEnvironmentRecord::new(None));
+        fn setup() -> (Rc<RefCell<PrivateEnvironmentRecord>>, PrivateName, PrivateName) {
+            let outer = Rc::new(RefCell::new(PrivateEnvironmentRecord::new(None)));
             let outer_name = PrivateName::new("outer");
-            outer.names.push(outer_name.clone());
-            let mut inner = Box::new(PrivateEnvironmentRecord::new(Some(outer)));
+            outer.borrow_mut().names.push(outer_name.clone());
+            let inner = Rc::new(RefCell::new(PrivateEnvironmentRecord::new(Some(outer))));
             let inner_name = PrivateName::new("inner");
-            inner.names.push(inner_name.clone());
+            inner.borrow_mut().names.push(inner_name.clone());
             (inner, outer_name, inner_name)
         }
 
         #[test]
         fn outer() {
             let (env, outer_name, _) = setup();
-            let resolved = env.resolve_private_identifier(&JSString::from("outer"));
+            let resolved = env.borrow().resolve_private_identifier(&JSString::from("outer"));
             assert_eq!(resolved, outer_name);
         }
         #[test]
         fn inner() {
             let (env, _, inner_name) = setup();
-            let resolved = env.resolve_private_identifier(&JSString::from("inner"));
+            let resolved = env.borrow().resolve_private_identifier(&JSString::from("inner"));
             assert_eq!(resolved, inner_name);
         }
+    }
+}
+
+mod concisely_printed_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let env = DeclarativeEnvironmentRecord::new(None, "test-sentinel");
+        let cper = ConciselyPrintedEnvironmentRecord(Rc::new(env));
+        let repr = format!("{cper:#?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+}
+
+mod concise_global_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        setup_test_agent();
+        let realm = current_realm_record().unwrap();
+        let ge = realm.borrow().global_env.as_ref().unwrap().clone();
+        let cge = ConciseGlobalEnvironmentRecord(ge.as_ref());
+
+        let repr = format!("{cge:?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+}
+
+mod concise_optional_global_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug_some() {
+        setup_test_agent();
+        let realm = current_realm_record().unwrap();
+        let ge = realm.borrow().global_env.as_ref().unwrap().clone();
+        let coge = ConciseOptionalGlobalEnvironmentRecord(Some(ge));
+
+        let repr = format!("{coge:?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
+    }
+
+    #[test]
+    fn debug_none() {
+        let coge = ConciseOptionalGlobalEnvironmentRecord(None);
+
+        let repr = format!("{coge:?}");
+        assert_eq!(repr.lines().collect::<Vec<_>>().len(), 1);
     }
 }

@@ -27,7 +27,7 @@ mod symbol_object {
 
         assert!(obj.o.is_symbol_object());
         let recovered_proto = obj.o.get_prototype_of().unwrap().unwrap();
-        let prop = super::get(&recovered_proto, &PropertyKey::from("marker")).unwrap();
+        let prop = recovered_proto.get(&PropertyKey::from("marker")).unwrap();
         assert_eq!(prop, ECMAScriptValue::from("sentinel"));
     }
 

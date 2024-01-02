@@ -2,7 +2,7 @@ use super::*;
 use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::rc::Rc;
@@ -73,12 +73,12 @@ where
 
 pub fn unwind_error_object(kind: &str, err: Object) -> String {
     assert!(err.o.to_error_obj().is_some());
-    let name = get(&err, &PropertyKey::from("name")).expect("Error object was missing 'name' property");
+    let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
     if let ECMAScriptValue::String(name_value) = name {
         assert_eq!(name_value, kind);
     }
-    let message = get(&err, &PropertyKey::from("message")).expect("Error object was missing 'message' property");
+    let message = err.get(&PropertyKey::from("message")).expect("Error object was missing 'message' property");
     assert!(matches!(message, ECMAScriptValue::String(_)));
     if let ECMAScriptValue::String(message_value) = message {
         String::from(message_value)
@@ -125,9 +125,7 @@ pub fn unwind_range_error_object(err: Object) -> String {
 }
 
 pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
-    let mut s = factory.build_hasher();
-    t.hash(&mut s);
-    s.finish()
+    factory.hash_one(t)
 }
 
 pub fn setup_test_agent() {
@@ -136,7 +134,7 @@ pub fn setup_test_agent() {
         agent.reset();
         agent.set_global_symbol_registry(sym_registry);
     });
-    initialize_host_defined_realm(true);
+    initialize_host_defined_realm(0, true);
 }
 
 #[derive(Debug)]
@@ -297,24 +295,25 @@ impl TestObject {
         }
         (false, None)
     }
+    pub fn new(prototype: Option<Object>, throwers: &[FunctionId]) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
+            get_prototype_of_throws: throwers.contains(&FunctionId::GetPrototypeOf),
+            set_prototype_of_throws: throwers.contains(&FunctionId::SetPrototypeOf),
+            is_extensible_throws: throwers.contains(&FunctionId::IsExtensible),
+            prevent_extensions_throws: throwers.contains(&FunctionId::PreventExtensions),
+            get_own_property_throws: TestObject::check_for_key(TestObject::get_own_match, throwers),
+            define_own_property_throws: TestObject::check_for_key(TestObject::define_own_match, throwers),
+            has_property_throws: TestObject::check_for_key(TestObject::has_prop_match, throwers),
+            get_throws: TestObject::check_for_key(TestObject::get_match, throwers),
+            set_throws: TestObject::check_for_key(TestObject::set_match, throwers),
+            delete_throws: TestObject::check_for_key(TestObject::delete_match, throwers),
+            own_property_keys_throws: throwers.contains(&FunctionId::OwnPropertyKeys),
+        }
+    }
     pub fn object(throwers: &[FunctionId]) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
-                get_prototype_of_throws: throwers.contains(&FunctionId::GetPrototypeOf),
-                set_prototype_of_throws: throwers.contains(&FunctionId::SetPrototypeOf),
-                is_extensible_throws: throwers.contains(&FunctionId::IsExtensible),
-                prevent_extensions_throws: throwers.contains(&FunctionId::PreventExtensions),
-                get_own_property_throws: TestObject::check_for_key(TestObject::get_own_match, throwers),
-                define_own_property_throws: TestObject::check_for_key(TestObject::define_own_match, throwers),
-                has_property_throws: TestObject::check_for_key(TestObject::has_prop_match, throwers),
-                get_throws: TestObject::check_for_key(TestObject::get_match, throwers),
-                set_throws: TestObject::check_for_key(TestObject::set_match, throwers),
-                delete_throws: TestObject::check_for_key(TestObject::delete_match, throwers),
-                own_property_keys_throws: throwers.contains(&FunctionId::OwnPropertyKeys),
-            }),
-        }
+        Object { o: Rc::new(Self::new(Some(prototype), throwers)) }
     }
 }
 
@@ -474,25 +473,26 @@ pub struct AdaptableMethods {
 }
 
 impl AdaptableObject {
+    pub fn new(prototype: Option<Object>, methods: AdaptableMethods) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
+            get_prototype_of_override: methods.get_prototype_of_override,
+            set_prototype_of_override: methods.set_prototype_of_override,
+            is_extensible_override: methods.is_extensible_override,
+            prevent_extensions_override: methods.prevent_extensions_override,
+            get_own_property_override: methods.get_own_property_override,
+            define_own_property_override: methods.define_own_property_override,
+            has_property_override: methods.has_property_override,
+            get_override: methods.get_override,
+            set_override: methods.set_override,
+            delete_override: methods.delete_override,
+            own_property_keys_override: methods.own_property_keys_override,
+            something: Cell::new(0),
+        }
+    }
     pub fn object(methods: AdaptableMethods) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
-                get_prototype_of_override: methods.get_prototype_of_override,
-                set_prototype_of_override: methods.set_prototype_of_override,
-                is_extensible_override: methods.is_extensible_override,
-                prevent_extensions_override: methods.prevent_extensions_override,
-                get_own_property_override: methods.get_own_property_override,
-                define_own_property_override: methods.define_own_property_override,
-                has_property_override: methods.has_property_override,
-                get_override: methods.get_override,
-                set_override: methods.set_override,
-                delete_override: methods.delete_override,
-                own_property_keys_override: methods.own_property_keys_override,
-                something: Cell::new(0),
-            }),
-        }
+        Object { o: Rc::new(Self::new(Some(prototype), methods)) }
     }
 }
 
@@ -539,7 +539,7 @@ use crate::object::define_property_or_throw;
 use crate::realm::{create_realm, Realm};
 
 pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
-    let r = create_realm();
+    let r = create_realm(9999);
     let op = r.borrow().intrinsics.get(IntrinsicId::ObjectPrototype);
     define_property_or_throw(
         &op,
@@ -552,7 +552,7 @@ pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
 }
 pub fn get_realm_name() -> String {
     let op = intrinsic(IntrinsicId::ObjectPrototype);
-    let name = get(&op, &"name".into()).unwrap();
+    let name = op.get(&"name".into()).unwrap();
     to_string(name).unwrap().into()
 }
 
@@ -562,6 +562,10 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
 
 pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
+}
+
+pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
+    Ok(Some(msg.to_string()))
 }
 
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
@@ -960,8 +964,8 @@ pub fn func_validation(
     length: impl Into<ECMAScriptValue>,
 ) -> ECMAScriptValue {
     let func = data_validation(pd, true, false, true);
-    assert_eq!(getv(&func, &"name".into()).unwrap(), name.into());
-    assert_eq!(getv(&func, &"length".into()).unwrap(), length.into());
+    assert_eq!(func.get(&"name".into()).unwrap(), name.into());
+    assert_eq!(func.get(&"length".into()).unwrap(), length.into());
     func
 }
 
@@ -974,8 +978,8 @@ pub fn getter_validation(
     assert!(pd.configurable);
     if let PropertyKind::Accessor(AccessorProperty { get, set }) = pd.property {
         assert!(set.is_undefined());
-        assert_eq!(getv(&get, &"name".into()).unwrap(), name.into());
-        assert_eq!(getv(&get, &"length".into()).unwrap(), length.into());
+        assert_eq!(get.get(&"name".into()).unwrap(), name.into());
+        assert_eq!(get.get(&"length".into()).unwrap(), length.into());
         get
     } else {
         panic!("Expected accessor property but found data property");
@@ -997,7 +1001,7 @@ impl ECMAScriptValue {
                 let mut r = String::new();
                 let mut first = true;
                 for key in keys {
-                    let value = crate::object::get(o, &key);
+                    let value = o.get(&key);
                     if !first {
                         r.push(',');
                     } else {
@@ -1016,6 +1020,58 @@ pub fn which_intrinsic(to_be_checked: &Object) -> Option<IntrinsicId> {
     let realm_ref = current_realm_record().unwrap();
     let realm = realm_ref.borrow();
     realm.intrinsics.which(to_be_checked)
+}
+
+// This is really for debugging. It's the output structure from propdump.
+#[derive(Debug, PartialEq)]
+pub enum PropertyInfoKind {
+    Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
+    Data { value: ECMAScriptValue, writable: bool },
+}
+#[derive(Debug, PartialEq)]
+pub struct PropertyInfo {
+    pub name: PropertyKey,
+    pub enumerable: bool,
+    pub configurable: bool,
+    pub kind: PropertyInfoKind,
+}
+
+impl fmt::Display for PropertyInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:", to_string(&self.name).unwrap())?;
+        match &self.kind {
+            PropertyInfoKind::Accessor { getter, setter } => write!(f, "[[Get]]: {}, [[Set]]: {} (", getter, setter),
+            PropertyInfoKind::Data { value, writable } => write!(f, "{} ({}", value, if *writable { 'w' } else { '-' }),
+        }?;
+        write!(f, "{}{})", if self.enumerable { 'e' } else { '-' }, if self.configurable { 'c' } else { '-' })
+    }
+}
+
+impl CommonObjectData {
+    pub fn propdump(&self) -> Vec<PropertyInfo> {
+        // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
+        // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
+        let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
+        keys.sort_by_cached_key(|a| self.properties.get(*a).unwrap().spot);
+        let mut result = vec![];
+        for key in keys {
+            let prop = self.properties.get(key).unwrap();
+            result.push(PropertyInfo {
+                name: key.clone(),
+                enumerable: prop.enumerable,
+                configurable: prop.configurable,
+                kind: match &prop.property {
+                    PropertyKind::Data(DataProperty { value, writable }) => {
+                        PropertyInfoKind::Data { value: value.clone(), writable: *writable }
+                    }
+                    PropertyKind::Accessor(AccessorProperty { get, set }) => {
+                        PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() }
+                    }
+                },
+            });
+        }
+        result
+    }
 }
 
 mod integration;

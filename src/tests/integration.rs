@@ -16,8 +16,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -43,8 +43,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -70,8 +70,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -97,8 +97,8 @@ mod update_expression {
             let result = process_ecmascript(src).unwrap();
 
             let result_obj = to_object(result).unwrap();
-            let a = get(&result_obj, &"a".into()).unwrap();
-            let b = get(&result_obj, &"b".into()).unwrap();
+            let a = result_obj.get(&"a".into()).unwrap();
+            let b = result_obj.get(&"b".into()).unwrap();
             (a, b)
         }
 
@@ -435,6 +435,241 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     process_ecmascript(&program).map_err(|e| e.to_string())
 }
 
+// Optional Chains
+//  OptionalExpression: MemberExpression OptionalChain
+//    a[4]?.b -> ReferenceError
+//    new Proxy({}, {"get": () => { throw new TypeError("value-get-fail"); }}).c?.b -> TypeError
+//    undefined?.b -> Undefined
+//    null?.b -> Undefined
+//    ({"b": 10})?.b -> 10
+//    ({"b": 10})?.[(() => { throw 'chain fail'; })()] -> error
+#[test_case("a[4]?.b" => serr("Thrown: ReferenceError: Unresolvable Reference"); "oe: me oc ; me eval fails")]
+#[test_case(
+    "new Proxy({}, {'get': () => { throw new TypeError('value-get-fail'); }}).c?.b"
+    => serr("Thrown: TypeError: value-get-fail");
+    "oe: me oc; get-value fails"
+)]
+#[test_case("undefined?.b" => Ok(ECMAScriptValue::Undefined); "oe: me oc ; me undefined value")]
+#[test_case("null?.b" => Ok(ECMAScriptValue::Undefined); "oe: me oc ; me null value")]
+#[test_case("({'b': 10})?.b" => vok(10); "oe: me oc ; me ok, oc ok")]
+#[test_case(
+    "({'b': 10})?.[(() => { throw 'chain fail';})()]"
+    => serr("Thrown: chain fail");
+    "oe: me oc ; oc fails"
+)]
+//  OptionalExpression: CallExpression OptionalChain
+//    a()?.b -> ReferenceError
+//    (() => new Proxy({}, {"get": () => { throw 'value-get-fail'; }}))().c?.b -> error
+//    (() => null)()?.b -> Undefined
+//    (() => undefined)()?.b -> Undefined
+//    (() => ({"b": 10}))()?.b -> 10
+//    (() => ({"b": 10}))()?.[(() => { throw 'chain fail'; })()] -> error
+#[test_case("a()?.b" => serr("Thrown: ReferenceError: Unresolvable Reference"); "oe: ce oc ; ce eval fails")]
+#[test_case(
+    "(() => new Proxy({}, {'get': () => { throw 'value-get-fail'; }}))().c?.b"
+    => serr("Thrown: value-get-fail");
+    "oe: ce oc ; ce get-value fails"
+)]
+#[test_case("(() => null)()?.b" => Ok(ECMAScriptValue::Undefined); "oe: ce oc ; ce null value")]
+#[test_case("(() => undefined)()?.b" => Ok(ECMAScriptValue::Undefined); "oe: ce oc ; ce undefined value")]
+#[test_case("(() => ({'b': 10}))()?.b" => vok(10); "oe: ce oc; oc ok")]
+#[test_case("(() => ({'b': 10}))()?.[(() => { throw 'chain fail'; })()]" => serr("Thrown: chain fail"))]
+//  OptionalExpression: OptionalExpression OptionalChain
+//    a[4]?.c?.d -> Uncaught ReferenceError (evaluation of OptionalExpression fails)
+//    new Proxy({}, {'get': () => { throw 0; } })?.x?.y -> Uncaught 0 (GetValue(baseReference) fails)
+//    undefined?.a?.b -> undefined
+//    ({'a': null})?.a?.b -> undefined
+//    ({'a': 'b'})?.a?.length -> 1
+//    ({'a': 'b'})?.a?.[(() => { throw 0; })()] -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+#[test_case(
+    "a[4]?.c?.d"
+    => serr("Thrown: ReferenceError: Unresolvable Reference");
+    "oe: oe oc; oe eval fails"
+)]
+#[test_case(
+    "new Proxy({}, {'get': () => { throw 0; } })?.x?.y"
+    => serr("Thrown: 0");
+    "oe: oe oc; GetValue(baseReference) fails"
+)]
+#[test_case("undefined?.a?.b" => Ok(ECMAScriptValue::Undefined); "oe: oe oc; baseValue is undefined")]
+#[test_case("({'a': null})?.a?.b" => Ok(ECMAScriptValue::Undefined); "oe: oe oc; baseValue is null")]
+#[test_case("({'a': 'b'})?.a?.length" => vok(1); "oe: oe oc; ChainEvaluation of OptionalChain successful")]
+#[test_case(
+    "({'a': 'b'})?.a?.[(() => { throw 0; })()]"
+    => serr("Thrown: 0");
+    "oe: oe oc; ChainEvaluation of OptionalChain fails"
+)]
+//  OptionalChain: ?. Arguments
+//    String?.('a')  -> 'a'  (EvaluateCall succeeds)
+//    (() => { throw 0; })?.()  -> Uncaught 0 (EvaluateCall fails)
+#[test_case("String?.('a')" => vok("a"); "oc: args; call ok")]
+#[test_case("(() => { throw 0; })?.()" => serr("Thrown: 0"); "oc: args; call fails")]
+//  OptionalChain: ?. [ Expression ]
+//    [3]?.[0] -> 3 (EvaluatePropertyAccessWithExpressionKey succeeds)
+//    [3]?.[(() => { throw 0; })()] -> Uncaught 0 (EvaluatePropertyAccessWithExpressionKey fails)
+#[test_case("[3]?.[0]" => vok(3); "oc: expr; expr ok")]
+#[test_case("[3]?.[(() => { throw 0; })()]" => serr("Thrown: 0"); "oc: expr; expr fails")]
+//  OptionalChain: ?. IdentifierName
+//    ({'a': 3})?.a -> 3 (cannot fail, as it only makes a reference)
+#[test_case("({'a': 3})?.a" => vok(3); "oc: id; cannot fail")]
+//  OptionalChain: ?. PrivateIdentifier
+//    Todo: this needs classes
+//  OptionalChain: OptionalChain Arguments
+//    (() => { throw 0; })?.()() -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a()  -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':3})?.a() -> Uncaught TypeError (EvaluateCall fails)
+//    String?.fromCharCode(60) -> '<' (EvaluateCall ok)
+#[test_case("(() => { throw 0; })?.()()" => serr("Thrown: 0"); "oc: oc args; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a()"
+    => serr("Thrown: 0");
+    "oc: oc args; GetValue(newReference) fails"
+)]
+#[test_case("({'a':3})?.a()" => serr("Thrown: TypeError: not an object"); "oc: oc args; EvaluateCall fails")]
+#[test_case("String?.fromCharCode(60)" => vok("<"); "oc: oc args; no errors")]
+//  OptionalChain: OptionalChain [ Expression ]
+//    (() => {throw 0;})?.()[1] -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a[1] -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':1})?.a[(() => { throw 0; })()] -> Uncaught 0 (EvaluatePropertyAccessWithExpressionKey fails)
+//    ({'a':[9]})?.a[0] -> 9 (EvaluatePropertyAccessWithExpressionKey ok)
+#[test_case("(() => {throw 0;})?.()[1]" => serr("Thrown: 0"); "oc: oc exp; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a[1]"
+    => serr("Thrown: 0");
+    "oc: oc exp; getValue fails"
+)]
+#[test_case("({'a':1})?.a[(() => { throw 0; })()]" => serr("Thrown: 0"); "oc: oc exp; exp fails")]
+#[test_case("({'a':[9]})?.a[0]" => vok(9); "oc: oc exp; success")]
+//  OptionalChain: OptionalChain . IdentifierName
+//    (() => { throw 0; })?.().a -> Uncaught 0 (ChainEvaluation of OptionalChain fails)
+//    (new Proxy({}, {'get': () => { throw 0; }}))?.a.a -> Uncaught 0 (GetValue(newReference) fails)
+//    ({'a':{'b':'c'}})?.a.b => 'c' (EvaluatePropertyAccessWithIdentifierKey ok)
+#[test_case("(() => { throw 0; })?.().a" => serr("Thrown: 0"); "oc: oc id; oc fails")]
+#[test_case(
+    "(new Proxy({}, {'get': () => { throw 0; }}))?.a.a"
+    => serr("Thrown: 0");
+    "oc: oc id; getValue fails"
+)]
+#[test_case("({'a':{'b':'c'}})?.a.b" => vok("c"); "oc: oc id; success")]
+//  OptionalChain: OptionalChain . PrivateIdentifier
+//    Todo: this needs classes
+
+// Array Functions
+// Array.isArray
+//   Array.isArray(13) -> false
+//   Array.isArray([1, 2, 3]) -> true
+//   Array.isArray((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})()) -> TypeError
+#[test_case("Array.isArray(13)" => vok(false); "Array.isArray on not-array")]
+#[test_case("Array.isArray([1, 2, 3])" => vok(true); "Array.isArray on an array")]
+#[test_case(
+    "Array.isArray((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})())"
+    => panics "not yet implemented";
+    "Array.isArray throws"
+)]
+// get Array[@@species]
+//   Array[Symbol.species] == Array    -> true
+#[test_case("Array[Symbol.species] == Array" => vok(true); "get Array[@@species]")]
+// Array.prototype
+//  Array.prototype.pop
+//   { let a = [1, 2, 3]; let r = a.pop(); a.length == 2 && r == 3 && !a.hasOwnProperty('2') } -> true
+//   [].pop() -> undefined
+//   Array.prototype.pop.call(undefined) -> TypeError (ToObject fails)
+//   Array.prototype.pop.call({ length: Symbol.iterator }) -> TypeError (LengthOfArrayLike fails)
+//   { let a = { length: -1 }; let r = Array.prototype.pop.call(a); a.length == 0 && r === undefined } -> true
+//   { let a = { length: -1 }; Object.freeze(a); Array.prototype.pop.call(a); } -> TypeError (first Set fails)
+//   Array.prototype.pop.call(new Proxy({}, {'get':(r,key)=>{if(key=='length'){return 3;}throw 0;}})) -> Uncaught 0 (Get fails)
+//   { let a = [1,2]; Object.freeze(a); a.pop() } -> TypeError (DeletePropertyOrThrow fails)
+//   Array.prototype.pop.call(new Proxy([1],{'set':()=>{throw 0;}})) -> Uncaught 0 (second Set fails)
+#[test_case(
+    "{ let a = [1, 2, 3]; let r = a.pop(); a.length == 2 && r == 3 && !a.hasOwnProperty('2') }"
+    => vok(true);
+    "Array.prototype.pop nonempty list"
+)]
+#[test_case("[].pop()" => vok(ECMAScriptValue::Undefined); "Array.prototype.pop empty list")]
+#[test_case(
+    "Array.prototype.pop.call(undefined)"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "Array.prototype.pop: ToObject throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call({ length: Symbol.iterator })"
+    => serr("Thrown: TypeError: Symbol values cannot be converted to Number values");
+    "Array.prototype.pop: LengthOfArrayLike throws"
+)]
+#[test_case(
+    "{ let a = { length: -1 }; let r = Array.prototype.pop.call(a); a.length == 0 && r === undefined }"
+    => vok(true);
+    "Array.prototype.pop: setting length to zero on an empty arraylike"
+)]
+#[test_case(
+    "{ let a = { length: -1 }; Object.freeze(a); Array.prototype.pop.call(a); }"
+    => serr("Thrown: TypeError: Cannot add property, for one of many different possible reasons");
+    "Array.prototype.pop: first Set throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call(new Proxy({}, {'get':(r,key)=>{if(key=='length'){return 3;}throw 0;}}))"
+    => serr("Thrown: 0");
+    "Array.prototype.pop: Get throws"
+)]
+#[test_case(
+    "{ let a = [1,2]; Object.freeze(a); a.pop() }"
+    => serr("Thrown: TypeError: Property could not be deleted");
+    "Array.prototype.pop: DeletePropertyOrThrow throws"
+)]
+#[test_case(
+    "Array.prototype.pop.call(new Proxy([1],{'set':()=>{throw 0;}}))"
+    => serr("Thrown: 0");
+    "Array.prototype.pop: second Set throws"
+)]
+//  Array.prototype.push
+//   { let a = [1, 2, 3]; let r = a.push(4, 5, 6); r === 6 && a.join(',') === "1,2,3,4,5,6"; } -> true
+//
+#[test_case(
+    "{ let a = [1, 2, 3]; let r = a.push(4, 5, 6); r === 6 && a.join(',') === '1,2,3,4,5,6'; }"
+    => vok(true);
+    "Array.prototype.push: success"
+)]
+#[test_case(
+    "Array.prototype.push.call(undefined)"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "Array.prototype.push: ToObject throws"
+)]
+#[test_case(
+    "Array.prototype.push.call({ length: Symbol.iterator })"
+    => serr("Thrown: TypeError: Symbol values cannot be converted to Number values");
+    "Array.prototype.push: LengthOfArrayLike throws"
+)]
+#[test_case(
+    "Array.prototype.push.call({'length': 2**53 - 1}, 10)"
+    => serr("Thrown: TypeError: Array too large");
+    "Array.prototype.push: length check"
+)]
+#[test_case(
+    "{ let a = [1, 2, 3]; Object.freeze(a); Array.prototype.push.call(a, 10); }"
+    => serr("Thrown: TypeError: Cannot add property, for one of many different possible reasons");
+    "Array.prototype.push: first Set fails"
+)]
+#[test_case(
+    r"
+    Array.prototype.push.call(
+        new Proxy(
+            {
+                'length': 0
+            },
+            {
+                'set': (target, key, value) => {
+                    if (key == 'length') { throw 0; }
+                    target[key]=value;
+                    return true;
+                }
+            }
+        ),
+        1
+    )
+    "
+    => serr("Thrown: 0");
+    "Array.prototype.push: second Set fails"
+)]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
@@ -459,7 +694,13 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 ; "handle errors in function parameter binding patterns with initializers")]
 // 4/24/2023: if an array pattern had unfinished iterators, it would fail
 #[test_case("var [] = [];" => Ok(ECMAScriptValue::Undefined); "incomplete iterators finished")]
-#[test_case("var v = 1; for (let v of [v]) ;" => serr("Thrown: ReferenceError: Binding not initialized"); "let decl doesn't see outer scope")]
+#[test_case(
+    "var v = 1; for (let v of [v]) ;"
+    => serr("Thrown: ReferenceError: Binding not initialized");
+    "let decl doesn't see outer scope"
+)]
+// 1/1/2024: argument processing doesn't handle errors
+#[test_case("(function (p = (() => { throw 'oops'; })(), q) {})()" => serr("Thrown: oops"); "errs in args")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

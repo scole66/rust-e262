@@ -51,7 +51,7 @@ mod array_object {
     fn make() -> Object {
         let o = ArrayObject::create(0, None).unwrap();
         let proto = o.o.get_prototype_of().unwrap().unwrap();
-        set(&proto, "proto_sentinel".into(), true.into(), true).unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
         o
     }
 
@@ -240,10 +240,10 @@ mod array_object {
         ) -> Completion<ECMAScriptValue> {
             // The value 320 the first time, errors thrown all other times.
             let this: Object = this_value.try_into().unwrap();
-            let previous = get(&this, &"has_already_run".into()).unwrap();
+            let previous = this.get(&"has_already_run".into()).unwrap();
             match previous {
                 ECMAScriptValue::Undefined => {
-                    set(&this, "has_already_run".into(), true.into(), true).unwrap();
+                    this.set("has_already_run", true, true).unwrap();
                     Ok(320.0.into())
                 }
                 _ => Err(create_type_error("valueOf called too many times")),
@@ -426,9 +426,9 @@ mod array_object {
         fn three_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
             let aobj = ArrayObject::create(9000, None).unwrap();
-            set(&aobj, "0".into(), "blue".into(), true).unwrap();
-            set(&aobj, "100".into(), "green".into(), true).unwrap();
-            set(&aobj, "500".into(), "red".into(), true).unwrap();
+            aobj.set("0", "blue", true).unwrap();
+            aobj.set("100", "green", true).unwrap();
+            aobj.set("500", "red", true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
@@ -478,7 +478,7 @@ mod array_object {
         fn frozen_middle(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
             let aobj = ArrayObject::create(9000, None).unwrap();
-            set(&aobj, "0".into(), "blue".into(), true).unwrap();
+            aobj.set("0", "blue", true).unwrap();
             define_property_or_throw(
                 &aobj,
                 "100",
@@ -491,7 +491,7 @@ mod array_object {
                 },
             )
             .unwrap();
-            set(&aobj, "500".into(), "red".into(), true).unwrap();
+            aobj.set("500", "red", true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
@@ -507,7 +507,7 @@ fn array_create() {
     let custom_proto = ordinary_object_create(Some(array_proto), &[]);
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
-    assert_eq!(get(&aobj, &"length".into()).unwrap(), ECMAScriptValue::from(231.0));
+    assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
     assert!(aobj.is_array().unwrap())
 }
 
@@ -528,7 +528,7 @@ fn is_array(make_arg: fn() -> ECMAScriptValue) -> Result<bool, String> {
     setup_test_agent();
     let arg = make_arg();
 
-    super::is_array(&arg).map_err(unwind_any_error)
+    arg.is_array().map_err(unwind_any_error)
 }
 
 mod array_species_create {
@@ -675,9 +675,7 @@ fn defaults() {
 }
 
 #[test_case(super::array_from => panics; "array_from")]
-#[test_case(super::array_is_array => panics; "array_is_array")]
 #[test_case(super::array_of => panics; "array_of")]
-#[test_case(super::array_species => panics; "array_species")]
 #[test_case(super::array_prototype_at => panics; "array_prototype_at")]
 #[test_case(super::array_prototype_concat => panics; "array_prototype_concat")]
 #[test_case(super::array_prototype_copy_within => panics; "array_prototype_copy_within")]
@@ -697,8 +695,6 @@ fn defaults() {
 #[test_case(super::array_prototype_keys => panics; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics; "array_prototype_last_index_of")]
 #[test_case(super::array_prototype_map => panics; "array_prototype_map")]
-#[test_case(super::array_prototype_pop => panics; "array_prototype_pop")]
-#[test_case(super::array_prototype_push => panics; "array_prototype_push")]
 #[test_case(super::array_prototype_reduce => panics; "array_prototype_reduce")]
 #[test_case(super::array_prototype_reduce_right => panics; "array_prototype_reduce_right")]
 #[test_case(super::array_prototype_reverse => panics; "array_prototype_reverse")]
@@ -716,6 +712,246 @@ fn defaults() {
 fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test_case(|| ECMAScriptValue::Undefined => vok(false); "not an array")]
+#[test_case(
+    || create_array_from_list(&[ECMAScriptValue::from(23)]).into()
+    => vok(true);
+    "one element array"
+)]
+fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let arg = make_arg();
+    super::array_is_array(ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
+}
+
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("sentinel", 99).unwrap();
+        obj.into()
+    }
+    => sok("sentinel:99");
+    "success"
+)]
+fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+    setup_test_agent();
+    let this = make_this();
+    super::array_species(this, None, &[]).map_err(unwind_any_error).map(|val| val.test_result_string())
+}
+
+#[test_case(
+    || ECMAScriptValue::Undefined
+    => serr("TypeError: Undefined and null cannot be converted to objects");
+    "bad this"
+)]
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("length", wks(WksId::Iterator)).unwrap();
+        obj.into()
+    }
+    => serr("TypeError: Symbol values cannot be converted to Number values");
+    "bad length"
+)]
+#[test_case(
+    || create_array_from_list(&[]).into()
+    => Ok(("undefined".into(), "length:0".into()));
+    "pop from empty list"
+)]
+#[test_case(
+    || {
+        let obj = create_array_from_list(&[]);
+        set_integrity_level(&obj, IntegrityLevel::Frozen).unwrap();
+        obj.into()
+    }
+    => serr("TypeError: Cannot add property, for one of many different possible reasons");
+    "pop from empty frozen"
+)]
+#[test_case(
+    || create_array_from_list(&["first".into(), "second".into(), "third".into()]).into()
+    => Ok(("third".into(), "0:first,1:second,length:2".into()));
+    "pop from 3 element list"
+)]
+#[test_case(
+    || {
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
+        fn behavior(
+            _this_value: ECMAScriptValue,
+            _: Option<&Object>,
+            arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            let key = args.next_arg();
+            if key == "1".into() {
+                return Err(create_type_error("Get thrown"));
+            }
+            let receiver = args.next_arg();
+            let rval = target.o.get(&key.try_into().unwrap(), &receiver).unwrap();
+            Ok(rval)
+        }
+        let get_replacement =
+            create_builtin_function(
+                behavior,
+                false,
+                0.0,
+                "f".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                current_realm_record(),
+                Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                None,
+            );
+        let ppd = PotentialPropertyDescriptor::new().value(get_replacement);
+        define_property_or_throw(&handler, "get", ppd).unwrap();
+        let proxy = ProxyObject::object(Some((array, handler)));
+        proxy.into()
+    }
+    => serr("TypeError: Get thrown");
+    "get throws"
+)]
+#[test_case(
+    || {
+        let obj = create_array_from_list(&[1.into(), 2.into()]);
+        set_integrity_level(&obj, IntegrityLevel::Frozen).unwrap();
+        obj.into()
+    }
+    => serr("TypeError: Property could not be deleted");
+    "delete throws"
+)]
+#[test_case(
+    || {
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
+        fn behavior(
+            _this_value: ECMAScriptValue,
+            _: Option<&Object>,
+            arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            let key = args.next_arg();
+            if key == "length".into() {
+                return Err(create_type_error("Set throws"));
+            }
+            let value = args.next_arg();
+            let receiver = args.next_arg();
+            let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
+            Ok(rval.into())
+        }
+        let set_replacement =
+            create_builtin_function(
+                behavior,
+                false,
+                0.0,
+                "f".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                current_realm_record(),
+                Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                None,
+            );
+        let ppd = PotentialPropertyDescriptor::new().value(set_replacement);
+        define_property_or_throw(&handler, "set", ppd).unwrap();
+        let proxy = ProxyObject::object(Some((array, handler)));
+        proxy.into()
+    }
+    => serr("TypeError: Set throws");
+    "second set throws"
+)]
+fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(String, String), String> {
+    setup_test_agent();
+    let this = make_this();
+    super::array_prototype_pop(this.clone(), None, &[])
+        .map_err(unwind_any_error)
+        .map(|v| (v.test_result_string(), this.test_result_string()))
+}
+
+#[test_case(
+    || (ECMAScriptValue::Undefined, vec![])
+    => serr("TypeError: Undefined and null cannot be converted to objects");
+    "bad this"
+)]
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("length", wks(WksId::Iterator)).unwrap();
+        (obj.into(), vec![])
+    }
+    => serr("TypeError: Symbol values cannot be converted to Number values");
+    "bad length"
+)]
+#[test_case(
+    || {
+        let obj = ordinary_object_create(None, &[]);
+        obj.create_data_property_or_throw("length", 9007199254740991_i64).unwrap();
+        (obj.into(), vec![10.into()])
+    }
+    => serr("TypeError: Array too large");
+    "length too large"
+)]
+#[test_case(
+    || {
+        let obj = create_array_from_list(&[1.into(), 2.into(), 3.into()]);
+        set_integrity_level(&obj, IntegrityLevel::Frozen).unwrap();
+        (obj.into(), vec![1.into()])
+    }
+    => serr("TypeError: Cannot add property, for one of many different possible reasons");
+    "this is frozen (first set fails)"
+)]
+#[test_case(
+    || {
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
+        fn behavior(
+            _this_value: ECMAScriptValue,
+            _: Option<&Object>,
+            arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            let mut args = FuncArgs::from(arguments);
+            let target = Object::try_from(args.next_arg()).unwrap();
+            let key = args.next_arg();
+            if key == "length".into() {
+                return Err(create_type_error("Set throws"));
+            }
+            let value = args.next_arg();
+            let receiver = args.next_arg();
+            let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
+            Ok(rval.into())
+        }
+        let set_replacement =
+            create_builtin_function(
+                behavior,
+                false,
+                0.0,
+                "f".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                current_realm_record(),
+                Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                None,
+            );
+        let ppd = PotentialPropertyDescriptor::new().value(set_replacement);
+        define_property_or_throw(&handler, "set", ppd).unwrap();
+        let proxy = ProxyObject::object(Some((array, handler)));
+        (proxy.into(), vec![0.into()])
+    }
+    => serr("TypeError: Set throws");
+    "second set throws"
+)]
+#[test_case(
+    || (create_array_from_list(&[1.into(), "blue".into()]).into(), vec!["aqua".into(), 10.into()])
+    => Ok(("4".into(), "0:1,1:blue,2:aqua,3:10,length:4".into()));
+    "success"
+)]
+fn array_prototype_push(
+    make_inputs: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<(String, String), String> {
+    setup_test_agent();
+    let (this, args) = make_inputs();
+    super::array_prototype_push(this.clone(), None, &args)
+        .map(|v| (v.test_result_string(), this.test_result_string()))
+        .map_err(unwind_any_error)
 }
 
 #[test]
@@ -858,7 +1094,7 @@ mod key_value_kind {
 #[test_case(|| {
                    let obj = ordinary_object_create(None, &[]);
                    let sym = wks(WksId::Unscopables);
-                   create_data_property_or_throw(&obj, "length", sym).unwrap();
+                   obj.create_data_property_or_throw("length", sym).unwrap();
                    ECMAScriptValue::from(obj)
                },
             || ECMAScriptValue::Undefined
@@ -965,7 +1201,7 @@ mod array_iterator {
         let iter_obj = super::create_array_iterator(array, kind);
         let thrower =
             create_builtin_function(throwing_next, false, 0.0, "next".into(), BUILTIN_FUNCTION_SLOTS, None, None, None);
-        set(&iter_obj, "next".into(), thrower.into(), true).map_err(unwind_any_error)?;
+        iter_obj.set("next", thrower, true).map_err(unwind_any_error)?;
         let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
         let mut result = vec![];
         loop {
@@ -976,8 +1212,8 @@ mod array_iterator {
                         result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
                     } else {
                         let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
-                        let left = getv(&pair, &"0".into()).map_err(unwind_any_error)?;
-                        let right = getv(&pair, &"1".into()).map_err(unwind_any_error)?;
+                        let left = pair.get(&"0".into()).map_err(unwind_any_error)?;
+                        let right = pair.get(&"1".into()).map_err(unwind_any_error)?;
                         result.push(left);
                         result.push(right);
                     }
@@ -994,7 +1230,7 @@ mod array_iterator {
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let obj = to_object(this_value.clone())?;
-        let so_far = get(&obj, &"called_count".into())?;
+        let so_far = obj.get(&"called_count".into())?;
         let so_far = if so_far.is_undefined() { 0.0 } else { to_number(so_far)? };
 
         let result = if so_far < 3.0 {
@@ -1002,7 +1238,7 @@ mod array_iterator {
         } else {
             generator_resume_abrupt(this_value, create_type_error("thrown from generator"), "%ArrayIteratorPrototype%")?
         };
-        set(&obj, "called_count".into(), ECMAScriptValue::from(so_far + 1.0), true)?;
+        obj.set("called_count", ECMAScriptValue::from(so_far + 1.0), true)?;
         Ok(result)
     }
 }
@@ -1067,11 +1303,11 @@ mod array_constructor_function {
             .map_err(unwind_any_error)?;
         let array = Object::try_from(array).unwrap();
         let mut result = vec![];
-        let length = f64::try_from(get(&array, &"length".into()).unwrap()).unwrap();
+        let length = f64::try_from(array.get(&"length".into()).unwrap()).unwrap();
 
         for x in 0..(length as usize) {
             let pk = format!("{x}");
-            let item = get(&array, &pk.into()).unwrap();
+            let item = array.get(&pk.into()).unwrap();
             result.push(item);
         }
 

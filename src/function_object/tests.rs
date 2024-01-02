@@ -63,7 +63,7 @@ mod function_declaration {
             let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &src, fd.clone()).unwrap();
             let fobj = Object::try_from(fvalue).unwrap();
 
-            let result = String::from(JSString::try_from(get(&fobj, &"name".into()).unwrap()).unwrap());
+            let result = String::from(JSString::try_from(fobj.get(&"name".into()).unwrap()).unwrap());
 
             let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
             assert_eq!(function.environment.name(), global_env.name());
@@ -221,6 +221,61 @@ mod function_prototype_call {
         setup_test_agent();
         let this_value = get_this();
         super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
+    }
+}
+
+mod concise_body_source {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        setup_test_agent();
+        let bs = BodySource::from(Maker::new(";").function_body());
+        let fnbody = ConciseBodySource(&bs);
+        let res = format!("{fnbody:#?}");
+        assert_ne!(res, "");
+        assert!(!res.contains('\n'));
+    }
+}
+
+mod concise_param_source {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        setup_test_agent();
+        let fp = ParamSource::from(Maker::new("a,b,c").formal_parameters());
+        let cps = ConciseParamSource(&fp);
+        let res = format!("{cps:#?}");
+        assert_ne!(res, "");
+        assert!(!res.contains('\n'));
+    }
+}
+
+mod function_object_data {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        setup_test_agent();
+        let src = "function test_sample(){{}}";
+        let fd = Maker::new(src).function_declaration();
+        setup_test_agent();
+        let realm_rc = current_realm_record().unwrap();
+        let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
+
+        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap();
+        let fobj = Object::try_from(fvalue).unwrap();
+
+        let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
+
+        let repr = format!("{function:?}");
+
+        assert_ne!(repr, "");
+        assert!(repr.len() < 700);
+
+        let repr2 = format!("{function:#?}");
+        assert!(repr2.lines().count() < 100);
     }
 }
 

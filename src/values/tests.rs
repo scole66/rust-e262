@@ -172,9 +172,29 @@ mod ecmascript_value {
         let key = maker();
         format!("{}", ECMAScriptValue::from(key))
     }
+    #[test_case(|| PropertyKey::String("key".into()) => "key"; "string")]
+    #[test_case(|| PropertyKey::Symbol(wks(WksId::ToPrimitive)) => "Symbol(Symbol.toPrimitive)"; "symbol")]
+    fn from_property_key_ref(maker: fn() -> PropertyKey) -> String {
+        setup_test_agent();
+        let key = maker();
+        format!("{}", ECMAScriptValue::from(&key))
+    }
     #[test_case(String::from("blue") => ECMAScriptValue::String("blue".into()); "String")]
     fn from_string(s: String) -> ECMAScriptValue {
         ECMAScriptValue::from(s)
+    }
+    #[test_case(56_usize => (ECMAScriptValue::Number(56.0), ValueKind::Number); "small number")]
+    #[test_case(9007199254741092_usize => (ECMAScriptValue::from(9007199254741092_u64), ValueKind::BigInt); "big number")]
+    fn from_usize(u: usize) -> (ECMAScriptValue, ValueKind) {
+        let v = ECMAScriptValue::from(u);
+        let kind = v.kind();
+        (v, kind)
+    }
+    #[test_case(|| wks(WksId::ToPrimitive) => "Symbol(Symbol.toPrimitive)"; "symbol")]
+    fn from_symbol_ref(maker: impl FnOnce() -> Symbol) -> String {
+        setup_test_agent();
+        let sym = maker();
+        ECMAScriptValue::from(&sym).test_result_string()
     }
     #[test]
     fn is_undefined() {
@@ -447,6 +467,21 @@ mod ecmascript_value {
         let y = make_y();
 
         x.is_strictly_equal(&y)
+    }
+
+    #[test_case(undef => ValueKind::Undefined)]
+    #[test_case(null => ValueKind::Null)]
+    #[test_case(bool_a => ValueKind::Boolean)]
+    #[test_case(number_10 => ValueKind::Number)]
+    #[test_case(string_a => ValueKind::String)]
+    #[test_case(symbol_a => ValueKind::Symbol)]
+    #[test_case(bigint_a => ValueKind::BigInt)]
+    #[test_case(object_a => ValueKind::Object)]
+    fn kind(make_x: ValueMaker) -> ValueKind {
+        setup_test_agent();
+        let x = make_x();
+
+        x.kind()
     }
 }
 
@@ -1067,7 +1102,7 @@ fn to_string_10() {
     let obj = ordinary_object_create(None, &[]);
     let badtostring =
         create_builtin_function(tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
-    create_data_property(&obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
+    obj.create_data_property("toString", badtostring).unwrap();
 
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbols may not be converted to strings");
@@ -1126,7 +1161,7 @@ fn to_object_06() {
     setup_test_agent();
     let test_value = wks(WksId::ToPrimitive);
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
-    let desc = get(&result, &"description".into()).unwrap();
+    let desc = result.get(&"description".into()).unwrap();
     assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]
@@ -1896,7 +1931,7 @@ mod option_object {
     fn validate_marker(res: Result<Option<Object>, String>) {
         let oo = res.unwrap();
         let obj = oo.unwrap();
-        let property = get_agentless(&obj, &PropertyKey::from("marker")).unwrap();
+        let property = obj.get(&PropertyKey::from("marker")).unwrap();
         assert_eq!(property, ECMAScriptValue::from("sentinel"));
     }
 
@@ -2058,5 +2093,23 @@ mod agent {
         let y = make_y();
 
         super::is_loosely_equal(&x, &y).map_err(unwind_any_error)
+    }
+}
+
+mod value_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn fmt() {
+        let k = ValueKind::Number;
+        let repr = format!("{k:?}");
+        assert_ne!(repr, "");
+    }
+
+    #[test_case(ValueKind::Null, ValueKind::Null => true; "same")]
+    #[test_case(ValueKind::Undefined, ValueKind::Object => false; "different")]
+    fn eq(v1: ValueKind, v2: ValueKind) -> bool {
+        v1 == v2
     }
 }

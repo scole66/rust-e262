@@ -11,6 +11,11 @@ use std::error;
 use std::fmt;
 use std::rc::Rc;
 
+// The tail-call optimization tests "work" if they can go 100,000 deep. (Because TCO means that we don't
+// actually consume context stack space.) So we put in an artificial limit for less than that so that TCO
+// tests will fail until TCO actually gets implemented.
+const RECURSION_LIMIT: usize = 90000;
+
 // Agents
 //
 // An agent comprises a set of ECMAScript execution contexts, an execution context stack, a running execution context,
@@ -417,15 +422,29 @@ pub fn set_default_global_bindings() {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////       Function Properties of the Global Object
     //////////////////////////////////////////////////////////////////////////////////////////////////////
+    macro_rules! function_property {
+        ( $jsname:literal, $intrinsic:ident ) => {
+            global_data!($jsname, intrinsic(IntrinsicId::$intrinsic), true, false, true);
+        };
+    }
     // eval ( x )
+    function_property!("eval", Eval);
     // isFinite ( number )
+    function_property!("isFinite", IsFinite);
     // isNaN ( number )
+    function_property!("isNaN", IsNaN);
     // parseFloat ( string )
+    function_property!("parseFloat", ParseFloat);
     // parseInt ( string, radix )
+    function_property!("parseInt", ParseInt);
     // decodeURI ( encodedURI )
+    function_property!("decodeURI", DecodeURI);
     // decodeURIComponent ( encodedURIComponent )
+    function_property!("decodeURIComponent", DecodeURIComponent);
     // encodeURI ( uri )
+    function_property!("encodeURI", EncodeURI);
     // encodeURIComponent ( uriComponent )
+    function_property!("encodeURIComponent", EncodeURIComponent);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////       Constructor Properties of the Global Object
@@ -464,6 +483,7 @@ pub fn set_default_global_bindings() {
     constructor_property!(Object);
     // Promise ( . . . )
     // Proxy ( . . . )
+    constructor_property!(Proxy);
     // RangeError ( . . . )
     constructor_property!(RangeError);
     // ReferenceError ( . . . )
@@ -519,8 +539,8 @@ pub fn set_default_global_bindings() {
 //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
 //  11. Create any host-defined global object properties on globalObj.
 //  12. Return NormalCompletion(empty).
-pub fn initialize_host_defined_realm(install_test_hooks: bool) {
-    let realm = create_realm();
+pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
+    let realm = create_realm(id);
     let new_context = ExecutionContext::new(None, realm, None);
     push_execution_context(new_context);
     set_realm_global_object(None, None);
@@ -596,6 +616,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
         let initial_context_index = agent.execution_context_stack.borrow().len() - 1;
         loop {
             let index = agent.execution_context_stack.borrow().len() - 1;
+            if index > RECURSION_LIMIT {
+                panic!("Recursion limit exceeded");
+            }
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
@@ -1228,7 +1251,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let obj = Object::try_from(nc_obj).unwrap();
                     let name = PropertyKey::try_from(nc_name).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    create_data_property_or_throw(&obj, name, value).unwrap();
+                    obj.create_data_property_or_throw(name, value).unwrap();
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
                 }
                 Insn::SetPrototype => {
@@ -1254,7 +1277,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let obj = Object::try_from(nc_obj).unwrap();
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    let result = copy_data_properties(&obj, value, &[]);
+                    let result = obj.copy_data_properties(value, &[]);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
@@ -1278,7 +1301,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .expect("dest should be a value"),
                     )
                     .expect("dest should be an object");
-                    let result = copy_data_properties(&dest, value, &exclusions);
+                    let result = dest.copy_data_properties(value, &exclusions);
                     let fc = match result {
                         Ok(_) => Ok(NormalCompletion::from(dest)),
                         Err(e) => Err(e),
@@ -1450,7 +1473,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let new_len = len_a + len_b;
                     ec_push(Ok((new_len as f64).into()));
                 }
-                Insn::Call => {
+                Insn::Call | Insn::StrictCall => {
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
                     let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
@@ -1467,7 +1490,36 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
                     let ref_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
 
-                    begin_call_evaluation(func_val, ref_nc, &arguments);
+                    let mut was_direct_eval = false;
+                    if let NormalCompletion::Reference(evalref) = &ref_nc {
+                        if !evalref.is_property_reference() {
+                            if let ReferencedName::String(name) = &evalref.referenced_name {
+                                if name == &JSString::from("eval")
+                                    && to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
+                                {
+                                    // A direct eval
+                                    if arg_count == 0 {
+                                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                                    } else {
+                                        let result = perform_eval(
+                                            arguments[0].clone(),
+                                            if instruction == Insn::Call {
+                                                EvalCallStatus::DirectWithNonStrictCaller
+                                            } else {
+                                                EvalCallStatus::DirectWithStrictCaller
+                                            },
+                                        );
+                                        ec_push(result.map(NormalCompletion::from));
+                                    }
+                                    was_direct_eval = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if !was_direct_eval {
+                        begin_call_evaluation(func_val, ref_nc, &arguments);
+                    }
                 }
                 Insn::EndFunction => {
                     let stack_len = agent.execution_context_stack.borrow()[index].stack.len();
@@ -1840,12 +1892,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     match next_value {
                                         Err(e) => break Err(e),
                                         Ok(next_value) => {
-                                            create_data_property_or_throw(
-                                                &array,
-                                                to_string(next_index).expect("numbers should be stringable"),
-                                                next_value,
-                                            )
-                                            .expect("props should store ok");
+                                            array
+                                                .create_data_property_or_throw(
+                                                    to_string(next_index).expect("numbers should be stringable"),
+                                                    next_value,
+                                                )
+                                                .expect("props should store ok");
                                             next_index += 1;
                                         }
                                     }
@@ -2066,7 +2118,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                 Ok(Some(next)) => {
                                     match iterator_value(&next) {
                                         Ok(next_value) => {
-                                            create_data_property_or_throw(&a, format!("{n}"), next_value)
+                                            a.create_data_property_or_throw(format!("{n}"), next_value)
                                                 .expect("array property set should work");
                                             n += 1;
                                         }
@@ -2216,7 +2268,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         ec_pop().expect("should be 2 arguments").expect("should not be errors"),
                     )
                     .expect("arg should be value");
-                    let result = getv(&base_val, &prop_name).map(NormalCompletion::from);
+                    let result = base_val.get(&prop_name).map(NormalCompletion::from);
                     ec_push(result);
                 }
                 Insn::EnumerateObjectProperties => {
@@ -2232,7 +2284,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     )
                     .expect("That value should be an object");
                     let iterator = create_for_in_iterator(obj);
-                    let next = Object::try_from(get(&iterator, &"next".into()).expect("next method should exist"))
+                    let next = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
                         .expect("next method should be an object");
                     let ir = IteratorRecord { iterator, next_method: next, done: Cell::new(false) };
                     ec_push(Ok(NormalCompletion::from(ir)));
@@ -3047,7 +3099,7 @@ fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompl
     match &target {
         ECMAScriptValue::Object(_) => {
             let hi = wks(WksId::HasInstance);
-            let instof_handler = get_method(&target, &hi.into())?;
+            let instof_handler = target.get_method(&hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
                     if !is_callable(&target) {
@@ -3099,7 +3151,7 @@ pub fn create_unmapped_arguments_object(index: usize) {
     for (arg_number, item) in arguments.into_iter().enumerate() {
         let value =
             ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
-        create_data_property_or_throw(&obj, arg_number, value).expect("Normal Object");
+        obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
     }
 
     let iterator = wks(WksId::Iterator);
@@ -3153,7 +3205,7 @@ pub fn create_mapped_arguments_object(index: usize) {
 
     for (idx, item) in arguments.into_iter().enumerate() {
         let val = ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
-        create_data_property_or_throw(&ao, idx, val).expect("ArgumentObject won't throw");
+        ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
     }
 
     define_property_or_throw(
@@ -3258,12 +3310,12 @@ pub struct WellKnownSymbols {
 }
 
 pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
-    let script = parse_text(source_text, ParseGoal::Script);
+    let script = parse_text(source_text, ParseGoal::Script, false, false);
     match script {
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk, source_text).unwrap();
+            script.compile(&mut chunk, false, source_text).unwrap();
             for line in chunk.disassemble() {
                 println!("{line}");
             }
@@ -3617,18 +3669,19 @@ pub struct ForInIteratorObject {
 }
 
 impl ForInIteratorObject {
-    fn object(proto: Option<Object>, obj: Object) -> Object {
-        Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
-                internals: RefCell::new(ForInIteratorInternals {
-                    object: obj,
-                    object_was_visited: false,
-                    visited_keys: Vec::new(),
-                    remaining_keys: Vec::new(),
-                }),
+    pub fn new(proto: Option<Object>, obj: Object) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
+            internals: RefCell::new(ForInIteratorInternals {
+                object: obj,
+                object_was_visited: false,
+                visited_keys: Vec::new(),
+                remaining_keys: Vec::new(),
             }),
         }
+    }
+    fn object(proto: Option<Object>, obj: Object) -> Object {
+        Object { o: Rc::new(Self::new(proto, obj)) }
     }
 }
 

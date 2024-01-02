@@ -8,7 +8,7 @@ fn create_native_error_object(
     proto_id: IntrinsicId,
     location: Option<Location>,
 ) -> Object {
-    let o = ordinary_create_from_constructor(&error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
+    let o = error_constructor.ordinary_create_from_constructor(proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc =
         PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(&o, "message", desc).unwrap();
@@ -103,8 +103,11 @@ pub struct ErrorObject {
 }
 
 impl ErrorObject {
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, ERROR_OBJECT_SLOTS)) }
+    }
     pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ERROR_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 
@@ -326,9 +329,9 @@ pub fn error_prototype_tostring(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(o) = this_value {
-        let name_prop = get(&o, &PropertyKey::from("name"))?;
+        let name_prop = o.get(&PropertyKey::from("name"))?;
         let name = if name_prop.is_undefined() { JSString::from("Error") } else { to_string(name_prop)? };
-        let msg_prop = get(&o, &PropertyKey::from("message"))?;
+        let msg_prop = o.get(&PropertyKey::from("message"))?;
         let msg = if msg_prop.is_undefined() { JSString::from("") } else { to_string(msg_prop)? };
         if name.is_empty() {
             Ok(ECMAScriptValue::from(msg))
@@ -476,7 +479,7 @@ fn native_error_constructor_function(
             &afo
         }
     };
-    let o = ordinary_create_from_constructor(nt, intrinsic_id, &[InternalSlotName::ErrorData])?;
+    let o = nt.ordinary_create_from_constructor(intrinsic_id, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(message)?;
         let msg_desc =
@@ -579,9 +582,9 @@ pub fn unwind_any_error(completion: AbruptCompletion) -> String {
 }
 
 pub fn unwind_any_error_object(o: &Object) -> String {
-    let name_prop = get_agentless(o, &PropertyKey::from("name")).unwrap_or(ECMAScriptValue::Undefined);
+    let name_prop = o.get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined);
     let name = if name_prop.is_undefined() { String::from("Error") } else { name_prop.to_string() };
-    let msg_prop = get_agentless(o, &PropertyKey::from("message")).unwrap_or(ECMAScriptValue::Undefined);
+    let msg_prop = o.get(&"message".into()).unwrap_or(ECMAScriptValue::Undefined);
     let msg = if msg_prop.is_undefined() { String::from("") } else { msg_prop.to_string() };
     if name.is_empty() {
         msg

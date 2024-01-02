@@ -90,6 +90,12 @@ pub enum BodySource {
     Initializer(Rc<Initializer>),
     ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
 }
+pub struct ConciseBodySource<'a>(&'a BodySource);
+impl<'a> fmt::Debug for ConciseBodySource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl From<Rc<FunctionBody>> for BodySource {
     fn from(src: Rc<FunctionBody>) -> Self {
@@ -249,6 +255,13 @@ pub enum ParamSource {
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
     UniqueFormalParameters(Rc<UniqueFormalParameters>),
+}
+
+pub struct ConciseParamSource<'a>(&'a ParamSource);
+impl<'a> fmt::Debug for ConciseParamSource<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
 }
 
 impl fmt::Display for ParamSource {
@@ -480,14 +493,13 @@ impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
     }
 }
 
-#[derive(Debug)]
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
     private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     formal_parameters: ParamSource,
     ecmascript_code: BodySource,
     compiled: Rc<Chunk>,
-    constructor_kind: ConstructorKind,
+    pub constructor_kind: ConstructorKind,
     pub realm: Rc<RefCell<Realm>>,
     script_or_module: Option<ScriptOrModule>,
     pub this_mode: ThisMode,
@@ -499,6 +511,29 @@ pub struct FunctionObjectData {
     pub class_field_initializer_name: ClassName,
     is_class_constructor: bool,
     is_constructor: bool,
+}
+impl fmt::Debug for FunctionObjectData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FunctionObjectData")
+            .field("environment", &ConciselyPrintedEnvironmentRecord(Rc::clone(&self.environment)))
+            .field("private_environment", &self.private_environment)
+            .field("formal_parameters", &ConciseParamSource(&self.formal_parameters))
+            .field("ecmascript_code", &ConciseBodySource(&self.ecmascript_code))
+            .field("compiled", &ConciseChunk(&self.compiled))
+            .field("constructor_kind", &self.constructor_kind)
+            .field("realm", &self.realm)
+            .field("script_or_module", &self.script_or_module)
+            .field("this_mode", &self.this_mode)
+            .field("strict", &self.strict)
+            .field("home_object", &ConciseOptionalObject::from(&self.home_object))
+            .field("source_text", &self.source_text)
+            .field("fields", &self.fields)
+            .field("private_methods", &self.private_methods)
+            .field("class_field_initializer_name", &self.class_field_initializer_name)
+            .field("is_class_constructor", &self.is_class_constructor)
+            .field("is_constructor", &self.is_constructor)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -719,7 +754,7 @@ impl CallableObject for FunctionObject {
         //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         let kind = self.function_data().borrow().constructor_kind;
         let this_argument = if kind == ConstructorKind::Base {
-            let ta = ordinary_create_from_constructor(new_target, IntrinsicId::ObjectPrototype, &[]);
+            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[]);
             match ta {
                 Err(err) => {
                     ec_push(Err(err));
@@ -791,6 +826,50 @@ impl FunctionInterface for FunctionObject {
 
 impl FunctionObject {
     #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        prototype: Option<Object>,
+        environment: Rc<dyn EnvironmentRecord>,
+        private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        formal_parameters: ParamSource,
+        ecmascript_code: BodySource,
+        constructor_kind: ConstructorKind,
+        realm: Rc<RefCell<Realm>>,
+        script_or_module: Option<ScriptOrModule>,
+        this_mode: ThisMode,
+        strict: bool,
+        home_object: Option<Object>,
+        source_text: &str,
+        fields: Vec<ClassFieldDefinitionRecord>,
+        private_methods: Vec<Rc<PrivateElement>>,
+        class_field_initializer_name: ClassName,
+        is_class_constructor: bool,
+        compiled: Rc<Chunk>,
+    ) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, FUNCTION_OBJECT_SLOTS)),
+            function_data: RefCell::new(FunctionObjectData {
+                environment,
+                private_environment,
+                formal_parameters,
+                ecmascript_code,
+                constructor_kind,
+                realm,
+                script_or_module,
+                this_mode,
+                strict,
+                home_object,
+                source_text: source_text.to_string(),
+                is_class_constructor,
+                fields,
+                private_methods,
+                class_field_initializer_name,
+                is_constructor: false,
+                compiled,
+            }),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn object(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -811,28 +890,25 @@ impl FunctionObject {
         compiled: Rc<Chunk>,
     ) -> Object {
         Object {
-            o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(prototype, true, FUNCTION_OBJECT_SLOTS)),
-                function_data: RefCell::new(FunctionObjectData {
-                    environment,
-                    private_environment,
-                    formal_parameters,
-                    ecmascript_code,
-                    constructor_kind,
-                    realm,
-                    script_or_module,
-                    this_mode,
-                    strict,
-                    home_object,
-                    source_text: source_text.to_string(),
-                    is_class_constructor,
-                    fields,
-                    private_methods,
-                    class_field_initializer_name,
-                    is_constructor: false,
-                    compiled,
-                }),
-            }),
+            o: Rc::new(Self::new(
+                prototype,
+                environment,
+                private_environment,
+                formal_parameters,
+                ecmascript_code,
+                constructor_kind,
+                realm,
+                script_or_module,
+                this_mode,
+                strict,
+                home_object,
+                source_text,
+                fields,
+                private_methods,
+                class_field_initializer_name,
+                is_class_constructor,
+                compiled,
+            )),
         }
     }
 }
@@ -1189,11 +1265,11 @@ impl BuiltInFunctionObject {
         initial_name: Option<FunctionName>,
         steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
-    ) -> Rc<Self> {
-        Rc::new(Self {
+    ) -> Self {
+        Self {
             common: RefCell::new(CommonObjectData::new(prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
             builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
-        })
+        }
     }
 
     pub fn object(
@@ -1204,7 +1280,7 @@ impl BuiltInFunctionObject {
         steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
-        Object { o: Self::new(prototype, extensible, realm, initial_name, steps, is_constructor) }
+        Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor)) }
     }
 }
 

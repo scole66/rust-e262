@@ -23,6 +23,7 @@ mod object;
 mod object_object;
 mod parser;
 mod prettyprint;
+mod proxy_object;
 mod realm;
 mod reference;
 mod scanner;
@@ -52,6 +53,7 @@ pub use crate::object::*;
 pub use crate::object_object::*;
 pub use crate::parser::*;
 pub use crate::prettyprint::*;
+pub use crate::proxy_object::*;
 pub use crate::realm::*;
 pub use crate::reference::*;
 pub use crate::scanner::*;
@@ -77,7 +79,7 @@ impl VM {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| {
             agent.set_global_symbol_registry(sym_registry.clone());
-            initialize_host_defined_realm(false);
+            initialize_host_defined_realm(0, false);
         });
         VM { symbols: sym_registry }
     }
@@ -92,7 +94,7 @@ impl VM {
 }
 
 fn interpret(source: &str) -> Result<i32, String> {
-    let parsed = parse_text(source, ParseGoal::Script);
+    let parsed = parse_text(source, ParseGoal::Script, false, false);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
@@ -129,37 +131,20 @@ fn repl() {
 }
 
 fn run_file(fname: &str) {
-    println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
     match potential_file_content {
-        Err(e) => println!("{}", e),
+        Err(e) => println!("{e}"),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
             match process_ecmascript(&script_source) {
-                Ok(value) => println!("{:#?}", value),
-                Err(err) => {
-                    println!("{}", err);
-                    if let ProcessError::RuntimeError { error } = err {
-                        let repr = to_string(error);
-                        if let Ok(err) = repr {
-                            println!("{}", err);
-                        }
-                    }
-                }
+                Ok(value) => println!("{value:?}"),
+                Err(err) => println!("{err}"),
             }
-            //match interpret(vm, &script_source) {
-            //    Ok(value) => println!("{}", value),
-            //    Err(err) => println!("{}", err),
-            //}
         }
     }
 }
 
 fn run_app() -> Result<(), i32> {
-    println!("sizeof(FullCompletion): {}", std::mem::size_of::<FullCompletion>());
-    println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
-    println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
-
     VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {

@@ -458,3 +458,20 @@ mod stashed_function_data {
         assert_eq!(sfd != sfd_other, true);
     }
 }
+
+mod concise_chunk {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        // The whole point of concise types is that they print on one line, even if in alternate mode. So
+        // validate that.
+        let c = Chunk::new("concise");
+        let cc = ConciseChunk(&c);
+        assert!(format!("{c:#?}").lines().collect::<Vec<_>>().len() > 1); // asserts validity of the test
+
+        // Check the concise formatter
+        assert_eq!(format!("{cc:#?}").lines().collect::<Vec<_>>().len(), 1);
+        assert_eq!(format!("{cc:?}").lines().collect::<Vec<_>>().len(), 1);
+    }
+}

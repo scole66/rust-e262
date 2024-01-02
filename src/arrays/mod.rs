@@ -169,15 +169,18 @@ impl ArrayObject {
         );
         ordinary_define_own_property(
             &a,
-            "length".into(),
+            "length",
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
         )
         .unwrap();
         Ok(a)
     }
 
+    pub fn new(prototype: Option<Object>) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }
+    }
     pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self::new(prototype)) }
     }
 
     // ArraySetLength ( A, Desc )
@@ -235,7 +238,7 @@ impl ArrayObject {
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
         let old_len = to_uint32(old_len_desc.value).unwrap();
         if new_len >= old_len {
-            return ordinary_define_own_property(self, "length".into(), new_len_desc);
+            return ordinary_define_own_property(self, "length", new_len_desc);
         }
         if !old_len_desc.writable {
             return Ok(false);
@@ -246,7 +249,7 @@ impl ArrayObject {
             new_len_desc.writable = Some(true);
             false
         };
-        let succeeded = ordinary_define_own_property(self, "length".into(), new_len_desc.clone()).unwrap();
+        let succeeded = ordinary_define_own_property(self, "length", new_len_desc.clone()).unwrap();
         if !succeeded {
             return Ok(false);
         }
@@ -268,13 +271,12 @@ impl ArrayObject {
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
-                ordinary_define_own_property(self, "length".into(), new_len_desc).unwrap();
+                ordinary_define_own_property(self, "length", new_len_desc).unwrap();
                 return Ok(false);
             }
         }
         if !new_writable {
-            ordinary_define_own_property(self, "length".into(), PotentialPropertyDescriptor::new().writable(false))
-                .unwrap();
+            ordinary_define_own_property(self, "length", PotentialPropertyDescriptor::new().writable(false)).unwrap();
         }
         Ok(true)
     }
@@ -311,18 +313,18 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     if !is_array {
         return Ok(ArrayObject::create(length, None)?.into());
     }
-    let mut c = get(original_array, &"constructor".into())?;
+    let mut c = original_array.get(&"constructor".into())?;
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
-        let realm_c = get_function_realm(&c_obj)?;
+        let realm_c = c_obj.get_function_realm()?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
     }
     if c.is_object() {
         let c_obj = Object::try_from(&c).unwrap();
-        let species = get(&c_obj, &wks(WksId::Species).into())?;
+        let species = c_obj.get(&wks(WksId::Species).into())?;
         if species.is_null() {
             c = ECMAScriptValue::Undefined;
         } else {
@@ -337,21 +339,6 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     }
     let c_obj = Object::try_from(&c).unwrap();
     construct(&c_obj, &[length.into()], None)
-}
-
-// IsArray ( argument )
-//
-// The abstract operation IsArray takes argument argument. It performs the following steps when called:
-//
-//  1. If Type(argument) is not Object, return false.
-//  2. If argument is an Array exotic object, return true.
-//  3. If argument is a Proxy exotic object, then
-//      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
-//      b. Let target be argument.[[ProxyTarget]].
-//      c. Return ? IsArray(target).
-//  4. Return false.
-pub fn is_array(argument: &ECMAScriptValue) -> Completion<bool> {
-    argument.is_array()
 }
 
 pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
@@ -532,7 +519,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // Array.prototype [ @@iterator ] ( )
     // The initial value of the @@iterator property is %Array.prototype.values%,
     let array_prototype_values =
-        get(&array_prototype, &"values".into()).expect("a property just added should be gettable");
+        array_prototype.get(&"values".into()).expect("a property just added should be gettable");
     let values_ppd = PotentialPropertyDescriptor::new()
         .value(array_prototype_values.clone())
         .enumerable(false)
@@ -651,7 +638,7 @@ fn array_constructor_function(
         Some(obj) => obj.clone(),
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
-    let proto = get_prototype_from_constructor(&nt, IntrinsicId::ArrayPrototype)?;
+    let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
     let number_of_args = arguments.len() as u64;
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
@@ -667,11 +654,11 @@ fn array_constructor_function(
                     int_len
                 }
                 _ => {
-                    create_data_property_or_throw(&array, "0", len).expect("Property creation should be successful");
+                    array.create_data_property_or_throw("0", len).expect("Property creation should be successful");
                     1
                 }
             };
-            set(&array, "length".into(), int_len.into(), true).expect("Set should succeed");
+            array.set("length", int_len, true).expect("Set should succeed");
             Ok(array.into())
         }
         _ => {
@@ -679,7 +666,8 @@ fn array_constructor_function(
                 .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
             for k in 0..number_of_args {
                 let pk = format!("{k}");
-                create_data_property_or_throw(&array, pk, arguments[k as usize].clone())
+                array
+                    .create_data_property_or_throw(pk, arguments[k as usize].clone())
                     .expect("property creation should succeed");
             }
             Ok(array.into())
@@ -697,9 +685,15 @@ fn array_from(
 fn array_is_array(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.isArray ( arg )
+    // This function performs the following steps when called:
+    //
+    //  1. Return ? IsArray(arg).
+    let mut args = FuncArgs::from(arguments);
+    let arg = args.next_arg();
+    arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
     _this_value: ECMAScriptValue,
@@ -709,11 +703,16 @@ fn array_of(
     todo!()
 }
 fn array_species(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // get Array [ @@species ]
+    // Array[@@species] is an accessor property whose set accessor function is undefined. Its get accessor
+    // function performs the following steps when called:
+    //
+    //  1. Return the this value.
+    Ok(this_value)
 }
 fn array_prototype_at(
     _this_value: ECMAScriptValue,
@@ -865,7 +864,7 @@ fn array_prototype_join(
         if k > 0 {
             r = r.concat(sep.clone());
         }
-        let element = get(&o, &to_string(k).expect("numbers should be string-able").into())?;
+        let element = o.get(&to_string(k).expect("numbers should be string-able").into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
         k += 1;
@@ -895,19 +894,83 @@ fn array_prototype_map(
     todo!()
 }
 fn array_prototype_pop(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.pop ( )
+    // NOTE 1 This method removes the last element of the array and returns it.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If len = 0, then
+    //      a. Perform ? Set(O, "length", +0𝔽, true).
+    //      b. Return undefined.
+    //  4. Else,
+    //      a. Assert: len > 0.
+    //      b. Let newLen be 𝔽(len - 1).
+    //      c. Let index be ! ToString(newLen).
+    //      d. Let element be ? Get(O, index).
+    //      e. Perform ? DeletePropertyOrThrow(O, index).
+    //      f. Perform ? Set(O, "length", newLen, true).
+    //      g. Return element.
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)?;
+    if len == 0 {
+        o.set("length", 0.0, true)?;
+        Ok(ECMAScriptValue::Undefined)
+    } else {
+        let newlen = len - 1;
+        let index = PropertyKey::from(format!("{newlen}"));
+        let element = o.get(&index)?;
+        o.delete_property_or_throw(&index)?;
+        o.set("length", newlen, true)?;
+        Ok(element)
+    }
 }
+
 fn array_prototype_push(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.push ( ...items )
+    // NOTE 1 This method appends the arguments to the end of the array, in the order in which they appear. It
+    // returns the new length of the array.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. Let argCount be the number of elements in items.
+    //  4. If len + argCount > 2^53 - 1, throw a TypeError exception.
+    //  5. For each element E of items, do
+    //      a. Perform ? Set(O, ! ToString(𝔽(len)), E, true).
+    //      b. Set len to len + 1.
+    //  6. Perform ? Set(O, "length", 𝔽(len), true).
+    //  7. Return 𝔽(len).
+    // The "length" property of this method is 1𝔽.
+    //
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)? as usize;
+    let arg_count = arguments.len();
+    let new_len = len + arg_count;
+    if new_len >= 1 << 53 {
+        return Err(create_type_error("Array too large"));
+    }
+    for (idx, e) in arguments.iter().cloned().enumerate() {
+        o.set(PropertyKey::from(format!("{}", len + idx)), e, true)?;
+    }
+    o.set("length", new_len, true)?;
+    Ok(new_len.into())
 }
+
 fn array_prototype_reduce(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1007,7 +1070,7 @@ fn array_prototype_to_string(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let array = to_object(this_value)?;
-    let mut func = get(&array, &"join".into())?;
+    let mut func = array.get(&"join".into())?;
     if !is_callable(&func) {
         func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
     }
@@ -1102,7 +1165,7 @@ async fn array_iterator(
             generator_yield(&co, res).await?;
         } else {
             let element_key = to_string(index).expect("numbers should always have string representations");
-            let element_value = get(&array, &element_key.into())?;
+            let element_value = array.get(&element_key.into())?;
             if kind == KeyValueKind::Value {
                 let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
                 generator_yield(&co, res).await?;

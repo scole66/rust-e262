@@ -436,6 +436,17 @@ mod case_block {
     fn location(src: &str) -> Location {
         Maker::new(src).case_block().location()
     }
+
+    #[test_case("{}" => svec(&[]); "empty")]
+    #[test_case("{default:let a;}" => svec(&["let a ;"]); "only default")]
+    #[test_case(
+        "{case 0: const before = 'b'; default: const middle = 'd'; case 2: const after = 'a';}"
+        => svec(&["const before = 'b' ;", "const middle = 'd' ;", "const after = 'a' ;"]);
+        "all three"
+    )]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_block().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // CASE CLAUSES
@@ -580,6 +591,21 @@ mod case_clauses {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).case_clauses().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("case 0: let a=3;" => svec(&["let a = 3 ;"]); "item")]
+    #[test_case("case 0: let x=1; case 1: let bob = 0;" => svec(&["let x = 1 ;", "let bob = 0 ;"]); "list")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clauses().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case(
+        "case 0: zero(); break; case 1: one(); break;"
+        => svec(&["case 0 : zero ( ) ; break ;", "case 1 : one ( ) ; break ;"]);
+        "list"
+    )]
+    fn to_vec(src: &str) -> Vec<String> {
+        Maker::new(src).case_clauses().to_vec().iter().map(|c| format!("{c}")).collect::<Vec<_>>()
+    }
 }
 
 // CASE CLAUSE
@@ -718,6 +744,12 @@ mod case_clause {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).case_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("case 0:" => svec(&[]); "empty")]
+    #[test_case("case 0: thing(); let a=3; thong(a);" => svec(&["let a = 3 ;"]); "item")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clause().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // DEFAULT CLAUSE
@@ -848,5 +880,11 @@ mod default_clause {
     #[test_case("default:var a;" => svec(&["a"]); "item")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).default_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("default:" => svec(&[]); "empty")]
+    #[test_case("default: thing(); let a=3; thong(a);" => svec(&["let a = 3 ;"]); "item")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).default_clause().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

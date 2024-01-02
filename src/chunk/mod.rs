@@ -3,6 +3,7 @@ use ahash::AHashSet;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::bigint::BigInt;
+use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +16,12 @@ pub struct StashedFunctionData {
     pub this_mode: ThisLexicality,
 }
 
+pub struct ConciseChunk<'a>(pub &'a Chunk);
+impl<'a> fmt::Debug for ConciseChunk<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Chunk {{ {} }}", self.0.name)
+    }
+}
 /// A compilation unit
 #[derive(Debug, Default)]
 pub struct Chunk {
@@ -187,6 +194,7 @@ impl Chunk {
             | Insn::GetValue
             | Insn::PutValue
             | Insn::Call
+            | Insn::StrictCall
             | Insn::EndFunction
             | Insn::Return
             | Insn::UpdateEmpty
