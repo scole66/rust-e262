@@ -94,7 +94,7 @@ impl VM {
 }
 
 fn interpret(source: &str) -> Result<i32, String> {
-    let parsed = parse_text(source, ParseGoal::Script);
+    let parsed = parse_text(source, ParseGoal::Script, false, false);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {

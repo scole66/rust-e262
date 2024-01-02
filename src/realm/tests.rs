@@ -234,7 +234,6 @@ fn throw_type_error_test() {
 #[test_case(super::decode_uri_component => panics "not yet implemented"; "decode_uri_component")]
 #[test_case(super::encode_uri => panics "not yet implemented"; "encode_uri")]
 #[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
-#[test_case(super::eval => panics "not yet implemented"; "eval")]
 #[test_case(super::is_finite => panics "not yet implemented"; "is_finite")]
 #[test_case(super::is_nan => panics "not yet implemented"; "is_nan")]
 #[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]

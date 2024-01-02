@@ -45,6 +45,7 @@ pub enum Insn {
     JumpIfNotUndef,
     JumpNotThrow,
     Call,
+    StrictCall,
     EndFunction,
     Return,
     UpdateEmpty,
@@ -198,6 +199,7 @@ impl fmt::Display for Insn {
             Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
             Insn::JumpNotThrow => "JUMP_NOT_THROW",
             Insn::Call => "CALL",
+            Insn::StrictCall => "CALL_STRICT",
             Insn::EndFunction => "END_FUNCTION",
             Insn::Return => "RETURN",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
@@ -2273,7 +2275,7 @@ pub fn compile_call(
         exit = Some(chunk.op_jump(Insn::Jump));
         chunk.fixup(call).expect("jump too short to fail");
     }
-    chunk.op(Insn::Call);
+    chunk.op(if strict { Insn::StrictCall } else { Insn::Call });
     if let Some(mark) = exit {
         chunk.fixup(mark).expect("jump too short to fail");
     }
@@ -7154,17 +7156,17 @@ impl FunctionDeclaration {
 }
 
 impl Script {
-    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match &self.body {
             None => Ok(AbruptResult::Never),
-            Some(sb) => sb.compile(chunk, text),
+            Some(sb) => sb.compile(chunk, strict, text),
         }
     }
 }
 
 impl ScriptBody {
-    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
-        let strict = self.contains_use_strict();
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        let strict = strict || self.contains_use_strict();
         self.statement_list.compile(chunk, strict, text)
     }
 }

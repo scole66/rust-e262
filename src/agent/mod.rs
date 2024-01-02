@@ -1465,7 +1465,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let new_len = len_a + len_b;
                     ec_push(Ok((new_len as f64).into()));
                 }
-                Insn::Call => {
+                Insn::Call | Insn::StrictCall => {
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
                     let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
@@ -1482,7 +1482,36 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
                     let ref_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
 
-                    begin_call_evaluation(func_val, ref_nc, &arguments);
+                    let mut was_direct_eval = false;
+                    if let NormalCompletion::Reference(evalref) = &ref_nc {
+                        if !evalref.is_property_reference() {
+                            if let ReferencedName::String(name) = &evalref.referenced_name {
+                                if name == &JSString::from("eval")
+                                    && to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
+                                {
+                                    // A direct eval
+                                    if arg_count == 0 {
+                                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                                    } else {
+                                        let result = perform_eval(
+                                            arguments[0].clone(),
+                                            if instruction == Insn::Call {
+                                                EvalCallStatus::DirectWithNonStrictCaller
+                                            } else {
+                                                EvalCallStatus::DirectWithStrictCaller
+                                            },
+                                        );
+                                        ec_push(result.map(NormalCompletion::from));
+                                    }
+                                    was_direct_eval = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if !was_direct_eval {
+                        begin_call_evaluation(func_val, ref_nc, &arguments);
+                    }
                 }
                 Insn::EndFunction => {
                     let stack_len = agent.execution_context_stack.borrow()[index].stack.len();
@@ -3226,12 +3255,12 @@ pub struct WellKnownSymbols {
 }
 
 pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
-    let script = parse_text(source_text, ParseGoal::Script);
+    let script = parse_text(source_text, ParseGoal::Script, false, false);
     match script {
         ParsedText::Errors(errs) => Err(errs),
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk, source_text).unwrap();
+            script.compile(&mut chunk, false, source_text).unwrap();
             for line in chunk.disassemble() {
                 println!("{line}");
             }
