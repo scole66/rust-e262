@@ -11,6 +11,11 @@ use std::error;
 use std::fmt;
 use std::rc::Rc;
 
+// The tail-call optimization tests "work" if they can go 100,000 deep. (Because TCO means that we don't
+// actually consume context stack space.) So we put in an artificial limit for less than that so that TCO
+// tests will fail until TCO actually gets implemented.
+const RECURSION_LIMIT: usize = 90000;
+
 // Agents
 //
 // An agent comprises a set of ECMAScript execution contexts, an execution context stack, a running execution context,
@@ -611,6 +616,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
         let initial_context_index = agent.execution_context_stack.borrow().len() - 1;
         loop {
             let index = agent.execution_context_stack.borrow().len() - 1;
+            if index > RECURSION_LIMIT {
+                panic!("Recursion limit exceeded");
+            }
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
