@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
+use test_case::test_case;
 
 mod func_args {
     use super::*;
@@ -222,6 +223,135 @@ mod function_prototype_call {
         let this_value = get_this();
         super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
     }
+}
+
+#[test_case(super::function_prototype_apply => panics "not yet implemented"; "function_prototype_apply")]
+#[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
+#[test_case(super::function_constructor_function => panics "not yet implemented"; "function_constructor_function")]
+fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+    setup_test_agent();
+    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test]
+fn function_prototype_to_string() {
+    setup_test_agent();
+    assert_eq!(
+        super::function_prototype_to_string(intrinsic(IntrinsicId::IsNaN).into(), None, &[])
+            .unwrap()
+            .test_result_string(),
+        "[object Function]"
+    );
+}
+
+#[test_case(|| intrinsic(IntrinsicId::Object).into(), || intrinsic(IntrinsicId::Function).into() => sok("true"); "success")]
+fn function_prototype_has_instance(
+    make_this: impl FnOnce() -> ECMAScriptValue,
+    make_val: impl FnOnce() -> ECMAScriptValue,
+) -> Result<String, String> {
+    setup_test_agent();
+    let this = make_this();
+    let val = make_val();
+    super::function_prototype_has_instance(this, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+}
+
+#[test]
+fn provision_function_intrinsic() {
+    setup_test_agent();
+
+    let function_constructor = intrinsic(IntrinsicId::Function);
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
+    let fp_value = ECMAScriptValue::from(function_prototype.clone());
+
+    assert!(is_constructor(&function_constructor.clone().into()));
+    assert!(is_callable(&function_prototype.clone().into()));
+
+    assert_eq!(function_constructor.o.get_prototype_of().unwrap().unwrap(), function_prototype);
+    assert_eq!(function_constructor.get(&"length".into()).unwrap(), ECMAScriptValue::from(1));
+    assert!(matches!(
+        function_constructor.o.get_own_property(&"prototype".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: false }),
+            enumerable: false,
+            configurable: false,
+            spot: _
+        })) if value == fp_value
+    ));
+    assert_eq!(function_prototype.o.get_prototype_of().unwrap().unwrap(), object_prototype);
+    assert!(function_prototype.o.get_own_property(&"prototype".into()).unwrap().is_none());
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"length".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Number(num), writable: false }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if num == 0.0
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"name".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: false }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if value == ECMAScriptValue::from("")
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"apply".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if is_callable(&value)
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"bind".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if is_callable(&value)
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"call".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if is_callable(&value)
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"toString".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if is_callable(&value)
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&wks(WksId::HasInstance).into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value, writable: false }),
+            enumerable: false,
+            configurable: false,
+            spot: _
+        })) if is_callable(&value)
+    ));
+    assert!(matches!(
+        function_prototype.o.get_own_property(&"constructor".into()),
+        Ok(Some(PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Object(obj), writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: _
+        })) if obj == function_constructor
+    ));
 }
 
 mod concise_body_source {
