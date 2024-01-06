@@ -43,7 +43,7 @@ fn object_prototype_value_of(
 //            test for those specific kinds of built-in objects. It does not provide a reliable type testing mechanism
 //            for other kinds of built-in or program defined objects. In addition, programs can use @@toStringTag in
 //            ways that will invalidate the reliability of such legacy type tests.
-fn object_prototype_to_string(
+pub fn object_prototype_to_string(
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
