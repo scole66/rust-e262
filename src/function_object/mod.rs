@@ -1750,10 +1750,10 @@ fn function_prototype_call(
     // NOTE 2: If func is an arrow function or a bound function exotic object then the thisArg will be ignored by the
     // function [[Call]] in step 4.
     let (first_arg, remaining): (_, &[ECMAScriptValue]) =
-        if arguments.is_empty() { (ECMAScriptValue::Undefined, &[]) } else { (arguments[0].clone(), &arguments[1..]) };
+        if arguments.is_empty() { (&ECMAScriptValue::Undefined, &[]) } else { (&arguments[0], &arguments[1..]) };
     let func = this_value;
     if is_callable(&func) {
-        call(&func, &first_arg, remaining)
+        call(&func, first_arg, remaining)
     } else {
         Err(create_type_error("this isn't a function"))
     }
@@ -1763,14 +1763,57 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    // Prototype Function Properties
+    // The Function constructor:
+    //
+    // * is %Function%.
+    // * is the initial value of the "Function" property of the global object.
+    // * creates and initializes a new function object when called as a function rather than as a constructor.
+    //   Thus the function call Function(…) is equivalent to the object creation expression new Function(…)
+    //   with the same arguments.
+    // * may be used as the value of an extends clause of a class definition. Subclass constructors that
+    //   intend to inherit the specified Function behaviour must include a super call to the Function
+    //   constructor to create and initialize a subclass instance with the internal slots necessary for
+    //   built-in function behaviour. All ECMAScript syntactic forms for defining function objects create
+    //   instances of Function. There is no syntactic means to create instances of Function subclasses except
+    //   for the built-in GeneratorFunction, AsyncFunction, and AsyncGeneratorFunction subclasses.
+
+    // The Function constructor:
+    //
+    // * is itself a built-in function object.
+    // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+    // * has a "length" property whose value is 1𝔽.
+    let function_constructor = create_builtin_function(
+        function_constructor_function,
+        true,
+        1.0,
+        PropertyKey::from("Function"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+
+    // Function.prototype
+    // The value of Function.prototype is the Function prototype object.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false
+    // }.
+    let ppd = PotentialPropertyDescriptor::new()
+        .value(function_prototype.clone())
+        .clone()
+        .writable(false)
+        .enumerable(false)
+        .configurable(false);
+    define_property_or_throw(&function_constructor, "prototype", ppd).unwrap();
+
+    // Properties of the Function Prototype Object
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
                 false,
-                $length,
+                $length as f64,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
                 Some(realm.clone()),
@@ -1789,7 +1832,107 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
             .unwrap();
         };
     }
-    prototype_function!(function_prototype_call, "call", 1.0);
+    prototype_function!(function_prototype_apply, "apply", 2);
+    prototype_function!(function_prototype_bind, "bind", 1);
+    prototype_function!(function_prototype_call, "call", 1);
+    prototype_function!(function_prototype_to_string, "toString", 0);
+
+    // Function.prototype.constructor
+    // The initial value of Function.prototype.constructor is %Function%.
+    let ppd = PotentialPropertyDescriptor::new()
+        .value(function_constructor.clone())
+        .writable(true)
+        .enumerable(false)
+        .configurable(true);
+    define_property_or_throw(&function_prototype, "constructor", ppd).unwrap();
+
+    let has_instance = create_builtin_function(
+        function_prototype_has_instance,
+        false,
+        1.0,
+        "[Symbol.hasInstance]".into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    let ppd =
+        PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(false);
+    define_property_or_throw(&function_prototype, wks(WksId::HasInstance), ppd).unwrap();
+
+    realm.borrow_mut().intrinsics.function = function_constructor;
+}
+
+fn function_constructor_function(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+fn function_prototype_apply(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+fn function_prototype_bind(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+fn function_prototype_to_string(
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype.toString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let func be the this value.
+    //  2. If func is an Object, func has a [[SourceText]] internal slot, func.[[SourceText]] is a sequence of
+    //     Unicode code points, and HostHasSourceTextAvailable(func) is true, then
+    //      a. Return CodePointsToString(func.[[SourceText]]).
+    //  3. If func is a built-in function object, return an implementation-defined String source code
+    //     representation of func. The representation must have the syntax of a NativeFunction. Additionally,
+    //     if func has an [[InitialName]] internal slot and func.[[InitialName]] is a String, the portion of
+    //     the returned String that would be matched by NativeFunctionAccessoropt PropertyName must be the
+    //     value of func.[[InitialName]].
+    //  4. If func is an Object and IsCallable(func) is true, return an implementation-defined String source
+    //     code representation of func. The representation must have the syntax of a NativeFunction.
+    //  5. Throw a TypeError exception.
+    //
+    // NativeFunction :
+    //  function NativeFunctionAccessor[opt] PropertyName[~Yield, ~Await]opt
+    //      ( FormalParameters[~Yield, ~Await] ) { [ native code ] }
+    //
+    // NativeFunctionAccessor :
+    //  get
+    //  set
+
+    // For now, as these are just supposed to be stub functions, we're pitching to Object.prototype.toString.
+    object_prototype_to_string(this_value, new_target, arguments)
+}
+
+fn function_prototype_has_instance(
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype [ @@hasInstance ] ( V )
+    // This method performs the following steps when called:
+    //
+    //  1. Let F be the this value.
+    //  2. Return ? OrdinaryHasInstance(F, V).
+    let mut args = FuncArgs::from(arguments);
+    let v = args.next_arg();
+    ordinary_has_instance(&this_value, &v).map(ECMAScriptValue::from)
 }
 
 pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
