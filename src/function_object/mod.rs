@@ -474,7 +474,7 @@ pub struct FunctionObjectData {
     pub this_mode: ThisMode,
     strict: bool,
     pub home_object: Option<Object>,
-    source_text: String,
+    pub source_text: String,
     fields: Vec<ClassFieldDefinitionRecord>,
     private_methods: Vec<Rc<PrivateElement>>,
     pub class_field_initializer_name: ClassName,
@@ -1159,6 +1159,18 @@ pub enum FunctionName {
     String(JSString),
     Symbol(Symbol),
     PrivateName(PrivateName),
+}
+
+impl fmt::Display for FunctionName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionName::String(s) => write!(f, "{s}"),
+            FunctionName::Symbol(sym) => {
+                write!(f, "[Symbol({})]", sym.description().unwrap_or_else(|| JSString::from("")))
+            }
+            FunctionName::PrivateName(pn) => write!(f, "#{}", pn.description),
+        }
+    }
 }
 
 impl From<PropertyKey> for FunctionName {
@@ -1889,8 +1901,8 @@ fn function_prototype_bind(
 
 fn function_prototype_to_string(
     this_value: ECMAScriptValue,
-    new_target: Option<&Object>,
-    arguments: &[ECMAScriptValue],
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     // Function.prototype.toString ( )
     // This method performs the following steps when called:
@@ -1916,8 +1928,36 @@ fn function_prototype_to_string(
     //  get
     //  set
 
-    // For now, as these are just supposed to be stub functions, we're pitching to Object.prototype.toString.
-    object_prototype_to_string(this_value, new_target, arguments)
+    const ERRMSG: &str = "Function.prototype.toString requires that 'this' be a Function";
+
+    match this_value {
+        ECMAScriptValue::Object(obj) => {
+            if let Some(func) = obj.o.to_function_obj() {
+                let fdata = func.function_data().borrow();
+                Ok(fdata.source_text.clone().into())
+            } else if let Some(bif) = obj.o.to_builtin_function_obj() {
+                let bif_data = bif.builtin_function_data().borrow();
+                if let Some(initial_name) = &bif_data.initial_name {
+                    Ok(format!("function {initial_name}() {{ [native code] }}").into())
+                } else {
+                    Ok("function () { [native code] }".into())
+                }
+            //} else if is_callable(&obj.into()) {
+            //    Nothing currently does this (maybe bound function objects will?)
+            //    Relying on test-262 to tell me when I finally build something that needs this.
+            //    Ok("function () { [native code] }".into())
+            } else {
+                Err(create_type_error(ERRMSG))
+            }
+        }
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Err(create_type_error(ERRMSG)),
+    }
 }
 
 fn function_prototype_has_instance(

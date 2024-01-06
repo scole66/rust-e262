@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
+use num::BigInt;
 use test_case::test_case;
 
 mod func_args {
@@ -233,15 +234,56 @@ fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completio
     f(ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
-#[test]
-fn function_prototype_to_string() {
+#[test_case(|| intrinsic(IntrinsicId::IsNaN) => sok("function isNaN() { [native code] }"); "builtin fcn")]
+#[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (undefined)")]
+#[test_case(|| ECMAScriptValue::Null => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (null)")]
+#[test_case(|| true => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Boolean)")]
+#[test_case(|| "string" => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (String)")]
+#[test_case(|| 0 => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Number)")]
+#[test_case(|| BigInt::from(0) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (BigInt)")]
+#[test_case(|| wks(WksId::Unscopables) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Symbol)")]
+#[test_case(|| ordinary_object_create(None, &[]) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Object)")]
+#[test_case(
+    || {
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let params = ParamSource::FormalParameters(Maker::new("(a, b, c)").formal_parameters());
+        let body = BodySource::Function(Maker::new("{ return a + b + c; }").function_body());
+        let realm = current_realm_record().unwrap();
+        FunctionObject::object(
+            None,
+            env,
+            None,
+            params,
+            body,
+            ConstructorKind::Base,
+            realm,
+            None,
+            ThisMode::Global,
+            false,
+            None,
+            "function(a, b, c) { return a+b+c; }",
+            vec![],
+            vec![],
+            ClassName::Empty,
+            false,
+            Rc::new(Chunk::new("tester")),
+        )
+    }
+    => sok("function(a, b, c) { return a+b+c; }");
+    "standard function object"
+)]
+#[test_case(
+    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, do_nothing, false)
+    => sok("function () { [native code] }");
+    "built-in without InitialName"
+)]
+fn function_prototype_to_string<T>(make_this: impl FnOnce() -> T) -> Result<String, String>
+where
+    T: Into<ECMAScriptValue>,
+{
     setup_test_agent();
-    assert_eq!(
-        super::function_prototype_to_string(intrinsic(IntrinsicId::IsNaN).into(), None, &[])
-            .unwrap()
-            .test_result_string(),
-        "[object Function]"
-    );
+    let this = make_this().into();
+    super::function_prototype_to_string(this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
 #[test_case(|| intrinsic(IntrinsicId::Object).into(), || intrinsic(IntrinsicId::Function).into() => sok("true"); "success")]
@@ -262,7 +304,6 @@ fn provision_function_intrinsic() {
     let function_constructor = intrinsic(IntrinsicId::Function);
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-    let fp_value = ECMAScriptValue::from(function_prototype.clone());
 
     assert!(is_constructor(&function_constructor.clone().into()));
     assert!(is_callable(&function_prototype.clone().into()));
@@ -272,11 +313,11 @@ fn provision_function_intrinsic() {
     assert!(matches!(
         function_constructor.o.get_own_property(&"prototype".into()),
         Ok(Some(PropertyDescriptor {
-            property: PropertyKind::Data(DataProperty { value, writable: false }),
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Object(obj), writable: false }),
             enumerable: false,
             configurable: false,
             spot: _
-        })) if value == fp_value
+        })) if obj == function_prototype
     ));
     assert_eq!(function_prototype.o.get_prototype_of().unwrap().unwrap(), object_prototype);
     assert!(function_prototype.o.get_own_property(&"prototype".into()).unwrap().is_none());
