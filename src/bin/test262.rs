@@ -1,14 +1,11 @@
-#![allow(dead_code)]
-
-use color_eyre::eyre::{eyre, Result};
-//use std::env;
 use clap::Parser;
+use color_eyre::eyre::{eyre, Result};
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::str::from_utf8;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
@@ -56,6 +53,7 @@ struct Source {
     source: String,
     mark: Marker,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 struct TestInfo {
     source: Vec<Source>,
@@ -188,26 +186,6 @@ fn load_harness_file(filename: &str) -> Result<String> {
     Ok(contents)
 }
 
-fn pretty_line(line: &str, limit: usize) -> String {
-    let mut chars = line
-        .chars()
-        .map(|ch| match ch {
-            '\n' | '\r' => ' ',
-            ch => ch,
-        })
-        .take(limit + 1)
-        .collect::<Vec<char>>();
-
-    if chars.len() > limit {
-        chars[limit - 1] = '.';
-        chars[limit - 2] = '.';
-        chars[limit - 3] = '.';
-        chars.truncate(limit);
-    }
-
-    chars.iter().collect::<String>()
-}
-
 enum Status {
     Pass,
     Fail,
@@ -235,35 +213,32 @@ struct Arguments {
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    // let args: Vec<String> = env::args().collect();
-    // let test_name = &args[1];
     let args = Arguments::parse();
     let test_name = args.path;
     let info = construct_test(Path::new(&test_name), false)?;
 
     for source in info.source.iter() {
-        //let description = &info.description;
-        //println!("Test-262: {test_name} -- {}", source.mark);
-
-        let base = Path::new(&test_name).file_stem().unwrap().to_str().unwrap();
-        let mut output_file = tempfile::Builder::new().prefix(&format!("{base}-")).suffix(".js").tempfile()?;
-
-        //let output_path = Path::new(out_dir).join(format!("{base}-{idx}.js"));
-        //let mut file = File::create(output_path)?;
-        //println!("Writing the script to {:?}", output_file.path());
-        output_file.write_all(source.source.as_bytes())?;
         if let Some(path) = args.keep_constructed.as_ref() {
             let output_path = Path::new(path).join(format!("{}.js", source.mark));
             let mut file = File::create(output_path)?;
             file.write_all(source.source.as_bytes())?;
         }
 
-        let result = Command::new("target/release/res").arg(output_file.path()).output()?;
+        let mut child = Command::new("target/release/res")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .arg("/dev/stdin")
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("stdin should exist on child");
+        let source_text = source.source.clone();
+        let jh = std::thread::spawn(move || stdin.write_all(source_text.as_bytes()).expect("writing should be ok?"));
+        let result = child.wait_with_output()?;
+        jh.join().expect("join should succeed");
         let finished_ok = result.status.success();
         let test_status = if finished_ok {
             let stdout = from_utf8(result.stdout.as_slice())?;
             let final_line = stdout.lines().last().unwrap_or("");
-            //let pretty = pretty_line(final_line, 40);
             if let Some(Negative { phase, error_type }) = &info.negative {
                 match phase {
                     Phase::Parse => {
@@ -302,6 +277,5 @@ fn main() -> Result<()> {
         println!("{test_status}: {test_name} -- {}", source.mark);
     }
 
-    //println!("{info:#?}");
     Ok(())
 }
