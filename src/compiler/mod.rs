@@ -1810,7 +1810,11 @@ impl PropertyDefinition {
                 }
                 Ok(exit_status)
             }
-            PropertyDefinition::MethodDefinition(_) => todo!(),
+            PropertyDefinition::MethodDefinition(md) => {
+                let status = md.method_definition_evaluation(true)?;
+                chunk.op(Insn::EmptyIfNotError);
+                Ok(status)
+            }
             PropertyDefinition::AssignmentExpression(ae, _) => {
                 // Stack: obj ...
                 let status = ae.compile(chunk, strict, text)?;

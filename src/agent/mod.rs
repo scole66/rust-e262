@@ -2346,6 +2346,68 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec_push(Ok(NormalCompletion::from(home_object)));
                     ec_push(Ok(NormalCompletion::from(block_body)));
                 }
+                Insn::DefineMethod => {
+                    // on the stack: propkey object prototype
+                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[stash_index as usize];
+                    let propkey = PropertyKey::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be a property key");
+                    let obj = Object::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be an object");
+                    let prototype = Object::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be an object");
+
+                    let to_compile: Rc<MethodDefinition> =
+                        info.to_compile.clone().try_into().expect("This routine only used with MethodDefinitions");
+                    if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
+                        let name = nameify(&info.source_text, 50);
+                        let mut compiled = Chunk::new(name);
+                        let compilation_status = body.compile_body(&mut compiled, text, info);
+                        if let Err(err) = compilation_status {
+                            AGENT.with(|agent| {
+                                let typeerror = create_type_error(err.to_string());
+                                let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
+                                stack.push(Err(typeerror));
+                            });
+                            break;
+                        }
+                        for line in compiled.disassemble() {
+                            println!("{line}");
+                        }
+
+                        let env =
+                            current_lexical_environment().expect("a lexical environment should have been established");
+                        let private_env = current_private_environment();
+                        let source_text = &info.source_text;
+                        let strict = info.strict;
+                        let closure = ordinary_function_create(
+                            prototype,
+                            source_text,
+                            info.params.clone(),
+                            info.body.clone(),
+                            ThisLexicality::NonLexicalThis,
+                            env,
+                            private_env,
+                            strict,
+                            Rc::new(compiled),
+                        );
+
+                        make_method(closure.o.to_function_obj().unwrap(), obj);
+
+                        ec_push(Ok(closure.into()));
+                        ec_push(Ok(propkey.into()))
+
+                    } else {
+                        panic!("This routine is only for the production MethodDefinition : ClassElementName ( UniqueFormalParameters) {{ FunctionBody }}");
+                    }
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -2962,7 +3024,12 @@ fn evaluate_class_static_block_definition(
     Ok(body_function)
 }
 
-fn define_method(object: Object, function_prototype: Option<Object>, info: &StashedFunctionData, text: &str) -> anyhow::Result<Object> {
+fn define_method(
+    object: Object,
+    function_prototype: Option<Object>,
+    info: &StashedFunctionData,
+    text: &str,
+) -> anyhow::Result<Object> {
     // Pieces of DefineMethod
     //  1. Let env be the running execution context's LexicalEnvironment.
     //  2. Let privateEnv be the running execution context's PrivateEnvironment.
