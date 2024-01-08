@@ -473,6 +473,7 @@ pub fn set_default_global_bindings() {
     // Float32Array ( . . . )
     // Float64Array ( . . . )
     // Function ( . . . )
+    constructor_property!(Function);
     // Int8Array ( . . . )
     // Int16Array ( . . . )
     // Int32Array ( . . . )

@@ -581,6 +581,8 @@ test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInte
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
 test_defs[Realm]="Realm realm realm"
+test_defs[is_nan]="is_nan is_nan realm"
+test_defs[is_finite]="is_finite is_finite realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
@@ -643,6 +645,13 @@ test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@Object
 test_defs[ConciseBodySource]="ConciseBodySource concise_body_source function_object"
 test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_object"
 test_defs[make_method]="make_method make_method function_object"
+test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
+test_defs[provision_function_intrinsic]="provision_function_intrinsic provision_function_intrinsic function_object"
+test_defs[function_constructor_function]="function_constructor_function todo::function_constructor_function function_object"
+test_defs[function_prototype_apply]="function_prototype_apply todo::function_prototype_apply function_object"
+test_defs[function_prototype_bind]="function_prototype_bind todo::function_prototype_bind function_object"
+test_defs[function_prototype_to_string]="function_prototype_to_string function_prototype_to_string function_object"
+test_defs[function_prototype_has_instance]="function_prototype_has_instance function_prototype_has_instance function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 

@@ -440,7 +440,16 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     let object_prototype = immutable_prototype_exotic_object_create(None);
     realm_rec.borrow_mut().intrinsics.object_prototype = object_prototype.clone();
     // %Function.prototype%
-    let function_prototype = ordinary_object_create(Some(object_prototype.clone()), &[]);
+    let function_prototype = create_builtin_function(
+        do_nothing,
+        false,
+        0_f64,
+        PropertyKey::from(""),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm_rec.clone()),
+        Some(object_prototype.clone()),
+        None,
+    );
     realm_rec.borrow_mut().intrinsics.function_prototype = function_prototype.clone();
     // %ThrowTypeError%
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
@@ -580,6 +589,14 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     fcn
 }
 
+pub fn do_nothing(
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    Ok(ECMAScriptValue::Undefined)
+}
+
 fn decode_uri(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -622,17 +639,39 @@ fn eval(
 fn is_finite(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // This function is the %isFinite% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let num be ? ToNumber(number).
+    //  2. If num is not finite, return false.
+    //  3. Otherwise, return true.
+    let mut args = FuncArgs::from(arguments);
+    let number = args.next_arg();
+    let num = to_number(number)?;
+    Ok(ECMAScriptValue::from(num.is_finite()))
 }
+
 fn is_nan(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // This function is the %isNaN% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let num be ? ToNumber(number).
+    //  2. If num is NaN, return true.
+    //  3. Otherwise, return false.
+    let mut args = FuncArgs::from(arguments);
+    let number = args.next_arg();
+    let num = to_number(number)?;
+    Ok(ECMAScriptValue::from(num.is_nan()))
 }
+
 fn parse_float(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
