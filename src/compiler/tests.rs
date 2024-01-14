@@ -35,9 +35,11 @@ mod insn {
     #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
     #[test_case(Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR"; "EmptyIfNotError instruction")]
     #[test_case(Insn::PutValue => "PUT_VALUE"; "PutValue instruction")]
+    #[test_case(Insn::FunctionPrototype => "FUNC_PROTO"; "FunctionPrototype instruction")]
     #[test_case(Insn::Jump => "JUMP"; "Jump instruction")]
     #[test_case(Insn::JumpIfNormal => "JUMP_IF_NORMAL"; "JumpIfNormal instruction")]
     #[test_case(Insn::Call => "CALL"; "Call instruction")]
+    #[test_case(Insn::StrictCall => "CALL_STRICT"; "StrictCall instruction")]
     #[test_case(Insn::Swap => "SWAP"; "Swap instruction")]
     #[test_case(Insn::Pop => "POP"; "Pop instruction")]
     #[test_case(Insn::PopOrPanic => "POP_PANIC"; "PopOrPanic instruction")]
@@ -48,6 +50,7 @@ mod insn {
     #[test_case(Insn::RotateDown => "ROTATEDOWN"; "RotateDown instruction")]
     #[test_case(Insn::RotateDownList => "ROTATEDOWN_LIST"; "RotateDownList instruction")]
     #[test_case(Insn::Unwind => "UNWIND"; "Unwind instruction")]
+    #[test_case(Insn::UnwindIfAbrupt => "UNWIND_IF_ABRUPT"; "UnwindIfAbrupt instruction")]
     #[test_case(Insn::Ref => "REF"; "Ref instruction")]
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
     #[test_case(Insn::InitializeReferencedBinding => "IRB"; "InitializeReferencedBinding instruction")]
@@ -161,6 +164,9 @@ mod insn {
     #[test_case(Insn::PrivateIdLookup => "PRIV_ID_LOOKUP"; "PrivateIdLookup instruction")]
     #[test_case(Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF"; "EvaluateInitializedClassFieldDefinition instruction")]
     #[test_case(Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF"; "EvaluateClassStaticBlockDefinition instruction")]
+    #[test_case(Insn::DefineMethod => "DEFINE_METHOD"; "DefineMethod instruction")]
+    #[test_case(Insn::SetFunctionName => "SET_FUNC_NAME"; "SetFunctionName instruction")]
+    #[test_case(Insn::DefineMethodProperty => "DEF_METH_PROP"; "DefineMethodProperty instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -935,7 +941,34 @@ mod property_definition {
     ]), true, false)); "name:value, ae can error; strict")]
     #[test_case("[a]:@@@", true, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
     #[test_case("__proto__:null", true, &[] => Ok((svec(&["NULL", "SET_PROTO"]), false, false)); "proto-setter")]
-    #[test_case("a(){}", true, &[] => panics "not yet implemented"; "method def")]
+    #[test_case(
+        "a(){}", true, &[]
+        => Ok((
+            svec(&[
+                "DUP",
+                "DUP",
+                "FUNC_PROTO",
+                "SWAP",
+                "STRING 0 (a)",
+                "DEFINE_METHOD 0",
+                "JUMP_IF_ABRUPT 3",
+                "SET_FUNC_NAME",
+                "DEF_METH_PROP 1",
+                "UNWIND_IF_ABRUPT 1",
+                "JUMP_IF_ABRUPT 1",
+                "POP",
+                "UNWIND_IF_ABRUPT 1"
+            ]),
+            true,
+            false
+        ));
+        "method def"
+    )]
+    #[test_case(
+        "a(){}", true, &[(Fillable::FunctionStash, 0)]
+        => serr("Out of room for more functions!");
+        "method def fails"
+    )]
     #[test_case("...a", true, &[] => Ok((svec(&[
         "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
     ]), true, false)); "rest object, strict")]

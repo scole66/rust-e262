@@ -6,6 +6,7 @@ use regex::Regex;
 use std::cmp::Ordering;
 use std::convert::TryInto;
 use test_case::test_case;
+use std::hash::BuildHasher;
 
 #[test]
 fn nts_test_nan() {
@@ -793,6 +794,22 @@ mod property_key {
             assert_eq!(pk, PropertyKey::from(wks(WksId::ToPrimitive)));
         }
     }
+
+    #[test_case(&ahash::RandomState::new(); "ahash hasher")]
+    #[test_case(&std::collections::hash_map::RandomState::new(); "std hasher")]
+    fn hash(factory: &impl BuildHasher) {
+        setup_test_agent();
+
+        let code_a = PropertyKey::from("bob");
+        let code_b = PropertyKey::from(Symbol::new(Some("alice".into())));
+
+        let hash_a = calculate_hash(factory, &code_a);
+        let hash_b = calculate_hash(factory, &code_b);
+
+        assert_ne!(hash_a, hash_b);
+        assert_eq!(hash_a, calculate_hash(factory, &code_a));
+    }
+
 }
 
 mod jsstring {

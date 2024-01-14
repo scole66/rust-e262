@@ -474,3 +474,120 @@ mod make_method {
         assert_eq!(f_funobj.function_data().borrow().home_object, Some(home));
     }
 }
+
+mod class_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn fmt_debug() {
+        let cn = ClassName::Empty;
+        assert_ne!(format!("{cn:?}"), "");
+    }
+
+    #[test_case(ClassName::Empty => ClassName::Empty; "empty")]
+    fn clone(a: ClassName) -> ClassName {
+        a.clone()
+    }
+
+    #[test_case("bob" => ClassName::String(JSString::from("bob")); "&str")]
+    fn from(val: impl Into<JSString>) -> ClassName {
+        ClassName::from(val)
+    }
+
+    #[test_case(|| NormalCompletion::Empty => sok("Empty"); "empty")]
+    #[test_case(|| NormalCompletion::from("bob") => sok("String(bob)"); "string")]
+    #[test_case(
+        || NormalCompletion::from(wks(WksId::ToStringTag))
+        => sok("Symbol(Symbol(Symbol.toStringTag))");
+        "symbol"
+    )]
+    #[test_case(|| NormalCompletion::from(10.3) => serr("Not a class name"); "non-name value")]
+    #[test_case(
+        || NormalCompletion::from(PrivateName::new("blue heron"))
+        => sok("PrivateName(matches)");
+        "private name"
+    )]
+    #[test_case(
+        || NormalCompletion::from(Reference::new(Base::Unresolvable, "blue", false, None))
+        => serr("Not a class name");
+        "non-value completion"
+    )]
+    fn try_from(make_nc: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+        setup_test_agent();
+        let nc = make_nc();
+        let pn = if let NormalCompletion::PrivateName(pn) = &nc { Some(pn) } else { None };
+        let cn = ClassName::try_from(nc.clone()).map_err(|e| e.to_string())?;
+
+        match cn {
+            ClassName::String(s) => Ok(format!("String({s})")),
+            ClassName::Symbol(sym) => Ok(format!("Symbol({sym})")),
+            ClassName::Private(cnpn) => {
+                Ok(format!("PrivateName({})", if &cnpn == pn.unwrap() { "matches" } else { "doesn't match" }))
+            }
+            ClassName::Empty => Ok(String::from("Empty")),
+        }
+    }
+}
+
+mod function_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn fmt_debug() {
+        let fname = FunctionName::String(JSString::from("bob"));
+        assert_ne!(format!("{fname:?}"), "");
+    }
+
+    #[test_case(|| JSString::from("bob") => "String(bob)"; "string")]
+    #[test_case(|| PropertyKey::from("stringy") => "String(stringy)"; "string as property key")]
+    #[test_case(|| PropertyKey::from(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "symbol as property key")]
+    #[test_case(|| PrivateName::new("alice") => "Private(PN[alice])"; "private name")]
+    fn from<T>(make_item: impl FnOnce() -> T) -> String
+    where
+        FunctionName: From<T>,
+    {
+        setup_test_agent();
+        let item = make_item();
+        let fname = FunctionName::from(item);
+        match fname {
+            FunctionName::String(s) => format!("String({s})"),
+            FunctionName::Symbol(s) => format!("Symbol({s})"),
+            FunctionName::PrivateName(pn) => format!("Private({pn})"),
+        }
+    }
+
+    #[test_case(|| FunctionName::from(JSString::from("alice")) => "alice"; "string")]
+    #[test_case(
+        || FunctionName::from(PropertyKey::from(Symbol::new(Some("my description".into()))))
+        => "[Symbol(my description)]";
+        "symbol with description"
+    )]
+    #[test_case(
+        || FunctionName::from(PropertyKey::from(Symbol::new(None)))
+        => "[Symbol()]";
+        "symbol without description"
+    )]
+    #[test_case(|| FunctionName::from(PrivateName::new("other_description")) => "#other_description"; "private name")]
+    fn fmt_display(make_item: impl FnOnce() -> FunctionName) -> String {
+        setup_test_agent();
+        let item = make_item();
+        format!("{item}")
+    }
+
+    mod try_from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(|| NormalCompletion::Empty => serr("Completion type not valid for FunctionName"); "invalid")]
+        #[test_case(|| NormalCompletion::from("alice") => sok("alice"); "string value")]
+        #[test_case(|| NormalCompletion::from(Symbol::new(Some("charlie".into()))) => sok("[Symbol(charlie)]"); "symbol value")]
+        #[test_case(|| NormalCompletion::from(PrivateName::new("david")) => sok("#david"); "private name")]
+        fn normal_completion(make: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+            setup_test_agent();
+            let item = make();
+            FunctionName::try_from(item).map_err(|e| e.to_string()).map(|fname| format!("{fname}"))
+        }
+    }
+}

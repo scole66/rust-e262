@@ -34,11 +34,19 @@ mod normal_completion {
         let ir = create_list_iterator_record(vec![]);
         NormalCompletion::from(ir)
     }
+    fn private_element() -> NormalCompletion {
+        PrivateElement {
+            key: PrivateName::new("alice"),
+            kind: PrivateElementKind::Method { value: ECMAScriptValue::Undefined },
+        }.into()
+    }
 
     #[test_case(global_env, global_env => true; "matching env")]
     #[test_case(global_env, iterator_record => false; "env no match")]
     #[test_case(iterator_record, iterator_record => false; "both ir, but not the same one")]
     #[test_case(iterator_record, || NormalCompletion::Empty => false; "ir no match")]
+    #[test_case(private_element, private_element => false; "both PE, but not the same one")]
+    #[test_case(private_element, || NormalCompletion::Empty => false; "PE no match")]
     fn eq2(make_left: fn() -> NormalCompletion, make_right: fn() -> NormalCompletion) -> bool {
         setup_test_agent();
         let left = make_left();
@@ -80,6 +88,7 @@ mod normal_completion {
         #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
         #[test_case(23_i64 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from i64")]
         #[test_case(23_u32 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from u32")]
+        #[test_case(PropertyKey::from("bob") => NormalCompletion::Value(ECMAScriptValue::from("bob")); "from property key")]
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
         }
@@ -134,6 +143,18 @@ mod normal_completion {
             let nc = NormalCompletion::from(pn.clone());
             let recovered = PrivateName::try_from(nc).unwrap();
             assert_eq!(recovered, pn);
+        }
+
+        #[test]
+        fn symbol() {
+            setup_test_agent();
+            let sym = Symbol::new(Some("alice".into()));
+            let nc = NormalCompletion::from(sym.clone());
+            if let NormalCompletion::Value(ECMAScriptValue::Symbol(recovered)) = nc {
+                assert_eq!(recovered, sym);
+            } else {
+                panic!("test failed; non symbol came back")
+            }
         }
     }
 
@@ -224,6 +245,17 @@ mod normal_completion {
         }
         => "GlobalEnvironmentRecord(realm-global)"
         ; "environment record")]
+    #[test_case(
+        || {
+            let pe = PrivateElement {
+                key: PrivateName::new("alice"),
+                kind: PrivateElementKind::Method{ value: ECMAScriptValue::Undefined },
+            };
+            NormalCompletion::PrivateElement(Box::new(pe))
+        }
+        => "PrivateElement{PN[alice]: Method(undefined)}";
+        "private element"
+    )]
     fn display_constructed(make_nc: fn() -> NormalCompletion) -> String {
         setup_test_agent();
         let nc = make_nc();

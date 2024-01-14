@@ -153,6 +153,7 @@ impl Chunk {
                 (2, format!("    {:<24}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind
+            | Insn::UnwindIfAbrupt
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
@@ -162,7 +163,8 @@ impl Chunk {
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
-            | Insn::DefineMethod => {
+            | Insn::DefineMethod
+            | Insn::DefineMethodProperty => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<24}{}", insn, arg))
             }
@@ -193,6 +195,7 @@ impl Chunk {
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue
+            | Insn::FunctionPrototype
             | Insn::Call
             | Insn::StrictCall
             | Insn::EndFunction
@@ -272,7 +275,8 @@ impl Chunk {
             | Insn::IteratorDAEElision
             | Insn::EmbellishedIteratorStep
             | Insn::IteratorRest
-            | Insn::EnumerateObjectProperties => (1, format!("    {insn}")),
+            | Insn::EnumerateObjectProperties
+            | Insn::SetFunctionName => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt;
@@ -58,9 +58,10 @@ impl TryFrom<NormalCompletion> for ClassName {
                 | ECMAScriptValue::BigInt(_)
                 | ECMAScriptValue::Object(_) => Err(anyhow::anyhow!("Not a class name")),
             },
-            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) | NormalCompletion::IteratorRecord(_) => {
-                Err(anyhow::anyhow!("Not a class name"))
-            }
+            NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow::anyhow!("Not a class name")),
         }
     }
 }
@@ -1221,6 +1222,36 @@ impl From<PrivateName> for FunctionName {
 impl From<JSString> for FunctionName {
     fn from(source: JSString) -> Self {
         FunctionName::String(source)
+    }
+}
+
+impl TryFrom<FunctionName> for PropertyKey {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionName) -> Result<Self, Self::Error> {
+        match value {
+            FunctionName::String(s) => Ok(PropertyKey::from(s)),
+            FunctionName::Symbol(s) => Ok(PropertyKey::from(s)),
+            FunctionName::PrivateName(_) => Err(anyhow!("PrivateName can't be converted to PropertyKey")),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for FunctionName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Value(ECMAScriptValue::String(s)) => Ok(FunctionName::String(s)),
+            NormalCompletion::Value(ECMAScriptValue::Symbol(s)) => Ok(FunctionName::Symbol(s)),
+            NormalCompletion::PrivateName(pn) => Ok(FunctionName::PrivateName(pn)),
+            NormalCompletion::Value(_)
+            | NormalCompletion::Empty
+            | NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => bail!("Completion type not valid for FunctionName"),
+        }
     }
 }
 
