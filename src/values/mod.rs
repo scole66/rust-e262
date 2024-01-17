@@ -572,9 +572,22 @@ impl fmt::Display for PrivateElementKind {
             PrivateElementKind::Method { value } => write!(f, "Method({})", value),
             PrivateElementKind::Accessor { get, set } => match (get.as_ref(), set.as_ref()) {
                 (None, None) => write!(f, "Accessor(-,-)"),
-                (None, Some(set)) => write!(f, "Accessor(-,{})", set),
-                (Some(get), None) => write!(f, "Accessor({},-)", get),
-                (Some(get), Some(set)) => write!(f, "Accessor({},{})", get, set),
+                (None, Some(set)) => write!(
+                    f,
+                    "Accessor(-,{})",
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), None) => write!(
+                    f,
+                    "Accessor({},-)",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), Some(set)) => write!(
+                    f,
+                    "Accessor({},{})",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed")),
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
             },
         }
     }

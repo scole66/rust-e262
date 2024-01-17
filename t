@@ -632,6 +632,8 @@ test_defs[FunctionName_display]="FunctionName@core::fmt::Display::fmt function_n
 test_defs[ClassFieldDefinitionRecord]="ClassFieldDefinitionRecord class_field_definition_record function_object"
 test_defs[BodySource]="BodySource body_source function_object"
 test_defs[ParamSource]="ParamSource param_source function_object"
+test_defs[ParamSource_eq]="ParamSource@eq param_source::eq:: function_object"
+test_defs[ParamSource_from]="ParamSource@from param_source::from:: function_object"
 test_defs[FunctionSource]="FunctionSource function_source function_object"
 test_defs[FunctionObjectData]="FunctionObjectData function_object_data function_object"
 test_defs[FunctionObject_call]="FunctionObject@CallableObject::call function_object::call function_object"
@@ -809,6 +811,7 @@ test_defs[get_value]="get_value get_value reference"
 test_defs[put_value]="put_value put_value reference"
 
 test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
+test_defs[NormalCompletion_from]="NormalCompletion@from normal_completion::from:: cr"
 
 test_defs[Token]="Token token scanner"
 test_defs[debug_token]="debug_token debug_token scanner"

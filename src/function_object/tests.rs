@@ -591,3 +591,242 @@ mod function_name {
         }
     }
 }
+
+mod param_source {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn clone() {
+        let params_a = Maker::new("a, b, c").formal_parameters();
+        let a = ParamSource::FormalParameters(params_a);
+        let b = a.clone();
+        assert!(matches!(b, ParamSource::FormalParameters(_)));
+        assert_eq!(format!("{a}"), format!("{b}"));
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn debug_fmt() {
+        let params_a = Maker::new("a, b, c").formal_parameters();
+        let a = ParamSource::FormalParameters(params_a);
+        assert_ne!(format!("{a:?}"), "");
+    }
+
+    enum Kind {
+        Formal,
+        Arrow,
+        AsyncArrow,
+        ArrowFormals,
+        Unique,
+    }
+    fn same(kind: Kind) -> (ParamSource, ParamSource) {
+        match kind {
+            Kind::Formal => {
+                let params = Maker::new("a").formal_parameters();
+                (ParamSource::FormalParameters(params.clone()), ParamSource::FormalParameters(params))
+            }
+            Kind::Arrow => {
+                let params = Maker::new("a").arrow_parameters();
+                (ParamSource::ArrowParameters(params.clone()), ParamSource::ArrowParameters(params))
+            }
+            Kind::AsyncArrow => {
+                let params = Maker::new("a").async_arrow_binding_identifier();
+                (ParamSource::AsyncArrowBinding(params.clone()), ParamSource::AsyncArrowBinding(params))
+            }
+            Kind::ArrowFormals => {
+                let params = Maker::new("(a)").arrow_formal_parameters();
+                (ParamSource::ArrowFormals(params.clone()), ParamSource::ArrowFormals(params))
+            }
+            Kind::Unique => {
+                let params = Maker::new("a").unique_formal_parameters();
+                (ParamSource::UniqueFormalParameters(params.clone()), ParamSource::UniqueFormalParameters(params))
+            }
+        }
+    }
+    fn different(kind: Kind) -> (ParamSource, ParamSource) {
+        match kind {
+            Kind::Formal => {
+                let left = Maker::new("a").formal_parameters();
+                let right = Maker::new("b").formal_parameters();
+                (ParamSource::FormalParameters(left), ParamSource::FormalParameters(right))
+            }
+            Kind::Arrow => {
+                let left = Maker::new("a").arrow_parameters();
+                let right = Maker::new("b").arrow_parameters();
+                (ParamSource::ArrowParameters(left), ParamSource::ArrowParameters(right))
+            }
+            Kind::AsyncArrow => {
+                let left = Maker::new("a").async_arrow_binding_identifier();
+                let right = Maker::new("b").async_arrow_binding_identifier();
+                (ParamSource::AsyncArrowBinding(left), ParamSource::AsyncArrowBinding(right))
+            }
+            Kind::ArrowFormals => {
+                let left = Maker::new("(a)").arrow_formal_parameters();
+                let right = Maker::new("(b)").arrow_formal_parameters();
+                (ParamSource::ArrowFormals(left), ParamSource::ArrowFormals(right))
+            }
+            Kind::Unique => {
+                let left = Maker::new("a").unique_formal_parameters();
+                let right = Maker::new("b").unique_formal_parameters();
+                (ParamSource::UniqueFormalParameters(left), ParamSource::UniqueFormalParameters(right))
+            }
+        }
+    }
+    fn diff2(left_kind: Kind, right_kind: Kind) -> (ParamSource, ParamSource) {
+        let left = match left_kind {
+            Kind::Formal => ParamSource::FormalParameters(Maker::new("a").formal_parameters()),
+            Kind::Arrow => ParamSource::ArrowParameters(Maker::new("a").arrow_parameters()),
+            Kind::AsyncArrow => ParamSource::AsyncArrowBinding(Maker::new("a").async_arrow_binding_identifier()),
+            Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new("(a)").arrow_formal_parameters()),
+            Kind::Unique => ParamSource::UniqueFormalParameters(Maker::new("a").unique_formal_parameters()),
+        };
+        let right = match right_kind {
+            Kind::Formal => ParamSource::FormalParameters(Maker::new("b").formal_parameters()),
+            Kind::Arrow => ParamSource::ArrowParameters(Maker::new("b").arrow_parameters()),
+            Kind::AsyncArrow => ParamSource::AsyncArrowBinding(Maker::new("b").async_arrow_binding_identifier()),
+            Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new("(b)").arrow_formal_parameters()),
+            Kind::Unique => ParamSource::UniqueFormalParameters(Maker::new("b").unique_formal_parameters()),
+        };
+        (left, right)
+    }
+    #[test_case(|| same(Kind::Formal) => true; "formals: cloned parse objects")]
+    #[test_case(|| same(Kind::Arrow) => true; "Arrow: cloned parse objects")]
+    #[test_case(|| same(Kind::AsyncArrow) => true; "async arrow: cloned parse objects")]
+    #[test_case(|| same(Kind::ArrowFormals) => true; "arrow formals: cloned parse objects")]
+    #[test_case(|| same(Kind::Unique) => true; "unique formals: cloned parse objects")]
+    #[test_case(|| different(Kind::Formal) => false; "formals: type-same parse objects")]
+    #[test_case(|| different(Kind::Arrow) => false; "Arrow: type-same parse objects")]
+    #[test_case(|| different(Kind::AsyncArrow) => false; "async arrow: type-same parse objects")]
+    #[test_case(|| different(Kind::ArrowFormals) => false; "arrow formals: type-same parse objects")]
+    #[test_case(|| different(Kind::Unique) => false; "unique formals: type-same parse objects")]
+    #[test_case(|| diff2(Kind::Formal, Kind::Arrow) => false; "formal/arrow; diff-type")]
+    #[test_case(|| diff2(Kind::Formal, Kind::AsyncArrow) => false; "formal/AsyncArrow; diff-type")]
+    #[test_case(|| diff2(Kind::Formal, Kind::ArrowFormals) => false; "formal/ArrowFormals; diff-type")]
+    #[test_case(|| diff2(Kind::Formal, Kind::Unique) => false; "formal/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::Arrow, Kind::Formal) => false; "arrow/formal; diff-type")]
+    #[test_case(|| diff2(Kind::Arrow, Kind::AsyncArrow) => false; "Arrow/AsyncArrow; diff-type")]
+    #[test_case(|| diff2(Kind::Arrow, Kind::ArrowFormals) => false; "Arrow/ArrowFormals; diff-type")]
+    #[test_case(|| diff2(Kind::Arrow, Kind::Unique) => false; "Arrow/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::AsyncArrow, Kind::Formal) => false; "AsyncArrow/formal; diff-type")]
+    #[test_case(|| diff2(Kind::AsyncArrow, Kind::Arrow) => false; "AsyncArrow/Arrow; diff-type")]
+    #[test_case(|| diff2(Kind::AsyncArrow, Kind::ArrowFormals) => false; "AsyncArrow/ArrowFormals; diff-type")]
+    #[test_case(|| diff2(Kind::AsyncArrow, Kind::Unique) => false; "AsyncArrow/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::ArrowFormals, Kind::Formal) => false; "ArrowFormals/formal; diff-type")]
+    #[test_case(|| diff2(Kind::ArrowFormals, Kind::Arrow) => false; "ArrowFormals/Arrow; diff-type")]
+    #[test_case(|| diff2(Kind::ArrowFormals, Kind::AsyncArrow) => false; "ArrowFormals/AsyncArrow; diff-type")]
+    #[test_case(|| diff2(Kind::ArrowFormals, Kind::Unique) => false; "ArrowFormals/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::Unique, Kind::Formal) => false; "Unique/formal; diff-type")]
+    #[test_case(|| diff2(Kind::Unique, Kind::Arrow) => false; "Unique/Arrow; diff-type")]
+    #[test_case(|| diff2(Kind::Unique, Kind::AsyncArrow) => false; "Unique/AsyncArrow; diff-type")]
+    #[test_case(|| diff2(Kind::Unique, Kind::ArrowFormals) => false; "Unique/ArrowFormals; diff-type")]
+    fn eq(make_pair: impl FnOnce() -> (ParamSource, ParamSource)) -> bool {
+        let (left, right) = make_pair();
+        left == right
+    }
+
+    #[test_case(
+        || {
+            let node = Maker::new("a").formal_parameters();
+            (node.clone(), ParamSource::FormalParameters(node))
+        }
+        => true;
+        "formal parameters"
+    )]
+    #[test_case(
+        || {
+            let node = Maker::new("a").unique_formal_parameters();
+            (node.clone(), ParamSource::UniqueFormalParameters(node))
+        }
+        => true;
+        "unique formal parameters"
+    )]
+    #[test_case(
+        || {
+            let node = Maker::new("a").async_arrow_binding_identifier();
+            (node.clone(), ParamSource::AsyncArrowBinding(node))
+        }
+        => true;
+        "async_arrow_binding_identifier"
+    )]
+    #[test_case(
+        || {
+            let node = Maker::new("(a)").arrow_formal_parameters();
+            (node.clone(), ParamSource::ArrowFormals(node))
+        }
+        => true;
+        "arrow_formal_parameters"
+    )]
+    #[test_case(
+        || {
+            let node = Maker::new("a").arrow_parameters();
+            (node.clone(), ParamSource::ArrowParameters(node))
+        }
+        => true;
+        "arrow_parameters"
+    )]
+    fn from<T>(make_item: impl FnOnce() -> (T, ParamSource)) -> bool
+    where
+        ParamSource: From<T>,
+    {
+        let (item, expected) = make_item();
+        let result = ParamSource::from(item);
+
+        result == expected
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a,b,c").formal_parameters()) => "a , b , c"; "formal_parameters")]
+    #[test_case(
+        ParamSource::from(Maker::new("a,b,c").unique_formal_parameters()) => "a , b , c"; "unique_formal_parameters"
+    )]
+    #[test_case(
+        ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => "a"; "async_arrow_binding_identifier"
+    )]
+    #[test_case(
+        ParamSource::from(Maker::new("(a,b,c)").arrow_formal_parameters()) => "( a , b , c )"; "arrow_formal_parameters"
+    )]
+    #[test_case(ParamSource::from(Maker::new("a").arrow_parameters()) => "a"; "arrow_parameters")]
+    fn display_fmt(item: ParamSource) -> String {
+        format!("{item}")
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => false; "formal_parameters / false")]
+    #[test_case(ParamSource::from(Maker::new("a=1").formal_parameters()) => true; "formal_parameters / true")]
+    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => false; "unique_formal_parameters / false")]
+    #[test_case(ParamSource::from(Maker::new("a=1").unique_formal_parameters()) => true; "unique_formal_parameters / true")]
+    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => false; "async_arrow_binding_identifier / false")]
+    #[test_case(ParamSource::from(Maker::new("(a)").arrow_formal_parameters()) => false; "arrow_formal_parameters / false")]
+    #[test_case(ParamSource::from(Maker::new("(a=1)").arrow_formal_parameters()) => true; "arrow_formal_parameters / true")]
+    #[test_case(ParamSource::from(Maker::new("a").arrow_parameters()) => false; "arrow_parameters / false")]
+    #[test_case(ParamSource::from(Maker::new("(a=1)").arrow_parameters()) => true; "arrow_parameters / true")]
+    fn contains_expression(item: ParamSource) -> bool {
+        item.contains_expression()
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => 3.0; "formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => 1.0; "unique_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => 1.0; "async_arrow_binding_identifier")]
+    #[test_case(ParamSource::from(Maker::new("(a, b)").arrow_formal_parameters()) => 2.0; "arrow_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("(a=1,q)").arrow_parameters()) => 0.0; "arrow_parameters")]
+    fn expected_argument_count(item: ParamSource) -> f64 {
+        item.expected_argument_count()
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => svec(&["a", "b", "c"]); "formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => svec(&["a"]); "unique_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => svec(&["a"]); "async_arrow_binding_identifier")]
+    #[test_case(ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => svec(&["a", "b"]); "arrow_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => svec(&["c", "b", "a"]); "arrow_parameters")]
+    fn bound_names(item: ParamSource) -> Vec<String> {
+        item.bound_names().into_iter().map(String::from).collect()
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => true; "formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => true; "unique_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => true; "async_arrow_binding_identifier")]
+    #[test_case(ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => true; "arrow_formal_parameters")]
+    #[test_case(ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => true; "arrow_parameters")]
+    fn is_simple_parameter_list(item: ParamSource) -> bool {
+        item.is_simple_parameter_list()
+    }
+}

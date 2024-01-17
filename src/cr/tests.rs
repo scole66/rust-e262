@@ -38,7 +38,8 @@ mod normal_completion {
         PrivateElement {
             key: PrivateName::new("alice"),
             kind: PrivateElementKind::Method { value: ECMAScriptValue::Undefined },
-        }.into()
+        }
+        .into()
     }
 
     #[test_case(global_env, global_env => true; "matching env")]
@@ -88,7 +89,10 @@ mod normal_completion {
         #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
         #[test_case(23_i64 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from i64")]
         #[test_case(23_u32 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from u32")]
+        #[test_case(23_i32 => NormalCompletion::Value(ECMAScriptValue::from(23)); "from i32")]
         #[test_case(PropertyKey::from("bob") => NormalCompletion::Value(ECMAScriptValue::from("bob")); "from property key")]
+        #[test_case(() => NormalCompletion::Empty; "from unit")]
+        #[test_case("bob" => NormalCompletion::Value(ECMAScriptValue::from("bob")); "from &str")]
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
         }
@@ -154,6 +158,51 @@ mod normal_completion {
                 assert_eq!(recovered, sym);
             } else {
                 panic!("test failed; non symbol came back")
+            }
+        }
+
+        #[test]
+        fn private_element() {
+            setup_test_agent();
+            let pe = PrivateElement {
+                key: PrivateName::new("private-element"),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(99)) },
+            };
+
+            let nc = NormalCompletion::from(pe.clone());
+
+            if let NormalCompletion::PrivateElement(boxed) = nc {
+                assert_eq!(&*boxed, &pe);
+            } else {
+                panic!("test failed; non-pe came back");
+            }
+        }
+
+        mod option_pe {
+            use super::*;
+
+            #[test]
+            fn none() {
+                let pe: Option<PrivateElement> = None;
+                let nc = NormalCompletion::from(pe);
+                assert_eq!(nc, NormalCompletion::Empty);
+            }
+
+            #[test]
+            fn some() {
+                setup_test_agent();
+                let pe = PrivateElement {
+                    key: PrivateName::new("private-element"),
+                    kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(99)) },
+                };
+
+                let nc = NormalCompletion::from(Some(pe.clone()));
+
+                if let NormalCompletion::PrivateElement(boxed) = nc {
+                    assert_eq!(&*boxed, &pe);
+                } else {
+                    panic!("test failed; non-pe came back");
+                }
             }
         }
     }
