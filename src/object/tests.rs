@@ -4186,18 +4186,6 @@ mod object {
         use super::*;
         use test_case::test_case;
 
-        fn regex_validation(regex: &str) -> impl Fn(Result<String, String>) + '_ {
-            move |actual: Result<String, String>| {
-                let re = Regex::new(regex).unwrap();
-                match &actual {
-                    Err(_) => panic!("Saw an Err when Ok was expected"),
-                    Ok(msg) => {
-                        assert!(re.is_match(msg));
-                    }
-                }
-            }
-        }
-
         #[test_case(
             || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), ECMAScriptValue::from("value"))
             => sok("test_key:value");
@@ -4240,7 +4228,7 @@ mod object {
             "&str:bool")]
         #[test_case(
             || (ordinary_object_create(None, &[]), "test_key", intrinsic(IntrinsicId::Object))
-            => using regex_validation(r"test_key:<Object [0-9]+>");
+            => sok("test_key:function Object");
             "&str:Object")]
         #[test_case(
             || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), 0.125)
@@ -4256,7 +4244,7 @@ mod object {
             "&str:ECMAScriptValue")]
         #[test_case(
             || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), intrinsic(IntrinsicId::Object))
-            => using regex_validation(r"test_key:<Object [0-9]+>");
+            => sok("test_key:function Object");
             "PropertyKey:Object")]
         #[test_case(
             || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), "value")

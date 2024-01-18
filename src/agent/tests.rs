@@ -1811,3 +1811,86 @@ mod evaluate_initialized_class_field_definition {
         assert!(res.is_err());
     }
 }
+
+mod define_method_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[derive(Debug, PartialEq)]
+    enum TestResult {
+        PrivateLike { obj_desc: String, name: String, func: String },
+        PropertyLike { obj_desc: String, writable: bool, enumerable: bool, configurable: bool },
+    }
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: true,
+            configurable: true
+        };
+        "typical-enumerable"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), false
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: false,
+            configurable: true
+        };
+        "typical-hidden"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PrivateName::new("private")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PrivateLike {
+            obj_desc: "".to_string(),
+            name: "private".to_string(),
+            func: "length:1,name:isNaN".to_string()
+        };
+        "private"
+    )]
+    fn f(
+        make_home_object: impl FnOnce() -> Object,
+        key: FunctionName,
+        make_closure: impl FnOnce() -> Object,
+        enumerable: bool,
+    ) -> TestResult {
+        setup_test_agent();
+        let home_object = make_home_object();
+        let closure = make_closure();
+        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable);
+        match opt_pe {
+            None => {
+                let pk = PropertyKey::try_from(key).unwrap();
+                let desc = DataDescriptor::try_from(home_object.o.get_own_property(&pk).unwrap().unwrap()).unwrap();
+                TestResult::PropertyLike {
+                    obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                    writable: desc.writable,
+                    enumerable: desc.enumerable,
+                    configurable: desc.configurable,
+                }
+            }
+            Some(pe) => {
+                if let PrivateElement {
+                    key: PrivateName { description, .. },
+                    kind: PrivateElementKind::Method { value },
+                } = pe
+                {
+                    TestResult::PrivateLike {
+                        obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                        name: String::from(description),
+                        func: value.test_result_string(),
+                    }
+                } else {
+                    panic!("Bad PE came back");
+                }
+            }
+        }
+    }
+}

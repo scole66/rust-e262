@@ -216,6 +216,8 @@ test_defs[CompilerCaseBlock]="parser::switch_statement::CaseBlock case_block com
 test_defs[CompilerDefaultClause]="parser::switch_statement::DefaultClause default_clause compiler"
 test_defs[CompilerCaseClause]="parser::switch_statement::CaseClause case_clause compiler"
 test_defs[CompilerMethodDefinition]="parser::method_definitions::MethodDefinition method_definition compiler"
+test_defs[CompilerMethodDefinition_define_method]="parser::method_definitions::MethodDefinition::define_method method_definition::define_method compiler"
+test_defs[CompilerMethodDefinition_method_definition_evaluation]="parser::method_definitions::MethodDefinition::method_definition_evaluation method_definition::method_definition_evaluation compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"

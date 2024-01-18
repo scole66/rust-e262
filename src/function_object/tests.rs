@@ -540,6 +540,17 @@ mod function_name {
         assert_ne!(format!("{fname:?}"), "");
     }
 
+    #[test]
+    fn clone() {
+        let fname = FunctionName::String(JSString::from("bob"));
+        let copy = fname.clone();
+        if let FunctionName::String(s) = copy {
+            assert_eq!(s, JSString::from("bob"));
+        } else {
+            panic!("function name not cloned correctly");
+        }
+    }
+
     #[test_case(|| JSString::from("bob") => "String(bob)"; "string")]
     #[test_case(|| PropertyKey::from("stringy") => "String(stringy)"; "string as property key")]
     #[test_case(|| PropertyKey::from(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "symbol as property key")]

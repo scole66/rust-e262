@@ -1186,7 +1186,7 @@ impl<'a> FuncArgs<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionName {
     String(JSString),
     Symbol(Symbol),

@@ -12003,3 +12003,88 @@ mod case_block {
         })
     }
 }
+
+mod method_definition {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        "[1n] () {}", true, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "class element name compile fails"
+    )]
+    #[test_case(
+        "[1n] () {}", true, &[]
+        => Ok(svec(&["BIGINT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 4", "DEFINE_METHOD 0", "JUMP 2", "UNWIND 2"]));
+        "success; fallible name"
+    )]
+    #[test_case("a(){}", true, &[] => Ok(svec(&["STRING 0 (a)", "DEFINE_METHOD 0"])); "success; infallible name")]
+    #[test_case(
+        "a(){}", true, &[(Fillable::FunctionStash, 0)]
+        => serr("Out of room for more functions!");
+        "no room for functions"
+    )]
+    #[test_case("get a(){}", true, &[] => panics "entered unreachable code"; "not plain method")]
+    fn define_method(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).method_definition();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.define_method(&mut c, strict, src, &node)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+    }
+
+    #[test_case(
+        "[1n](){}", true, &[(Fillable::BigInt, 0)], true
+        => serr("Out of room for big ints in this compilation unit");
+        "define_method fails"
+    )]
+    #[test_case(
+        "a(){}", true, &[], false
+        => Ok(svec(&[
+            "DUP",
+            "FUNC_PROTO",
+            "SWAP",
+            "STRING 0 (a)",
+            "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SET_FUNC_NAME",
+            "DEF_METH_PROP 0",
+            "UNWIND_IF_ABRUPT 1"
+        ]));
+        "success; not enumerable"
+    )]
+    #[test_case(
+        "a(){}", true, &[], true
+        => Ok(svec(&[
+            "DUP",
+            "FUNC_PROTO",
+            "SWAP",
+            "STRING 0 (a)",
+            "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SET_FUNC_NAME",
+            "DEF_METH_PROP 1",
+            "UNWIND_IF_ABRUPT 1"
+        ]));
+        "success; enumerable"
+    )]
+    #[test_case("get a(){}", true, &[], true => panics "not yet implemented"; "getter")]
+    #[test_case("set a(b){}", true, &[], true => panics "not yet implemented"; "setter")]
+    #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
+    #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]
+    #[test_case("async *a(){}", true, &[], true => panics "not yet implemented"; "async generator")]
+    fn method_definition_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+        enumerable: bool,
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).method_definition();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.method_definition_evaluation(enumerable, &mut c, strict, src, &node)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+    }
+}
