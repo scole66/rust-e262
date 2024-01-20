@@ -5,6 +5,7 @@ use num::bigint::BigInt;
 use regex::Regex;
 use std::cmp::Ordering;
 use std::convert::TryInto;
+use std::hash::BuildHasher;
 use test_case::test_case;
 
 #[test]
@@ -635,6 +636,7 @@ mod private_name {
 
 mod private_element_kind {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn debug() {
@@ -651,10 +653,73 @@ mod private_element_kind {
             assert_eq!(*value.borrow(), ECMAScriptValue::from("a"));
         }
     }
+
+    #[test_case(
+        || PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field"))} => "Field(field)"; "field"
+    )]
+    #[test_case(|| PrivateElementKind::Method{value: ECMAScriptValue::from("method")} => "Method(method)"; "method")]
+    #[test_case(|| PrivateElementKind::Accessor{ get: None, set: None } => "Accessor(-,-)"; "empty accessor")]
+    #[test_case(
+        || PrivateElementKind::Accessor{ get: Some(intrinsic(IntrinsicId::IsNaN)), set: None }
+        => "Accessor(isNaN,-)";
+        "get-only accessor"
+    )]
+    #[test_case(
+        || PrivateElementKind::Accessor{ get: None, set: Some(intrinsic(IntrinsicId::IsFinite)) }
+        => "Accessor(-,isFinite)";
+        "set-only accessor"
+    )]
+    #[test_case(
+        || {
+            PrivateElementKind::Accessor{
+                get: Some(intrinsic(IntrinsicId::IsNaN)),
+                set: Some(intrinsic(IntrinsicId::IsFinite))
+            }
+        }
+        => "Accessor(isNaN,isFinite)";
+        "full accessor"
+    )]
+    #[test_case(
+        || PrivateElementKind::Accessor{ get: Some(DeadObject::object()), set: None }
+        => "Accessor(unnamed,-)";
+        "get-dead accessor"
+    )]
+    #[test_case(
+        || PrivateElementKind::Accessor{ get: None, set: Some(DeadObject::object()) }
+        => "Accessor(-,unnamed)";
+        "set-dead accessor"
+    )]
+    #[test_case(
+        || PrivateElementKind::Accessor{ get: Some(DeadObject::object()), set: Some(DeadObject::object()) }
+        => "Accessor(unnamed,unnamed)";
+        "dead accessor"
+    )]
+    fn display_fmt(make_item: impl FnOnce() -> PrivateElementKind) -> String {
+        setup_test_agent();
+        let item = make_item();
+        format!("{item}")
+    }
+
+    #[test_case(
+        PrivateElementKind::Field{ value: RefCell::new(ECMAScriptValue::from("field")) },
+        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) }
+        => true;
+        "field equal"
+    )]
+    #[test_case(
+        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) },
+        PrivateElementKind::Method{value: ECMAScriptValue::from("method")}
+        => false;
+        "field/method"
+    )]
+    fn eq(left: PrivateElementKind, right: PrivateElementKind) -> bool {
+        left == right
+    }
 }
 
 mod private_element {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn debug() {
@@ -678,6 +743,32 @@ mod private_element {
         } else {
             panic!("Came back with the wrong kind!")
         }
+    }
+
+    #[test]
+    fn display_fmt() {
+        let pe = PrivateElement {
+            key: PrivateName::new("just a key"),
+            kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) },
+        };
+        assert_eq!(format!("{pe}"), "PrivateElement{PN[just a key]: Field(just some data)}");
+    }
+
+    #[test_case(
+        || {
+            let pe = PrivateElement {
+                key: PrivateName::new("key"),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("value")) },
+            };
+            (pe.clone(), pe)
+        }
+        => true;
+        "equal"
+    )]
+    fn eq(make_items: impl FnOnce() -> (PrivateElement, PrivateElement)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_items();
+        left == right
     }
 }
 
@@ -792,6 +883,21 @@ mod property_key {
             let pk = PropertyKey::try_from(val).unwrap();
             assert_eq!(pk, PropertyKey::from(wks(WksId::ToPrimitive)));
         }
+    }
+
+    #[test_case(&ahash::RandomState::new(); "ahash hasher")]
+    #[test_case(&std::collections::hash_map::RandomState::new(); "std hasher")]
+    fn hash(factory: &impl BuildHasher) {
+        setup_test_agent();
+
+        let code_a = PropertyKey::from("bob");
+        let code_b = PropertyKey::from(Symbol::new(Some("alice".into())));
+
+        let hash_a = calculate_hash(factory, &code_a);
+        let hash_b = calculate_hash(factory, &code_b);
+
+        assert_ne!(hash_a, hash_b);
+        assert_eq!(hash_a, calculate_hash(factory, &code_a));
     }
 }
 

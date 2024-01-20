@@ -1811,3 +1811,194 @@ mod evaluate_initialized_class_field_definition {
         assert!(res.is_err());
     }
 }
+
+mod define_method_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[derive(Debug, PartialEq)]
+    enum TestResult {
+        PrivateLike { obj_desc: String, name: String, func: String },
+        PropertyLike { obj_desc: String, writable: bool, enumerable: bool, configurable: bool },
+    }
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: true,
+            configurable: true
+        };
+        "typical-enumerable"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), false
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: false,
+            configurable: true
+        };
+        "typical-hidden"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PrivateName::new("private")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PrivateLike {
+            obj_desc: "".to_string(),
+            name: "private".to_string(),
+            func: "length:1,name:isNaN".to_string()
+        };
+        "private"
+    )]
+    fn f(
+        make_home_object: impl FnOnce() -> Object,
+        key: FunctionName,
+        make_closure: impl FnOnce() -> Object,
+        enumerable: bool,
+    ) -> TestResult {
+        setup_test_agent();
+        let home_object = make_home_object();
+        let closure = make_closure();
+        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable);
+        match opt_pe {
+            None => {
+                let pk = PropertyKey::try_from(key).unwrap();
+                let desc = DataDescriptor::try_from(home_object.o.get_own_property(&pk).unwrap().unwrap()).unwrap();
+                TestResult::PropertyLike {
+                    obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                    writable: desc.writable,
+                    enumerable: desc.enumerable,
+                    configurable: desc.configurable,
+                }
+            }
+            Some(pe) => {
+                if let PrivateElement {
+                    key: PrivateName { description, .. },
+                    kind: PrivateElementKind::Method { value },
+                } = pe
+                {
+                    TestResult::PrivateLike {
+                        obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                        name: String::from(description),
+                        func: value.test_result_string(),
+                    }
+                } else {
+                    panic!("Bad PE came back");
+                }
+            }
+        }
+    }
+}
+
+mod define_method {
+    use super::*;
+    use test_case::test_case;
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+    fn std_data() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
+            (name, params, body)
+        } else {
+            panic!()
+        };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn fcn_too_big() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {while (true) {@@@;}}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
+            (name, params, body)
+        } else {
+            panic!()
+        };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn not_named_method() -> (StashedFunctionData, String) {
+        let source = String::from("get bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, body) =
+            if let MethodDefinition::Getter(name, body, _) = md.as_ref() { (name, body) } else { panic!() };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(Maker::new("").unique_formal_parameters()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+
+    #[test_case(ordinary, || None, std_data => sok("length:0"); "typical")]
+    #[test_case(ordinary, || None, fcn_too_big => serr("out of range integral type conversion attempted"); "function compilation fails")]
+    #[test_case(ordinary, || None, not_named_method => panics "entered unreachable code"; "reach the unreachable")]
+    fn f(
+        make_object: impl FnOnce() -> Object,
+        make_proto: impl FnOnce() -> Option<Object>,
+        make_info: impl FnOnce() -> (StashedFunctionData, String),
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        set_lexical_environment(Some(env));
+
+        let object = make_object();
+        let prototype = make_proto();
+        let (info, src) = make_info();
+        define_method(object, prototype, &info, &src)
+            .map_err(|e| e.to_string())
+            .map(|obj| ECMAScriptValue::from(obj).test_result_string())
+    }
+}
+
+mod ec_peek {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| (), 1 => None; "stack shorter than lookback")]
+    #[test_case(|| ec_push(Ok(NormalCompletion::from("blue"))), 0 => Some(sok("\"blue\"")); "successful peek")]
+    #[test_case(
+        || {
+            ec_push(Ok(NormalCompletion::from("green")));
+            ec_push(Ok(NormalCompletion::from("blue")));
+        },
+        1
+        => Some(sok("\"green\""));
+        "peek > 0"
+    )]
+    #[test_case(
+        || AGENT.with(|agent| agent.execution_context_stack.borrow_mut().clear()),
+        1
+        => None;
+        "No execution contexts"
+    )]
+    fn ec_peek(make_stack: impl FnOnce(), from_end: usize) -> Option<Result<String, String>> {
+        setup_test_agent();
+        make_stack();
+        super::ec_peek(from_end).map(|item| item.map_err(unwind_any_error).map(|nc| nc.to_string()))
+    }
+}

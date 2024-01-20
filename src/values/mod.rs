@@ -559,16 +559,48 @@ impl PrivateName {
 // +------------+------------------+-------------------------------+---------------------------------------------+
 // | [[Set]]    | accessor         | Function or Undefined         | The setter for a private accessor.          |
 // +------------+------------------+-------------------------------+---------------------------------------------+
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrivateElementKind {
     Field { value: RefCell<ECMAScriptValue> },
     Method { value: ECMAScriptValue },
     Accessor { get: Option<Object>, set: Option<Object> },
 }
-#[derive(Debug, Clone)]
+impl fmt::Display for PrivateElementKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PrivateElementKind::Field { value } => write!(f, "Field({})", value.borrow()),
+            PrivateElementKind::Method { value } => write!(f, "Method({})", value),
+            PrivateElementKind::Accessor { get, set } => match (get.as_ref(), set.as_ref()) {
+                (None, None) => write!(f, "Accessor(-,-)"),
+                (None, Some(set)) => write!(
+                    f,
+                    "Accessor(-,{})",
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), None) => write!(
+                    f,
+                    "Accessor({},-)",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), Some(set)) => write!(
+                    f,
+                    "Accessor({},{})",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed")),
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+            },
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct PrivateElement {
     pub key: PrivateName,
     pub kind: PrivateElementKind,
+}
+impl fmt::Display for PrivateElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PrivateElement{{{}: {}}}", self.key, self.kind)
+    }
 }
 impl PrivateElement {}
 

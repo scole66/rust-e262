@@ -1007,8 +1007,28 @@ impl ECMAScriptValue {
                     } else {
                         first = false;
                     }
-                    let value_str = value.map(|val| format!("{val}")).unwrap_or_else(unwind_any_error);
-                    r.push_str(&format!("{key}:{value_str}"));
+                    let named_function_was_added = if let Ok(v) = value.as_ref() {
+                        if is_callable(v) {
+                            let name = to_string(
+                                to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
+                            )
+                            .unwrap_or_else(|_| JSString::from("undefined"));
+                            if name != "undefined" {
+                                r.push_str(&format!("{key}:function {name}"));
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    if !named_function_was_added {
+                        let value_str = value.map(|val| format!("{val}")).unwrap_or_else(unwind_any_error);
+                        r.push_str(&format!("{key}:{value_str}"));
+                    }
                 }
                 r
             }

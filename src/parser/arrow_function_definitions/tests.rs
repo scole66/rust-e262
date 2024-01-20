@@ -274,6 +274,7 @@ mod arrow_parameters {
 
     #[test_case("a" => 1.0; "identifier")]
     #[test_case("(a, b, c)" => 3.0; "formals")]
+    #[test_case("(a, b=33, c)" => 1.0; "formals with initializer")]
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).arrow_parameters().expected_argument_count()
     }

@@ -33,6 +33,7 @@ pub enum Insn {
     Bigint,
     GetValue,
     PutValue,
+    FunctionPrototype,
     Jump,
     JumpIfAbrupt,
     JumpIfNormal,
@@ -60,6 +61,7 @@ pub enum Insn {
     RotateDownList,
     Unwind,
     UnwindList,
+    UnwindIfAbrupt,
     AppendList,
     SwapDeepList,
     PopOutList,
@@ -165,6 +167,9 @@ pub enum Insn {
     PrivateIdLookup,
     EvaluateInitializedClassFieldDefinition,
     EvaluateClassStaticBlockDefinition,
+    DefineMethod,
+    SetFunctionName,
+    DefineMethodProperty,
 }
 
 impl fmt::Display for Insn {
@@ -187,6 +192,7 @@ impl fmt::Display for Insn {
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
             Insn::PutValue => "PUT_VALUE",
+            Insn::FunctionPrototype => "FUNC_PROTO",
             Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::JumpIfNormal => "JUMP_IF_NORMAL",
@@ -214,6 +220,7 @@ impl fmt::Display for Insn {
             Insn::RotateDownList => "ROTATEDOWN_LIST",
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
+            Insn::UnwindIfAbrupt => "UNWIND_IF_ABRUPT",
             Insn::AppendList => "APPEND_LIST",
             Insn::SwapDeepList => "SWAP_DEEP_LIST",
             Insn::PopOutList => "POP_OUT_LIST",
@@ -319,6 +326,9 @@ impl fmt::Display for Insn {
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
             Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
             Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
+            Insn::DefineMethod => "DEFINE_METHOD",
+            Insn::SetFunctionName => "SET_FUNC_NAME",
+            Insn::DefineMethodProperty => "DEF_METH_PROP",
         })
     }
 }
@@ -1808,7 +1818,23 @@ impl PropertyDefinition {
                 }
                 Ok(exit_status)
             }
-            PropertyDefinition::MethodDefinition(_) => todo!(),
+            PropertyDefinition::MethodDefinition(md) => {
+                // stack:                     obj
+                //   DUP                      obj obj
+                //   <md.mde>                 err/empty/privateelement obj
+                //   JUMP_IF_ABRUPT unwind    empty/privateelement obj
+                //   POP                      obj
+                // unwind:
+                //   UNWIND_IF_ABRUPT 1       err/obj
+                chunk.op(Insn::Dup);
+                md.method_definition_evaluation(true, chunk, strict, text, md)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                chunk.fixup(unwind).expect("short jumps should work");
+                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+
+                Ok(AbruptResult::Maybe)
+            }
             PropertyDefinition::AssignmentExpression(ae, _) => {
                 // Stack: obj ...
                 let status = ae.compile(chunk, strict, text)?;
@@ -7724,6 +7750,9 @@ impl ParamSource {
             ParamSource::ArrowParameters(params) => params.compile_binding_initialization(chunk, strict, text, env),
             ParamSource::AsyncArrowBinding(_) => todo!(),
             ParamSource::ArrowFormals(_) => todo!(),
+            ParamSource::UniqueFormalParameters(params) => {
+                params.compile_binding_initialization(chunk, strict, text, env)
+            }
         }
     }
 }
@@ -9490,6 +9519,135 @@ impl ClassStaticBlockStatementList {
                 chunk.op(Insn::Undefined);
                 Ok(AbruptResult::Never)
             }
+        }
+    }
+}
+
+impl MethodDefinition {
+    pub fn define_method(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: &Rc<MethodDefinition>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Stack at input:
+        //    object prototype
+        // stack at output:
+        //    err/(PropertyKey Closure)
+        match self {
+            MethodDefinition::NamedFunction(class_element_name, unique_formal_parameters, function_body, location) => {
+                // Runtime Semantics: DefineMethod
+                // The syntax-directed operation DefineMethod takes argument object (an Object) and optional argument
+                // functionPrototype (an Object) and returns either a normal completion containing a Record with fields
+                // [[Key]] (a property key) and [[Closure]] (an ECMAScript function object) or an abrupt completion. It
+                // is defined piecewise over the following productions:
+                //
+                // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //  1. Let propKey be ? Evaluation of ClassElementName.
+                //  2. Let env be the running execution context's LexicalEnvironment.
+                //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  4. If functionPrototype is present, then
+                //      a. Let prototype be functionPrototype.
+                //  5. Else,
+                //      a. Let prototype be %Function.prototype%.
+                //  6. Let sourceText be the source text matched by MethodDefinition.
+                //  7. Let closure be OrdinaryFunctionCreate(prototype, sourceText, UniqueFormalParameters,
+                //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+                //  8. Perform MakeMethod(closure, object).
+                //  9. Return the Record { [[Key]]: propKey, [[Closure]]: closure }.
+
+                // start:                    object prototype
+                //  <cen.evaluate>           propkey/err object prototype
+                //  JUMP_IF_ABRUPT unwind_2  propkey object prototype
+                //  DEFINE_METHOD(self)      err/(propkey closure)
+                //  JUMP exit
+                // unwind_2:
+                //  UNWIND 2
+                // exit:                     err/(propkey closure)
+
+                let status = class_element_name.compile(chunk, strict, text)?;
+                let unwind_2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_text =
+                    text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: ParamSource::from(unique_formal_parameters.clone()),
+                    body: function_body.clone().into(),
+                    to_compile: self_as_rc.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_arg(Insn::DefineMethod, idx);
+                if let Some(spot) = unwind_2 {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(spot).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AlwaysAbruptResult)
+            }
+            MethodDefinition::Generator(_)
+            | MethodDefinition::Async(_)
+            | MethodDefinition::AsyncGenerator(_)
+            | MethodDefinition::Getter(_, _, _)
+            | MethodDefinition::Setter(_, _, _, _) => unreachable!(),
+        }
+    }
+
+    fn method_definition_evaluation(
+        &self,
+        enumerable: bool,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        self_as_rc: &Rc<MethodDefinition>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: MethodDefinitionEvaluation
+        //
+        // The syntax-directed operation MethodDefinitionEvaluation takes arguments object (an Object) and enumerable (a
+        // Boolean) and returns either a normal completion containing either a PrivateElement or UNUSED, or an abrupt
+        // completion.
+
+        // On the stack at input:
+        //     object
+        // On the stack at output:
+        //     err/empty/PrivateElement
+        match self {
+            MethodDefinition::NamedFunction(_name, _params, _body, _) => {
+                // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //  1. Let methodDef be ? DefineMethod of MethodDefinition with argument object.
+                //  2. Perform SetFunctionName(methodDef.[[Closure]], methodDef.[[Key]]).
+                //  3. Return DefineMethodProperty(object, methodDef.[[Key]], methodDef.[[Closure]], enumerable).
+                // start:                        object
+                //  DUP                          object object
+                //  FCN_PROTO                    prototype object object
+                //  SWAP                         object prototype object
+                //  <md.define_method>           err/(propertykey closure) object
+                //  JUMP_IF_ABRUPT unwind        propertykey closure object
+                //  SET_FUNC_NAME                propertykey closure object
+                //  DEFMETHPROP(enumerable)      empty/PrivateElement
+                // unwind:
+                //  UNWIND_IF_ABRUPT 1
+
+                chunk.op(Insn::Dup);
+                chunk.op(Insn::FunctionPrototype);
+                chunk.op(Insn::Swap);
+                self.define_method(chunk, strict, text, self_as_rc)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::SetFunctionName);
+                chunk.op_plus_arg(Insn::DefineMethodProperty, if enumerable { 1 } else { 0 });
+                chunk.fixup(unwind).expect("Short jumps should work");
+                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+
+                Ok(AlwaysAbruptResult)
+            }
+            MethodDefinition::Generator(_) => todo!(),
+            MethodDefinition::Async(_) => todo!(),
+            MethodDefinition::AsyncGenerator(_) => todo!(),
+            MethodDefinition::Getter(_, _, _) => todo!(),
+            MethodDefinition::Setter(_, _, _, _) => todo!(),
         }
     }
 }

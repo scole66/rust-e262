@@ -208,6 +208,24 @@ pub fn ec_pop() -> Option<FullCompletion> {
     })
 }
 
+pub fn ec_peek(from_end: usize) -> Option<FullCompletion> {
+    AGENT.with(|agent| {
+        let execution_context_stack = agent.execution_context_stack.borrow();
+        let len = execution_context_stack.len();
+        match len {
+            0 => None,
+            _ => {
+                let ec = &execution_context_stack[len - 1];
+                let stack_len = ec.stack.len();
+                match stack_len {
+                    n if n > from_end => Some(ec.stack[n - from_end - 1].clone()),
+                    _ => None,
+                }
+            }
+        }
+    })
+}
+
 pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
     AGENT.with(|agent| {
         let mut ec_stack = agent.execution_context_stack.borrow_mut();
@@ -735,6 +753,11 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let v = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let result = put_value(v, w.map(|v| v.try_into().unwrap()));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result.map(NormalCompletion::from));
+                }
+                Insn::FunctionPrototype => {
+                    let proto = ECMAScriptValue::from(intrinsic(IntrinsicId::FunctionPrototype));
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(proto.into()))
+
                 }
                 Insn::JumpIfAbrupt => {
                     let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as i16;
@@ -1410,6 +1433,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     assert!(vals_to_remove < agent.execution_context_stack.borrow()[index].stack.len());
                     if vals_to_remove > 0 {
+                        let old_index_of_err = agent.execution_context_stack.borrow()[index].stack.len() - 1;
+                        let new_index_of_err = old_index_of_err - vals_to_remove;
+                        agent.execution_context_stack.borrow_mut()[index]
+                            .stack
+                            .swap(new_index_of_err, old_index_of_err);
+                        agent.execution_context_stack.borrow_mut()[index].stack.truncate(new_index_of_err + 1);
+                    }
+                }
+                Insn::UnwindIfAbrupt => {
+                    let vals_to_remove = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let top_completion = ec_peek(0).expect("items should be on stack");
+                    if top_completion.is_err() && vals_to_remove > 0 {
+                        assert!(vals_to_remove < agent.execution_context_stack.borrow()[index].stack.len());
                         let old_index_of_err = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                         let new_index_of_err = old_index_of_err - vals_to_remove;
                         agent.execution_context_stack.borrow_mut()[index]
@@ -2347,6 +2384,107 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec_push(Ok(NormalCompletion::from(home_object)));
                     ec_push(Ok(NormalCompletion::from(block_body)));
                 }
+                Insn::DefineMethod => {
+                    // on the stack: propkey object prototype
+                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[stash_index as usize];
+                    let propkey = PropertyKey::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be a property key");
+                    let obj = Object::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be an object");
+                    let prototype = Object::try_from(
+                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
+                    )
+                    .expect("item should be an object");
+
+                    let to_compile: Rc<MethodDefinition> =
+                        info.to_compile.clone().try_into().expect("This routine only used with MethodDefinitions");
+                    if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
+                        let name = nameify(&info.source_text, 50);
+                        let mut compiled = Chunk::new(name);
+                        let compilation_status = body.compile_body(&mut compiled, text, info);
+                        if let Err(err) = compilation_status {
+                            AGENT.with(|agent| {
+                                let typeerror = create_type_error(err.to_string());
+                                let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
+                                stack.push(Err(typeerror));
+                            });
+                            break;
+                        }
+                        for line in compiled.disassemble() {
+                            println!("{line}");
+                        }
+
+                        let env =
+                            current_lexical_environment().expect("a lexical environment should have been established");
+                        let private_env = current_private_environment();
+                        let source_text = &info.source_text;
+                        let strict = info.strict;
+                        let closure = ordinary_function_create(
+                            prototype,
+                            source_text,
+                            info.params.clone(),
+                            info.body.clone(),
+                            ThisLexicality::NonLexicalThis,
+                            env,
+                            private_env,
+                            strict,
+                            Rc::new(compiled),
+                        );
+
+                        make_method(closure.o.to_function_obj().unwrap(), obj);
+
+                        ec_push(Ok(closure.into()));
+                        ec_push(Ok(propkey.into()))
+
+                    } else {
+                        panic!("This routine is only for the production MethodDefinition : ClassElementName ( UniqueFormalParameters) {{ FunctionBody }}");
+                    }
+                }
+                Insn::SetFunctionName => {
+                    // on stack: propertykey closure
+                    // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
+                    let property_key = FunctionName::from(
+                        PropertyKey::try_from(
+                            ec_peek(0)
+                            .expect("items should be on stack")
+                            .expect("item should not be an error")
+                        )
+                        .expect("item should be a property key"));
+                    let closure =
+                        Object::try_from(
+                                ec_peek(1)
+                                .expect("items should be on stack")
+                                .expect("item should not be an error")
+                        )
+                        .expect("item should be an object");
+                    set_function_name(&closure, property_key, None)
+                }
+                Insn::DefineMethodProperty => {
+                    // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
+                    // Stack: propertykey closure object
+                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] == 1;
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let name = FunctionName::try_from(ec_pop()
+                        .expect("items should be on stack")
+                        .expect("item should not be error"))
+                        .expect("item should be a function name");
+                    let closure = Object::try_from(ec_pop()
+                        .expect("items should be on stack")
+                        .expect("item should not be error"))
+                        .expect("item should be an object");
+                    let home_object = Object::try_from(ec_pop()
+                        .expect("items should be on stack")
+                        .expect("item should not be error"))
+                        .expect("item should be an object");
+                    let result = define_method_property(&home_object, name, closure, enumerable);
+                    ec_push(Ok(result.into()));
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -2359,7 +2497,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     NormalCompletion::Value(v) => v,
                     NormalCompletion::IteratorRecord(_)
                     | NormalCompletion::Environment(..)
-                    | NormalCompletion::PrivateName(_) => unreachable!(),
+                    | NormalCompletion::PrivateName(_) | NormalCompletion::PrivateElement(_) => unreachable!(),
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
@@ -2371,7 +2509,8 @@ fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arg
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Empty
         | NormalCompletion::Environment(..)
-        | NormalCompletion::PrivateName(_) => {
+        | NormalCompletion::PrivateName(_)
+        | NormalCompletion::PrivateElement(_) => {
             panic!("begin_call_evaluation called with non-value, non-ref \"this\"");
         }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
@@ -2432,6 +2571,7 @@ fn delete_ref(expr: FullCompletion) -> FullCompletion {
         | NormalCompletion::Environment(..)
         | NormalCompletion::Empty
         | NormalCompletion::PrivateName(_)
+        | NormalCompletion::PrivateElement(_)
         | NormalCompletion::Value(_) => Ok(true.into()),
         NormalCompletion::Reference(r) => match *r {
             Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
@@ -2961,6 +3101,95 @@ fn evaluate_class_static_block_definition(
 
     make_method(body_function.o.to_function_obj().unwrap(), home_object);
     Ok(body_function)
+}
+
+fn define_method(
+    object: Object,
+    function_prototype: Option<Object>,
+    info: &StashedFunctionData,
+    text: &str,
+) -> anyhow::Result<Object> {
+    // Pieces of DefineMethod
+    //  1. Let env be the running execution context's LexicalEnvironment.
+    //  2. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  3. If functionPrototype is present, then
+    //      a. Let prototype be functionPrototype.
+    //  4. Else,
+    //      a. Let prototype be %Function.prototype%.
+    //  5. Let prototype be %Function.prototype%.
+    //  6. Let sourceText be the source text matched by MethodDefinition.
+    //  7. Let closure be OrdinaryFunctionCreate(prototype, sourceText, UniqueFormalParameters, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+    //  8. Perform MakeMethod(closure, object).
+    //  9. Return closure.
+    let to_compile: Rc<MethodDefinition> =
+        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
+    let fb = match to_compile.as_ref() {
+        MethodDefinition::NamedFunction(_, _, fb, _) => fb,
+        _ => unreachable!(),
+    };
+    let prod_text_loc = to_compile.location().span;
+    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+    let chunk_name = nameify(prod_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    fb.compile_body(&mut compiled, text, info)?;
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let env = current_lexical_environment().unwrap();
+    let private_env = current_private_environment();
+    let prototype = function_prototype.unwrap_or_else(|| intrinsic(IntrinsicId::FunctionPrototype));
+    let closure = ordinary_function_create(
+        prototype,
+        &info.source_text,
+        info.params.clone(),
+        info.body.clone(),
+        info.this_mode,
+        env,
+        private_env,
+        info.strict,
+        Rc::new(compiled),
+    );
+    make_method(closure.o.to_function_obj().unwrap(), object);
+
+    Ok(closure)
+}
+
+fn define_method_property(
+    home_object: &Object,
+    key: FunctionName,
+    closure: Object,
+    enumerable: bool,
+) -> Option<PrivateElement> {
+    // DefineMethodProperty ( homeObject, key, closure, enumerable )
+    // The abstract operation DefineMethodProperty takes arguments homeObject (an Object), key (a property key or
+    // Private Name), closure (a function object), and enumerable (a Boolean) and returns a PrivateElement or UNUSED. It
+    // performs the following steps when called:
+    //
+    //  1. Assert: homeObject is an ordinary, extensible object with no non-configurable properties.
+    //  2. If key is a Private Name, then
+    //      a. Return PrivateElement { [[Key]]: key, [[Kind]]: METHOD, [[Value]]: closure }.
+    //  3. Else,
+    //      a. Let desc be the PropertyDescriptor { [[Value]]: closure, [[Writable]]: true, [[Enumerable]]: enumerable,
+    //         [[Configurable]]: true }.
+    //      b. Perform ! DefinePropertyOrThrow(homeObject, key, desc).
+    //      c. Return UNUSED.
+
+    match key {
+        FunctionName::String(_) | FunctionName::Symbol(_) => {
+            let ppd = PotentialPropertyDescriptor::new()
+                .value(closure)
+                .writable(true)
+                .enumerable(enumerable)
+                .configurable(true);
+            let key = PropertyKey::try_from(key).expect("strings and symbols should convert just fine");
+            define_property_or_throw(home_object, key, ppd).expect("property should be attached without issue");
+            None
+        }
+        FunctionName::PrivateName(pn) => {
+            Some(PrivateElement { key: pn, kind: PrivateElementKind::Method { value: closure.into() } })
+        }
+    }
 }
 
 fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
