@@ -1894,3 +1894,111 @@ mod define_method_property {
         }
     }
 }
+
+mod define_method {
+    use super::*;
+    use test_case::test_case;
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+    fn std_data() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
+            (name, params, body)
+        } else {
+            panic!()
+        };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn fcn_too_big() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {while (true) {@@@;}}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
+            (name, params, body)
+        } else {
+            panic!()
+        };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn not_named_method() -> (StashedFunctionData, String) {
+        let source = String::from("get bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let (_name, body) =
+            if let MethodDefinition::Getter(name, body, _) = md.as_ref() { (name, body) } else { panic!() };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(Maker::new("").unique_formal_parameters()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+
+    #[test_case(ordinary, || None, std_data => sok("length:0"); "typical")]
+    #[test_case(ordinary, || None, fcn_too_big => serr("out of range integral type conversion attempted"); "function compilation fails")]
+    #[test_case(ordinary, || None, not_named_method => panics "entered unreachable code"; "reach the unreachable")]
+    fn f(
+        make_object: impl FnOnce() -> Object,
+        make_proto: impl FnOnce() -> Option<Object>,
+        make_info: impl FnOnce() -> (StashedFunctionData, String),
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        set_lexical_environment(Some(env));
+
+        let object = make_object();
+        let prototype = make_proto();
+        let (info, src) = make_info();
+        define_method(object, prototype, &info, &src)
+            .map_err(|e| e.to_string())
+            .map(|obj| ECMAScriptValue::from(obj).test_result_string())
+    }
+}
+
+mod ec_peek {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| (), 1 => None; "stack shorter than lookback")]
+    #[test_case(|| ec_push(Ok(NormalCompletion::from("blue"))), 0 => Some(sok("\"blue\"")); "successful peek")]
+    #[test_case(
+        || {
+            ec_push(Ok(NormalCompletion::from("green")));
+            ec_push(Ok(NormalCompletion::from("blue")));
+        },
+        1
+        => Some(sok("\"green\""));
+        "peek > 0"
+    )]
+    #[test_case(
+        || AGENT.with(|agent| agent.execution_context_stack.borrow_mut().clear()),
+        1
+        => None;
+        "No execution contexts"
+    )]
+    fn ec_peek(make_stack: impl FnOnce(), from_end: usize) -> Option<Result<String, String>> {
+        setup_test_agent();
+        make_stack();
+        super::ec_peek(from_end).map(|item| item.map_err(unwind_any_error).map(|nc| nc.to_string()))
+    }
+}

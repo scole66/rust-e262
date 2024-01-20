@@ -1013,7 +1013,7 @@ impl ECMAScriptValue {
                                 to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
                             )
                             .unwrap_or_else(|_| JSString::from("undefined"));
-                            if name != JSString::from("undefined") {
+                            if name != "undefined" {
                                 r.push_str(&format!("{key}:function {name}"));
                                 true
                             } else {
