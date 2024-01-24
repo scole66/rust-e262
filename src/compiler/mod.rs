@@ -1943,39 +1943,31 @@ fn evaluate_property_access_with_expression_key(
     strict: bool,
     text: &str,
 ) -> anyhow::Result<AlwaysAbruptRefResult> {
-    let mut exits = vec![];
-    // Stack: base ...
+    // start:                         base
+    //  <expression>                  err/ref base
+    //  GET_VALUE                     err/val base
+    //  JUMP_IF_ABRUPT unwind_1       val base
+    //  TO_KEY                        key/err base
+    //  JUMP_IF_ABRUPT unwind_1       key base
+    //  REF/STRICT_REF                ref
+    // unwind_1:                      (err base) / ref
+    //  UNWIND_IF_ABRUPT 1            err/ref
     let state = expression.compile(chunk, strict, text)?;
-    // Stack: propertyNameReference/error1 base ...
     if state.maybe_ref() {
         chunk.op(Insn::GetValue);
     }
-    // Stack: propertyNameValue/error1/error2 base ...
-    if state.maybe_abrupt() || state.maybe_ref() {
-        let norm = chunk.op_jump(Insn::JumpIfNormal);
-        // Stack: error1/error2 base ...
-        chunk.op_plus_arg(Insn::Unwind, 1);
-        // stack: error1/error2 ...
-        let exit = chunk.op_jump(Insn::Jump);
-        exits.push(exit);
-        chunk.fixup(norm).expect("Jump is too short to overflow.");
-    }
-    // Stack: nameValue base ...
+    let unwind_a =
+        if state.maybe_ref() || state.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
     chunk.op(Insn::ToPropertyKey);
-    // Stack: key/err base ...
-    let norm = chunk.op_jump(Insn::JumpIfNormal);
-    chunk.op_plus_arg(Insn::Unwind, 1);
-    let exit = chunk.op_jump(Insn::Jump);
-    exits.push(exit);
-    chunk.fixup(norm).expect("Jump is too short to overflow.");
-
-    // Stack: key base ...
+    let unwind_b = chunk.op_jump(Insn::JumpIfAbrupt);
     chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
-    // Stack: ref ...
 
-    for exit in exits {
-        chunk.fixup(exit).expect("Jump is too short to overflow.");
+    if let Some(unwind_a) = unwind_a {
+        chunk.fixup(unwind_a).expect("jump too short to fail");
     }
+    chunk.fixup(unwind_b).expect("jump too short to fail");
+
+    chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
     Ok(AlwaysAbruptRefResult)
 }
 
