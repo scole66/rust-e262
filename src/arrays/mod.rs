@@ -886,13 +886,78 @@ fn array_prototype_last_index_of(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn array_prototype_map(
-    _this_value: ECMAScriptValue,
+    this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.map ( callbackfn [ , thisArg ] )
+    //
+    // NOTE 1
+    // callbackfn should be a function that accepts three arguments. map calls callbackfn once for each
+    // element in the array, in ascending order, and constructs a new Array from the results. callbackfn is
+    // called only for elements of the array which actually exist; it is not called for missing elements of
+    // the array.
+    //
+    // If a thisArg parameter is provided, it will be used as the this value for each invocation of
+    // callbackfn. If it is not provided, undefined is used instead.
+    //
+    // callbackfn is called with three arguments: the value of the element, the index of the element, and the
+    // object being traversed.
+    //
+    // map does not directly mutate the object on which it is called but the object may be mutated by the
+    // calls to callbackfn.
+    //
+    // The range of elements processed by map is set before the first call to callbackfn. Elements which are
+    // appended to the array after the call to map begins will not be visited by callbackfn. If existing
+    // elements of the array are changed, their value as passed to callbackfn will be the value at the time
+    // map visits them; elements that are deleted after the call to map begins and before being visited are
+    // not visited.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    //  4. Let A be ? ArraySpeciesCreate(O, len).
+    //  5. Let k be 0.
+    //  6. Repeat, while k < len,
+    //      a. Let Pk be ! ToString(𝔽(k)).
+    //      b. Let kPresent be ? HasProperty(O, Pk).
+    //      c. If kPresent is true, then
+    //          i. Let kValue be ? Get(O, Pk).
+    //          ii. Let mappedValue be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
+    //          iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    //      d. Set k to k + 1.
+    //  7. Return A.
+    //
+    // NOTE 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callbackfn = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value)?;
+    let len = length_of_array_like(&o)? as u64;
+    if !is_callable(&callbackfn) {
+        return Err(create_type_error("Array.prototype.map: callback function was not callable"));
+    }
+    let a = to_object(array_species_create(&o, len)?).expect("array creation should make object");
+    for k in 0..len {
+        let pk = PropertyKey::from(k as usize);
+        let k_present = has_property(&o, &pk)?;
+        if k_present {
+            let k_value = o.get(&pk)?;
+            let mapped_value = call(&callbackfn, &this_arg, &[k_value, k.into(), o.clone().into()])?;
+            a.create_data_property_or_throw(pk, mapped_value)?;
+        }
+    }
+
+    Ok(a.into())
 }
+
 fn array_prototype_pop(
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

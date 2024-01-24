@@ -601,6 +601,7 @@ test_defs[array_is_array]="array_is_array array_is_array arrays"
 test_defs[array_species]="array_species array_species:: arrays"
 test_defs[array_prototype_pop]="array_prototype_pop array_prototype_pop arrays"
 test_defs[array_prototype_push]="array_prototype_push array_prototype_push arrays"
+test_defs[array_protoype_map]="array_prototype_map array_prototype_map arrays"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 test_defs[BooleanObject]="BooleanObject boolean_object boolean_object"

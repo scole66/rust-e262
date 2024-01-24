@@ -694,7 +694,6 @@ fn defaults() {
 #[test_case(super::array_prototype_index_of => panics; "array_prototype_index_of")]
 #[test_case(super::array_prototype_keys => panics; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics; "array_prototype_last_index_of")]
-#[test_case(super::array_prototype_map => panics; "array_prototype_map")]
 #[test_case(super::array_prototype_reduce => panics; "array_prototype_reduce")]
 #[test_case(super::array_prototype_reduce_right => panics; "array_prototype_reduce_right")]
 #[test_case(super::array_prototype_reverse => panics; "array_prototype_reverse")]
@@ -1312,5 +1311,40 @@ mod array_constructor_function {
         }
 
         Ok(result)
+    }
+}
+
+mod array_prototype_map {
+    use super::*;
+    use test_case::test_case;
+
+    fn behavior(this_value: ECMAScriptValue, _: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        let obj = to_object(this_value)?;
+        let mut args = FuncArgs::from(arguments);
+        let value = args.next_arg();
+        let index = args.next_arg();
+        let traversed = args.next_arg();
+
+        let this_marker = to_string(obj.get(&"this_marker".into())?)?;
+        let value_str = to_string(value)?;
+        let index_str = to_string(index)?;
+        let traversed_str = to_string(to_object(traversed)?.get(&"traversed_marker".into())?)?;
+
+        Ok(this_marker.concat(value_str).concat(index_str).concat(traversed_str).into())
+    }
+
+    #[test_case(
+        || {
+            todo!()
+        }
+        => sok("something");
+        "complex, but successful"
+    )]
+    fn f(make_this_and_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+        setup_test_agent();
+        let items = make_this_and_args();
+        let this_value = items[0].clone();
+        let args = &items[1..];
+        array_prototype_map(this_value, None, args).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 }
