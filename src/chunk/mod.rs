@@ -296,6 +296,11 @@ impl Chunk {
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
             }
+            Insn::DefineGetter => {
+                let arg = self.opcodes[idx] as usize;
+                let flag = self.opcodes[idx + 1] != 0;
+                (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))
+            }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;
                 let mut string_set = self.string_sets[string_set_idx].iter().collect::<Vec<&JSString>>();
