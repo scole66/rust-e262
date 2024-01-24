@@ -1447,5 +1447,76 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
     }
 }
 
+pub fn exponentiate(base: f64, exponent: f64) -> f64 {
+    // Number::exponentiate ( base, exponent )
+    // The abstract operation Number::exponentiate takes arguments base (a Number) and exponent (a Number) and returns a
+    // Number. It returns an implementation-approximated value representing the result of raising base to the exponent
+    // power. It performs the following steps when called:
+    //
+    //  1. If exponent is NaN, return NaN.
+    //  2. If exponent is either +0𝔽 or -0𝔽, return 1𝔽.
+    //  3. If base is NaN, return NaN.
+    //  4. If base is +∞𝔽, then
+    //      a. If exponent > +0𝔽, return +∞𝔽. Otherwise, return +0𝔽.
+    //  5. If base is -∞𝔽, then
+    //      a. If exponent > +0𝔽, then
+    //          i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+    //      b. Else,
+    //          i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+    //  6. If base is +0𝔽, then
+    //      a. If exponent > +0𝔽, return +0𝔽. Otherwise, return +∞𝔽.
+    //  7. If base is -0𝔽, then
+    //      a. If exponent > +0𝔽, then
+    //          i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+    //      b. Else,
+    //          i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+    //  8. Assert: base is finite and is neither +0𝔽 nor -0𝔽.
+    //  9. If exponent is +∞𝔽, then
+    //      a. If abs(ℝ(base)) > 1, return +∞𝔽.
+    //      b. If abs(ℝ(base)) = 1, return NaN.
+    //      c. If abs(ℝ(base)) < 1, return +0𝔽.
+    //  10. If exponent is -∞𝔽, then
+    //      a. If abs(ℝ(base)) > 1, return +0𝔽.
+    //      b. If abs(ℝ(base)) = 1, return NaN.
+    //      c. If abs(ℝ(base)) < 1, return +∞𝔽.
+    //  11. Assert: exponent is finite and is neither +0𝔽 nor -0𝔽.
+    //  12. If base < -0𝔽 and exponent is not an integral Number, return NaN.
+    //  13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the
+    //      ℝ(exponent) power.
+    // NOTE The result of base ** exponent when base is 1𝔽 or -1𝔽 and exponent is +∞𝔽 or -∞𝔽, or when base is 1𝔽
+    // and exponent is NaN, differs from IEEE 754-2019. The first edition of ECMAScript specified a result of NaN for
+    // this operation, whereas later revisions of IEEE 754 specified 1𝔽. The historical ECMAScript behaviour is
+    // preserved for compatibility reasons.
+    if exponent.is_nan() {
+        return f64::NAN;
+    }
+    if exponent == 0.0 {
+        return 1.0;
+    }
+    if base.is_nan() {
+        return f64::NAN;
+    }
+    if base.is_infinite() || base == 0.0 || exponent.is_finite() {
+        return base.powf(exponent);
+    }
+
+    let b = base.abs();
+    if exponent > 0.0 {
+        if b > 1.0 {
+            f64::INFINITY
+        } else if b < 1.0 {
+            0.0
+        } else {
+            f64::NAN
+        }
+    } else if b > 1.0 {
+        0.0
+    } else if b < 1.0 {
+        f64::INFINITY
+    } else {
+        f64::NAN
+    }
+}
+
 #[cfg(test)]
 pub mod tests;

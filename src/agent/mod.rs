@@ -534,6 +534,7 @@ pub fn set_default_global_bindings() {
     // Atomics
     // JSON
     // Math
+    global_data!("Math", intrinsic(IntrinsicId::Math), true, false, true);
     // Reflect
 }
 
@@ -2672,7 +2673,7 @@ fn apply_string_or_numeric_binary_operator(lval: ECMAScriptValue, rval: ECMAScri
     let rnum = to_numeric(rval)?;
     match (lnum, rnum, op) {
         (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => {
-            Ok(NormalCompletion::from(left.powf(right)))
+            Ok(NormalCompletion::from(exponentiate(left, right)))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::Multiply) => Ok(NormalCompletion::from(left * right)),
         (Numeric::Number(left), Numeric::Number(right), BinOp::Divide) => Ok(NormalCompletion::from(left / right)),

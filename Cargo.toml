@@ -30,6 +30,7 @@ yaml-rust = "0.4.5"
 color-eyre = "0.6.2"
 tempfile = "3.9.0"
 clap = { version = "4.4.12", features = ["derive"] }
+rand = "0.8.5"
 
 [dev-dependencies]
 test-case = "2.0"
