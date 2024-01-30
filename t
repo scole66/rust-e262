@@ -448,6 +448,7 @@ test_defs[evaluate_initialized_class_field_definition]="evaluate_initialized_cla
 test_defs[define_method]="define_method define_method:: agent"
 test_defs[define_method_property]="define_method_property define_method_property agent"
 test_defs[ec_peek]="ec_peek ec_peek agent"
+test_defs[set_default_global_bindings]="set_default_global_bindings set_default_global_bindings agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
