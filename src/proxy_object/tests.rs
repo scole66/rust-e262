@@ -2251,6 +2251,7 @@ mod proxy_object {
     false_function!(is_boolean_object);
     false_function!(is_date_object);
     false_function!(uses_ordinary_get_prototype_of);
+    false_function!(is_bigint_object);
 
     none_function!(to_number_obj);
     none_function!(to_array_object);
@@ -2265,6 +2266,7 @@ mod proxy_object {
     none_function!(to_function_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_string_obj);
+    none_function!(to_bigint_object);
 
     default_id_test!();
 

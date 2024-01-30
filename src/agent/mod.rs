@@ -477,6 +477,7 @@ pub fn set_default_global_bindings() {
     constructor_property!(Array);
     // ArrayBuffer ( . . . )
     // BigInt ( . . . )
+    constructor_property!(BigInt);
     // BigInt64Array ( . . . )
     // BigUint64Array ( . . . )
     // Boolean ( . . . )

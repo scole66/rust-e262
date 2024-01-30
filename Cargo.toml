@@ -34,6 +34,7 @@ rand = "0.8.5"
 
 [dev-dependencies]
 test-case = "2.0"
+unicode-intervals = "0.2"
 
 [profile.coverage]
 inherits = "dev"
@@ -41,3 +42,10 @@ inherits = "dev"
 
 [profile.bacon]
 inherits = "dev"
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = "symbols"

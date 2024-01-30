@@ -1,3 +1,4 @@
+use num::BigInt;
 use std::fmt;
 use std::ops::Index;
 use std::rc::Rc;
@@ -226,6 +227,72 @@ fn string_to_code_points(string: &JSString) -> Vec<u32> {
         position += cp.code_unit_count as usize;
     }
     code_points
+}
+
+fn is_str_whitespace(ch: u16) -> bool {
+    (0x09..=0x0d).contains(&ch)
+        || ch == 0x20
+        || ch == 0x00a0
+        || ch == 0x2028
+        || ch == 0x2029
+        || ch == 0xfeff
+        || ch == 0x1680
+        || (0x2000..=0x200a).contains(&ch)
+        || ch == 0x202f
+        || ch == 0x205f
+        || ch == 0x3000
+}
+
+pub fn string_to_bigint(value: JSString) -> Option<Rc<BigInt>> {
+    // StringToBigInt ( str )
+    // The abstract operation StringToBigInt takes argument str (a String) and returns a BigInt or undefined. It
+    // performs the following steps when called:
+    //
+    //  1. Let text be StringToCodePoints(str).
+    //  2. Let literal be ParseText(text, StringIntegerLiteral).
+    //  3. If literal is a List of errors, return undefined.
+    //  4. Let mv be the MV of literal.
+    //  5. Assert: mv is an integer.
+    //  6. Return ℤ(mv).
+    let mut code_units = value.s.as_ref();
+    while let [first, rest @ ..] = code_units {
+        if is_str_whitespace(*first) {
+            code_units = rest;
+        } else {
+            break;
+        }
+    }
+    while let [rest @ .., last] = code_units {
+        if is_str_whitespace(*last) {
+            code_units = rest;
+        } else {
+            break;
+        }
+    }
+    if code_units.is_empty() {
+        return Some(Rc::new(BigInt::from(0)));
+    }
+    let radix = if code_units.len() >= 2 && code_units[0] == 0x30 {
+        match code_units[1] {
+            98 | 66 => 2,
+            120 | 88 => 16,
+            79 | 111 => 8,
+            _ => 10,
+        }
+    } else {
+        10
+    };
+    if radix != 10 {
+        code_units = &code_units[2..];
+    }
+    let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
+    BigInt::parse_bytes(&digits, radix).map(Rc::new)
+}
+
+impl From<Rc<BigInt>> for JSString {
+    fn from(value: Rc<BigInt>) -> Self {
+        JSString::from(value.to_str_radix(10))
+    }
 }
 
 #[cfg(test)]

@@ -5,60 +5,42 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use test_case::test_case;
 
-#[test]
-fn from_u16_test_01() {
-    let src: &[u16] = &[66, 111, 98]; // Bob
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    assert_eq!(display, "Bob");
+mod from {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn from_u16_test_02() {
+        let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert!(display == "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
+        assert!(res.len() == 5);
+        assert!(res[0] == 0x101);
+        assert!(res[1] == 0xdc67);
+        assert!(res[2] == 0xe00d);
+        assert!(res[3] == 0x1111);
+        assert!(res[4] == 0xe00e);
+    }
+
+    const BOB_U8: &[u8] = &[66, 111, 98];
+    const BOB_U16: &[u16] = &[66, 111, 98];
+
+    #[test_case(Rc::new(BigInt::from(100)) => "100"; "bigint")]
+    #[test_case(Vec::<u8>::from(&[66, 111, 98]) => "Bob"; "u8 vec")]
+    #[test_case(Vec::<u16>::from(&[66, 111, 98]) => "Bob"; "u16 vec")]
+    #[test_case(String::from("Bob") => "Bob"; "String")]
+    #[test_case(BOB_U8 => "Bob"; "&[u8]")]
+    #[test_case(BOB_U16 => "Bob"; "&[u16]")]
+    #[test_case("Bob" => "Bob"; "&str")]
+    fn f<T>(item: T) -> String
+    where
+        JSString: From<T>,
+    {
+        String::from(JSString::from(item))
+    }
 }
 
-#[test]
-fn from_u16_test_02() {
-    let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    assert!(display == "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
-    assert!(res.len() == 5);
-    assert!(res[0] == 0x101);
-    assert!(res[1] == 0xdc67);
-    assert!(res[2] == 0xe00d);
-    assert!(res[3] == 0x1111);
-    assert!(res[4] == 0xe00e);
-}
-
-#[test]
-fn from_vec_test_01() {
-    let src: Vec<u16> = vec![66, 111, 98]; // Bob
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    //assert_eq!(display, "Bob");
-    assert!(display == "Bob");
-}
-#[test]
-fn from_u8array_01() {
-    let src: &[u8] = &[66, 111, 98]; // Bob
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    assert!(display == "Bob");
-}
-
-#[test]
-fn from_str_test_01() {
-    let src: &str = "Bob"; // Bob
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    //assert_eq!(display, "Bob");
-    assert!(display == "Bob");
-}
-#[test]
-fn from_string_test_01() {
-    let src: String = String::from("Bob"); // Bob
-    let res = JSString::from(src);
-    let display = format!("{}", res);
-    //assert_eq!(display, "Bob");
-    assert!(display == "Bob");
-}
 #[test]
 fn debug_repr_test_01() {
     let jsstr = JSString::from("hello");
@@ -249,5 +231,31 @@ mod jsstring {
         let src = src.into();
         let needle = needle.into();
         src.index_of(&needle, start)
+    }
+}
+
+mod is_str_whitespace {
+    use super::*;
+    use unicode_intervals::*;
+
+    #[test]
+    fn isw() {
+        let white_space = unicode_intervals::query()
+            .include_categories(UnicodeCategory::Zs)
+            .include_characters("\t\u{000b}\u{000c}\n\r\u{feff}\u{2028}\u{2029}")
+            .intervals()
+            .expect("query should work");
+        for (start, end) in white_space {
+            assert!((start..=end).all(|ch| is_str_whitespace(ch as u16)));
+        }
+        let not_white_space = unicode_intervals::query()
+            .exclude_categories(UnicodeCategory::Zs)
+            .exclude_characters("\t\u{000b}\u{000c}\n\r\u{feff}\u{2028}\u{2029}")
+            .max_codepoint(0xFFFF)
+            .intervals()
+            .unwrap();
+        for (start, end) in not_white_space {
+            assert!((start..=end).all(|ch| !is_str_whitespace(ch as u16)));
+        }
     }
 }

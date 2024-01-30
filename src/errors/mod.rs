@@ -378,7 +378,7 @@ fn provision_native_error_intrinsics(
         native_error_constructor_function,
         true,
         1_f64,
-        PropertyKey::from("Error"),
+        PropertyKey::from(name),
         BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
         Some(error),
@@ -395,7 +395,6 @@ fn provision_native_error_intrinsics(
             .unwrap();
         }};
     }
-    constructor_data!(name, "name");
 
     // Properties of the NativeError Prototype Objects
     //

@@ -1624,6 +1624,7 @@ mod for_in_iterator_object {
     default_id_test!();
     false_function!(is_arguments_object);
     false_function!(is_array_object);
+    false_function!(is_bigint_object);
     false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
@@ -1637,6 +1638,7 @@ mod for_in_iterator_object {
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_array_object);
+    none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
@@ -1645,6 +1647,7 @@ mod for_in_iterator_object {
     none_function!(to_function_obj);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
+    none_function!(to_proxy_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 }
@@ -2001,4 +2004,141 @@ mod ec_peek {
         make_stack();
         super::ec_peek(from_end).map(|item| item.map_err(unwind_any_error).map(|nc| nc.to_string()))
     }
+}
+
+#[test]
+fn set_default_global_bindings() {
+    setup_test_agent();
+    // Coverage is easy here, all we need to is create the test agent. So let's validate, instead.
+
+    let globj = get_global_object().unwrap();
+
+    macro_rules! validate_obj_data_property {
+        ( $name:expr, $obj:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            let key = PropertyKey::from($name);
+            let item = $obj.o.get_own_property(&key).unwrap();
+            let expected = ECMAScriptValue::from($value);
+            if let Some(PropertyDescriptor {
+                property: PropertyKind::Data(DataProperty { value, writable: $writable }),
+                enumerable: $enumerable,
+                configurable: $configurable,
+                spot: _,
+            }) = item
+            {
+                assert!(
+                    value.same_value(&expected),
+                    "{}: Data value was incorrect: {} should have been {}",
+                    $name,
+                    value,
+                    expected
+                );
+            } else {
+                panic!(
+                    "Incorrect property descriptor for {}:\ndesired: {:?}\nactual: {:?}",
+                    $name,
+                    PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { value: expected, writable: $writable }),
+                        enumerable: $enumerable,
+                        configurable: $configurable,
+                        spot: 0
+                    },
+                    item
+                );
+            }
+        };
+    }
+
+    macro_rules! validate_data_property {
+        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            validate_obj_data_property!($name, globj, $value, $writable, $enumerable, $configurable);
+        };
+    }
+
+    let global_this = {
+        let rc_realm = current_realm_record().unwrap();
+        let realm_ref = rc_realm.borrow();
+        realm_ref.global_env.as_ref().unwrap().get_this_binding().unwrap()
+    };
+    validate_data_property!("globalThis", global_this, true, false, true);
+    validate_data_property!("Infinity", f64::INFINITY, false, false, false);
+    validate_data_property!("NaN", f64::NAN, false, false, false);
+    validate_data_property!("undefined", ECMAScriptValue::Undefined, false, false, false);
+
+    macro_rules! validate_intrinsic_function {
+        ( $name:expr, $id:ident, $length:expr ) => {
+            let value = intrinsic(IntrinsicId::$id);
+            validate_data_property!($name, value.clone(), true, false, true);
+            validate_obj_data_property!("name", value, $name, false, false, true);
+            validate_obj_data_property!("length", value, $length, false, false, true);
+        };
+    }
+
+    validate_intrinsic_function!("eval", Eval, 1);
+    validate_intrinsic_function!("isFinite", IsFinite, 1);
+    validate_intrinsic_function!("isNaN", IsNaN, 1);
+    validate_intrinsic_function!("parseFloat", ParseFloat, 1);
+    validate_intrinsic_function!("parseInt", ParseInt, 2);
+    validate_intrinsic_function!("decodeURI", DecodeURI, 1);
+    validate_intrinsic_function!("decodeURIComponent", DecodeURIComponent, 1);
+    validate_intrinsic_function!("encodeURI", EncodeURI, 1);
+    validate_intrinsic_function!("encodeURIComponent", EncodeURIComponent, 1);
+
+    macro_rules! validate_intrinsic_constructor {
+        ( $name:expr, $id:ident, $length:expr ) => {
+            validate_intrinsic_function!($name, $id, $length);
+        };
+    }
+
+    //validate_intrinsic_constructor!("AggregateError", AggregateError, 2);
+    validate_intrinsic_constructor!("Array", Array, 1);
+    //validate_intrinsic_constructor!("ArrayBuffer", ArrayBuffer, 1);
+    validate_intrinsic_constructor!("BigInt", BigInt, 1);
+    //validate_intrinsic_constructor!("BigInt64Array", BigInt64Array, 3);
+    //validate_intrinsic_constructor!("BigUint64Array", BigUint64Array, 3);
+    validate_intrinsic_constructor!("Boolean", Boolean, 1);
+    //validate_intrinsic_constructor!("DataView", DataView, 1);
+    //validate_intrinsic_constructor!("Date", Date, 7);
+    validate_intrinsic_constructor!("Error", Error, 1);
+    validate_intrinsic_constructor!("EvalError", EvalError, 1);
+    //validate_intrinsic_constructor!("FinalizationRegistry", FinalizationRegistry, 1);
+    //validate_intrinsic_constructor!("Float32Array", Float32Array, 3);
+    //validate_intrinsic_constructor!("Float64Array", Float64Array, 3);
+    validate_intrinsic_constructor!("Function", Function, 1);
+    //validate_intrinsic_constructor!("Int8Array", Int8Array, 3);
+    //validate_intrinsic_constructor!("Int16Array", Int16Array, 3);
+    //validate_intrinsic_constructor!("Int32Array", Int32Array, 3);
+    //validate_intrinsic_constructor!("Map", Map, 0);
+    validate_intrinsic_constructor!("Number", Number, 1);
+    validate_intrinsic_constructor!("Object", Object, 1);
+    //validate_intrinsic_constructor!("Promise", Promise, 1);
+    validate_intrinsic_constructor!("Proxy", Proxy, 2);
+    validate_intrinsic_constructor!("RangeError", RangeError, 1);
+    validate_intrinsic_constructor!("ReferenceError", ReferenceError, 1);
+    //validate_intrinsic_constructor!("RegExp", RegExp, 2);
+    //validate_intrinsic_constructor!("Set", Set, 0);
+    //validate_intrinsic_constructor!("SharedArrayBuffer", SharedArrayBuffer, 1);
+    validate_intrinsic_constructor!("String", String, 1);
+    validate_intrinsic_constructor!("Symbol", Symbol, 0);
+    validate_intrinsic_constructor!("SyntaxError", SyntaxError, 1);
+    validate_intrinsic_constructor!("TypeError", TypeError, 1);
+    //validate_intrinsic_constructor!("Uint8Array", Uint8Array, 3);
+    //validate_intrinsic_constructor!("Uint8ClampedArray", Uint8ClampedArray, 3);
+    //validate_intrinsic_constructor!("Uint16Array", Uint16Array, 3);
+    //validate_intrinsic_constructor!("Uint32Array", Uint32Array, 3);
+    validate_intrinsic_constructor!("URIError", URIError, 1);
+    //validate_intrinsic_constructor!("WeakMap", WeakMap, 0);
+    //validate_intrinsic_constructor!("WeakRef", WeakRef, 1);
+    //validate_intrinsic_constructor!("WeakSet", WeakSet, 0);
+
+    macro_rules! validate_intrinsic_data {
+        ( $name:expr, $id:ident ) => {
+            let value = intrinsic(IntrinsicId::$id);
+            validate_data_property!($name, value, true, false, true);
+        };
+    }
+
+    //validate_intrinsic_data!("Atomics", Atomics);
+    //validate_intrinsic_data!("JSON", Json);
+    validate_intrinsic_data!("Math", Math);
+    //validate_intrinsic_data!("Reflect", Reflect);
 }

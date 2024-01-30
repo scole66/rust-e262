@@ -795,6 +795,7 @@ dependencies = [
  "tempfile",
  "test-case",
  "uid",
+ "unicode-intervals",
  "yaml-rust",
 ]
 
@@ -988,6 +989,12 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "unicode-intervals"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3ea9aa9759775d6066016a5496d88d6585f87622ada69dcb6d1d0d6ed56fb8"
 
 [[package]]
 name = "utf8parse"
