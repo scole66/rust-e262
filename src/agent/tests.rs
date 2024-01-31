@@ -2114,7 +2114,7 @@ fn set_default_global_bindings() {
     //validate_intrinsic_constructor!("RegExp", RegExp, 2);
     //validate_intrinsic_constructor!("Set", Set, 0);
     //validate_intrinsic_constructor!("SharedArrayBuffer", SharedArrayBuffer, 1);
-    //validate_intrinsic_constructor!("String", String, 1);
+    validate_intrinsic_constructor!("String", String, 1);
     validate_intrinsic_constructor!("Symbol", Symbol, 0);
     validate_intrinsic_constructor!("SyntaxError", SyntaxError, 1);
     validate_intrinsic_constructor!("TypeError", TypeError, 1);
