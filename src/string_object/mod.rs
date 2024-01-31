@@ -289,7 +289,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let string_constructor = create_builtin_function(
         string_constructor_function,
         true,
-        0.0,
+        1.0,
         PropertyKey::from("String"),
         BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
