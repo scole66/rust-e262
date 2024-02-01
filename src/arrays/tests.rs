@@ -15,7 +15,7 @@ mod array_object {
         #[test_case(100 => Ok(vec![
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(100.0), writable: true}}
         ]); "hundred length")]
-        #[test_case(7294967295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
+        #[test_case(7_294_967_295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
         fn normal(length: u64) -> Result<Vec<PropertyInfo>, String> {
             setup_test_agent();
 
@@ -615,7 +615,7 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(10.0), writable: true },
         },
     ]); "not array")]
-    #[test_case(make_ordinary, 42949672950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
+    #[test_case(make_ordinary, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
     #[test_case(make_throwing_constructor_prop, 200 => Err("TypeError: Test Sentinel".to_string()); "get(constructor) throws")]
     #[test_case(make_undefined_constructor_prop, 0 => Ok(vec![
         PropertyInfo {
@@ -625,7 +625,7 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0.0), writable: true },
         },
     ]); "undefined constructor")]
-    #[test_case(make_undefined_constructor_prop, 42949672950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
+    #[test_case(make_undefined_constructor_prop, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
     #[test_case(make_plain_array, 542 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
@@ -885,7 +885,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 #[test_case(
     || {
         let obj = ordinary_object_create(None, &[]);
-        obj.create_data_property_or_throw("length", 9007199254740991_i64).unwrap();
+        obj.create_data_property_or_throw("length", 9_007_199_254_740_991_i64).unwrap();
         (obj.into(), vec![10.into()])
     }
     => serr("TypeError: Array too large");

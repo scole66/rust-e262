@@ -971,7 +971,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
         }
         DebugKind::Char('$') => {
             // Fill the bigint table.
-            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+            chunk.bigints.resize(65536, Rc::new(BigInt::from(97_687_897_890_734_187_890_106_587_314_876_543_219_u128)));
             chunk.op(Insn::False);
         }
         _ => (),
@@ -5449,7 +5449,7 @@ impl ForStatement {
     fn compile_for_body(
         chunk: &mut Chunk,
         strict: bool,
-        text: &str,
+        src_text: &str,
         test: Option<Rc<Expression>>,
         increment: Option<Rc<Expression>>,
         stmt: Rc<Statement>,
@@ -5533,7 +5533,7 @@ impl ForStatement {
         }
         let loop_top = chunk.pos();
         if let Some(test) = test {
-            let status = test.compile(chunk, strict, text)?;
+            let status = test.compile(chunk, strict, src_text)?;
             if status.maybe_ref() {
                 chunk.op(Insn::GetValue);
             }
@@ -5544,7 +5544,7 @@ impl ForStatement {
             exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
         }
         let mut update_exit = None;
-        let status = stmt.compile(chunk, strict, text)?;
+        let status = stmt.compile(chunk, strict, src_text)?;
         if status.maybe_abrupt() {
             maybe_abrupt = AbruptResult::Maybe;
             let label_set_id = chunk.add_to_string_set_pool(label_set)?;
@@ -5558,7 +5558,7 @@ impl ForStatement {
             chunk.op(Insn::Pop);
         }
         if let Some(increment) = increment {
-            let status = increment.compile(chunk, strict, text)?;
+            let status = increment.compile(chunk, strict, src_text)?;
             if status.maybe_ref() {
                 chunk.op(Insn::GetValue);
             }
@@ -5593,7 +5593,7 @@ impl ForStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        text: &str,
+        src_text: &str,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -5620,7 +5620,7 @@ impl ForStatement {
                 let mut exit = None;
 
                 if let Some(init) = init {
-                    let status = init.compile(chunk, strict, text)?;
+                    let status = init.compile(chunk, strict, src_text)?;
                     if status.maybe_ref() {
                         chunk.op(Insn::GetValue);
                     }
@@ -5633,7 +5633,7 @@ impl ForStatement {
                 let body_status = Self::compile_for_body(
                     chunk,
                     strict,
-                    text,
+                    src_text,
                     test.clone(),
                     incr.clone(),
                     stmt.clone(),
@@ -5659,7 +5659,7 @@ impl ForStatement {
                 //  4. Return ? ForBodyEvaluation(test, increment, Statement, « », labelSet).
                 let mut maybe_abrupt = AbruptResult::Never;
                 let mut exit = None;
-                let vdl_status = vdl.compile(chunk, strict, text)?;
+                let vdl_status = vdl.compile(chunk, strict, src_text)?;
                 if vdl_status.maybe_abrupt() {
                     exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     maybe_abrupt = AbruptResult::Maybe;
@@ -5668,7 +5668,7 @@ impl ForStatement {
                 let body_status = Self::compile_for_body(
                     chunk,
                     strict,
-                    text,
+                    src_text,
                     test.clone(),
                     incr.clone(),
                     stmt.clone(),
@@ -5740,13 +5740,13 @@ impl ForStatement {
                     );
                 }
                 let per_iteration_lets = if is_const { &[] } else { bound_names.as_slice() };
-                lexdecl.compile(chunk, strict, text)?;
+                lexdecl.compile(chunk, strict, src_text)?;
                 let popenv = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 Self::compile_for_body(
                     chunk,
                     strict,
-                    text,
+                    src_text,
                     test.clone(),
                     incr.clone(),
                     stmt.clone(),
@@ -9005,7 +9005,7 @@ impl BindingElementList {
                 //     environment.
                 bee.iterator_binding_initialization(chunk, strict, text, env)
             }
-            BindingElementList::List(bel, bee) => {
+            BindingElementList::List(list, element) => {
                 // BindingElementList : BindingElementList , BindingElisionElement
                 //  1. Perform ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
                 //     environment.
@@ -9018,10 +9018,10 @@ impl BindingElementList {
                 //   <bee.ibi(env)>           ir/err
                 // exit:
 
-                let status = bel.iterator_binding_initialization(chunk, strict, text, env)?;
+                let status = list.iterator_binding_initialization(chunk, strict, text, env)?;
                 assert!(status.maybe_abrupt());
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                let status = bee.iterator_binding_initialization(chunk, strict, text, env)?;
+                let status = element.iterator_binding_initialization(chunk, strict, text, env)?;
                 assert!(status.maybe_abrupt());
                 chunk.fixup(exit)?;
                 Ok(AlwaysAbruptResult)

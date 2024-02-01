@@ -911,14 +911,16 @@ mod object_environment_record {
     #[test]
     fn object_environment_record_get_outer_env() {
         setup_test_agent();
-        let der = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
-        der.create_immutable_binding(JSString::from("sentinel"), true).unwrap();
-        der.initialize_binding(&JSString::from("sentinel"), ECMAScriptValue::from("very unique string")).unwrap();
+        let declarative = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
+        declarative.create_immutable_binding(JSString::from("sentinel"), true).unwrap();
+        declarative
+            .initialize_binding(&JSString::from("sentinel"), ECMAScriptValue::from("very unique string"))
+            .unwrap();
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let binding_object = ordinary_object_create(Some(object_prototype), &[]);
-        let oer = ObjectEnvironmentRecord::new(binding_object, false, Some(der), "test");
+        let object_env = ObjectEnvironmentRecord::new(binding_object, false, Some(declarative), "test");
 
-        let outer = oer.get_outer_env().unwrap();
+        let outer = object_env.get_outer_env().unwrap();
 
         let val_from_outer = outer.get_binding_value(&JSString::from("sentinel"), true).unwrap();
         assert_eq!(val_from_outer, ECMAScriptValue::from("very unique string"));

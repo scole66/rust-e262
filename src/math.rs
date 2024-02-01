@@ -577,7 +577,7 @@ fn math_imul(
     let a = to_uint32(args.next_arg())?;
     let b = to_uint32(args.next_arg())?;
     let product = a * b;
-    let result = if product >= 2147483648 { product as i64 - 4294967296 } else { product as i64 };
+    let result = if product >= 2_147_483_648 { product as i64 - 4_294_967_296 } else { product as i64 };
     Ok(result.into())
 }
 

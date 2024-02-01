@@ -250,7 +250,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The value of Number.MAX_SAFE_INTEGER is 9007199254740991𝔽 (𝔽(2**53 - 1)).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data!(9007199254740991.0, "MAX_SAFE_INTEGER");
+    constructor_data!(9_007_199_254_740_991.0, "MAX_SAFE_INTEGER");
 
     // Number.MAX_VALUE
     //
@@ -268,7 +268,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The value of Number.MIN_SAFE_INTEGER is -9007199254740991𝔽 (𝔽(-(2**53 - 1))).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data!(-9007199254740991.0, "MIN_SAFE_INTEGER");
+    constructor_data!(-9_007_199_254_740_991.0, "MIN_SAFE_INTEGER");
 
     // Number.MIN_VALUE
     //
@@ -504,7 +504,7 @@ fn number_is_safe_integer(
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
-        ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9007199254740991.0,
+        ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9_007_199_254_740_991.0,
         _ => false,
     }))
 }
@@ -730,9 +730,8 @@ fn number_prototype_to_fixed(
                     let ch = strbuf[idx];
                     if ch == 0 {
                         break;
-                    } else {
-                        ch
                     }
+                    ch
                 };
             }
             format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
@@ -749,9 +748,8 @@ fn number_prototype_to_fixed(
                     let ch = strbuf[read_idx];
                     if ch == 0 {
                         break;
-                    } else {
-                        ch
                     }
+                    ch
                 };
             }
             let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
@@ -1007,7 +1005,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                     if fraction_cursor == KBUFFERSIZE / 2 {
                         // Carry over to the integer part.
                         integer += 1.0;
-                        panic!("Condition B met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
+                        panic!("Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                         break;
                     }
                     let c = buffer[fraction_cursor] as i32;
@@ -1017,9 +1015,8 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                         buffer[fraction_cursor] = chars[digit as usize + 1];
                         fraction_cursor += 1;
                         break;
-                    } else {
-                        panic!("Condition C met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
                     }
+                    panic!("Condition C met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                 }
                 break;
             }
@@ -1083,11 +1080,11 @@ fn number_prototype_to_string(
     if !(2.0..=36.0).contains(&radix_mv) {
         Err(create_range_error(format!("Radix {} out of range (must be in 2..36)", radix_mv)))
     } else {
-        let iradix = radix_mv as i32;
-        if iradix == 10 {
+        let int_radix = radix_mv as i32;
+        if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {
-            Ok(ECMAScriptValue::from(double_to_radix_string(x, iradix)))
+            Ok(ECMAScriptValue::from(double_to_radix_string(x, int_radix)))
         }
     }
 }

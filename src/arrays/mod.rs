@@ -158,7 +158,7 @@ impl ArrayObject {
     //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     //  7. Return A.
     pub fn create(length: u64, proto: Option<Object>) -> Completion<Object> {
-        if length > 4294967295 {
+        if length > 4_294_967_295 {
             return Err(create_range_error("Array lengths greater than 4294967295 are not allowed"));
         }
         let length: u32 = length.try_into().unwrap();

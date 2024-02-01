@@ -590,7 +590,7 @@ mod nameable_production {
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats = vec![56878142.0; 65536];
+    c.floats = vec![56_878_142.0; 65536];
     c.strings = Vec::with_capacity(65536);
     c.bigints = Vec::with_capacity(65536);
     for nbr in 0..65536 {
@@ -603,7 +603,7 @@ fn full_chunk(n: &str) -> Chunk {
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     let mut c = Chunk::new(n);
     const LIMIT: usize = 65536;
-    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
+    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
@@ -624,7 +624,7 @@ fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
     const LIMIT: usize = 65536;
     for &(section, slots_left) in what {
         match section {
-            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0),
+            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0),
             Fillable::String => c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler")),
             Fillable::BigInt => c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783))),
             Fillable::StringSet => {

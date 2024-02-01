@@ -1438,12 +1438,8 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
         | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
             Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
         }
-        (ECMAScriptValue::Undefined, _)
-        | (ECMAScriptValue::Null, _)
-        | (ECMAScriptValue::Symbol(_), _)
-        | (_, ECMAScriptValue::Undefined)
-        | (_, ECMAScriptValue::Null)
-        | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
+        (ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_), _)
+        | (_, ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_)) => Ok(false),
     }
 }
 

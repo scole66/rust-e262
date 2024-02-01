@@ -697,42 +697,42 @@ mod potential_property_descriptor {
 fn is_accessor_descriptor_01() {
     let ppd_no = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_yes = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let pd_no = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let pd_yes = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let desc_no = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let desc_yes = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
 
     assert!(is_accessor_descriptor(&ppd_yes));
-    assert!(is_accessor_descriptor(&pd_yes));
+    assert!(is_accessor_descriptor(&desc_yes));
     assert!(!is_accessor_descriptor(&ppd_no));
-    assert!(!is_accessor_descriptor(&pd_no));
+    assert!(!is_accessor_descriptor(&desc_no));
 }
 
 #[test]
 fn is_data_descriptor_01() {
     let ppd_yes = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_no = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let pd_yes = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let pd_no = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let desc_yes = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let desc_no = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
 
     assert!(is_data_descriptor(&ppd_yes));
-    assert!(is_data_descriptor(&pd_yes));
+    assert!(is_data_descriptor(&desc_yes));
     assert!(!is_data_descriptor(&ppd_no));
-    assert!(!is_data_descriptor(&pd_no));
+    assert!(!is_data_descriptor(&desc_no));
 }
 
 #[test]
 fn is_generic_descriptor_01() {
     let ppd_data = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_acc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let pd_data = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let pd_acc = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
-    let pd_def: PropertyDescriptor = Default::default();
+    let desc_data = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let desc_acc = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let desc_def: PropertyDescriptor = Default::default();
     let ppd_def: PotentialPropertyDescriptor = Default::default();
 
     assert!(!is_generic_descriptor(&ppd_data));
-    assert!(!is_generic_descriptor(&pd_data));
+    assert!(!is_generic_descriptor(&desc_data));
     assert!(!is_generic_descriptor(&ppd_acc));
-    assert!(!is_generic_descriptor(&pd_acc));
-    assert!(!is_generic_descriptor(&pd_def));
+    assert!(!is_generic_descriptor(&desc_acc));
+    assert!(!is_generic_descriptor(&desc_def));
     assert!(is_generic_descriptor(&ppd_def));
 }
 
@@ -2938,25 +2938,25 @@ mod private_element_find {
         let name1 = PrivateName::new("name1");
         let name2 = PrivateName::new("alice");
         let name3 = PrivateName::new("charley");
-        let names = vec![name1, name2, name3];
+        let all_names = vec![name1, name2, name3];
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
             elements.push(Rc::new(PrivateElement {
-                key: names[0].clone(),
+                key: all_names[0].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
             }));
             elements.push(Rc::new(PrivateElement {
-                key: names[1].clone(),
+                key: all_names[1].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
             }));
             elements.push(Rc::new(PrivateElement {
-                key: names[2].clone(),
+                key: all_names[2].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
             }));
         }
 
-        (obj, names)
+        (obj, all_names)
     }
 
     #[test_case(0 => (true, true); "first")]

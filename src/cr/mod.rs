@@ -258,10 +258,12 @@ pub fn update_empty(completion_record: FullCompletion, old_value: NormalCompleti
             Err(AbruptCompletion::Continue { value: old_value, target })
         }
         Ok(_)
-        | Err(AbruptCompletion::Return { .. })
-        | Err(AbruptCompletion::Throw { .. })
-        | Err(AbruptCompletion::Break { .. })
-        | Err(AbruptCompletion::Continue { .. }) => completion_record,
+        | Err(
+            AbruptCompletion::Return { .. }
+            | AbruptCompletion::Throw { .. }
+            | AbruptCompletion::Break { .. }
+            | AbruptCompletion::Continue { .. },
+        ) => completion_record,
     }
 }
 

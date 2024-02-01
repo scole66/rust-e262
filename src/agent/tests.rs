@@ -357,7 +357,7 @@ mod agent {
     #[test_case(|| ECMAScriptValue::from(-16.0),
                 || ECMAScriptValue::from(3.0),
                 BinOp::UnsignedRightShift
-                => Ok(NormalCompletion::from(536870910)); "unsigned right shift (negative)")]
+                => Ok(NormalCompletion::from(536_870_910)); "unsigned right shift (negative)")]
     #[test_case(|| ECMAScriptValue::from(2.0),
                 || ECMAScriptValue::from(3.0),
                 BinOp::BitwiseAnd
@@ -447,14 +447,14 @@ mod agent {
                 BinOp::Remainder
                 =>serr("TypeError: Cannot mix BigInt and other types, use explicit conversions"); "bigint type mix (right)")]
     fn apply_string_or_numeric_binary_operator(
-        make_lval: fn() -> ECMAScriptValue,
-        make_rval: fn() -> ECMAScriptValue,
+        make_left: fn() -> ECMAScriptValue,
+        make_right: fn() -> ECMAScriptValue,
         op: BinOp,
     ) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let lval = make_lval();
-        let rval = make_rval();
-        super::apply_string_or_numeric_binary_operator(lval, rval, op).map_err(unwind_any_error)
+        let left = make_left();
+        let right = make_right();
+        super::apply_string_or_numeric_binary_operator(left, right, op).map_err(unwind_any_error)
     }
 
     #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
@@ -527,7 +527,7 @@ mod agent {
     #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(2.3e87), true => Ok(Some(true)); "right big vs BigInt")]
     #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(-2.3e87), true => Ok(Some(false)); "right small vs BigInt")]
     #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(true)); "bigints: left smaller")]
-    #[test_case(|| ECMAScriptValue::from(BigInt::from(100999)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100_999)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
     fn is_less_than(
         make_x: fn() -> ECMAScriptValue,
         make_y: fn() -> ECMAScriptValue,
@@ -956,9 +956,9 @@ mod top_level_lex_decl {
     #[test_case(make_lex_decl => Ok((false, true)); "lexical")]
     #[test_case(make_func_decl => serr("Not a top-level lexical decl"); "function")]
     fn try_from(maker: fn() -> MakerResult) -> Result<(bool, bool), String> {
-        let (maybe_cd, maybe_ld, dp) = maker();
+        let (maybe_class_declaration, maybe_lexical_declaration, dp) = maker();
         TopLevelLexDecl::try_from(dp)
-            .map(|tlld| match (tlld, maybe_cd, maybe_ld) {
+            .map(|tlld| match (tlld, maybe_class_declaration, maybe_lexical_declaration) {
                 (TopLevelLexDecl::Class(cd1), Some(cd2), _) => (Rc::ptr_eq(&cd1, &cd2), false),
                 (TopLevelLexDecl::Lex(ld1), _, Some(ld2)) => (false, Rc::ptr_eq(&ld1, &ld2)),
                 _ => (false, false),
@@ -1030,9 +1030,9 @@ mod fcn_def {
     #[test_case(make_var_decl => serr("Not a function def"); "Var decl")]
     #[test_case(make_for_binding => serr("Not a function def"); "for binding")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
-        let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
+        let (opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl, vsd) = maker();
         FcnDef::try_from(vsd)
-            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+            .map(|fd| match (fd, opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl) {
                 (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
                 (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
                 (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
@@ -1080,9 +1080,9 @@ mod fcn_def {
     #[test_case(decl_class => serr("Not a function def"); "Class decl")]
     #[test_case(decl_lex => serr("Not a function def"); "Lex decl")]
     fn try_from_declpart(maker: fn() -> MakerDeclResult) -> Result<bool, String> {
-        let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, dp) = maker();
+        let (opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl, dp) = maker();
         FcnDef::try_from(dp)
-            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+            .map(|fd| match (fd, opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl) {
                 (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
                 (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
                 (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
@@ -1294,15 +1294,15 @@ mod process_ecmascript {
 
 #[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
 #[test_case(BigInt::from(10), BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+#[test_case(BigInt::from(10), BigInt::from(0xFFFF_FFFF_FFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
 fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
     super::bigint_leftshift(&left, &right).map_err(|e| e.to_string())
 }
 
 #[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
 #[test_case(BigInt::from(10), BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFF_u64) => Ok(BigInt::from(0)); "underflow")]
-#[test_case(BigInt::from(10), BigInt::from(-0xFFFFFFFFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+#[test_case(BigInt::from(10), BigInt::from(0xFF_FFFF_FFFF_u64) => Ok(BigInt::from(0)); "underflow")]
+#[test_case(BigInt::from(10), BigInt::from(-0xFF_FFFF_FFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
 fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
     super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
 }

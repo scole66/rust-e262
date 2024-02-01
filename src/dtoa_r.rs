@@ -44,7 +44,7 @@ pub fn dtoa(value: f64) -> DtoAResult {
     DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt, sign: sign as i8 }
 }
 
-pub fn dtoa_precise(value: f64, ndigits: i32) -> DtoAResult {
+pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
     let mut decpt: c_int = 0;
     let mut sign: c_int = 0;
     let mut digits: [u8; 110] = [0; 110];
@@ -57,7 +57,7 @@ pub fn dtoa_precise(value: f64, ndigits: i32) -> DtoAResult {
             dtoa_rust(
                 value as c_double,
                 2,
-                ndigits,
+                num_digits,
                 &mut decpt,
                 &mut sign,
                 digits.as_mut_ptr(),
@@ -67,7 +67,7 @@ pub fn dtoa_precise(value: f64, ndigits: i32) -> DtoAResult {
     }
     DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt, sign: sign as i8 }
 }
-pub fn dtoa_fixed(value: f64, ndigits: i32) -> DtoAResult {
+pub fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
     let mut decpt: c_int = 0;
     let mut sign: c_int = 0;
     let mut digits: [u8; 110] = [0; 110];
@@ -80,7 +80,7 @@ pub fn dtoa_fixed(value: f64, ndigits: i32) -> DtoAResult {
             dtoa_rust(
                 value as c_double,
                 3,
-                ndigits,
+                num_digits,
                 &mut decpt,
                 &mut sign,
                 digits.as_mut_ptr(),

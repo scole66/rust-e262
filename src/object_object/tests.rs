@@ -702,7 +702,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        fn undef() -> ECMAScriptValue {
+        const fn undef() -> ECMAScriptValue {
             ECMAScriptValue::Undefined
         }
         fn dead() -> ECMAScriptValue {

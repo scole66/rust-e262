@@ -1719,39 +1719,39 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .push(Err(AbruptCompletion::Throw { value: exp }));
                 }
                 Insn::Less => {
-                    let (lval, rval) = agent.two_values(index);
+                    let (left, right) = agent.two_values(index);
                     let result =
-                        is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
+                        is_less_than(left, right, true).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Greater => {
-                    let (lval, rval) = agent.two_values(index);
+                    let (left, right) = agent.two_values(index);
                     let result =
-                        is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
+                        is_less_than(right, left, false).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::LessEqual => {
-                    let (lval, rval) = agent.two_values(index);
+                    let (left, right) = agent.two_values(index);
                     let result =
-                        is_less_than(rval, lval, false).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
+                        is_less_than(right, left, false).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::GreaterEqual => {
-                    let (lval, rval) = agent.two_values(index);
+                    let (left, right) = agent.two_values(index);
                     let result =
-                        is_less_than(lval, rval, true).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
+                        is_less_than(left, right, true).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::InstanceOf => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = instanceof_operator(lval, rval);
+                    let (left, right) = agent.two_values(index);
+                    let result = instanceof_operator(left, right);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::In => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = match rval {
+                    let (left, right) = agent.two_values(index);
+                    let result = match right {
                         ECMAScriptValue::Object(obj) => {
-                            let key = to_property_key(lval)?;
+                            let key = to_property_key(left)?;
                             has_property(&obj, &key).map(NormalCompletion::from)
                         }
                         _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
@@ -1759,23 +1759,23 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::Equal => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = is_loosely_equal(&lval, &rval).map(NormalCompletion::from);
+                    let (left, right) = agent.two_values(index);
+                    let result = is_loosely_equal(&left, &right).map(NormalCompletion::from);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::NotEqual => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = is_loosely_equal(&lval, &rval).map(|val| NormalCompletion::from(!val));
+                    let (left, right) = agent.two_values(index);
+                    let result = is_loosely_equal(&left, &right).map(|val| NormalCompletion::from(!val));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::StrictEqual => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(lval.is_strictly_equal(&rval)));
+                    let (left, right) = agent.two_values(index);
+                    let result = Ok(NormalCompletion::from(left.is_strictly_equal(&right)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::StrictNotEqual => {
-                    let (lval, rval) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(!lval.is_strictly_equal(&rval)));
+                    let (left, right) = agent.two_values(index);
+                    let result = Ok(NormalCompletion::from(!left.is_strictly_equal(&right)));
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::BitwiseAnd => agent.binary_operation(index, BinOp::BitwiseAnd),
@@ -1837,10 +1837,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("argument V must be a value");
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(match stmt_result {
                         Ok(NormalCompletion::Value(value))
-                        | Err(AbruptCompletion::Throw { value })
-                        | Err(AbruptCompletion::Return { value })
-                        | Err(AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. })
-                        | Err(AbruptCompletion::Break { value: NormalCompletion::Value(value), .. }) => {
+                        | Err(
+                            AbruptCompletion::Throw { value }
+                            | AbruptCompletion::Return { value }
+                            | AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. }
+                            | AbruptCompletion::Break { value: NormalCompletion::Value(value), .. })
+                        => {
                             NormalCompletion::from(value)
                         }
                         _ => NormalCompletion::from(v),
@@ -1924,10 +1926,10 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let mut next_index = to_index(starting_index).expect("should be in range");
                     match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
                         match ir.step() {
-                            Ok(next) => match next {
+                            Ok(next_opt_obj) => match next_opt_obj {
                                 None => break Ok((next_index, array)),
-                                Some(next) => {
-                                    let next_value = iterator_value(&next);
+                                Some(next_obj) => {
+                                    let next_value = iterator_value(&next_obj);
                                     match next_value {
                                         Err(e) => break Err(e),
                                         Ok(next_value) => {
@@ -1979,7 +1981,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         let mut count = 0;
                         match loop {
                             match iterator_step(&iterator_record) {
-                                Ok(next) => match next {
+                                Ok(next_opt_obj) => match next_opt_obj {
                                     None => {
                                         ec_push(Ok(count.into()));
                                         break Ok(());
@@ -2050,8 +2052,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         if count == 0 || ir.done.get() {
                             break Ok(());
                         }
-                        let next = ir.step();
-                        match next {
+                        let next_result = ir.step();
+                        match next_result {
                             Ok(None) => {
                                 ir.done.set(true);
                             }
@@ -2086,8 +2088,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .expect("completion should be an iterator record");
                     match ir.done.get() {
                         false => {
-                            let next = ir.step();
-                            match next {
+                            let next_result = ir.step();
+                            match next_result {
                                 Err(e) => {
                                     ir.done.set(true);
                                     ec_push(Err(e));
@@ -2097,8 +2099,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     ec_push(Ok(NormalCompletion::from(ir)));
                                     ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
                                 }
-                                Ok(Some(next)) => {
-                                    let v = iterator_value(&next);
+                                Ok(Some(next_obj)) => {
+                                    let v = iterator_value(&next_obj);
                                     match v {
                                         Err(e) => {
                                             ir.done.set(true);
@@ -2154,8 +2156,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     ec_push(Ok(NormalCompletion::from(a)));
                                     break;
                                 }
-                                Ok(Some(next)) => {
-                                    match iterator_value(&next) {
+                                Ok(Some(next_obj)) => {
+                                    match iterator_value(&next_obj) {
                                         Ok(next_value) => {
                                             a.create_data_property_or_throw(format!("{n}"), next_value)
                                                 .expect("array property set should work");
@@ -2237,8 +2239,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .try_into()
                         .expect("arg should be an iterator record");
                     let done = ir.done.get();
-                    let rval = if !done { iterator_close(&ir, result) } else { result };
-                    ec_push(rval.map(NormalCompletion::from));
+                    let right = if !done { iterator_close(&ir, result) } else { result };
+                    ec_push(right.map(NormalCompletion::from));
                 }
                 Insn::IteratorNext => {
                     // This instruction handles the steps that look like:
@@ -2323,9 +2325,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     )
                     .expect("That value should be an object");
                     let iterator = create_for_in_iterator(obj);
-                    let next = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
+                    let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
                         .expect("next method should be an object");
-                    let ir = IteratorRecord { iterator, next_method: next, done: Cell::new(false) };
+                    let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
                     ec_push(Ok(NormalCompletion::from(ir)));
                 }
                 Insn::PrivateIdLookup => {
@@ -2636,42 +2638,42 @@ impl Agent {
             let stack = &mut self.execution_context_stack.borrow_mut()[index].stack;
             (stack.pop(), stack.pop())
         };
-        let rval: ECMAScriptValue = right
+        let right: ECMAScriptValue = right
             .expect("Operation requires an argument")
             .expect("Right must be a NormalCompletion")
             .try_into()
             .expect("Right must be a value");
-        let lval: ECMAScriptValue = left
+        let left: ECMAScriptValue = left
             .expect("Operation requires two arguments")
             .expect("Left must be a NormalCompletion")
             .try_into()
             .expect("Left must be a value");
-        (lval, rval)
+        (left, right)
     }
 
     fn binary_operation(&self, index: usize, op: BinOp) {
-        let (lval, rval) = self.two_values(index);
-        let result = apply_string_or_numeric_binary_operator(lval, rval, op);
+        let (left, right) = self.two_values(index);
+        let result = apply_string_or_numeric_binary_operator(left, right, op);
         self.execution_context_stack.borrow_mut()[index].stack.push(result);
     }
 }
 
-fn apply_string_or_numeric_binary_operator(lval: ECMAScriptValue, rval: ECMAScriptValue, op: BinOp) -> FullCompletion {
-    let (lval, rval) = if op == BinOp::Add {
-        let lprim = to_primitive(lval, None)?;
-        let rprim = to_primitive(rval, None)?;
-        if lprim.is_string() || rprim.is_string() {
-            let lstr = to_string(lprim)?;
-            let rstr = to_string(rprim)?;
-            return Ok(NormalCompletion::from(lstr.concat(rstr)));
+fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScriptValue, op: BinOp) -> FullCompletion {
+    let (left, right) = if op == BinOp::Add {
+        let left_prim = to_primitive(left, None)?;
+        let right_prim = to_primitive(right, None)?;
+        if left_prim.is_string() || right_prim.is_string() {
+            let left_str = to_string(left_prim)?;
+            let right_str = to_string(right_prim)?;
+            return Ok(NormalCompletion::from(left_str.concat(right_str)));
         }
-        (lprim, rprim)
+        (left_prim, right_prim)
     } else {
-        (lval, rval)
+        (left, right)
     };
-    let lnum = to_numeric(lval)?;
-    let rnum = to_numeric(rval)?;
-    match (lnum, rnum, op) {
+    let left_num = to_numeric(left)?;
+    let right_num = to_numeric(right)?;
+    match (left_num, right_num, op) {
         (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => {
             Ok(NormalCompletion::from(exponentiate(left, right)))
         }
@@ -2681,37 +2683,37 @@ fn apply_string_or_numeric_binary_operator(lval: ECMAScriptValue, rval: ECMAScri
         (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => Ok(NormalCompletion::from(left + right)),
         (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => Ok(NormalCompletion::from(left - right)),
         (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => {
-            let lnum = to_int32(left).expect("Numbers are always convertable to Int32");
-            let rnum = to_uint32(right).expect("Numbers are always convertable to Uint32");
-            let shift_count = rnum % 32;
-            Ok(NormalCompletion::from(lnum << shift_count))
+            let left_num = to_int32(left).expect("Numbers are always convertable to Int32");
+            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let shift_count = right_num % 32;
+            Ok(NormalCompletion::from(left_num << shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => {
-            let lnum = to_int32(left).expect("Numbers are always convertable to Int32");
-            let rnum = to_uint32(right).expect("Numbers are always convertable to Uint32");
-            let shift_count = rnum % 32;
-            Ok(NormalCompletion::from(lnum >> shift_count))
+            let left_num = to_int32(left).expect("Numbers are always convertable to Int32");
+            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let shift_count = right_num % 32;
+            Ok(NormalCompletion::from(left_num >> shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => {
-            let lnum = to_uint32(left).expect("Numbers are always convertable to Uint32");
-            let rnum = to_uint32(right).expect("Numbers are always convertable to Uint32");
-            let shift_count = rnum % 32;
-            Ok(NormalCompletion::from(lnum >> shift_count))
+            let left_num = to_uint32(left).expect("Numbers are always convertable to Uint32");
+            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let shift_count = right_num % 32;
+            Ok(NormalCompletion::from(left_num >> shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
-            let lnum = to_int32(left).expect("Numbers are always convertable to int32");
-            let rnum = to_int32(right).expect("Numbers are always convertable to int32");
-            Ok(NormalCompletion::from(lnum & rnum))
+            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
+            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            Ok(NormalCompletion::from(left_num & right_num))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => {
-            let lnum = to_int32(left).expect("Numbers are always convertable to int32");
-            let rnum = to_int32(right).expect("Numbers are always convertable to int32");
-            Ok(NormalCompletion::from(lnum | rnum))
+            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
+            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            Ok(NormalCompletion::from(left_num | right_num))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => {
-            let lnum = to_int32(left).expect("Numbers are always convertable to int32");
-            let rnum = to_int32(right).expect("Numbers are always convertable to int32");
-            Ok(NormalCompletion::from(lnum ^ rnum))
+            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
+            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            Ok(NormalCompletion::from(left_num ^ right_num))
         }
         (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {
             let exponent = BigUint::try_from(&*right).map_err(|_| create_range_error("Exponent must be positive"))?;
