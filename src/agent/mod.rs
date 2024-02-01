@@ -1304,7 +1304,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let value = ECMAScriptValue::try_from(nc_value).unwrap();
                     let result = obj.copy_data_properties(value, &[]);
                     let fc = match result {
-                        Ok(_) => Ok(NormalCompletion::from(obj)),
+                        Ok(()) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
                     };
                     agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
@@ -1328,7 +1328,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("dest should be an object");
                     let result = dest.copy_data_properties(value, &exclusions);
                     let fc = match result {
-                        Ok(_) => Ok(NormalCompletion::from(dest)),
+                        Ok(()) => Ok(NormalCompletion::from(dest)),
                         Err(e) => Err(e),
                     };
                     ec_push(fc);
@@ -1610,7 +1610,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .and_then(|fc| fc.map_err(|_| ()))
                         .and_then(|nc| ECMAScriptValue::try_from(nc).map_err(|_| ()))
                         .and_then(|val| if is_constructor(&val) { Ok(()) } else { Err(()) })
-                        .map_err(|_| create_type_error("Constructor required"));
+                        .map_err(|()| create_type_error("Constructor required"));
                     ec_push(x.map(NormalCompletion::from));
                 }
 
@@ -2011,7 +2011,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                             }
                         }
                     }) {
-                        Ok(_) => (),
+                        Ok(()) => (),
                         Err(e) => ec_push(Err(e)),
                     }
                 }
@@ -3712,7 +3712,7 @@ pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
     let strict = script.body.as_ref().map(|b| b.contains_use_strict()).unwrap_or(false);
 
     let result = global_declaration_instantiation(script, global_env.unwrap(), strict, &sr.text)
-        .and_then(|_| evaluate(sr.compiled, &sr.text));
+        .and_then(|()| evaluate(sr.compiled, &sr.text));
 
     pop_execution_context();
 

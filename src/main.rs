@@ -4,10 +4,12 @@
 #![allow(clippy::similar_names)]
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::must_use_candidate)]
+#![allow(clippy::too_many_lines)]
 // pedantic denies. (When we turn on pedantic, these denys can be removed)
 #![deny(clippy::uninlined_format_args)]
 #![deny(clippy::unnested_or_patterns)]
 #![deny(clippy::unreadable_literal)]
+#![deny(clippy::ignored_unit_patterns)]
 
 mod agent;
 mod arguments_object;
@@ -170,7 +172,7 @@ fn run_app() -> Result<(), i32> {
 
 fn main() {
     std::process::exit(match run_app() {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(err) => err,
     });
 }

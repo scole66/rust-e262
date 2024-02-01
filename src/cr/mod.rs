@@ -102,7 +102,7 @@ impl From<Reference> for NormalCompletion {
 }
 
 impl From<()> for NormalCompletion {
-    fn from(_: ()) -> Self {
+    fn from((): ()) -> Self {
         Self::Empty
     }
 }

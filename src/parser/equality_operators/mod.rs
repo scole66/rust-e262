@@ -58,9 +58,9 @@ impl PrettyPrint for EqualityExpression {
         let mut work = |ee: &EqualityExpression, re: &RelationalExpression, op| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{first}EqualityExpression: {self}")
-                .and_then(|_| ee.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
-                .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::Final))
+                .and_then(|()| ee.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|()| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
+                .and_then(|()| re.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {

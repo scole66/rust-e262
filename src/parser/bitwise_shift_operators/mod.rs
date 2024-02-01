@@ -56,9 +56,9 @@ impl PrettyPrint for ShiftExpression {
         let mut work = |left: &ShiftExpression, right: &AdditiveExpression, op| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{first}ShiftExpression: {self}")
-                .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
-                .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))
+                .and_then(|()| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|()| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
+                .and_then(|()| right.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {

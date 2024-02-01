@@ -72,9 +72,9 @@ impl PrettyPrint for RelationalExpression {
         let mut work = |re: &RelationalExpression, se: &ShiftExpression, op, kind| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{first}RelationalExpression: {self}")
-                .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
-                .and_then(|_| se.concise_with_leftpad(writer, &successive, Spot::Final))
+                .and_then(|()| re.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|()| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
+                .and_then(|()| se.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {

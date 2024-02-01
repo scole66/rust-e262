@@ -68,8 +68,8 @@ impl PrettyPrint for UnaryExpression {
         let mut work = |node: &UnaryExpression, op, kind| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{first}UnaryExpression: {self}")
-                .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
-                .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
+                .and_then(|()| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
+                .and_then(|()| node.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {

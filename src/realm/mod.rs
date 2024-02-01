@@ -787,7 +787,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                 strict_eval,
                                 &source_text,
                             ) {
-                                Ok(_) => {
+                                Ok(()) => {
                                     let mut chunk = Chunk::new("eval code");
                                     script.compile(&mut chunk, strict_eval, &source_text).unwrap();
                                     for line in chunk.disassemble() {

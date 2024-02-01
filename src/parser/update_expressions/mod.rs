@@ -59,13 +59,13 @@ impl PrettyPrint for UpdateExpression {
         let workafter = |writer: &mut T, node: &LeftHandSideExpression, op: &str| {
             head(writer).and_then(|successive| {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)
-                    .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final))
+                    .and_then(|()| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final))
             })
         };
         let workbefore = |writer: &mut T, node: &UnaryExpression, op: &str| {
             head(writer).and_then(|successive| {
                 pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal)
-                    .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
+                    .and_then(|()| node.concise_with_leftpad(writer, &successive, Spot::Final))
             })
         };
         match self {

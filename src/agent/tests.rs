@@ -1192,7 +1192,7 @@ mod global_declaration_instantiation {
 
         let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
 
-        result.map_err(unwind_any_error).map(|_| {
+        result.map_err(unwind_any_error).map(|()| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 

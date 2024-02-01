@@ -4271,7 +4271,7 @@ mod object {
             let (obj, key, value) = make_items();
             obj.create_data_property_or_throw(key, value)
                 .map_err(unwind_any_error)
-                .map(|_| ECMAScriptValue::from(obj).test_result_string())
+                .map(|()| ECMAScriptValue::from(obj).test_result_string())
         }
     }
 
@@ -4409,7 +4409,7 @@ mod object {
             target
                 .copy_data_properties(source, excluded.as_slice())
                 .map_err(unwind_any_error)
-                .map(|_| ECMAScriptValue::from(target).test_result_string())
+                .map(|()| ECMAScriptValue::from(target).test_result_string())
         }
     }
 }
@@ -4641,7 +4641,7 @@ mod define_property_or_throw {
         let (obj, key, desc) = make_items();
         internal_define_property_or_throw(&obj, key, desc)
             .map_err(unwind_any_error)
-            .map(|_| ECMAScriptValue::from(obj).test_result_string())
+            .map(|()| ECMAScriptValue::from(obj).test_result_string())
     }
 
     #[test_case(wks(WksId::ToStringTag) => sok("Symbol(Symbol.toStringTag):0"); "symbol")]
@@ -4654,7 +4654,7 @@ mod define_property_or_throw {
         let ppd = PotentialPropertyDescriptor::new().value(0);
         super::super::define_property_or_throw(&obj, key, ppd)
             .map_err(unwind_any_error)
-            .map(|_| ECMAScriptValue::from(obj).test_result_string())
+            .map(|()| ECMAScriptValue::from(obj).test_result_string())
     }
 }
 
@@ -5516,5 +5516,5 @@ fn delete_property_or_throw(make_obj: impl FnOnce() -> Object, key: impl Into<Pr
     let key = key.into();
     obj.delete_property_or_throw(&key)
         .map_err(unwind_any_error)
-        .map(|_| ECMAScriptValue::from(obj).test_result_string())
+        .map(|()| ECMAScriptValue::from(obj).test_result_string())
 }
