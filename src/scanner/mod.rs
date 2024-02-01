@@ -680,7 +680,7 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
     if count > 0 {
         let parse_result = u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
         if let Ok(mv) = parse_result {
-            if mv <= 0x10FFFF {
+            if mv <= 0x0010_FFFF {
                 return Some(Scanner {
                     line: scanner.line,
                     column: scanner.column + count as u32,
@@ -1807,7 +1807,7 @@ impl TryFrom<u32> for CharVal {
     type Error = &'static str;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value <= 0x10ffff {
+        if value <= 0x0010_ffff {
             Ok(CharVal(value))
         } else {
             Err("CharVal can only be used with values <= 0x10ffff")

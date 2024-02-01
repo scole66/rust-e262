@@ -35,7 +35,7 @@ fn nts_test_negatives() {
 #[test]
 fn nts_test_ends_with_zeroes() {
     let mut s = Vec::new();
-    number_to_string(&mut s, 98000000.0).unwrap();
+    number_to_string(&mut s, 98_000_000.0).unwrap();
     assert_eq!(s, "98000000".as_bytes());
 }
 #[test]
@@ -122,14 +122,14 @@ mod ecmascript_value {
         assert_eq!(v, ECMAScriptValue::Number(10.0));
         let v = ECMAScriptValue::from(10_i64);
         assert_eq!(v, ECMAScriptValue::Number(10.0));
-        let v = ECMAScriptValue::from(1152921504606846976_u64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_u64))));
-        let v = ECMAScriptValue::from(1152921504606846976_i64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_i64))));
-        let v = ECMAScriptValue::from(-1152921504606846976_i64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1152921504606846976_i64))));
-        let v = ECMAScriptValue::from(Rc::new(BigInt::from(789999999999999999999999_i128)));
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789999999999999999999999_i128))));
+        let v = ECMAScriptValue::from(1_152_921_504_606_846_976_u64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1_152_921_504_606_846_976_u64))));
+        let v = ECMAScriptValue::from(1_152_921_504_606_846_976_i64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1_152_921_504_606_846_976_i64))));
+        let v = ECMAScriptValue::from(-1_152_921_504_606_846_976_i64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1_152_921_504_606_846_976_i64))));
+        let v = ECMAScriptValue::from(Rc::new(BigInt::from(789_999_999_999_999_999_999_999_i128)));
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789_999_999_999_999_999_999_999_i128))));
         let v = ECMAScriptValue::from(vec!['a' as u16, 'b' as u16, 'c' as u16]);
         assert_eq!(v, ECMAScriptValue::String(JSString::from("abc")));
         let v = ECMAScriptValue::from(&JSString::from("blue"));
@@ -185,7 +185,7 @@ mod ecmascript_value {
         ECMAScriptValue::from(s)
     }
     #[test_case(56_usize => (ECMAScriptValue::Number(56.0), ValueKind::Number); "small number")]
-    #[test_case(9007199254741092_usize => (ECMAScriptValue::from(9007199254741092_u64), ValueKind::BigInt); "big number")]
+    #[test_case(9_007_199_254_741_092_usize => (ECMAScriptValue::from(9_007_199_254_741_092_u64), ValueKind::BigInt); "big number")]
     fn from_usize(u: usize) -> (ECMAScriptValue, ValueKind) {
         let v = ECMAScriptValue::from(u);
         let kind = v.kind();
@@ -400,7 +400,7 @@ mod ecmascript_value {
         BigInt::from(10).into()
     }
     fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1097631).into()
+        BigInt::from(-1_097_631).into()
     }
 
     #[test_case(undef, undef => true; "undefined")]
@@ -820,7 +820,7 @@ mod property_key {
         assert_eq!(pk, PropertyKey::Symbol(wks(WksId::ToPrimitive)));
         let pk = PropertyKey::from(String::from("d"));
         assert_eq!(pk, PropertyKey::String(JSString::from("d")));
-        let pk = PropertyKey::from(848183_usize);
+        let pk = PropertyKey::from(848_183_usize);
         assert_eq!(pk, PropertyKey::String(JSString::from("848183")));
     }
     #[test]
@@ -978,8 +978,8 @@ fn to_numeric_01() {
 #[test]
 fn to_numeric_02() {
     setup_test_agent();
-    let result = to_numeric(ECMAScriptValue::from(BigInt::from(4747474))).unwrap();
-    assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4747474))));
+    let result = to_numeric(ECMAScriptValue::from(BigInt::from(4_747_474))).unwrap();
+    assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4_747_474))));
 }
 #[test]
 fn to_numeric_03() {
@@ -1059,12 +1059,12 @@ fn to_number_07() {
         ("0030", 30.0),
         (" \t\r\n\u{a0}\u{2029}\u{2028}\u{b}\u{c}\u{feff}", 0.0),
         ("0xabcd", 43981.0),
-        ("0X6A8BB", 436411.0),
+        ("0X6A8BB", 436_411.0),
         ("0b010", 2.0),
         ("0B110", 6.0),
         ("0o766", 502.0),
         ("0O7", 7.0),
-        ("0xabcdabcdabcdabcdabcdabcdabcdabcd", 228365892722206371581333312115001109453.0),
+        ("0xabcdabcdabcdabcdabcdabcdabcdabcd", 228_365_892_722_206_371_581_333_312_115_001_109_453.0),
     ];
 
     for (s, e) in testcases {
@@ -1216,7 +1216,7 @@ fn to_string_10() {
 #[test]
 fn to_string_11() {
     setup_test_agent();
-    let result = to_string(ECMAScriptValue::from(BigInt::from(789123))).unwrap();
+    let result = to_string(ECMAScriptValue::from(BigInt::from(789_123))).unwrap();
     assert_eq!(result, "789123");
 }
 
@@ -1298,7 +1298,7 @@ fn faux_makes_number(
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Ok(ECMAScriptValue::from(123456))
+    Ok(ECMAScriptValue::from(123_456))
 }
 // non-object string
 fn faux_makes_string(
@@ -1468,7 +1468,7 @@ fn ordinary_to_primitive_nonoobj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Primitive);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
@@ -1498,17 +1498,17 @@ fn ordinary_to_primitive_nonobj_obj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Object);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
-    assert_eq!(result_2, ECMAScriptValue::from(123456));
+    assert_eq!(result_2, ECMAScriptValue::from(123_456));
 }
 #[test]
 fn ordinary_to_primitive_call_errors() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Error);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
     assert_eq!(unwind_type_error(result_2), "Test Sentinel");
@@ -1518,7 +1518,7 @@ fn ordinary_to_primitive_get_errors() {
     setup_test_agent();
     let test_obj = make_tostring_getter_error();
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
     assert_eq!(unwind_type_error(result_2), "Test Sentinel");
@@ -1568,9 +1568,9 @@ fn to_primitive_prefer_number() {
     let test_value = ECMAScriptValue::from(test_obj);
 
     let result = to_primitive(test_value.clone(), None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123456));
+    assert_eq!(result, ECMAScriptValue::from(123_456));
     let result = to_primitive(test_value.clone(), Some(ConversionHint::Number)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123456));
+    assert_eq!(result, ECMAScriptValue::from(123_456));
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
@@ -1735,8 +1735,8 @@ mod to_property_key {
 #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
 #[test_case(|| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
 #[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-#[test_case(|| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
-#[test_case(|| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991); "top edge")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991); "over")]
 #[test_case(|| ECMAScriptValue::from(Symbol::new(Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
 fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
     setup_test_agent();
@@ -1791,9 +1791,9 @@ mod to_int32 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(0x7FFFFFFF as f64 => Ok(0x7FFFFFFF); "upper limit")]
-    #[test_case(2147483648.0 => Ok(-2147483648); "lower rollover")]
-    #[test_case(-2147483648.0 => Ok(-2147483648); "lower limit")]
+    #[test_case(0x7FFF_FFFF as f64 => Ok(0x7FFF_FFFF); "upper limit")]
+    #[test_case(2_147_483_648.0 => Ok(-2_147_483_648); "lower rollover")]
+    #[test_case(-2_147_483_648.0 => Ok(-2_147_483_648); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
         setup_test_agent();
@@ -1810,9 +1810,9 @@ mod to_uint32 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(4294967295.0 => Ok(0xFFFFFFFF); "upper limit")]
-    #[test_case(4294967296.0 => Ok(0); "rollover")]
-    #[test_case(-300.0 => Ok(4294966996); "negative inputs")]
+    #[test_case(4_294_967_295.0 => Ok(0xFFFF_FFFF); "upper limit")]
+    #[test_case(4_294_967_296.0 => Ok(0); "rollover")]
+    #[test_case(-300.0 => Ok(4_294_966_996); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
         setup_test_agent();
@@ -1920,14 +1920,14 @@ mod array_index {
 
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Ordering::Equal; "same")]
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Less; "less")]
-    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Greater; "greater")]
+    #[test_case(ArrayIndex::try_from(100_000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Greater; "greater")]
     fn cmp(v1: ArrayIndex, v2: ArrayIndex) -> Ordering {
         v1.cmp(&v2)
     }
 
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Some(Ordering::Equal); "same")]
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Less); "less")]
-    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Greater); "greater")]
+    #[test_case(ArrayIndex::try_from(100_000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Greater); "greater")]
     fn partial_cmp(v1: ArrayIndex, v2: ArrayIndex) -> Option<Ordering> {
         v1.partial_cmp(&v2)
     }
@@ -1938,8 +1938,8 @@ mod array_index {
         use test_case::test_case;
 
         #[test_case(0 => Ok(ArrayIndex(0)); "lower bound")]
-        #[test_case(4294967294 => Ok(ArrayIndex(4294967294)); "upper bound")]
-        #[test_case(4294967295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
+        #[test_case(4_294_967_294 => Ok(ArrayIndex(4_294_967_294)); "upper bound")]
+        #[test_case(4_294_967_295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
         fn from_u32(u: u32) -> Result<ArrayIndex, String> {
             ArrayIndex::try_from(u).map_err(|e| e.into())
         }
@@ -1962,7 +1962,7 @@ mod array_index {
         use test_case::test_case;
 
         #[test_case(ArrayIndex(0) => 0; "lower")]
-        #[test_case(ArrayIndex(4294967294) => 4294967294; "upper")]
+        #[test_case(ArrayIndex(4_294_967_294) => 4_294_967_294; "upper")]
         fn into_u32(a: ArrayIndex) -> u32 {
             u32::from(a)
         }
@@ -2137,7 +2137,7 @@ mod agent {
         BigInt::from(10).into()
     }
     fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1097631).into()
+        BigInt::from(-1_097_631).into()
     }
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()

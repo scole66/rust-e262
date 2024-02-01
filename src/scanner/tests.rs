@@ -418,14 +418,14 @@ fn numeric_literal_02() {
 fn numeric_literal_03() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xabcdef"),
-        Some((Token::Number(11259375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
+        Some((Token::Number(11_259_375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
     )
 }
 #[test]
 fn numeric_literal_04() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xFEDCBA"),
-        Some((Token::Number(16702650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
+        Some((Token::Number(16_702_650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
     )
 }
 #[test]
@@ -450,7 +450,7 @@ fn numeric_literal_08() {
     let result = numeric_literal(&Scanner::new(), "0o3_4576_1000n");
     assert_eq!(
         result,
-        Some((Token::BigInt(BigInt::zero() + 0x0397e200), Scanner { line: 1, column: 15, start_idx: 14 }))
+        Some((Token::BigInt(BigInt::zero() + 0x0397_e200), Scanner { line: 1, column: 15, start_idx: 14 }))
     );
 }
 #[test]
@@ -458,7 +458,7 @@ fn numeric_literal_09() {
     let result = numeric_literal(&Scanner::new(), "0x4576_1000n");
     assert_eq!(
         result,
-        Some((Token::BigInt(BigInt::zero() + 0x45761000), Scanner { line: 1, column: 13, start_idx: 12 }))
+        Some((Token::BigInt(BigInt::zero() + 0x4576_1000), Scanner { line: 1, column: 13, start_idx: 12 }))
     );
 }
 #[test]
@@ -469,7 +469,7 @@ fn numeric_literal_10() {
 #[test]
 fn numeric_literal_11() {
     let result = numeric_literal(&Scanner::new(), "0o7773153152");
-    assert_eq!(result, Some((Token::Number(1072485994.0), Scanner { line: 1, column: 13, start_idx: 12 })));
+    assert_eq!(result, Some((Token::Number(1_072_485_994.0), Scanner { line: 1, column: 13, start_idx: 12 })));
 }
 
 #[test]
@@ -1568,9 +1568,9 @@ fn template_test_15() {
 
 #[test]
 fn charval_test() {
-    assert_eq!(CharVal::try_from(0x10fffe), Ok(CharVal(0x10fffe)));
-    assert!(CharVal::try_from(0x200000).is_err());
-    assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x10ab32));
+    assert_eq!(CharVal::try_from(0x0010_fffe), Ok(CharVal(0x0010_fffe)));
+    assert!(CharVal::try_from(0x0020_0000).is_err());
+    assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x0010_ab32));
 }
 #[test]
 fn charval_debug() {

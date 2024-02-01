@@ -3383,10 +3383,11 @@ mod template_literal {
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
             setup_test_agent();
             let mut errs = vec![];
-            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
-                .unwrap()
-                .0
-                .early_errors(&mut errs, strict, 4294967295);
+            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(
+                &mut errs,
+                strict,
+                4_294_967_295,
+            );
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
         }
 

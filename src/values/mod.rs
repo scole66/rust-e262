@@ -297,7 +297,7 @@ impl PropertyKey {
             PropertyKey::String(s) => {
                 let as_u32 = to_uint32_agentless(s).expect("strings always convert to numbers");
                 let restrung = to_string_agentless(as_u32).expect("numbers always convert to strings");
-                as_u32 != 0xFFFFFFFF && restrung == *s
+                as_u32 != 0xFFFF_FFFF && restrung == *s
             }
         }
     }
@@ -405,7 +405,7 @@ pub struct ArrayIndex(u32);
 impl TryFrom<u32> for ArrayIndex {
     type Error = &'static str;
     fn try_from(val: u32) -> Result<ArrayIndex, Self::Error> {
-        if val < 0xFFFFFFFF {
+        if val < 0xFFFF_FFFF {
             Ok(ArrayIndex(val))
         } else {
             Err("The maximum array index is 4294967294")
@@ -1007,7 +1007,7 @@ fn to_core_signed(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completi
     })
 }
 pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
-    Ok(to_core_signed(4294967296.0, argument)? as i32)
+    Ok(to_core_signed(4_294_967_296.0, argument)? as i32)
 }
 
 // ToUint32 ( argument )
@@ -1030,12 +1030,12 @@ pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
 pub fn to_uint32(argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
-    let i = to_core_int(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+    let i = to_core_int(4_294_967_296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
-    let i = to_core_int_agentless(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+    let i = to_core_int_agentless(4_294_967_296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
 // ToInt16 ( argument )

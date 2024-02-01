@@ -2,9 +2,12 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 #![allow(clippy::similar_names)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::must_use_candidate)]
 // pedantic denies. (When we turn on pedantic, these denys can be removed)
 #![deny(clippy::uninlined_format_args)]
 #![deny(clippy::unnested_or_patterns)]
+#![deny(clippy::unreadable_literal)]
 
 mod agent;
 mod arguments_object;
