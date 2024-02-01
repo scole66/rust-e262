@@ -2180,8 +2180,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                     r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
                 );
                 let regular_expression_chars = format!("(?:{regular_expression_char}*)");
-                let regular_expression_body =
-                    format!("(?:{regular_expression_first_char}{regular_expression_chars})");
+                let regular_expression_body = format!("(?:{regular_expression_first_char}{regular_expression_chars})");
                 let regular_expression_literal =
                     format!("(?:^/(?P<body>{regular_expression_body})/(?P<flags>{regular_expression_flags}))");
                 Regex::new(&regular_expression_literal).unwrap()

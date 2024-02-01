@@ -432,10 +432,7 @@ impl Catch {
             let ldn = self.block.lexically_declared_names();
             let vdn = self.block.var_declared_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(
-                    format!("‘{name}’ already defined"),
-                    Some(self.block.location()),
-                ));
+                errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.block.location())));
             }
             for name in bn.iter() {
                 if ldn.contains(name) || vdn.contains(name) {

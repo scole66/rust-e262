@@ -1420,17 +1420,23 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
                 ECMAScriptValue::from(to_number(y.clone()).expect("Booleans are always convertable to numbers"));
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
+        (
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+            ECMAScriptValue::Object(_),
+        ) => {
             let new_y = to_primitive(y.clone(), None)?;
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
+        (
+            ECMAScriptValue::Object(_),
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+        ) => {
             let new_x = to_primitive(x.clone(), None)?;
             is_loosely_equal(&new_x, y)
         }

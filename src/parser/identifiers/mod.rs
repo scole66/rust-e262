@@ -41,46 +41,46 @@ impl Identifier {
         let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Identifier(id) => match id.keyword_id {
-                Some(Keyword::Await)
-                | Some(Keyword::Break)
-                | Some(Keyword::Case)
-                | Some(Keyword::Catch)
-                | Some(Keyword::Class)
-                | Some(Keyword::Const)
-                | Some(Keyword::Continue)
-                | Some(Keyword::Debugger)
-                | Some(Keyword::Default)
-                | Some(Keyword::Delete)
-                | Some(Keyword::Do)
-                | Some(Keyword::Else)
-                | Some(Keyword::Enum)
-                | Some(Keyword::Export)
-                | Some(Keyword::Extends)
-                | Some(Keyword::False)
-                | Some(Keyword::Finally)
-                | Some(Keyword::For)
-                | Some(Keyword::Function)
-                | Some(Keyword::If)
-                | Some(Keyword::Import)
-                | Some(Keyword::In)
-                | Some(Keyword::Instanceof)
-                | Some(Keyword::New)
-                | Some(Keyword::Null)
-                | Some(Keyword::Return)
-                | Some(Keyword::Super)
-                | Some(Keyword::Switch)
-                | Some(Keyword::This)
-                | Some(Keyword::Throw)
-                | Some(Keyword::True)
-                | Some(Keyword::Try)
-                | Some(Keyword::Typeof)
-                | Some(Keyword::Var)
-                | Some(Keyword::Void)
-                | Some(Keyword::While)
-                | Some(Keyword::With)
-                | Some(Keyword::Yield) => {
-                    Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), tok_loc))
-                }
+                Some(
+                    Keyword::Await
+                    | Keyword::Break
+                    | Keyword::Case
+                    | Keyword::Catch
+                    | Keyword::Class
+                    | Keyword::Const
+                    | Keyword::Continue
+                    | Keyword::Debugger
+                    | Keyword::Default
+                    | Keyword::Delete
+                    | Keyword::Do
+                    | Keyword::Else
+                    | Keyword::Enum
+                    | Keyword::Export
+                    | Keyword::Extends
+                    | Keyword::False
+                    | Keyword::Finally
+                    | Keyword::For
+                    | Keyword::Function
+                    | Keyword::If
+                    | Keyword::Import
+                    | Keyword::In
+                    | Keyword::Instanceof
+                    | Keyword::New
+                    | Keyword::Null
+                    | Keyword::Return
+                    | Keyword::Super
+                    | Keyword::Switch
+                    | Keyword::This
+                    | Keyword::Throw
+                    | Keyword::True
+                    | Keyword::Try
+                    | Keyword::Typeof
+                    | Keyword::Var
+                    | Keyword::Void
+                    | Keyword::While
+                    | Keyword::With
+                    | Keyword::Yield,
+                ) => Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), tok_loc)),
                 _ => Ok((Rc::new(Identifier { name: id, location: tok_loc }), after_tok)),
             },
             _ => Err(ParseError::new(PECode::InvalidIdentifier, tok_loc)),

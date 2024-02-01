@@ -406,11 +406,9 @@ impl fmt::Display for PECode {
             PECode::KeywordUsedAsIdentifier(kwd) => {
                 write!(f, "‘{kwd}’ is a reserved word and may not be used as an identifier")
             }
-            PECode::OneOfKeywordExpected(kwd_set) => write!(
-                f,
-                "one of [{}] expected",
-                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{kwd}’")), ", ")
-            ),
+            PECode::OneOfKeywordExpected(kwd_set) => {
+                write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{kwd}’")), ", "))
+            }
             PECode::OneOfPunctuatorExpected(punct_set) => {
                 write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{p}’")), ", "))
             }

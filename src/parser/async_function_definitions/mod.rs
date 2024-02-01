@@ -597,10 +597,7 @@ impl AsyncMethod {
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names() {
             if bn.contains(&name) {
-                errs.push(create_syntax_error_object(
-                    format!("‘{name}’ already defined"),
-                    Some(self.body.location()),
-                ));
+                errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.body.location())));
             }
         }
 
