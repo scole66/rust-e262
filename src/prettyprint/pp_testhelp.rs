@@ -42,9 +42,9 @@ fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
     let mut expected_iter = childstrings.iter();
     for line in line_iter {
         if let Some(0) = line.find(|c| c == '└' || c == '├') {
-            println!("Checking child line {:?}", line);
+            println!("Checking child line {line:?}");
             let expected = expected_iter.next().expect("Too many child strings");
-            println!("Against the expected line {:?}", expected);
+            println!("Against the expected line {expected:?}");
             // swallow the first 4 chars:
             let mut ch_iter = line.chars();
             for _ in 0..4 {

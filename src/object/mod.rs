@@ -1255,7 +1255,7 @@ impl<'a> fmt::Debug for ConciseProperties<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut work = f.debug_struct("AHashMap");
         for (key, value) in self.0.iter() {
-            work.field(format!("{}", key).as_str(), &ConcisePropertyDescriptor::from(value));
+            work.field(format!("{key}").as_str(), &ConcisePropertyDescriptor::from(value));
         }
         work.finish()
     }
@@ -1738,7 +1738,7 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
         panic!("Additional info needed for generator object; use direct constructor");
     } else {
         // Unknown combination of slots
-        panic!("Unknown object for slots {:?}", slot_set);
+        panic!("Unknown object for slots {slot_set:?}");
     }
 }
 

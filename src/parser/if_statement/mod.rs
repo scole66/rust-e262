@@ -16,9 +16,9 @@ impl fmt::Display for IfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             IfStatement::WithElse(e, s1, s2, ..) => {
-                write!(f, "if ( {} ) {} else {}", e, s1, s2)
+                write!(f, "if ( {e} ) {s1} else {s2}")
             }
-            IfStatement::WithoutElse(e, s1, ..) => write!(f, "if ( {} ) {}", e, s1),
+            IfStatement::WithoutElse(e, s1, ..) => write!(f, "if ( {e} ) {s1}"),
         }
     }
 }
@@ -29,7 +29,7 @@ impl PrettyPrint for IfStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}IfStatement: {}", first, self)?;
+        writeln!(writer, "{first}IfStatement: {self}")?;
         match self {
             IfStatement::WithoutElse(e, s1, ..) => {
                 e.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -48,7 +48,7 @@ impl PrettyPrint for IfStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}IfStatement: {}", first, self)?;
+        writeln!(writer, "{first}IfStatement: {self}")?;
         pprint_token(writer, "if", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let condition = |writer: &mut T, exp: &Expression| {

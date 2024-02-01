@@ -402,19 +402,19 @@ impl fmt::Display for PECode {
             PECode::EoFExpected => f.write_str("end-of-file expected"),
             PECode::ImproperNewline => f.write_str("newline not allowed here"),
             PECode::InvalidIdentifier => f.write_str("not an identifier"),
-            PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
+            PECode::KeywordExpected(kwd) => write!(f, "‘{kwd}’ expected"),
             PECode::KeywordUsedAsIdentifier(kwd) => {
-                write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd)
+                write!(f, "‘{kwd}’ is a reserved word and may not be used as an identifier")
             }
             PECode::OneOfKeywordExpected(kwd_set) => write!(
                 f,
                 "one of [{}] expected",
-                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")
+                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{kwd}’")), ", ")
             ),
             PECode::OneOfPunctuatorExpected(punct_set) => {
-                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", "))
+                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{p}’")), ", "))
             }
-            PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
+            PECode::PunctuatorExpected(p) => write!(f, "‘{p}’ expected"),
             PECode::AssignmentExpressionOrSpreadElementExpected => {
                 f.write_str("AssignmentExpression or SpreadElement expected")
             }
@@ -437,7 +437,7 @@ impl fmt::Display for PECode {
             PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
             PECode::ImproperExpression => f.write_str("Improper Expression"),
             PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
-            PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
+            PECode::ParseNodeExpected(pn) => write!(f, "{pn} expected"),
             PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
             PECode::ForStatementDefinitionError => f.write_str("‘var’, LexicalDeclaration, or Expression expected"),
             PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),

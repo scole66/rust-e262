@@ -208,7 +208,7 @@ fn bool_object_checks() {
 fn bool_object_debug() {
     setup_test_agent();
     let bool_obj = create_boolean_object(true);
-    assert_ne!(format!("{:?}", bool_obj), "");
+    assert_ne!(format!("{bool_obj:?}"), "");
 }
 
 #[test_case(|| true => Ok(true); "true value")]

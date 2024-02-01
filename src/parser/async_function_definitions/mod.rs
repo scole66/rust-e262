@@ -32,7 +32,7 @@ impl PrettyPrint for AsyncFunctionDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncFunctionDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -45,7 +45,7 @@ impl PrettyPrint for AsyncFunctionDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncFunctionDeclaration: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -178,7 +178,7 @@ impl AsyncFunctionDeclaration {
             let bn = self.params.bound_names();
             for name in duplicates(&bn) {
                 errs.push(create_syntax_error_object(
-                    format!("‘{}’ already defined", name),
+                    format!("‘{name}’ already defined"),
                     Some(self.params.location()),
                 ));
             }
@@ -261,7 +261,7 @@ impl PrettyPrint for AsyncFunctionExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncFunctionExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -274,7 +274,7 @@ impl PrettyPrint for AsyncFunctionExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncFunctionExpression: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -389,7 +389,7 @@ impl AsyncFunctionExpression {
             let bn = self.params.bound_names();
             for name in duplicates(&bn) {
                 errs.push(create_syntax_error_object(
-                    format!("‘{}’ already defined", name),
+                    format!("‘{name}’ already defined"),
                     Some(self.params.location()),
                 ));
             }
@@ -465,7 +465,7 @@ impl PrettyPrint for AsyncMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncMethod: {self}")?;
         self.ident.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -476,7 +476,7 @@ impl PrettyPrint for AsyncMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncMethod: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.ident.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -598,7 +598,7 @@ impl AsyncMethod {
         for name in self.body.lexically_declared_names() {
             if bn.contains(&name) {
                 errs.push(create_syntax_error_object(
-                    format!("‘{}’ already defined", name),
+                    format!("‘{name}’ already defined"),
                     Some(self.body.location()),
                 ));
             }
@@ -636,7 +636,7 @@ impl PrettyPrint for AsyncFunctionBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionBody: {}", first, self)?;
+        writeln!(writer, "{first}AsyncFunctionBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -757,7 +757,7 @@ impl PrettyPrint for AwaitExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AwaitExpression: {}", first, self)?;
+        writeln!(writer, "{first}AwaitExpression: {self}")?;
         self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -766,7 +766,7 @@ impl PrettyPrint for AwaitExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AwaitExpression: {}", first, self)?;
+        writeln!(writer, "{first}AwaitExpression: {self}")?;
         pprint_token(writer, "await", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.exp.concise_with_leftpad(writer, &successive, Spot::Final)
     }

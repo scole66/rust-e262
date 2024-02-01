@@ -21,12 +21,12 @@ pub enum EqualityExpression {
 impl fmt::Display for EqualityExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            EqualityExpression::RelationalExpression(re) => write!(f, "{}", re),
-            EqualityExpression::Equal(ee, re) => write!(f, "{} == {}", ee, re),
-            EqualityExpression::NotEqual(ee, re) => write!(f, "{} != {}", ee, re),
-            EqualityExpression::StrictEqual(ee, re) => write!(f, "{} === {}", ee, re),
+            EqualityExpression::RelationalExpression(re) => write!(f, "{re}"),
+            EqualityExpression::Equal(ee, re) => write!(f, "{ee} == {re}"),
+            EqualityExpression::NotEqual(ee, re) => write!(f, "{ee} != {re}"),
+            EqualityExpression::StrictEqual(ee, re) => write!(f, "{ee} === {re}"),
             EqualityExpression::NotStrictEqual(ee, re) => {
-                write!(f, "{} !== {}", ee, re)
+                write!(f, "{ee} !== {re}")
             }
         }
     }
@@ -38,7 +38,7 @@ impl PrettyPrint for EqualityExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}EqualityExpression: {}", first, self)?;
+        writeln!(writer, "{first}EqualityExpression: {self}")?;
         match &self {
             EqualityExpression::RelationalExpression(re) => re.pprint_with_leftpad(writer, &successive, Spot::Final),
             EqualityExpression::Equal(ee, re)
@@ -57,7 +57,7 @@ impl PrettyPrint for EqualityExpression {
     {
         let mut work = |ee: &EqualityExpression, re: &RelationalExpression, op| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}EqualityExpression: {}", first, self)
+            writeln!(writer, "{first}EqualityExpression: {self}")
                 .and_then(|_| ee.concise_with_leftpad(writer, &successive, Spot::NotFinal))
                 .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
                 .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::Final))

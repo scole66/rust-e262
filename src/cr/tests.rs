@@ -71,7 +71,7 @@ mod normal_completion {
 
     #[test_case(NormalCompletion::Empty => with |s| assert_ne!(s, ""); "empty")]
     fn debug(nc: NormalCompletion) -> String {
-        format!("{:?}", nc)
+        format!("{nc:?}")
     }
 
     mod from {
@@ -337,7 +337,7 @@ mod abrupt_completion {
         let value = NormalCompletion::from(ECMAScriptValue::Number(10.0));
         let target = Some(JSString::from("outer"));
         let first = AbruptCompletion::Break { value, target };
-        assert_ne!(format!("{:?}", first), "");
+        assert_ne!(format!("{first:?}"), "");
     }
 
     #[test]

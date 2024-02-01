@@ -13,7 +13,7 @@ mod empty_statement {
         chk_scan(&scanner, 1);
         pretty_check(&*se, "EmptyStatement: ;", vec![]);
         concise_check(&*se, "Punctuator: ;", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
     }
     #[test]
     fn parse_02() {

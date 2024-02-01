@@ -16,7 +16,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -31,7 +31,7 @@ mod relational_expression {
             "RelationalExpression: a < b",
             vec!["IdentifierName: a", "Punctuator: <", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -46,7 +46,7 @@ mod relational_expression {
             "RelationalExpression: a > b",
             vec!["IdentifierName: a", "Punctuator: >", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -61,7 +61,7 @@ mod relational_expression {
             "RelationalExpression: a <= b",
             vec!["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -76,7 +76,7 @@ mod relational_expression {
             "RelationalExpression: a >= b",
             vec!["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -95,7 +95,7 @@ mod relational_expression {
             "RelationalExpression: a instanceof b",
             vec!["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -110,7 +110,7 @@ mod relational_expression {
             "RelationalExpression: a in b",
             vec!["IdentifierName: a", "Keyword: in", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -121,7 +121,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -132,7 +132,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -156,7 +156,7 @@ mod relational_expression {
             "RelationalExpression: #a in b",
             vec!["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]

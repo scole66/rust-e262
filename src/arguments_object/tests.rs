@@ -12,7 +12,7 @@ mod parameter_map {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap = ParameterMap { env, properties: vec![] };
 
-        assert_ne!(format!("{:?}", pmap), "");
+        assert_ne!(format!("{pmap:?}"), "");
     }
 
     #[test]
@@ -91,7 +91,7 @@ mod parameter_map {
         for (idx, name) in
             before.iter().enumerate().filter_map(|(idx, os)| os.as_ref().map(|&s| (idx, JSString::from(s))))
         {
-            let value = ECMAScriptValue::from(format!("{}+{}", name, idx));
+            let value = ECMAScriptValue::from(format!("{name}+{idx}"));
             env.create_mutable_binding(name.clone(), false).unwrap();
             env.initialize_binding(&name, value).unwrap();
         }
@@ -109,7 +109,7 @@ mod parameter_map {
         for (idx, name) in
             before.iter().enumerate().filter_map(|(idx, os)| os.as_ref().map(|&s| (idx, JSString::from(s))))
         {
-            let value = ECMAScriptValue::from(format!("{}+{}", name, idx));
+            let value = ECMAScriptValue::from(format!("{name}+{idx}"));
             env.create_mutable_binding(name.clone(), false).unwrap();
             env.initialize_binding(&name, value).unwrap();
         }
@@ -273,7 +273,7 @@ mod arguments_object {
         setup_test_agent();
         let obj = test_ao();
         let ao = obj.o.to_arguments_object().unwrap();
-        assert_ne!(format!("{:?}", ao), "");
+        assert_ne!(format!("{ao:?}"), "");
     }
 
     #[test_case(test_ao, "0" => Ok(ECMAScriptValue::from("value of 'from'")); "index was there")]
@@ -416,7 +416,7 @@ mod arguments_object {
 
     fn prop_checker(expected: PotentialPropertyDescriptor) -> impl Fn(Option<PropertyDescriptor>) {
         move |actual: Option<PropertyDescriptor>| match &actual {
-            None => panic!("{:?} should not have been None", actual),
+            None => panic!("{actual:?} should not have been None"),
             Some(pd) => {
                 if let Some(enumerable) = expected.enumerable {
                     assert_eq!(pd.enumerable, enumerable);

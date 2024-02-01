@@ -48,7 +48,7 @@ impl fmt::Display for Base {
         match self {
             Base::Unresolvable => write!(f, "unresolvable"),
             Base::Value(v) => write!(f, "{v}"),
-            Base::Environment(e) => write!(f, "{:?}", e),
+            Base::Environment(e) => write!(f, "{e:?}"),
         }
     }
 }

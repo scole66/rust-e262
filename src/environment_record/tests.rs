@@ -9,7 +9,7 @@ mod removability {
     #[test]
     fn debug() {
         for val in ALL_REMOVABILITY {
-            assert_ne!(format!("{:?}", val), "");
+            assert_ne!(format!("{val:?}"), "");
         }
     }
     #[test]
@@ -41,7 +41,7 @@ mod strictness {
     #[test]
     fn debug() {
         for val in ALL_STRICTNESS {
-            assert_ne!(format!("{:?}", val), "");
+            assert_ne!(format!("{val:?}"), "");
         }
     }
     #[test]
@@ -145,12 +145,12 @@ mod declarative_environment_record {
     #[test]
     fn debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
-        assert_ne!(format!("{:?}", der), "");
+        assert_ne!(format!("{der:?}"), "");
     }
     #[test]
     fn fancy_debug() {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
-        assert_ne!(format!("{:#?}", der), "");
+        assert_ne!(format!("{der:#?}"), "");
     }
 
     #[test_case("&str"; "string slice")]
@@ -436,8 +436,8 @@ mod object_environment_record {
         let binding_object = ordinary_object_create(Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None, "test");
 
-        assert_ne!(format!("{:#?}", oer), "");
-        assert_ne!(format!("{:?}", oer), "");
+        assert_ne!(format!("{oer:#?}"), "");
+        assert_ne!(format!("{oer:?}"), "");
     }
     #[test]
     fn has_binding_01() {
@@ -978,7 +978,7 @@ mod binding_status {
     #[test]
     fn debug() {
         for val in ALL_BINDINGSTATUS {
-            assert_ne!(format!("{:?}", val), "");
+            assert_ne!(format!("{val:?}"), "");
         }
     }
     #[test]
@@ -1294,7 +1294,7 @@ mod global_environment_record {
         let this_object = ordinary_object_create(Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
 
-        assert_ne!(format!("{:?}", ger), "");
+        assert_ne!(format!("{ger:?}"), "");
     }
 
     #[test]
@@ -1305,7 +1305,7 @@ mod global_environment_record {
         let this_object = ordinary_object_create(Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
 
-        assert_ne!(format!("{:#?}", ger), "");
+        assert_ne!(format!("{ger:#?}"), "");
     }
 
     mod has_binding {
@@ -2068,7 +2068,7 @@ mod global_environment_record {
                     if let PropertyKind::Data(data) = desc.property {
                         Some((data.value, data.writable, desc.enumerable, desc.configurable))
                     } else {
-                        panic!("Expected data property, found an accessor property: {:?}", desc);
+                        panic!("Expected data property, found an accessor property: {desc:?}");
                     }
                 }
             }
@@ -2238,7 +2238,7 @@ mod private_environment_record {
     #[test]
     fn debug() {
         let pe = PrivateEnvironmentRecord { outer_private_environment: None, names: vec![] };
-        assert_ne!(format!("{:?}", pe), "");
+        assert_ne!(format!("{pe:?}"), "");
     }
 
     #[test]

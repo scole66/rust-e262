@@ -191,7 +191,7 @@ fn create_uri_error_01() {
 fn error_object_debug() {
     setup_test_agent();
     let eo = ErrorObject { common: RefCell::new(CommonObjectData::new(None, true, &[])) };
-    assert_ne!(format!("{:?}", eo), "");
+    assert_ne!(format!("{eo:?}"), "");
 }
 
 #[test]

@@ -18,13 +18,13 @@ impl fmt::Display for AdditiveExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             AdditiveExpression::MultiplicativeExpression(boxed) => {
-                write!(f, "{}", boxed)
+                write!(f, "{boxed}")
             }
             AdditiveExpression::Add(ae, me) => {
-                write!(f, "{} + {}", ae, me)
+                write!(f, "{ae} + {me}")
             }
             AdditiveExpression::Subtract(ae, me) => {
-                write!(f, "{} - {}", ae, me)
+                write!(f, "{ae} - {me}")
             }
         }
     }
@@ -36,7 +36,7 @@ impl PrettyPrint for AdditiveExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AdditiveExpression: {}", first, self)?;
+        writeln!(writer, "{first}AdditiveExpression: {self}")?;
         match &self {
             AdditiveExpression::MultiplicativeExpression(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -54,7 +54,7 @@ impl PrettyPrint for AdditiveExpression {
     {
         let mut work = |left: &AdditiveExpression, right: &MultiplicativeExpression, op| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}AdditiveExpression: {}", first, self)
+            writeln!(writer, "{first}AdditiveExpression: {self}")
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
                 .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
                 .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))

@@ -13,7 +13,7 @@ where
     let err = res.unwrap_err();
     assert_eq!(err.location.starting_line, line);
     assert_eq!(err.location.starting_column, column);
-    assert_eq!(format!("{}", err), String::from(msg));
+    assert_eq!(format!("{err}"), String::from(msg));
 }
 pub fn expected_scan(count: u32) -> Scanner {
     // Expected Scanner for tests. (The real world will be more varied.)
@@ -38,7 +38,7 @@ where
         pe.location,
         Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: token_len } }
     );
-    assert_eq!(format!("{}", pe), msg.into());
+    assert_eq!(format!("{pe}"), msg.into());
 }
 pub fn sset(items: &[&str]) -> AHashSet<String> {
     AHashSet::from_iter(items.iter().map(|&x| String::from(x)))

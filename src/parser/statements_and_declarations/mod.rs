@@ -63,7 +63,7 @@ impl PrettyPrint for Statement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Statement: {}", first, self)?;
+        writeln!(writer, "{first}Statement: {self}")?;
         match &self {
             Statement::Block(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             Statement::Variable(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -465,7 +465,7 @@ impl PrettyPrint for Declaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Declaration: {}", first, self)?;
+        writeln!(writer, "{first}Declaration: {self}")?;
         match &self {
             Declaration::Hoistable(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             Declaration::Class(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -712,7 +712,7 @@ impl PrettyPrint for HoistableDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}HoistableDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}HoistableDeclaration: {self}")?;
         match &self {
             HoistableDeclaration::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             HoistableDeclaration::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -853,7 +853,7 @@ impl PrettyPrint for BreakableStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BreakableStatement: {}", first, self)?;
+        writeln!(writer, "{first}BreakableStatement: {self}")?;
         match &self {
             BreakableStatement::Iteration(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BreakableStatement::Switch(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),

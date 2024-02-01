@@ -29,15 +29,15 @@ pub enum UnaryExpression {
 impl fmt::Display for UnaryExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            UnaryExpression::UpdateExpression(boxed) => write!(f, "{}", boxed),
-            UnaryExpression::Delete { ue: boxed, .. } => write!(f, "delete {}", boxed),
-            UnaryExpression::Void { ue: boxed, .. } => write!(f, "void {}", boxed),
-            UnaryExpression::Typeof { ue: boxed, .. } => write!(f, "typeof {}", boxed),
-            UnaryExpression::NoOp { ue: boxed, .. } => write!(f, "+ {}", boxed),
-            UnaryExpression::Negate { ue: boxed, .. } => write!(f, "- {}", boxed),
-            UnaryExpression::Complement { ue: boxed, .. } => write!(f, "~ {}", boxed),
-            UnaryExpression::Not { ue: boxed, .. } => write!(f, "! {}", boxed),
-            UnaryExpression::Await(boxed) => write!(f, "{}", boxed),
+            UnaryExpression::UpdateExpression(boxed) => write!(f, "{boxed}"),
+            UnaryExpression::Delete { ue: boxed, .. } => write!(f, "delete {boxed}"),
+            UnaryExpression::Void { ue: boxed, .. } => write!(f, "void {boxed}"),
+            UnaryExpression::Typeof { ue: boxed, .. } => write!(f, "typeof {boxed}"),
+            UnaryExpression::NoOp { ue: boxed, .. } => write!(f, "+ {boxed}"),
+            UnaryExpression::Negate { ue: boxed, .. } => write!(f, "- {boxed}"),
+            UnaryExpression::Complement { ue: boxed, .. } => write!(f, "~ {boxed}"),
+            UnaryExpression::Not { ue: boxed, .. } => write!(f, "! {boxed}"),
+            UnaryExpression::Await(boxed) => write!(f, "{boxed}"),
         }
     }
 }
@@ -48,7 +48,7 @@ impl PrettyPrint for UnaryExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}UnaryExpression: {}", first, self)?;
+        writeln!(writer, "{first}UnaryExpression: {self}")?;
         match &self {
             UnaryExpression::UpdateExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             UnaryExpression::Delete { ue: boxed, .. }
@@ -67,7 +67,7 @@ impl PrettyPrint for UnaryExpression {
     {
         let mut work = |node: &UnaryExpression, op, kind| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}UnaryExpression: {}", first, self)
+            writeln!(writer, "{first}UnaryExpression: {self}")
                 .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
                 .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
         };

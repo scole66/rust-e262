@@ -97,7 +97,7 @@ mod pe_code {
 
     #[test_case(PECode::Generic => with |s| assert_ne!(s, ""); "generic")]
     fn debug(code: PECode) -> String {
-        format!("{:?}", code)
+        format!("{code:?}")
     }
 
     #[test_case(PECode::Generic, PECode::Generic => true; "equal")]
@@ -176,7 +176,7 @@ fn yield_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn yield_await_tagged_key_01() {
@@ -197,7 +197,7 @@ fn yield_await_tagged_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn in_yield_await_key_01() {
@@ -218,7 +218,7 @@ fn in_yield_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn in_key_01() {
@@ -229,7 +229,7 @@ fn in_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn in_await_key_01() {
@@ -242,7 +242,7 @@ fn in_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn yield_await_return_key_01() {
@@ -263,7 +263,7 @@ fn yield_await_return_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn yield_key_01() {
@@ -274,7 +274,7 @@ fn yield_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 #[test]
 fn yield_await_default_key_01() {
@@ -295,7 +295,7 @@ fn yield_await_default_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{:?}", left);
+    format!("{left:?}");
 }
 
 #[test]
@@ -828,7 +828,7 @@ fn parse_text_04() {
 #[test_case(&["a", "b", "c", "a", "b", "c", "b", "a"] => vec!["a", "b", "c"]; "many dups")]
 fn duplicates(inputs: &[&str]) -> Vec<String> {
     let idents = inputs.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-    super::duplicates(&idents).into_iter().map(|s| format!("{}", s)).collect::<Vec<_>>()
+    super::duplicates(&idents).into_iter().map(|s| format!("{s}")).collect::<Vec<_>>()
 }
 
 mod parse_error {
@@ -838,7 +838,7 @@ mod parse_error {
     #[test_case(ParseError::new(PECode::Generic, 1) => with |s| assert_ne!(s, ""); "generic")]
     #[test_case(ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::In, Keyword::Of]), 1) => with |s| assert_ne!(s, ""); "complex")]
     fn debug(pe: ParseError) -> String {
-        format!("{:?}", pe)
+        format!("{pe:?}")
     }
 
     #[test]
@@ -917,7 +917,7 @@ mod location {
     #[test]
     fn debug() {
         let loc = Location::default();
-        assert_ne!(format!("{:?}", loc), "");
+        assert_ne!(format!("{loc:?}"), "");
     }
 
     #[test]
@@ -1001,7 +1001,7 @@ mod span {
     #[test]
     fn debug() {
         let span = Span::default();
-        assert_ne!(format!("{:?}", span), "");
+        assert_ne!(format!("{span:?}"), "");
     }
 
     #[test]

@@ -20,7 +20,7 @@ mod chunk {
     #[test]
     fn debug() {
         let c = Chunk::new("debug");
-        assert_ne!(format!("{:?}", c), "");
+        assert_ne!(format!("{c:?}"), "");
     }
 
     #[test_case("tomato"; "string slice")]
@@ -406,7 +406,7 @@ mod stashed_function_data {
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        assert_ne!(format!("{:?}", sfd), "");
+        assert_ne!(format!("{sfd:?}"), "");
     }
 
     #[test]

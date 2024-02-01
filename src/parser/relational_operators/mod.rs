@@ -27,18 +27,18 @@ pub enum RelationalExpression {
 impl fmt::Display for RelationalExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RelationalExpression::ShiftExpression(se) => write!(f, "{}", se),
-            RelationalExpression::Less(re, se) => write!(f, "{} < {}", re, se),
-            RelationalExpression::Greater(re, se) => write!(f, "{} > {}", re, se),
-            RelationalExpression::LessEqual(re, se) => write!(f, "{} <= {}", re, se),
+            RelationalExpression::ShiftExpression(se) => write!(f, "{se}"),
+            RelationalExpression::Less(re, se) => write!(f, "{re} < {se}"),
+            RelationalExpression::Greater(re, se) => write!(f, "{re} > {se}"),
+            RelationalExpression::LessEqual(re, se) => write!(f, "{re} <= {se}"),
             RelationalExpression::GreaterEqual(re, se) => {
-                write!(f, "{} >= {}", re, se)
+                write!(f, "{re} >= {se}")
             }
             RelationalExpression::InstanceOf(re, se) => {
-                write!(f, "{} instanceof {}", re, se)
+                write!(f, "{re} instanceof {se}")
             }
-            RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
-            RelationalExpression::PrivateIn(id, se, _) => write!(f, "{} in {}", id, se),
+            RelationalExpression::In(re, se) => write!(f, "{re} in {se}"),
+            RelationalExpression::PrivateIn(id, se, _) => write!(f, "{id} in {se}"),
         }
     }
 }
@@ -49,7 +49,7 @@ impl PrettyPrint for RelationalExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}RelationalExpression: {}", first, self)?;
+        writeln!(writer, "{first}RelationalExpression: {self}")?;
         match &self {
             RelationalExpression::ShiftExpression(se) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
             RelationalExpression::Less(re, se)
@@ -71,7 +71,7 @@ impl PrettyPrint for RelationalExpression {
     {
         let mut work = |re: &RelationalExpression, se: &ShiftExpression, op, kind| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}RelationalExpression: {}", first, self)
+            writeln!(writer, "{first}RelationalExpression: {self}")
                 .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::NotFinal))
                 .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
                 .and_then(|_| se.concise_with_leftpad(writer, &successive, Spot::Final))
@@ -87,7 +87,7 @@ impl PrettyPrint for RelationalExpression {
             RelationalExpression::In(re, se) => work(re, se, "in", TokenType::Keyword),
             RelationalExpression::PrivateIn(id, se, _) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}RelationalExpression: {}", first, self)?;
+                writeln!(writer, "{first}RelationalExpression: {self}")?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "in", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)

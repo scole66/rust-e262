@@ -238,7 +238,7 @@ impl fmt::Display for StringToken {
         };
         match &self.raw {
             None => write!(f, "{}{}{}", delim, self.value, delim),
-            Some(s) => write!(f, "{}{}{}", delim, s, delim),
+            Some(s) => write!(f, "{delim}{s}{delim}"),
         }
     }
 }
@@ -542,8 +542,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         // If None comes back, this is actually a syntax error.
                         None => {
                             return Err(format!(
-                                "Unterminated /*-style comment. Started on line {}, column {}.",
-                                comment_start_line, comment_start_column
+                                "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                             ))
                         }
                         Some(c) => {
@@ -560,8 +559,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 // If None comes back, this is actually a syntax error.
                                 None => {
                                     return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
+                                        "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                     ))
                                 }
                                 Some(c) => {
@@ -591,8 +589,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             match iter.next() {
                                 None => {
                                     return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
+                                        "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                     ))
                                 }
                                 Some(c) => {
@@ -605,8 +602,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 match iter.next() {
                                     None => {
                                         return Err(format!(
-                                            "Unterminated /*-style comment. Started on line {}, column {}.",
-                                            comment_start_line, comment_start_column
+                                            "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                         ))
                                     }
                                     Some(c) => {
@@ -623,8 +619,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         match iter.next() {
                             None => {
                                 return Err(format!(
-                                    "Unterminated /*-style comment. Started on line {}, column {}.",
-                                    comment_start_line, comment_start_column
+                                    "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                 ))
                             }
                             Some(c) => {
@@ -2173,24 +2168,22 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let regular_expression_flags =
                     r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
                 let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
-                let regular_expression_backslash_sequence = format!(r"(?:\\{})", regular_expression_non_terminator);
+                let regular_expression_backslash_sequence = format!(r"(?:\\{regular_expression_non_terminator})");
                 let regular_expression_class_char =
-                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{})", regular_expression_backslash_sequence);
-                let regular_expression_class_chars = format!("(?:{}*)", regular_expression_class_char);
-                let regular_expression_class = format!(r"(?:\[{}\])", regular_expression_class_chars);
+                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{regular_expression_backslash_sequence})");
+                let regular_expression_class_chars = format!("(?:{regular_expression_class_char}*)");
+                let regular_expression_class = format!(r"(?:\[{regular_expression_class_chars}\])");
                 let regular_expression_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})",
-                    regular_expression_backslash_sequence, regular_expression_class
+                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
                 );
                 let regular_expression_first_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{}|{})",
-                    regular_expression_backslash_sequence, regular_expression_class
+                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
                 );
-                let regular_expression_chars = format!("(?:{}*)", regular_expression_char);
+                let regular_expression_chars = format!("(?:{regular_expression_char}*)");
                 let regular_expression_body =
-                    format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
+                    format!("(?:{regular_expression_first_char}{regular_expression_chars})");
                 let regular_expression_literal =
-                    format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
+                    format!("(?:^/(?P<body>{regular_expression_body})/(?P<flags>{regular_expression_flags}))");
                 Regex::new(&regular_expression_literal).unwrap()
             };
         }

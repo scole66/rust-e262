@@ -915,7 +915,7 @@ mod parse_script {
         let ScriptRecord { realm, ecmascript_code, compiled, text } =
             super::parse_script(src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
-        assert_eq!(format!("{}", ecmascript_code), "'hello world' ;");
+        assert_eq!(format!("{ecmascript_code}"), "'hello world' ;");
         assert_eq!(compiled.name, "top level script");
         assert_eq!(
             compiled.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),

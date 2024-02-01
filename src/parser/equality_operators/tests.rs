@@ -16,7 +16,7 @@ mod equality_expression {
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
         pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -31,7 +31,7 @@ mod equality_expression {
             "EqualityExpression: a == b",
             vec!["IdentifierName: a", "Punctuator: ==", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -46,7 +46,7 @@ mod equality_expression {
             "EqualityExpression: a != b",
             vec!["IdentifierName: a", "Punctuator: !=", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -61,7 +61,7 @@ mod equality_expression {
             "EqualityExpression: a === b",
             vec!["IdentifierName: a", "Punctuator: ===", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -76,7 +76,7 @@ mod equality_expression {
             "EqualityExpression: a !== b",
             vec!["IdentifierName: a", "Punctuator: !==", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -96,7 +96,7 @@ mod equality_expression {
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
         pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]

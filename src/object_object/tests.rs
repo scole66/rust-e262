@@ -20,7 +20,7 @@ mod prototype {
                     assert_eq!(to_number(result).unwrap(), 10.0);
                 }
                 _ => {
-                    panic!("Object.prototype.valueOf did not return an object. (Got: {:?})", result);
+                    panic!("Object.prototype.valueOf did not return an object. (Got: {result:?})");
                 }
             }
         }
@@ -59,7 +59,7 @@ mod prototype {
             match object_prototype_to_string(value, None, &[]) {
                 Ok(ok) => match ok {
                     ECMAScriptValue::String(s) => String::from(s),
-                    _ => panic!("Object.prototype.toString did not return a string. (Got: {:?})", ok),
+                    _ => panic!("Object.prototype.toString did not return a string. (Got: {ok:?})"),
                 },
                 Err(err) => unwind_type_error(err),
             }
@@ -292,7 +292,7 @@ mod constructor {
         match object_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), args) {
             Ok(ok) => match ok {
                 ECMAScriptValue::Object(obj) => String::from(to_string(obj).unwrap()),
-                _ => panic!("Object() did not return an object. (Got: {:?})", ok),
+                _ => panic!("Object() did not return an object. (Got: {ok:?})"),
             },
             Err(err) => unwind_type_error(err),
         }
@@ -366,7 +366,7 @@ mod constructor {
                     assert!(!to.has_own_property(&PropertyKey::from("twice")).unwrap());
                 }
                 _ => {
-                    panic!("Got a non-object back: {:?}", result);
+                    panic!("Got a non-object back: {result:?}");
                 }
             }
         }
@@ -522,7 +522,7 @@ mod constructor {
                         assert_eq!(o, target);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Non-object came back from object_define_properties_helper(): {:?}", val),
+                    _ => panic!("Non-object came back from object_define_properties_helper(): {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -567,7 +567,7 @@ mod constructor {
                         );
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Object.create returned a non-object: {:?}", val),
+                    _ => panic!("Object.create returned a non-object: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -609,7 +609,7 @@ mod constructor {
                         assert_eq!(val, obj);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Got a non-object back from Object.defineProperties: {:?}", val),
+                    _ => panic!("Got a non-object back from Object.defineProperties: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -691,7 +691,7 @@ mod constructor {
                         assert_eq!(obj, val);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Got a non-object back from Object.defineProperty: {:?}", val),
+                    _ => panic!("Got a non-object back from Object.defineProperty: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }

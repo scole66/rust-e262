@@ -25,7 +25,7 @@ impl PrettyPrint for GeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorMethod: {self}")?;
         self.name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -36,7 +36,7 @@ impl PrettyPrint for GeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorMethod: {self}")?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -201,7 +201,7 @@ impl PrettyPrint for GeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -214,7 +214,7 @@ impl PrettyPrint for GeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorDeclaration: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -359,7 +359,7 @@ impl PrettyPrint for GeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -372,7 +372,7 @@ impl PrettyPrint for GeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorExpression: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -489,7 +489,7 @@ impl PrettyPrint for GeneratorBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorBody: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -595,8 +595,8 @@ impl fmt::Display for YieldExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             YieldExpression::Simple { .. } => f.write_str("yield"),
-            YieldExpression::Expression { exp, .. } => write!(f, "yield {}", exp),
-            YieldExpression::From { exp, .. } => write!(f, "yield * {}", exp),
+            YieldExpression::Expression { exp, .. } => write!(f, "yield {exp}"),
+            YieldExpression::From { exp, .. } => write!(f, "yield * {exp}"),
         }
     }
 }
@@ -607,7 +607,7 @@ impl PrettyPrint for YieldExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}YieldExpression: {}", first, self)?;
+        writeln!(writer, "{first}YieldExpression: {self}")?;
         match self {
             YieldExpression::Simple { .. } => Ok(()),
             YieldExpression::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -621,7 +621,7 @@ impl PrettyPrint for YieldExpression {
     {
         let head = |writer: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}YieldExpression: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}YieldExpression: {self}").and(Ok(successive))
         };
         match self {
             YieldExpression::Simple { .. } => pprint_token(writer, "yield", TokenType::Keyword, pad, state),

@@ -2,6 +2,7 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 #![allow(clippy::similar_names)]
+#![deny(clippy::uninlined_format_args)]
 
 mod agent;
 mod arguments_object;
@@ -125,10 +126,10 @@ fn repl() {
             break;
         }
 
-        println!("You entered the string {:?}", line);
+        println!("You entered the string {line:?}");
         match interpret(&line) {
-            Ok(value) => println!("{}", value),
-            Err(err) => println!("{}", err),
+            Ok(value) => println!("{value}"),
+            Err(err) => println!("{err}"),
         }
     }
 }

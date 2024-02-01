@@ -17,8 +17,8 @@ pub enum ClassDeclaration {
 impl fmt::Display for ClassDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ClassDeclaration::Named { ident, tail, .. } => write!(f, "class {} {}", ident, tail),
-            ClassDeclaration::Unnamed { tail, .. } => write!(f, "class {}", tail),
+            ClassDeclaration::Named { ident, tail, .. } => write!(f, "class {ident} {tail}"),
+            ClassDeclaration::Unnamed { tail, .. } => write!(f, "class {tail}"),
         }
     }
 }
@@ -29,7 +29,7 @@ impl PrettyPrint for ClassDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}ClassDeclaration: {self}")?;
         match self {
             ClassDeclaration::Named { ident, tail, .. } => {
                 ident.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -44,7 +44,7 @@ impl PrettyPrint for ClassDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}ClassDeclaration: {self}")?;
         pprint_token(writer, "class", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
             ClassDeclaration::Named { ident, tail, .. } => {
@@ -188,7 +188,7 @@ impl PrettyPrint for ClassExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassExpression: {}", first, self)?;
+        writeln!(writer, "{first}ClassExpression: {self}")?;
         if let Some(ident) = &self.ident {
             ident.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -200,7 +200,7 @@ impl PrettyPrint for ClassExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassExpression: {}", first, self)?;
+        writeln!(writer, "{first}ClassExpression: {self}")?;
         pprint_token(writer, "class", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(ident) = &self.ident {
             ident.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -295,9 +295,9 @@ pub struct ClassTail {
 impl fmt::Display for ClassTail {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match (&self.heritage, &self.body) {
-            (Some(h), Some(b)) => write!(f, "{} {{ {} }}", h, b),
-            (None, Some(b)) => write!(f, "{{ {} }}", b),
-            (Some(h), None) => write!(f, "{} {{ }}", h),
+            (Some(h), Some(b)) => write!(f, "{h} {{ {b} }}"),
+            (None, Some(b)) => write!(f, "{{ {b} }}"),
+            (Some(h), None) => write!(f, "{h} {{ }}"),
             (None, None) => write!(f, "{{ }}"),
         }
     }
@@ -309,7 +309,7 @@ impl PrettyPrint for ClassTail {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassTail: {}", first, self)?;
+        writeln!(writer, "{first}ClassTail: {self}")?;
         match &self.body {
             Some(b) => {
                 if let Some(h) = &self.heritage {
@@ -331,7 +331,7 @@ impl PrettyPrint for ClassTail {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassTail: {}", first, self)?;
+        writeln!(writer, "{first}ClassTail: {self}")?;
         if let Some(h) = &self.heritage {
             h.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -475,7 +475,7 @@ impl PrettyPrint for ClassHeritage {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassHeritage: {}", first, self)?;
+        writeln!(writer, "{first}ClassHeritage: {self}")?;
         self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -484,7 +484,7 @@ impl PrettyPrint for ClassHeritage {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassHeritage: {}", first, self)?;
+        writeln!(writer, "{first}ClassHeritage: {self}")?;
         pprint_token(writer, "extends", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.exp.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -563,7 +563,7 @@ impl PrettyPrint for ClassBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassBody: {}", first, self)?;
+        writeln!(writer, "{first}ClassBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -731,7 +731,7 @@ impl fmt::Display for ClassElementList {
         match self {
             ClassElementList::Item(item) => item.fmt(f),
             ClassElementList::List(list, item) => {
-                write!(f, "{} {}", list, item)
+                write!(f, "{list} {item}")
             }
         }
     }
@@ -743,7 +743,7 @@ impl PrettyPrint for ClassElementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassElementList: {}", first, self)?;
+        writeln!(writer, "{first}ClassElementList: {self}")?;
         match self {
             ClassElementList::Item(item) => item.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElementList::List(list, item) => {
@@ -761,7 +761,7 @@ impl PrettyPrint for ClassElementList {
             ClassElementList::Item(item) => item.concise_with_leftpad(writer, pad, state),
             ClassElementList::List(list, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}ClassElementList: {}", first, self)?;
+                writeln!(writer, "{first}ClassElementList: {self}")?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -968,9 +968,9 @@ impl fmt::Display for ClassElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ClassElement::Standard { method } => method.fmt(f),
-            ClassElement::Static { method, .. } => write!(f, "static {}", method),
-            ClassElement::Field { field, .. } => write!(f, "{} ;", field),
-            ClassElement::StaticField { field, .. } => write!(f, "static {} ;", field),
+            ClassElement::Static { method, .. } => write!(f, "static {method}"),
+            ClassElement::Field { field, .. } => write!(f, "{field} ;"),
+            ClassElement::StaticField { field, .. } => write!(f, "static {field} ;"),
             ClassElement::StaticBlock { block, .. } => block.fmt(f),
             ClassElement::Empty { .. } => f.write_str(";"),
         }
@@ -983,7 +983,7 @@ impl PrettyPrint for ClassElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassElement: {}", first, self)?;
+        writeln!(writer, "{first}ClassElement: {self}")?;
         match self {
             ClassElement::Standard { method } => method.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElement::Static { method, .. } => method.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1000,7 +1000,7 @@ impl PrettyPrint for ClassElement {
     {
         let head = |f: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(f, "{}ClassElement: {}", first, self)?;
+            writeln!(f, "{first}ClassElement: {self}")?;
             Ok(successive) as IoResult<String>
         };
         let head_n_static = |f: &mut T| {
@@ -1359,7 +1359,7 @@ impl PrettyPrint for FieldDefinition {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FieldDefinition: {}", first, self)?;
+        writeln!(writer, "{first}FieldDefinition: {self}")?;
         match &self.init {
             None => self.name.pprint_with_leftpad(writer, &successive, Spot::Final),
             Some(init) => {
@@ -1377,7 +1377,7 @@ impl PrettyPrint for FieldDefinition {
             None => self.name.concise_with_leftpad(writer, pad, state),
             Some(init) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}FieldDefinition: {}", first, self)?;
+                writeln!(writer, "{first}FieldDefinition: {self}")?;
                 self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 init.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1502,7 +1502,7 @@ impl PrettyPrint for ClassElementName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassElementName: {}", first, self)?;
+        writeln!(writer, "{first}ClassElementName: {self}")?;
         match self {
             ClassElementName::PropertyName(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElementName::PrivateIdentifier { data: n, .. } => {
@@ -1660,7 +1660,7 @@ impl PrettyPrint for ClassStaticBlock {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassStaticBlock: {}", first, self)?;
+        writeln!(writer, "{first}ClassStaticBlock: {self}")?;
         self.block.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -1669,7 +1669,7 @@ impl PrettyPrint for ClassStaticBlock {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassStaticBlock: {}", first, self)?;
+        writeln!(writer, "{first}ClassStaticBlock: {self}")?;
         pprint_token(writer, "static", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.block.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1754,7 +1754,7 @@ impl PrettyPrint for ClassStaticBlockBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassStaticBlockBody: {}", first, self)?;
+        writeln!(writer, "{first}ClassStaticBlockBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -1810,11 +1810,11 @@ impl ClassStaticBlockBody {
         //  * It is a Syntax Error if ClassStaticBlockStatementList Contains await is true.
         let ldn = self.0.lexically_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.0.location())));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.0.location())));
         }
         let vdn = self.0.var_declared_names();
         for name in ldn.iter().filter(|n| vdn.contains(n)) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.0.location())));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.0.location())));
         }
         if self.0.contains_duplicate_labels(&[]) {
             errs.push(create_syntax_error_object("duplicate labels detected", Some(self.0.location())));
@@ -1879,7 +1879,7 @@ impl PrettyPrint for ClassStaticBlockStatementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ClassStaticBlockStatementList: {}", first, self)?;
+        writeln!(writer, "{first}ClassStaticBlockStatementList: {self}")?;
         match self {
             ClassStaticBlockStatementList::Statements(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)

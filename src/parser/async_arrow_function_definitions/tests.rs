@@ -20,7 +20,7 @@ fn async_arrow_function_test_01() {
         "AsyncArrowFunction: async a => a",
         vec!["Keyword: async", "IdentifierName: a", "Punctuator: =>", "IdentifierName: a"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_arrow_function_test_02() {
@@ -38,7 +38,7 @@ fn async_arrow_function_test_02() {
         "AsyncArrowFunction: async ( a , b ) => a + b",
         vec!["AsyncArrowHead: async ( a , b )", "Punctuator: =>", "AdditiveExpression: a + b"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_arrow_function_test_err_01() {
@@ -280,7 +280,7 @@ fn async_concise_body_test_01() {
     assert!(matches!(&*node, AsyncConciseBody::Expression(..)));
     pretty_check(&*node, "AsyncConciseBody: a", vec!["ExpressionBody: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_concise_body_test_02() {
@@ -293,7 +293,7 @@ fn async_concise_body_test_02() {
         "AsyncConciseBody: { a ; }",
         vec!["Punctuator: {", "ExpressionStatement: a ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_concise_body_test_err_01() {
@@ -383,7 +383,7 @@ fn async_arrow_binding_identifier_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "AsyncArrowBindingIdentifier: a", vec!["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_arrow_binding_identifier_test_err_01() {
@@ -430,7 +430,7 @@ fn cceaaah_test_01() {
         "CoverCallExpressionAndAsyncArrowHead: a ( 10 )",
         vec!["IdentifierName: a", "Arguments: ( 10 )"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn cceaaah_test_cache_01() {
@@ -507,7 +507,7 @@ fn async_arrow_head_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "AsyncArrowHead: async ( a )", vec!["ArrowFormalParameters: ( a )"]);
     concise_check(&*node, "AsyncArrowHead: async ( a )", vec!["Keyword: async", "ArrowFormalParameters: ( a )"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_arrow_head_test_err_01() {

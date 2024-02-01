@@ -56,7 +56,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
 #[test]
 fn intrinsic_id_debug() {
     for id in ALL_INTRINSIC_IDS {
-        assert_ne!(format!("{:?}", id), "");
+        assert_ne!(format!("{id:?}"), "");
     }
 }
 #[test]
@@ -220,7 +220,7 @@ fn realm_debug() {
     setup_test_agent();
     let realm_ptr = current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
-    assert_ne!(format!("{:?}", realm), "");
+    assert_ne!(format!("{realm:?}"), "");
 }
 
 #[test]

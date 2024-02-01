@@ -17,7 +17,7 @@ impl fmt::Display for ConditionalExpression {
         match &self {
             ConditionalExpression::FallThru(node) => node.fmt(f),
             ConditionalExpression::Conditional(condition, thenish, elseish) => {
-                write!(f, "{} ? {} : {}", condition, thenish, elseish)
+                write!(f, "{condition} ? {thenish} : {elseish}")
             }
         }
     }
@@ -29,7 +29,7 @@ impl PrettyPrint for ConditionalExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ConditionalExpression: {}", first, self)?;
+        writeln!(writer, "{first}ConditionalExpression: {self}")?;
         match &self {
             ConditionalExpression::FallThru(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ConditionalExpression::Conditional(condition, thenish, elseish) => {
@@ -47,7 +47,7 @@ impl PrettyPrint for ConditionalExpression {
             ConditionalExpression::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
             ConditionalExpression::Conditional(a, b, c) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}ConditionalExpression: {}", first, self)?;
+                writeln!(writer, "{first}ConditionalExpression: {self}")?;
                 a.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "?", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 b.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

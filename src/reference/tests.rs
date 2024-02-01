@@ -8,7 +8,7 @@ mod base {
 
     #[test_case(Base::Value(ECMAScriptValue::from(33)) => with |s| assert_ne!(s, ""); "value")]
     fn debug(b: Base) -> String {
-        format!("{:?}", b)
+        format!("{b:?}")
     }
 
     #[test_case(Base::Unresolvable => Base::Unresolvable; "unresolvable")]
@@ -70,7 +70,7 @@ mod base {
         fn envrec(b: Base) -> Result<String, String> {
             let result: Result<Rc<dyn EnvironmentRecord>, String> =
                 b.try_into().map_err(|e: anyhow::Error| e.to_string());
-            result.map(|er| format!("{:?}", er))
+            result.map(|er| format!("{er:?}"))
         }
     }
 }
@@ -82,7 +82,7 @@ mod referenced_name {
     #[test]
     fn debug() {
         let rn = ReferencedName::String(JSString::from("apple"));
-        assert_ne!(format!("{:?}", rn), "");
+        assert_ne!(format!("{rn:?}"), "");
     }
 
     #[test_case(ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
@@ -253,7 +253,7 @@ mod reference {
             strict: false,
             this_value: None,
         };
-        assert_ne!(format!("{:?}", r), "");
+        assert_ne!(format!("{r:?}"), "");
     }
 
     #[test]

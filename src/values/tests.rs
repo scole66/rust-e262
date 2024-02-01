@@ -311,7 +311,7 @@ mod ecmascript_value {
         )
         .unwrap();
 
-        assert_ne!(format!("{:?}", obj), "");
+        assert_ne!(format!("{obj:?}"), "");
     }
     #[test]
     fn is_array() {
@@ -495,13 +495,13 @@ fn symbol_debug() {
 fn symbol_display_normal() {
     setup_test_agent();
     let symbol = Symbol::new(Some(JSString::from("Normal")));
-    assert_eq!(format!("{}", symbol), "Symbol(Normal)");
+    assert_eq!(format!("{symbol}"), "Symbol(Normal)");
 }
 #[test]
 fn symbol_display_empty() {
     setup_test_agent();
     let symbol = Symbol::new(None);
-    assert_eq!(format!("{}", symbol), "Symbol()");
+    assert_eq!(format!("{symbol}"), "Symbol()");
 }
 #[test]
 #[allow(clippy::redundant_clone)]
@@ -577,7 +577,7 @@ mod pn {
         let pn = PN(());
         let b = pn; // Copy
         let c = pn.clone();
-        assert_ne!(format!("{:?}", b), "");
+        assert_ne!(format!("{b:?}"), "");
         assert_eq!(b == c, true);
         assert_eq!(b != c, false);
         assert_eq!(b.cmp(&c), Ordering::Equal);
@@ -641,7 +641,7 @@ mod private_element_kind {
     #[test]
     fn debug() {
         let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
-        assert_ne!(format!("{:?}", pek), "");
+        assert_ne!(format!("{pek:?}"), "");
     }
     #[test]
     #[allow(clippy::redundant_clone)]
@@ -727,7 +727,7 @@ mod private_element {
             key: PrivateName::new("just a key"),
             kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) },
         };
-        assert_ne!(format!("{:?}", pe), "");
+        assert_ne!(format!("{pe:?}"), "");
     }
 
     #[test]
@@ -1581,7 +1581,7 @@ fn exotic_to_prim(
 ) -> Completion<ECMAScriptValue> {
     if arguments.len() == 1 {
         if let ECMAScriptValue::String(s) = &arguments[0] {
-            Ok(ECMAScriptValue::from(format!("Saw {}", s)))
+            Ok(ECMAScriptValue::from(format!("Saw {s}")))
         } else {
             Ok(ECMAScriptValue::from(format!("Saw {:?}", arguments[0])))
         }

@@ -17,7 +17,7 @@ fn try_statement_test_01() {
         "TryStatement: try { a ; } catch { }",
         vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_02() {
@@ -30,7 +30,7 @@ fn try_statement_test_02() {
         "TryStatement: try { a ; } finally { }",
         vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_03() {
@@ -52,7 +52,7 @@ fn try_statement_test_03() {
         "TryStatement: try { a ; } catch { b ; } finally { c ; }",
         vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_err_01() {
@@ -272,7 +272,7 @@ fn catch_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Catch: catch { }", vec!["Block: { }"]);
     concise_check(&*node, "Catch: catch { }", vec!["Keyword: catch", "Block: { }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn catch_test_02() {
@@ -284,7 +284,7 @@ fn catch_test_02() {
         "Catch: catch ( e ) { }",
         vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn catch_test_err_01() {
@@ -430,7 +430,7 @@ fn finally_test_01() {
     chk_scan(&scanner, 10);
     pretty_check(&*node, "Finally: finally { }", vec!["Block: { }"]);
     concise_check(&*node, "Finally: finally { }", vec!["Keyword: finally", "Block: { }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn finally_test_err_01() {
@@ -526,7 +526,7 @@ fn catch_parameter_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "CatchParameter: a", vec!["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn catch_parameter_test_02() {
@@ -534,7 +534,7 @@ fn catch_parameter_test_02() {
     chk_scan(&scanner, 3);
     pretty_check(&*node, "CatchParameter: [ a ]", vec!["BindingPattern: [ a ]"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn catch_parameter_test_err_01() {

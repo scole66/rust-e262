@@ -437,7 +437,7 @@ mod nameable_production {
     fn debug() {
         let fd = Maker::new("function (){}").function_expression();
         let x = NameableProduction::Function(fd);
-        assert_ne!(format!("{:?}", x), "");
+        assert_ne!(format!("{x:?}"), "");
     }
 
     #[test_case(NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]

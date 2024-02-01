@@ -12,7 +12,7 @@ fn continue_statement_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
     concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_02() {
@@ -24,7 +24,7 @@ fn continue_statement_test_02() {
         "ContinueStatement: continue a ;",
         vec!["Keyword: continue", "IdentifierName: a", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_03() {
@@ -32,7 +32,7 @@ fn continue_statement_test_03() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
     concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_04() {
@@ -45,7 +45,7 @@ fn continue_statement_test_04() {
         "ContinueStatement: continue label ;",
         vec!["Keyword: continue", "IdentifierName: label", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_05() {
@@ -54,7 +54,7 @@ fn continue_statement_test_05() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
     concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_err_01() {

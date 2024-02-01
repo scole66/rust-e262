@@ -20,7 +20,7 @@ fn switch_statement_test_01() {
         "SwitchStatement: switch ( 0 ) { default : 0 ; }",
         vec!["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn switch_statement_test_err() {
@@ -151,7 +151,7 @@ fn case_block_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "CaseBlock: { }", vec![]);
     concise_check(&*node, "CaseBlock: { }", vec!["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_02() {
@@ -163,7 +163,7 @@ fn case_block_test_02() {
         "CaseBlock: { case 0 : ; }",
         vec!["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_03() {
@@ -175,7 +175,7 @@ fn case_block_test_03() {
         "CaseBlock: { default : ; }",
         vec!["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_04() {
@@ -192,7 +192,7 @@ fn case_block_test_04() {
         "CaseBlock: { case 0 : ; default : ; }",
         vec!["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_05() {
@@ -209,7 +209,7 @@ fn case_block_test_05() {
         "CaseBlock: { default : ; case 0 : ; }",
         vec!["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_06() {
@@ -232,7 +232,7 @@ fn case_block_test_06() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_errs() {
@@ -460,7 +460,7 @@ fn case_clauses_test_01() {
         "CaseClause: case 0 : ;",
         vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_clauses_test_02() {
@@ -477,7 +477,7 @@ fn case_clauses_test_02() {
         "CaseClauses: case 0 : ; case 1 : ;",
         vec!["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_clauses_test_errs() {
@@ -619,7 +619,7 @@ fn case_clause_test_01() {
         "CaseClause: case 0 : ;",
         vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_clause_test_02() {
@@ -627,7 +627,7 @@ fn case_clause_test_02() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "CaseClause: case 0 :", vec!["Expression: 0"]);
     concise_check(&*node, "CaseClause: case 0 :", vec!["Keyword: case", "Numeric: 0", "Punctuator: :"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_clause_test_errs() {
@@ -759,7 +759,7 @@ fn default_clause_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "DefaultClause: default : ;", vec!["StatementList: ;"]);
     concise_check(&*node, "DefaultClause: default : ;", vec!["Keyword: default", "Punctuator: :", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn default_clause_test_02() {
@@ -767,7 +767,7 @@ fn default_clause_test_02() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "DefaultClause: default :", vec![]);
     concise_check(&*node, "DefaultClause: default :", vec!["Keyword: default", "Punctuator: :"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn default_clause_test_errs() {

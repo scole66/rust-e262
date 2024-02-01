@@ -45,7 +45,7 @@ mod array_object {
     fn debug() {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
-        assert_ne!(format!("{:?}", a), "");
+        assert_ne!(format!("{a:?}"), "");
     }
 
     fn make() -> Object {

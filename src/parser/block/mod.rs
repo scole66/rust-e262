@@ -25,7 +25,7 @@ impl PrettyPrint for BlockStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BlockStatement: {}", first, self)?;
+        writeln!(writer, "{first}BlockStatement: {self}")?;
         let BlockStatement::Block(node) = self;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -135,7 +135,7 @@ impl fmt::Display for Block {
         let opt_sl = &self.statements;
         match opt_sl {
             None => write!(f, "{{ }}"),
-            Some(node) => write!(f, "{{ {} }}", node),
+            Some(node) => write!(f, "{{ {node} }}"),
         }
     }
 }
@@ -146,7 +146,7 @@ impl PrettyPrint for Block {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Block: {}", first, self)?;
+        writeln!(writer, "{first}Block: {self}")?;
         let opt_sl = &self.statements;
         match opt_sl {
             None => Ok(()),
@@ -159,7 +159,7 @@ impl PrettyPrint for Block {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Block: {}", first, self)?;
+        writeln!(writer, "{first}Block: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match &self.statements {
             None => {}
@@ -329,7 +329,7 @@ impl fmt::Display for StatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.list[0].fmt(f)?;
         for item in self.list[1..].iter() {
-            write!(f, " {}", item)?;
+            write!(f, " {item}")?;
         }
         Ok(())
     }
@@ -341,7 +341,7 @@ impl PrettyPrint for StatementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}StatementList: {}", first, self)?;
+        writeln!(writer, "{first}StatementList: {self}")?;
         let not_final_length = usize::from(self.list.len()) - 1;
         for item in self.list[0..not_final_length].iter() {
             item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -356,7 +356,7 @@ impl PrettyPrint for StatementList {
         if usize::from(self.list.len()) == 1 {
             self.list[0].concise_with_leftpad(writer, pad, state)
         } else {
-            writeln!(writer, "{}StatementList: {}", first, self)?;
+            writeln!(writer, "{first}StatementList: {self}")?;
             let not_final_length = usize::from(self.list.len()) - 1;
             for item in self.list[0..not_final_length].iter() {
                 item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -549,7 +549,7 @@ impl PrettyPrint for StatementListItem {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}StatementListItem: {}", first, self)?;
+        writeln!(writer, "{first}StatementListItem: {self}")?;
         match self {
             StatementListItem::Declaration(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             StatementListItem::Statement(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),

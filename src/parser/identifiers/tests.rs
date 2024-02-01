@@ -12,7 +12,7 @@ mod identifier {
         let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
         check_parse_error(
             result,
-            format!("‘{}’ is a reserved word and may not be used as an identifier", kwd),
+            format!("‘{kwd}’ is a reserved word and may not be used as an identifier"),
             kwd.len(),
         );
     }
@@ -333,7 +333,7 @@ mod identifier {
     #[test_case("bob" => with |s| assert_ne!(s, ""); "typical")]
     fn debug(src: &str) -> String {
         let id = Maker::new(src).identifier();
-        format!("{:?}", id)
+        format!("{id:?}")
     }
 }
 
@@ -872,7 +872,7 @@ fn label_identifier_test_normal_noyield_noawait() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_normal_yield_noawait() {
@@ -883,7 +883,7 @@ fn label_identifier_test_normal_yield_noawait() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_normal_noyield_await() {
@@ -894,7 +894,7 @@ fn label_identifier_test_normal_noyield_await() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_normal_yield_await() {
@@ -905,7 +905,7 @@ fn label_identifier_test_normal_yield_await() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_yield_noyield_noawait() {
@@ -916,7 +916,7 @@ fn label_identifier_test_yield_noyield_noawait() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
     concise_check(&*lid, "Keyword: yield", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_yield_yield_noawait() {
@@ -935,7 +935,7 @@ fn label_identifier_test_yield_noyield_await() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
     concise_check(&*lid, "Keyword: yield", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_yield_yield_await() {
@@ -954,7 +954,7 @@ fn label_identifier_test_await_noyield_noawait() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: await", vec![]);
     concise_check(&*lid, "Keyword: await", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_await_yield_noawait() {
@@ -965,7 +965,7 @@ fn label_identifier_test_await_yield_noawait() {
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: await", vec![]);
     concise_check(&*lid, "Keyword: await", vec![]);
-    format!("{:?}", lid);
+    format!("{lid:?}");
 }
 #[test]
 fn label_identifier_test_await_noyield_await() {

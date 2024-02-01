@@ -12,7 +12,7 @@ fn block_statement_test_01() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "BlockStatement: { q ; }", vec!["Block: { q ; }"]);
     concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn block_statement_test_err_01() {
@@ -122,7 +122,7 @@ fn block_test_01() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "Block: { q ; }", vec!["StatementList: q ;"]);
     concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn block_test_02() {
@@ -130,7 +130,7 @@ fn block_test_02() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "Block: { }", vec![]);
     concise_check(&*node, "Block: { }", vec!["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn block_test_cache_01() {
@@ -295,7 +295,7 @@ fn statement_list_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "StatementList: a ;", vec!["StatementListItem: a ;"]);
     concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_test_02() {
@@ -303,7 +303,7 @@ fn statement_list_test_02() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementListItem: a ;", "StatementListItem: b ;"]);
     concise_check(&*node, "StatementList: a ; b ;", vec!["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_test_cache_01() {
@@ -584,7 +584,7 @@ fn statement_list_item_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "StatementListItem: a ;", vec!["Statement: a ;"]);
     concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_item_test_02() {
@@ -592,7 +592,7 @@ fn statement_list_item_test_02() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "StatementListItem: let a ;", vec!["Declaration: let a ;"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_item_test_err_01() {

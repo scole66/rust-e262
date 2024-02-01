@@ -10,7 +10,7 @@ fn number_object_debug() {
         number_data: RefCell::new(0.0),
     };
 
-    assert_ne!(format!("{:?}", no), "");
+    assert_ne!(format!("{no:?}"), "");
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn number_is_safe_integer_one_arg() {
         (-0x20_0000_0000_0000_i64 as f64, false),
     ] {
         let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
-        assert_eq!(result, ECMAScriptValue::from(expected), "Tried {}, should have been {:?}", arg, expected);
+        assert_eq!(result, ECMAScriptValue::from(expected), "Tried {arg}, should have been {expected:?}");
     }
 
     let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();

@@ -16,7 +16,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(_)));
         pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", vec![]);
-        format!("{:?}", ae);
+        format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -30,7 +30,7 @@ mod additive_expression {
             "AdditiveExpression: a + b",
             vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"],
         );
-        format!("{:?}", ae);
+        format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -44,7 +44,7 @@ mod additive_expression {
             "AdditiveExpression: a - b",
             vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"],
         );
-        format!("{:?}", ae);
+        format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -54,7 +54,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(..)));
         pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", vec![]);
-        format!("{:?}", ae);
+        format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]

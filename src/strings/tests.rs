@@ -9,7 +9,7 @@ use test_case::test_case;
 fn from_u16_test_01() {
     let src: &[u16] = &[66, 111, 98]; // Bob
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     assert_eq!(display, "Bob");
 }
 
@@ -17,7 +17,7 @@ fn from_u16_test_01() {
 fn from_u16_test_02() {
     let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     assert!(display == "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
     assert!(res.len() == 5);
     assert!(res[0] == 0x101);
@@ -31,7 +31,7 @@ fn from_u16_test_02() {
 fn from_vec_test_01() {
     let src: Vec<u16> = vec![66, 111, 98]; // Bob
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     //assert_eq!(display, "Bob");
     assert!(display == "Bob");
 }
@@ -39,7 +39,7 @@ fn from_vec_test_01() {
 fn from_u8array_01() {
     let src: &[u8] = &[66, 111, 98]; // Bob
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     assert!(display == "Bob");
 }
 
@@ -47,7 +47,7 @@ fn from_u8array_01() {
 fn from_str_test_01() {
     let src: &str = "Bob"; // Bob
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     //assert_eq!(display, "Bob");
     assert!(display == "Bob");
 }
@@ -55,14 +55,14 @@ fn from_str_test_01() {
 fn from_string_test_01() {
     let src: String = String::from("Bob"); // Bob
     let res = JSString::from(src);
-    let display = format!("{}", res);
+    let display = format!("{res}");
     //assert_eq!(display, "Bob");
     assert!(display == "Bob");
 }
 #[test]
 fn debug_repr_test_01() {
     let jsstr = JSString::from("hello");
-    let debug_str = format!("{:?}", jsstr);
+    let debug_str = format!("{jsstr:?}");
     assert!(debug_str == "\"hello\"");
 }
 #[test]

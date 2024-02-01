@@ -12,7 +12,7 @@ fn expression_statement_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "ExpressionStatement: a ;", vec!["Expression: a"]);
     concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -22,7 +22,7 @@ fn expression_statement_test_02() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "ExpressionStatement: async ;", vec!["Expression: async"]);
     concise_check(&*node, "ExpressionStatement: async ;", vec!["IdentifierName: async", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -33,7 +33,7 @@ fn expression_statement_test_03() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ExpressionStatement: async ;", vec!["Expression: async"]);
     concise_check(&*node, "ExpressionStatement: async ;", vec!["IdentifierName: async", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -43,7 +43,7 @@ fn expression_statement_test_asi_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ExpressionStatement: a ;", vec!["Expression: a"]);
     concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }

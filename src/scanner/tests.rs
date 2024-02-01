@@ -479,7 +479,7 @@ fn bad_hex_char() {
 #[test]
 fn hex_char_debug_fmt() {
     let hc = HexChar('F');
-    let result = format!("{:?}", hc);
+    let result = format!("{hc:?}");
     assert_eq!(result, "HexChar('F')");
 }
 #[test]
@@ -854,7 +854,7 @@ mod punctuator {
             (Punctuator::QQEq, "??="),
         ];
         for (p, display) in pairs {
-            assert_eq!(format!("{}", p), display);
+            assert_eq!(format!("{p}"), display);
         }
     }
     #[test]
@@ -2033,7 +2033,7 @@ mod keyword {
             (Keyword::Meta, "meta"),
         ];
         for (kwd, display) in pairs {
-            assert_eq!(format!("{}", kwd), display);
+            assert_eq!(format!("{kwd}"), display);
         }
     }
 
@@ -2144,7 +2144,7 @@ fn private_identifier_01() {
 fn private_identifier_02() {
     let (tok, location, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
     assert_eq!(scan, Scanner { line: 1, column: 1, start_idx: 0 });
-    println!("{:?}", tok);
+    println!("{tok:?}");
     assert!(matches!(tok, Token::Error(_)));
     if let Token::Error(msg) = tok {
         assert_eq!(msg, "Unrecognized Token");

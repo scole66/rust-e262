@@ -17,7 +17,7 @@ fn labelled_statement_test_01() {
         "LabelledStatement: blue : orange ;",
         vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_statement_test_err_01() {
@@ -196,7 +196,7 @@ fn labelled_item_test_01() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "LabelledItem: orange ;", vec!["Statement: orange ;"]);
     concise_check(&*node, "ExpressionStatement: orange ;", vec!["IdentifierName: orange", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_02() {
@@ -216,7 +216,7 @@ fn labelled_item_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_err_01() {

@@ -16,7 +16,7 @@ mod exponentiation_expression {
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -35,7 +35,7 @@ mod exponentiation_expression {
             "ExponentiationExpression: a ** b",
             vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -55,7 +55,7 @@ mod exponentiation_expression {
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
         concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]

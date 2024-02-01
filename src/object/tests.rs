@@ -10,7 +10,7 @@ use test_case::test_case;
 #[test]
 fn data_property_debug() {
     let dp = DataProperty { value: ECMAScriptValue::Null, writable: true };
-    assert_ne!(format!("{:?}", dp), "");
+    assert_ne!(format!("{dp:?}"), "");
 }
 #[test]
 fn data_property_eq() {
@@ -43,7 +43,7 @@ fn data_property_default() {
 #[test]
 fn accessor_property_debug() {
     let p1 = AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined };
-    assert_ne!(format!("{:?}", p1), "");
+    assert_ne!(format!("{p1:?}"), "");
 }
 #[test]
 fn accessor_property_eq() {
@@ -76,7 +76,7 @@ fn accessor_property_default() {
 #[test]
 fn property_kind_debug() {
     let pk = PropertyKind::Data(DataProperty { value: ECMAScriptValue::Null, writable: false });
-    assert_ne!(format!("{:?}", pk), "");
+    assert_ne!(format!("{pk:?}"), "");
 }
 #[test]
 fn property_kind_eq() {
@@ -121,7 +121,7 @@ mod property_descriptor {
             configurable: false,
             spot: 10,
         };
-        assert_ne!(format!("{:?}", p), "");
+        assert_ne!(format!("{p:?}"), "");
     }
     #[test]
     fn eq() {
@@ -351,8 +351,8 @@ fn concise_property_descriptor_debug() {
         spot: 10,
     };
     let c1 = ConcisePropertyDescriptor::from(&p1);
-    assert_eq!(format!("{:?}", c1), "{ true wec }");
-    printer_validate(|w| write!(w, "{:?}", c1));
+    assert_eq!(format!("{c1:?}"), "{ true wec }");
+    printer_validate(|w| write!(w, "{c1:?}"));
     let p2 = PropertyDescriptor {
         property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
         enumerable: false,
@@ -360,8 +360,8 @@ fn concise_property_descriptor_debug() {
         spot: 10,
     };
     let c2 = ConcisePropertyDescriptor::from(&p2);
-    assert_eq!(format!("{:?}", c2), "{ true --- }");
-    printer_validate(|w| write!(w, "{:?}", c2));
+    assert_eq!(format!("{c2:?}"), "{ true --- }");
+    printer_validate(|w| write!(w, "{c2:?}"));
     let p3 = PropertyDescriptor {
         property: PropertyKind::Accessor(AccessorProperty {
             get: ECMAScriptValue::from(true),
@@ -372,8 +372,8 @@ fn concise_property_descriptor_debug() {
         spot: 10,
     };
     let c3 = ConcisePropertyDescriptor::from(&p3);
-    assert_eq!(format!("{:?}", c3), "{ [[Get]]: true [[Set]]: undefined -c }");
-    printer_validate(|w| write!(w, "{:?}", c3));
+    assert_eq!(format!("{c3:?}"), "{ [[Get]]: true [[Set]]: undefined -c }");
+    printer_validate(|w| write!(w, "{c3:?}"));
 }
 
 mod concise_properties {
@@ -403,7 +403,7 @@ mod potential_property_descriptor {
     #[test]
     fn debug() {
         let ppd: PotentialPropertyDescriptor = Default::default();
-        assert_ne!(format!("{:?}", ppd), "");
+        assert_ne!(format!("{ppd:?}"), "");
     }
     #[test]
     fn default() {
@@ -1635,14 +1635,14 @@ fn validate_and_apply_property_descriptor_many() {
     let obj = ordinary_object_create(Some(object_proto), &[]);
     for (name, ppd) in VAPDIter::new() {
         for (idx, _) in VAPDCheck::new().enumerate() {
-            let key = PropertyKey::from(format!("{}-{}", name, idx));
+            let key = PropertyKey::from(format!("{name}-{idx}"));
             define_property_or_throw(&obj, key, ppd.clone()).unwrap();
         }
     }
 
     for (name, _) in VAPDIter::new() {
         for (idx, check) in VAPDCheck::new().enumerate() {
-            let key = PropertyKey::from(format!("{}-{}", name, idx));
+            let key = PropertyKey::from(format!("{name}-{idx}"));
             let current = obj.o.get_own_property(&key).unwrap().unwrap();
             let expected_prop = figure_expectation(&current, &check);
 
@@ -1656,21 +1656,13 @@ fn validate_and_apply_property_descriptor_many() {
             assert_eq!(
                 result,
                 expected_prop.is_some(),
-                "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?}",
-                key,
-                current,
-                check,
-                expected_prop
+                "\nkey: {key:?};\ncurrent: {current:#?};\nPPD: {check:#?};\nexpected: {expected_prop:#?}"
             );
             let after = obj.o.get_own_property(&key).unwrap().unwrap();
             assert_eq!(
                 &after,
                 expected_prop.as_ref().unwrap_or(&current),
-                "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?};",
-                key,
-                current,
-                check,
-                expected_prop
+                "\nkey: {key:?};\ncurrent: {current:#?};\nPPD: {check:#?};\nexpected: {expected_prop:#?};"
             );
         }
     }

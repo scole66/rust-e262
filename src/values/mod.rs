@@ -569,7 +569,7 @@ impl fmt::Display for PrivateElementKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PrivateElementKind::Field { value } => write!(f, "Field({})", value.borrow()),
-            PrivateElementKind::Method { value } => write!(f, "Method({})", value),
+            PrivateElementKind::Method { value } => write!(f, "Method({value})"),
             PrivateElementKind::Accessor { get, set } => match (get.as_ref(), set.as_ref()) {
                 (None, None) => write!(f, "Accessor(-,-)"),
                 (None, Some(set)) => write!(
@@ -629,7 +629,7 @@ where
     if k <= n && n <= 21 {
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         let zeros = n - k;
         for _ in 0..zeros {
@@ -640,12 +640,12 @@ where
     if 0 < n && n <= 21 {
         for _ in 0..n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         write!(writer, ".")?;
         for _ in 0..k - n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
@@ -656,17 +656,17 @@ where
         }
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
     let ch = iter.next().unwrap();
-    write!(writer, "{}", ch)?;
+    write!(writer, "{ch}")?;
     if k > 1 {
         write!(writer, ".")?;
         for _ in 1..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
     }
     write!(writer, "e")?;
@@ -1156,7 +1156,7 @@ impl TryFrom<ECMAScriptValue> for JSString {
                 number_to_string(&mut s, n).unwrap();
                 Ok(JSString::from(s))
             }
-            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
+            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{bi}"))),
             ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
             ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
         }
@@ -1273,7 +1273,7 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
         let integer = to_integer_or_infinity(value)?;
         let clamped = to_length(integer).unwrap();
         if clamped as f64 != integer {
-            Err(create_range_error(format!("{} out of range for index", integer).as_str()))
+            Err(create_range_error(format!("{integer} out of range for index").as_str()))
         } else {
             Ok(clamped)
         }

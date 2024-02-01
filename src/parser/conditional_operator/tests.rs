@@ -13,7 +13,7 @@ fn conditional_expression_test_01() {
     assert!(matches!(&*se, ConditionalExpression::FallThru(_)));
     pretty_check(&*se, "ConditionalExpression: a", vec!["ShortCircuitExpression: a"]);
     concise_check(&*se, "IdentifierName: a", vec![]);
-    format!("{:?}", se);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -32,7 +32,7 @@ fn conditional_expression_test_02() {
         "ConditionalExpression: a ? b : c",
         vec!["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"],
     );
-    format!("{:?}", se);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]

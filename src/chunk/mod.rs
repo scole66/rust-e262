@@ -166,7 +166,7 @@ impl Chunk {
             | Insn::DefineMethod
             | Insn::DefineMethodProperty => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<24}{}", insn, arg))
+                (2, format!("    {insn:<24}{arg}"))
             }
             Insn::Ref
             | Insn::StrictRef
@@ -289,7 +289,7 @@ impl Chunk {
             | Insn::JumpIfNotUndef
             | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;
-                (2, format!("    {:<24}{}", insn, arg))
+                (2, format!("    {insn:<24}{arg}"))
             }
             Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;

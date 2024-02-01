@@ -13,7 +13,7 @@ mod symbol_object {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
             symbol_data: RefCell::new(None),
         };
-        assert_ne!(format!("{:?}", so), "");
+        assert_ne!(format!("{so:?}"), "");
     }
 
     #[test]
@@ -510,7 +510,7 @@ mod symbol_registry {
     #[test]
     fn debug() {
         let sr = SymbolRegistry::new();
-        assert_ne!(format!("{:?}", sr), "");
+        assert_ne!(format!("{sr:?}"), "");
     }
 
     #[test]

@@ -13,7 +13,7 @@ fn expression_test_01() {
     assert!(matches!(&*se, Expression::FallThru(_)));
     pretty_check(&*se, "Expression: a", vec!["AssignmentExpression: a"]);
     concise_check(&*se, "IdentifierName: a", vec![]);
-    format!("{:?}", se);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -23,7 +23,7 @@ fn expression_test_02() {
     assert!(matches!(&*se, Expression::Comma(..)));
     pretty_check(&*se, "Expression: a , b", vec!["Expression: a", "AssignmentExpression: b"]);
     concise_check(&*se, "Expression: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
-    format!("{:?}", se);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]

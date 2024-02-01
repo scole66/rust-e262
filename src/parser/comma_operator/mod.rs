@@ -16,7 +16,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             Expression::FallThru(node) => node.fmt(f),
-            Expression::Comma(left, right) => write!(f, "{} , {}", left, right),
+            Expression::Comma(left, right) => write!(f, "{left} , {right}"),
         }
     }
 }
@@ -27,7 +27,7 @@ impl PrettyPrint for Expression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Expression: {}", first, self)?;
+        writeln!(writer, "{first}Expression: {self}")?;
         match &self {
             Expression::FallThru(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             Expression::Comma(left, right) => {
@@ -44,7 +44,7 @@ impl PrettyPrint for Expression {
             Expression::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
             Expression::Comma(left, right) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}Expression: {}", first, self)?;
+                writeln!(writer, "{first}Expression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)

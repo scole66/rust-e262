@@ -11,7 +11,7 @@ fn break_statement_test_01() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "BreakStatement: break ;", vec![]);
     concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn break_statement_test_02() {
@@ -19,7 +19,7 @@ fn break_statement_test_02() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "BreakStatement: break a ;", vec!["LabelIdentifier: a"]);
     concise_check(&*node, "BreakStatement: break a ;", vec!["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn break_statement_test_03() {
@@ -27,7 +27,7 @@ fn break_statement_test_03() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "BreakStatement: break ;", vec![]);
     concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn break_statement_test_04() {
@@ -35,7 +35,7 @@ fn break_statement_test_04() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "BreakStatement: break ;", vec![]);
     concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn break_statement_test_05() {
@@ -43,7 +43,7 @@ fn break_statement_test_05() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "BreakStatement: break a ;", vec!["LabelIdentifier: a"]);
     concise_check(&*node, "BreakStatement: break a ;", vec!["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn break_statement_test_err_01() {

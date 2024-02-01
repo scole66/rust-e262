@@ -215,7 +215,7 @@ impl PrettyPrint for IdentifierReference {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}IdentifierReference: {}", first, self)?;
+        writeln!(writer, "{first}IdentifierReference: {self}")?;
         if let IdentifierReference::Identifier { identifier, .. } = self {
             identifier.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
@@ -238,7 +238,7 @@ impl PrettyPrint for IdentifierReference {
 impl fmt::Display for IdentifierReference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IdentifierReference::Identifier { identifier, .. } => write!(f, "{}", identifier),
+            IdentifierReference::Identifier { identifier, .. } => write!(f, "{identifier}"),
             IdentifierReference::Yield { .. } => write!(f, "yield"),
             IdentifierReference::Await { .. } => write!(f, "await"),
         }
@@ -432,7 +432,7 @@ impl fmt::Display for BindingIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingIdentifier::Await { .. } => write!(f, "await"),
-            BindingIdentifier::Identifier { identifier, .. } => write!(f, "{}", identifier),
+            BindingIdentifier::Identifier { identifier, .. } => write!(f, "{identifier}"),
             BindingIdentifier::Yield { .. } => write!(f, "yield"),
         }
     }
@@ -444,7 +444,7 @@ impl PrettyPrint for BindingIdentifier {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingIdentifier: {}", first, self)?;
+        writeln!(writer, "{first}BindingIdentifier: {self}")?;
         if let BindingIdentifier::Identifier { identifier, .. } = self {
             identifier.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
@@ -557,7 +557,7 @@ impl BindingIdentifier {
                 let sv = id.string_value();
                 if strict && [JSString::from("arguments"), JSString::from("eval")].contains(&sv) {
                     errs.push(create_syntax_error_object(
-                        format!("identifier not allowed in strict mode: {}", sv).as_str(),
+                        format!("identifier not allowed in strict mode: {sv}").as_str(),
                         Some(data.location),
                     ));
                 }
@@ -656,7 +656,7 @@ impl PrettyPrint for LabelIdentifier {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LabelIdentifier: {}", first, self)?;
+        writeln!(writer, "{first}LabelIdentifier: {self}")?;
         match self {
             LabelIdentifier::Identifier { identifier: id, .. } => {
                 id.pprint_with_leftpad(writer, &successive, Spot::Final)

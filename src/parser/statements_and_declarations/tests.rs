@@ -12,7 +12,7 @@ fn statement_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Statement: { a = 0 ; }", vec!["BlockStatement: { a = 0 ; }"]);
     concise_check(&*node, "Block: { a = 0 ; }", vec!["Punctuator: {", "ExpressionStatement: a = 0 ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_02() {
@@ -24,7 +24,7 @@ fn statement_test_02() {
         "VariableStatement: var a = 0 ;",
         vec!["Keyword: var", "VariableDeclaration: a = 0", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_03() {
@@ -32,7 +32,7 @@ fn statement_test_03() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "Statement: ;", vec!["EmptyStatement: ;"]);
     concise_check(&*node, "Punctuator: ;", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_04() {
@@ -40,7 +40,7 @@ fn statement_test_04() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "Statement: a ( ) ;", vec!["ExpressionStatement: a ( ) ;"]);
     concise_check(&*node, "ExpressionStatement: a ( ) ;", vec!["CallMemberExpression: a ( )", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_05() {
@@ -52,7 +52,7 @@ fn statement_test_05() {
         "IfStatement: if ( a ) { }",
         vec!["Keyword: if", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_06() {
@@ -64,7 +64,7 @@ fn statement_test_06() {
         "SwitchStatement: switch ( a ) { }",
         vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_07() {
@@ -72,7 +72,7 @@ fn statement_test_07() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "Statement: continue ;", vec!["ContinueStatement: continue ;"]);
     concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_08() {
@@ -80,7 +80,7 @@ fn statement_test_08() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "Statement: break ;", vec!["BreakStatement: break ;"]);
     concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_09() {
@@ -88,7 +88,7 @@ fn statement_test_09() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "Statement: return ;", vec!["ReturnStatement: return ;"]);
     concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_10() {
@@ -100,7 +100,7 @@ fn statement_test_10() {
         "WithStatement: with ( a ) b ;",
         vec!["Keyword: with", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "ExpressionStatement: b ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_11() {
@@ -112,7 +112,7 @@ fn statement_test_11() {
         "LabelledStatement: a : b ;",
         vec!["IdentifierName: a", "Punctuator: :", "ExpressionStatement: b ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_12() {
@@ -120,7 +120,7 @@ fn statement_test_12() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Statement: throw a ;", vec!["ThrowStatement: throw a ;"]);
     concise_check(&*node, "ThrowStatement: throw a ;", vec!["Keyword: throw", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_13() {
@@ -129,7 +129,7 @@ fn statement_test_13() {
     chk_scan(&scanner, 15);
     pretty_check(&*node, "Statement: try { } catch { }", vec!["TryStatement: try { } catch { }"]);
     concise_check(&*node, "TryStatement: try { } catch { }", vec!["Keyword: try", "Block: { }", "Catch: catch { }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_14() {
@@ -137,7 +137,7 @@ fn statement_test_14() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "Statement: debugger ;", vec!["DebuggerStatement: debugger ;"]);
     concise_check(&*node, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_err_01() {
@@ -609,7 +609,7 @@ mod hoistable_decl_part {
     #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "Async Function Decl")]
     #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "Async Generator Decl")]
     fn debug(part: HoistableDeclPart) -> String {
-        format!("{:?}", part)
+        format!("{part:?}")
     }
 
     #[test]
@@ -635,7 +635,7 @@ mod decl_part {
 
     #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
     fn debug(part: DeclPart) -> String {
-        format!("{:?}", part)
+        format!("{part:?}")
     }
 
     #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
@@ -712,7 +712,7 @@ fn declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_02() {
@@ -724,7 +724,7 @@ fn declaration_test_02() {
         "ClassDeclaration: class a { }",
         vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_03() {
@@ -732,7 +732,7 @@ fn declaration_test_03() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "Declaration: let a ;", vec!["LexicalDeclaration: let a ;"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_err_01() {
@@ -873,7 +873,7 @@ fn hoistable_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_02() {
@@ -898,7 +898,7 @@ fn hoistable_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_03() {
@@ -923,7 +923,7 @@ fn hoistable_declaration_test_03() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_04() {
@@ -954,7 +954,7 @@ fn hoistable_declaration_test_04() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_err_01() {
@@ -1098,7 +1098,7 @@ fn breakable_statement_test_01() {
         "WhileStatement: while ( a ) ;",
         vec!["Keyword: while", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn breakable_statement_test_02() {
@@ -1111,7 +1111,7 @@ fn breakable_statement_test_02() {
         "SwitchStatement: switch ( a ) { }",
         vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn breable_statement_test_err_01() {

@@ -24,16 +24,16 @@ impl fmt::Display for MethodDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MethodDefinition::NamedFunction(name, params, body, _) => {
-                write!(f, "{} ( {} ) {{ {} }}", name, params, body)
+                write!(f, "{name} ( {params} ) {{ {body} }}")
             }
             MethodDefinition::Generator(node) => node.fmt(f),
             MethodDefinition::Async(node) => node.fmt(f),
             MethodDefinition::AsyncGenerator(node) => node.fmt(f),
             MethodDefinition::Getter(name, body, _) => {
-                write!(f, "get {} ( ) {{ {} }}", name, body)
+                write!(f, "get {name} ( ) {{ {body} }}")
             }
             MethodDefinition::Setter(name, args, body, _) => {
-                write!(f, "set {} ( {} ) {{ {} }}", name, args, body)
+                write!(f, "set {name} ( {args} ) {{ {body} }}")
             }
         }
     }
@@ -45,7 +45,7 @@ impl PrettyPrint for MethodDefinition {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}MethodDefinition: {}", first, self)?;
+        writeln!(writer, "{first}MethodDefinition: {self}")?;
         match self {
             MethodDefinition::NamedFunction(name, args, body, _) => {
                 name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -73,7 +73,7 @@ impl PrettyPrint for MethodDefinition {
     {
         let mut head = |pad, state| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}MethodDefinition: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}MethodDefinition: {self}").and(Ok(successive))
         };
         match self {
             MethodDefinition::NamedFunction(name, args, body, _) => {
@@ -355,7 +355,7 @@ impl MethodDefinition {
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(ufp.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(ufp.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(errs, strict_function);
@@ -372,7 +372,7 @@ impl MethodDefinition {
                 //        in the LexicallyDeclaredNames of FunctionBody.
                 let bn = pspl.bound_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(pspl.location())));
                 }
                 if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
                     errs.push(create_syntax_error_object(
@@ -382,7 +382,7 @@ impl MethodDefinition {
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(pspl.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(errs, strict_function);
@@ -449,7 +449,7 @@ impl PrettyPrint for PropertySetParameterList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PropertySetParameterList: {}", first, self)?;
+        writeln!(writer, "{first}PropertySetParameterList: {self}")?;
         self.node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 

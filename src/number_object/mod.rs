@@ -605,7 +605,7 @@ fn number_prototype_to_exponential(
     }
     if !(0.0..=100.0).contains(&fraction) {
         let fd_str = to_string(fraction_digits).unwrap();
-        return Err(create_range_error(format!("FractionDigits ‘{}’ must lie within the range 0..100", fd_str)));
+        return Err(create_range_error(format!("FractionDigits ‘{fd_str}’ must lie within the range 0..100")));
     }
     let fraction = fraction as i32;
 
@@ -755,7 +755,7 @@ fn number_prototype_to_fixed(
             let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
             let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
 
-            format!("{}{}.{}", sign, before_point, after_point)
+            format!("{sign}{before_point}.{after_point}")
         }
     }))
 }
@@ -845,7 +845,7 @@ fn number_prototype_to_precision(
     }
     if !(1.0..=100.0).contains(&prec) {
         let precision_str = to_string(precision).unwrap();
-        return Err(create_range_error(format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
+        return Err(create_range_error(format!("Precision ‘{precision_str}’ must lie within the range 1..100")));
     }
 
     let p_size = prec as usize;
@@ -878,7 +878,7 @@ fn number_prototype_to_precision(
             let before_pt = String::from_utf8_lossy(&digits[0..1]);
             let decpt = if p_val != 1 { "." } else { "" };
             let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
-            format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
+            format!("{sign}{before_pt}{decpt}{after_pt}e{e}")
         } else if e == p_val - 1 {
             // No decimal point
             format!("{}{}", sign, String::from_utf8_lossy(digits))
@@ -993,9 +993,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             // Round to even.
             assert!(
                 !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),
-                "Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.",
-                radix,
-                val
+                "Condition A met with radix {radix} and input val {val}: Please add this to coverage and remove this panic."
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
@@ -1078,7 +1076,7 @@ fn number_prototype_to_string(
     let x = this_number_value(this_value)?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
     if !(2.0..=36.0).contains(&radix_mv) {
-        Err(create_range_error(format!("Radix {} out of range (must be in 2..36)", radix_mv)))
+        Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
     } else {
         let int_radix = radix_mv as i32;
         if int_radix == 10 {

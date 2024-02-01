@@ -17,7 +17,7 @@ mod logical_and_expression {
         assert!(matches!(&*pn, LogicalANDExpression::BitwiseORExpression(_)));
         pretty_check(&*pn, "LogicalANDExpression: a", vec!["BitwiseORExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -32,7 +32,7 @@ mod logical_and_expression {
             "LogicalANDExpression: a && b",
             vec!["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -43,7 +43,7 @@ mod logical_and_expression {
         assert!(matches!(&*pn, LogicalANDExpression::BitwiseORExpression(..)));
         pretty_check(&*pn, "LogicalANDExpression: a", vec!["BitwiseORExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -181,7 +181,7 @@ mod logical_or_expression {
         assert!(matches!(&*pn, LogicalORExpression::LogicalANDExpression(_)));
         pretty_check(&*pn, "LogicalORExpression: a", vec!["LogicalANDExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -196,7 +196,7 @@ mod logical_or_expression {
             "LogicalORExpression: a || b",
             vec!["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -207,7 +207,7 @@ mod logical_or_expression {
         assert!(matches!(&*pn, LogicalORExpression::LogicalANDExpression(..)));
         pretty_check(&*pn, "LogicalORExpression: a", vec!["LogicalANDExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -345,7 +345,7 @@ mod coalesce_expression {
             "CoalesceExpression: a ?? b",
             vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
     }
     #[test]
     fn parse_02() {
@@ -362,7 +362,7 @@ mod coalesce_expression {
             "CoalesceExpression: z ?? a ?? b",
             vec!["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
     }
     #[test]
     fn cache_01() {
@@ -572,7 +572,7 @@ fn short_circuit_expression_test_01() {
     assert!(matches!(&*pn, ShortCircuitExpression::CoalesceExpression(..)));
     pretty_check(&*pn, "ShortCircuitExpression: a ?? b", vec!["CoalesceExpression: a ?? b"]);
     concise_check(&*pn, "CoalesceExpression: a ?? b", vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
-    format!("{:?}", pn);
+    format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -582,7 +582,7 @@ fn short_circuit_expression_test_02() {
     assert!(matches!(&*pn, ShortCircuitExpression::LogicalORExpression(..)));
     pretty_check(&*pn, "ShortCircuitExpression: 6", vec!["LogicalORExpression: 6"]);
     concise_check(&*pn, "Numeric: 6", vec![]);
-    format!("{:?}", pn);
+    format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]

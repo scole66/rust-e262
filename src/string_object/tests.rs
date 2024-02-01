@@ -23,7 +23,7 @@ mod string_object {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, STRING_OBJECT_SLOTS)),
             string_data: RefCell::new(JSString::from("baloney")),
         };
-        assert_ne!(format!("{:?}", so), "");
+        assert_ne!(format!("{so:?}"), "");
     }
 
     #[test]
@@ -681,7 +681,7 @@ fn string_constructor_function(
             ECMAScriptValue::Object(o) => {
                 (true, String::from(o.o.to_string_obj().unwrap().string_data.borrow().clone()))
             }
-            _ => panic!("Bad value from string_constructor_function: {:?}", val),
+            _ => panic!("Bad value from string_constructor_function: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -695,7 +695,7 @@ fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
     super::string_from_char_code(ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected String value from String.fromCharCode: {:?}", val),
+            _ => panic!("Expected String value from String.fromCharCode: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -714,7 +714,7 @@ fn string_prototype_index_of(
     super::string_prototype_index_of(this_value, None, &arguments)
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
-            _ => panic!("Expected number value from String.prototype.indexOf: {:?}", val),
+            _ => panic!("Expected number value from String.prototype.indexOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -727,7 +727,7 @@ fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> 
     super::string_prototype_to_string(this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.toString: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.toString: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -740,7 +740,7 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
     super::string_prototype_value_of(this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.valueOf: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.valueOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }

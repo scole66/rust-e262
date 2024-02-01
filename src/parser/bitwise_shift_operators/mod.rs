@@ -19,13 +19,13 @@ pub enum ShiftExpression {
 impl fmt::Display for ShiftExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ShiftExpression::AdditiveExpression(ae) => write!(f, "{}", ae),
-            ShiftExpression::LeftShift(se, ae) => write!(f, "{} << {}", se, ae),
+            ShiftExpression::AdditiveExpression(ae) => write!(f, "{ae}"),
+            ShiftExpression::LeftShift(se, ae) => write!(f, "{se} << {ae}"),
             ShiftExpression::SignedRightShift(se, ae) => {
-                write!(f, "{} >> {}", se, ae)
+                write!(f, "{se} >> {ae}")
             }
             ShiftExpression::UnsignedRightShift(se, ae) => {
-                write!(f, "{} >>> {}", se, ae)
+                write!(f, "{se} >>> {ae}")
             }
         }
     }
@@ -37,7 +37,7 @@ impl PrettyPrint for ShiftExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ShiftExpression: {}", first, self)?;
+        writeln!(writer, "{first}ShiftExpression: {self}")?;
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
             ShiftExpression::LeftShift(se, ae)
@@ -55,7 +55,7 @@ impl PrettyPrint for ShiftExpression {
     {
         let mut work = |left: &ShiftExpression, right: &AdditiveExpression, op| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}ShiftExpression: {}", first, self)
+            writeln!(writer, "{first}ShiftExpression: {self}")
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
                 .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
                 .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))

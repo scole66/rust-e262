@@ -576,7 +576,7 @@ pub fn unwind_any_error_value(err: ECMAScriptValue) -> String {
 pub fn unwind_any_error(completion: AbruptCompletion) -> String {
     match completion {
         AbruptCompletion::Throw { value: err } => unwind_any_error_value(err),
-        _ => panic!("Improper completion for error: {:?}", completion),
+        _ => panic!("Improper completion for error: {completion:?}"),
     }
 }
 

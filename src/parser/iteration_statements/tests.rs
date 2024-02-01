@@ -31,7 +31,7 @@ fn iteration_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn iteration_statement_test_02() {
@@ -44,7 +44,7 @@ fn iteration_statement_test_02() {
         "WhileStatement: while ( true ) { }",
         vec!["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn iteration_statement_test_03() {
@@ -57,7 +57,7 @@ fn iteration_statement_test_03() {
         "ForStatement: for ( ; ; ) { }",
         vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn iteration_statement_test_04() {
@@ -78,7 +78,7 @@ fn iteration_statement_test_04() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn iteration_statement_test_err_01() {
@@ -351,7 +351,7 @@ fn do_while_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn do_while_statement_test_02() {
@@ -372,7 +372,7 @@ fn do_while_statement_test_02() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn do_while_statement_test_err_01() {
@@ -529,7 +529,7 @@ fn while_statement_test_01() {
         "WhileStatement: while ( 0 ) ;",
         vec!["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn while_statement_test_err_01() {
@@ -678,7 +678,7 @@ fn for_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_02() {
@@ -699,7 +699,7 @@ fn for_statement_test_02() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_03() {
@@ -720,7 +720,7 @@ fn for_statement_test_03() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_04() {
@@ -741,7 +741,7 @@ fn for_statement_test_04() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_05() {
@@ -761,7 +761,7 @@ fn for_statement_test_05() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_06() {
@@ -781,7 +781,7 @@ fn for_statement_test_06() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_07() {
@@ -801,7 +801,7 @@ fn for_statement_test_07() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_08() {
@@ -813,7 +813,7 @@ fn for_statement_test_08() {
         "ForStatement: for ( ; ; ) ;",
         vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_09() {
@@ -841,7 +841,7 @@ fn for_statement_test_09() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_10() {
@@ -868,7 +868,7 @@ fn for_statement_test_10() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_11() {
@@ -895,7 +895,7 @@ fn for_statement_test_11() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_12() {
@@ -916,7 +916,7 @@ fn for_statement_test_12() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_13() {
@@ -942,7 +942,7 @@ fn for_statement_test_13() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_14() {
@@ -967,7 +967,7 @@ fn for_statement_test_14() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_15() {
@@ -992,7 +992,7 @@ fn for_statement_test_15() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_16() {
@@ -1011,7 +1011,7 @@ fn for_statement_test_16() {
             "Punctuator: ;",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_statement_test_err_01() {
@@ -2550,7 +2550,7 @@ fn for_declaration_test_01() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ForDeclaration: let a", vec!["LetOrConst: let", "ForBinding: a"]);
     concise_check(&*node, "ForDeclaration: let a", vec!["Keyword: let", "IdentifierName: a"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_declaration_test_02() {
@@ -2558,7 +2558,7 @@ fn for_declaration_test_02() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "ForDeclaration: const a", vec!["LetOrConst: const", "ForBinding: a"]);
     concise_check(&*node, "ForDeclaration: const a", vec!["Keyword: const", "IdentifierName: a"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_declaration_test_err_01() {
@@ -2651,7 +2651,7 @@ fn for_binding_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ForBinding: a", vec!["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_binding_test_02() {
@@ -2659,7 +2659,7 @@ fn for_binding_test_02() {
     chk_scan(&scanner, 3);
     pretty_check(&*node, "ForBinding: { a }", vec!["BindingPattern: { a }"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn for_binding_test_err_01() {

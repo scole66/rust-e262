@@ -16,7 +16,7 @@ fn with_statement_test_01() {
         true,
     ));
     chk_scan(&scanner, 36);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_check(
         &*node,
         "WithStatement: with ( x in obj ) { x . used = true ; }",

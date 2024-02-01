@@ -10,7 +10,7 @@ use test_case::test_case;
 fn primary_expression_test_debug() {
     let pe = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false);
     let (exp, _) = check(pe);
-    assert_ne!(format!("{:?}", exp), "");
+    assert_ne!(format!("{exp:?}"), "");
 }
 #[test]
 fn primary_expression_test_pprint() {
@@ -666,7 +666,7 @@ mod primary_expression {
 #[test]
 fn literal_test_debug() {
     let literal = Maker::new("null").literal();
-    assert_ne!(format!("{:?}", literal), "");
+    assert_ne!(format!("{literal:?}"), "");
 }
 #[test]
 fn literal_test_null() {
@@ -736,7 +736,7 @@ fn literal_test_bigint() {
     ));
     pretty_check(&*lit, "Literal: 7173", vec![]);
     concise_check(&*lit, "Numeric: 7173", vec![]);
-    format!("{:?}", lit);
+    format!("{lit:?}");
 }
 #[test]
 fn literal_test_string() {
@@ -898,7 +898,7 @@ fn elision_test_pprint() {
     let (e2, _) = check(Elisions::parse(&mut newparser(",,,,,,"), Scanner::new()));
     pretty_check(&*e2, "Elisions: , , , , , ,", vec![]);
     concise_check(&*e2, "Elisions: , , , , , ,", vec![]);
-    format!("{:?}", e1);
+    format!("{e1:?}");
 }
 #[test]
 fn elision_test_prettyerrors_1() {
@@ -955,7 +955,7 @@ fn spread_element_test_pretty() {
     let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
     pretty_check(&*se, "SpreadElement: ... 1", vec!["AssignmentExpression: 1"]);
     concise_check(&*se, "SpreadElement: ... 1", vec!["Punctuator: ...", "Numeric: 1"]);
-    format!("{:?}", se);
+    format!("{se:?}");
 }
 #[test]
 fn spread_element_test_prettyerrors_1() {
@@ -2774,7 +2774,7 @@ fn parenthesized_expression_test_01() {
     );
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
-    format!("{:?}", pe);
+    format!("{pe:?}");
     assert_eq!(pe.is_function_definition(), false);
 }
 #[test]
@@ -2886,14 +2886,14 @@ fn template_middle_list_test_01() {
     ));
     pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
     concise_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["TemplateMiddle: }a${", "Numeric: 0"]);
-    format!("{:?}", tml);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_02() {
     let (tml, scanner) =
         check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 8);
-    println!("{:?}", tml);
+    println!("{tml:?}");
     assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
     pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "Expression: b"]);
     concise_check(
@@ -2901,7 +2901,7 @@ fn template_middle_list_test_02() {
         "TemplateMiddleList: }${ a }${ b",
         vec!["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"],
     );
-    format!("{:?}", tml);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_03() {
@@ -2926,7 +2926,7 @@ fn template_middle_list_test_04() {
     assert!(matches!(&*tml, TemplateMiddleList::ListHead { .. }));
     pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
     concise_check(&*tml, "TemplateMiddleList: }${ a", vec!["TemplateMiddle: }${", "IdentifierName: a"]);
-    format!("{:?}", tml);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_prettyerrors_1() {
@@ -3039,7 +3039,7 @@ fn template_spans_test_01() {
     assert!(matches!(&*ts, TemplateSpans::Tail { .. }));
     pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
     concise_check(&*ts, "TemplateTail: }done`", vec![]);
-    format!("{:?}", ts);
+    format!("{ts:?}");
 }
 #[test]
 fn template_spans_test_02() {
@@ -3048,7 +3048,7 @@ fn template_spans_test_02() {
     assert!(matches!(&*ts, TemplateSpans::List { .. }));
     pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
     concise_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
-    format!("{:?}", ts);
+    format!("{ts:?}");
 }
 #[test]
 fn template_spans_test_03() {
@@ -3166,7 +3166,7 @@ fn substitution_template_test_01() {
         "SubstitutionTemplate: `${ a }`",
         vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{:?}", st);
+    format!("{st:?}");
 }
 #[test]
 fn substitution_template_test_02() {
@@ -3284,7 +3284,7 @@ fn template_literal_test_01() {
     }
     pretty_check(&*tl, "TemplateLiteral: `rust`", vec![]);
     concise_check(&*tl, "NoSubTemplate: `rust`", vec![]);
-    format!("{:?}", tl);
+    format!("{tl:?}");
 }
 #[test]
 fn template_literal_test_02() {
@@ -3297,7 +3297,7 @@ fn template_literal_test_02() {
         "SubstitutionTemplate: `${ a }`",
         vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{:?}", tl);
+    format!("{tl:?}");
 }
 #[test]
 fn template_literal_test_03() {
@@ -3455,7 +3455,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( )",
             vec!["Punctuator: (", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_02() {
@@ -3477,7 +3477,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
             vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_03() {
@@ -3499,7 +3499,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
             vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_04() {
@@ -3521,7 +3521,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
             vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_05() {
@@ -3543,7 +3543,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
             vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_06() {
@@ -3572,7 +3572,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_07() {
@@ -3601,7 +3601,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_08() {

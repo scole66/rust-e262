@@ -45,7 +45,7 @@ mod var_scope_decl {
     #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
     #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
     fn debug(part: VarScopeDecl) -> String {
-        format!("{:?}", part)
+        format!("{part:?}")
     }
 
     #[test]
@@ -71,7 +71,7 @@ fn script_test_01() {
         "LexicalDeclaration: let a = 1 ;",
         vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn script_test_02() {
@@ -79,7 +79,7 @@ fn script_test_02() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "Script: ", vec![]);
     concise_check(&*node, "Script:", vec![]);
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn script_test_err_01() {
@@ -188,7 +188,7 @@ fn script_body_test_01() {
         "LexicalDeclaration: let a = 1 ;",
         vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn script_body_test_err_01() {

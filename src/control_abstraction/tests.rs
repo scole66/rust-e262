@@ -286,7 +286,7 @@ mod generator_data {
             generator_context: None,
             generator_brand: "Testerino".to_owned(),
         };
-        assert_ne!(format!("{:?}", item), "");
+        assert_ne!(format!("{item:?}"), "");
     }
 }
 
@@ -371,7 +371,7 @@ mod generator_object {
         setup_test_agent();
         let obj = make();
         let go = obj.o.to_generator_object().unwrap();
-        assert_ne!(format!("{:?}", go), "");
+        assert_ne!(format!("{go:?}"), "");
     }
 
     #[test]
