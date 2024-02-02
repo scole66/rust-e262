@@ -281,7 +281,7 @@ mod normal_completion {
     fn make_regex_validator(regex: &str) -> impl Fn(String) + '_ {
         move |actual: String| {
             let re = Regex::new(regex).unwrap();
-            assert!(re.is_match(&actual))
+            assert!(re.is_match(&actual));
         }
     }
 

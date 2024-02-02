@@ -5240,7 +5240,7 @@ impl IfStatement {
         let expr_status = self.expression().compile(chunk, strict, text)?;
         // Stack: exprRef/exprValue/err
         if expr_status.maybe_ref() {
-            chunk.op(Insn::GetValue)
+            chunk.op(Insn::GetValue);
         }
         // Stack: exprValue/err
         if expr_status.maybe_abrupt() {

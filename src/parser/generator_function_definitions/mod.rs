@@ -731,7 +731,7 @@ impl YieldExpression {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
-                exp.early_errors(errs, strict)
+                exp.early_errors(errs, strict);
             }
             YieldExpression::Simple { .. } => (),
         }

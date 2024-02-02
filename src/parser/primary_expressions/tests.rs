@@ -1454,7 +1454,7 @@ fn array_literal_test_04() {
         &*al,
         "ArrayLiteral: [ a , ]",
         vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
-    )
+    );
 }
 #[test]
 fn array_literal_test_05() {

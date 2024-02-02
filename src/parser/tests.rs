@@ -114,7 +114,7 @@ mod pe_code {
 
     #[test]
     fn default() {
-        assert_eq!(PECode::default(), PECode::Generic)
+        assert_eq!(PECode::default(), PECode::Generic);
     }
 
     #[test]
@@ -507,25 +507,37 @@ fn scan_for_punct_set_04() {
 fn scan_for_auto_semi_01() {
     let (location, res) = scan_for_auto_semi(Scanner::new(), "", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_for_auto_semi_02() {
     let (location, res) = scan_for_auto_semi(Scanner::new(), ";", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 2, start_idx: 1 });
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } }
+    );
 }
 #[test]
 fn scan_for_auto_semi_03() {
     let (location, res) = scan_for_auto_semi(Scanner::new(), "}", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_for_auto_semi_04() {
     let (location, res) = scan_for_auto_semi(Scanner::new(), "\n0", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_for_auto_semi_05() {
@@ -545,7 +557,10 @@ fn scan_for_keyword_01() {
     let (location, scanner) =
         scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::Class).unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+    );
 }
 #[test]
 fn scan_for_keyword_02() {

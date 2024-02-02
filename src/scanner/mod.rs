@@ -884,7 +884,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 )
                 .unwrap();
             }
-            result.append(&mut code_point_to_utf16_code_units(cp))
+            result.append(&mut code_point_to_utf16_code_units(cp));
         }
     }
     JSString::from(result)

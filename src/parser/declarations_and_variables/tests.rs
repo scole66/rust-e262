@@ -688,7 +688,7 @@ fn variable_declaration_test_err_02() {
         "‘=’ expected",
         1,
         4,
-    )
+    );
 }
 #[test]
 fn variable_declaration_test_bound_names_01() {

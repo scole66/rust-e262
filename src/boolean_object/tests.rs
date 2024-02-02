@@ -177,7 +177,7 @@ fn own_keys_01() {
     setup_test_agent();
     let bool_obj = create_boolean_object(true);
     let res = bool_obj.o.own_property_keys().unwrap();
-    assert!(res.is_empty())
+    assert!(res.is_empty());
 }
 
 #[test]

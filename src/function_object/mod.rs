@@ -727,7 +727,7 @@ impl CallableObject for FunctionObject {
                 return;
             }
             let this_binding = constructor_env.get_this_binding();
-            ec_push(this_binding.map(NormalCompletion::from))
+            ec_push(this_binding.map(NormalCompletion::from));
         }
     }
 
@@ -1131,7 +1131,7 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
             .enumerable(false)
             .configurable(true),
     )
-    .unwrap()
+    .unwrap();
 }
 
 // SetFunctionLength ( F, length )
@@ -1429,7 +1429,7 @@ impl CallableObject for BuiltInFunctionObject {
         let result = (self.builtin_data.borrow().steps)(this_argument.clone(), None, arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     // [[Construct]] ( argumentsList, newTarget )
@@ -1449,7 +1449,7 @@ impl CallableObject for BuiltInFunctionObject {
         let result = (self.builtin_data.borrow().steps)(ECMAScriptValue::Undefined, Some(new_target), arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     fn end_evaluation(&self, _: FullCompletion) {

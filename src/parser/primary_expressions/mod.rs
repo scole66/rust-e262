@@ -1144,7 +1144,7 @@ impl ArrayLiteral {
         match self {
             ArrayLiteral::Empty { .. } => {}
             ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
         }
     }
@@ -2612,7 +2612,7 @@ impl TemplateLiteral {
                 //    TemplateStrings of TemplateLiteral with argument false is greater
                 //    than 2^32 - 1.
                 if self.template_strings(false).len() > ts_limit {
-                    errs.push(create_syntax_error_object("Template literal too complex", Some(st.location())))
+                    errs.push(create_syntax_error_object("Template literal too complex", Some(st.location())));
                 }
                 st.early_errors(errs, strict);
             }
@@ -3287,7 +3287,7 @@ impl ParenthesizedExpression {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        self.exp.early_errors(errs, strict)
+        self.exp.early_errors(errs, strict);
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -3616,14 +3616,14 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
             | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 exp.early_errors(errs, strict);

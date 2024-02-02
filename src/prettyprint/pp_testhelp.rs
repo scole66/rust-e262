@@ -82,11 +82,11 @@ pub fn pretty_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {
-    printer_validate(|w| item.pprint(w))
+    printer_validate(|w| item.pprint(w));
 }
 pub fn concise_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {
-    printer_validate(|w| item.pprint_concise(w))
+    printer_validate(|w| item.pprint_concise(w));
 }

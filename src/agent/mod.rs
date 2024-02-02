@@ -191,7 +191,7 @@ pub fn ec_push(val: FullCompletion) {
         assert!(len > 0, "EC Push called with no active EC");
         let ec = &mut ec_stack[len - 1];
         ec.stack.push(val);
-    })
+    });
 }
 
 pub fn ec_pop() -> Option<FullCompletion> {
@@ -333,7 +333,7 @@ pub fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
         if let Some(context) = execution_context_stack.last_mut() {
             context.lexical_environment = env;
         }
-    })
+    });
 }
 
 pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
@@ -342,7 +342,7 @@ pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
         if let Some(context) = execution_context_stack.last_mut() {
             context.variable_environment = env;
         }
-    })
+    });
 }
 
 // SetRealmGlobalObject ( realmRec, globalObj, thisValue )
@@ -619,7 +619,7 @@ pub fn prepare_running_ec_for_execution(chunk: Rc<Chunk>) {
         assert!(!agent.execution_context_stack.borrow().is_empty());
         let index = agent.execution_context_stack.borrow().len() - 1;
         prepare_for_execution(index, chunk);
-    })
+    });
 }
 
 pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
@@ -627,7 +627,7 @@ pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         execution_context_stack[index].chunk = Some(chunk);
         execution_context_stack[index].pc = 0;
-    })
+    });
 }
 
 pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
@@ -689,13 +689,13 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(string.into()));
                 }
                 Insn::Null => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Null.into()))
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Null.into()));
                 }
                 Insn::True => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(true.into())),
                 Insn::False => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(false.into())),
                 Insn::Zero => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(0.into())),
                 Insn::Empty => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty))
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty));
                 }
                 Insn::EmptyIfNotError => {
                     // if the top stack element is an error, don't change it. Otherwise, replace it with [empty]
@@ -710,7 +710,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
                 }
                 Insn::Undefined => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Undefined.into()))
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Undefined.into()));
                 }
                 Insn::This => {
                     let this_resolved = resolve_this_binding().map(NormalCompletion::from);
@@ -757,7 +757,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::FunctionPrototype => {
                     let proto = ECMAScriptValue::from(intrinsic(IntrinsicId::FunctionPrototype));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(proto.into()))
+                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(proto.into()));
 
                 }
                 Insn::JumpIfAbrupt => {
@@ -1678,20 +1678,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    instantiate_ordinary_function_expression_without_binding_id(index, text, info)
+                    instantiate_ordinary_function_expression_without_binding_id(index, text, info);
                 }
                 Insn::InstantiateOrdinaryFunctionExpression => {
                     let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    instantiate_ordinary_function_expression_with_binding_id(index, text, info)
+                    instantiate_ordinary_function_expression_with_binding_id(index, text, info);
                 }
 
                 Insn::InstantiateArrowFunctionExpression => {
                     let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[id as usize];
-                    instantiate_arrow_function_expression(Some(index), text, info)
+                    instantiate_arrow_function_expression(Some(index), text, info);
                 }
                 Insn::InstantiateOrdinaryFunctionObject => {
                     let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
@@ -1700,7 +1700,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let func_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
                     agent.execution_context_stack.borrow_mut()[index].pc += 1;
                     let info = &chunk.function_object_data[func_index];
-                    instantiate_ordinary_function_object(Some(index), text, string, info)
+                    instantiate_ordinary_function_object(Some(index), text, string, info);
                 }
                 Insn::LeftShift => agent.binary_operation(index, BinOp::LeftShift),
                 Insn::SignedRightShift => agent.binary_operation(index, BinOp::SignedRightShift),
@@ -2443,7 +2443,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         make_method(closure.o.to_function_obj().unwrap(), obj);
 
                         ec_push(Ok(closure.into()));
-                        ec_push(Ok(propkey.into()))
+                        ec_push(Ok(propkey.into()));
 
                     } else {
                         panic!("This routine is only for the production MethodDefinition : ClassElementName ( UniqueFormalParameters) {{ FunctionBody }}");
@@ -2466,7 +2466,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                 .expect("item should not be an error")
                         )
                         .expect("item should be an object");
-                    set_function_name(&closure, property_key, None)
+                    set_function_name(&closure, property_key, None);
                 }
                 Insn::DefineMethodProperty => {
                     // Takes one arg. 0 => enumerable:false; 1 => enumerable:true

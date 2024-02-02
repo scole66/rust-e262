@@ -206,7 +206,7 @@ mod list_iterator {
 
     #[test]
     fn happypath() {
-        generator_prototype_next::multi()
+        generator_prototype_next::multi();
     }
 
     #[test]

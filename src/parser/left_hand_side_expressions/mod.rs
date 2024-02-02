@@ -2675,7 +2675,7 @@ impl OptionalChain {
                 exp.early_errors(errs, strict);
             }
             OptionalChain::PlusIdent(node, _, _) | OptionalChain::PlusPrivateId(node, _, _) => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
         }
     }

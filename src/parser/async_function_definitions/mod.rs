@@ -592,7 +592,7 @@ impl AsyncMethod {
             errs.push(create_syntax_error_object(
                 "Illegal await-expression in formal parameters of async function",
                 Some(self.params.location()),
-            ))
+            ));
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names() {

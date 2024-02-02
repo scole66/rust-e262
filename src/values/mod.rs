@@ -521,7 +521,7 @@ impl PartialEq for PrivateName {
 impl Hash for PrivateName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // No need to hash the description; the id is unique already.
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 

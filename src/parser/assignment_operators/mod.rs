@@ -1136,7 +1136,7 @@ impl ArrayAssignmentPattern {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
             ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(errs, strict),
             ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
-                ael.early_errors(errs, strict)
+                ael.early_errors(errs, strict);
             }
             ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
                 ael.early_errors(errs, strict);

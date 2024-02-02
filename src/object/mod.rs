@@ -1051,7 +1051,7 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
     for (key, desc) in data.properties.iter() {
         if key.is_array_index() {
-            keys.push(key.clone())
+            keys.push(key.clone());
         } else {
             match key {
                 PropertyKey::String(_) => {

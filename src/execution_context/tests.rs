@@ -120,7 +120,7 @@ mod execution_context {
 fn get_global_object(reset: bool) -> Option<String> {
     setup_test_agent();
     if reset {
-        AGENT.with(|agent| agent.reset())
+        AGENT.with(|agent| agent.reset());
     }
     let maybe_obj = super::get_global_object();
 

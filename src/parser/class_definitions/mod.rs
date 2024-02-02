@@ -1263,7 +1263,7 @@ impl ClassElement {
                 let pn = field.prop_name();
                 match pn {
                     Some(s) if s == "prototype" => {
-                        errs.push(create_syntax_error_object("prototypes cannot be static", Some(field.location())))
+                        errs.push(create_syntax_error_object("prototypes cannot be static", Some(field.location())));
                     }
                     Some(s) if s == "constructor" => errs.push(create_syntax_error_object(
                         "constructors may not be defined as class fields",

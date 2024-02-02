@@ -13,6 +13,7 @@
 #![deny(clippy::unreadable_literal)]
 #![deny(clippy::ignored_unit_patterns)]
 #![deny(clippy::unnecessary_wraps)]
+#![deny(clippy::semicolon_if_nothing_returned)]
 
 mod agent;
 mod arguments_object;

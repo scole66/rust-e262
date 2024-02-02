@@ -67,7 +67,7 @@ mod agent {
         AGENT.with(|agent| {
             let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
             assert!(r.script_or_module.is_none());
-        })
+        });
     }
     #[test]
     fn push_execution_context() {
@@ -795,7 +795,7 @@ fn prepare_for_execution() {
         assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
         assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
         assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
-    })
+    });
 }
 
 type ValueMaker = fn() -> ECMAScriptValue;

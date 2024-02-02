@@ -508,7 +508,7 @@ fn array_create() {
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
     assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
-    assert!(aobj.is_array().unwrap())
+    assert!(aobj.is_array().unwrap());
 }
 
 fn make_ordinary_object() -> ECMAScriptValue {

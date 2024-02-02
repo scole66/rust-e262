@@ -189,7 +189,7 @@ mod chunk {
                     this_mode: ThisLexicality::NonLexicalThis,
                 })
                 .unwrap_err();
-            assert_eq!(res.to_string(), "Out of room for more functions!")
+            assert_eq!(res.to_string(), "Out of room for more functions!");
         }
     }
 
@@ -338,7 +338,7 @@ mod chunk {
             let mut c = Chunk::new("too far");
             c.opcodes = vec![0; 33000];
             let result = c.fixup(0).unwrap_err().to_string();
-            assert_eq!(result, "out of range integral type conversion attempted")
+            assert_eq!(result, "out of range integral type conversion attempted");
         }
     }
 

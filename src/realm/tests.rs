@@ -94,7 +94,7 @@ mod intrinsics {
     #[test]
     fn debug() {
         setup_test_agent();
-        assert_ne!(format!("{:?}", Intrinsics::new()), "")
+        assert_ne!(format!("{:?}", Intrinsics::new()), "");
     }
 
     #[test]

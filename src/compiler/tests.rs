@@ -803,7 +803,7 @@ mod literal {
             node.compile(&mut c).unwrap();
             // The point of this literal is to fill the string table -- such that the call to add a string to the table
             // will fail. So that's what we test.
-            assert!(c.add_to_string_pool("test".into()).is_err())
+            assert!(c.add_to_string_pool("test".into()).is_err());
         }
 
         #[test]

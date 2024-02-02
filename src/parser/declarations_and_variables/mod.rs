@@ -1266,7 +1266,7 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::Empty { .. } => (),
             ObjectBindingPattern::RestOnly { brp, .. } => brp.early_errors(errs, strict),
             ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
-                bpl.early_errors(errs, strict)
+                bpl.early_errors(errs, strict);
             }
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 bpl.early_errors(errs, strict);
@@ -1592,7 +1592,7 @@ impl ArrayBindingPattern {
             ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.early_errors(errs, strict),
             ArrayBindingPattern::RestOnly { bre: None, .. } => (),
             ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, .. } => {
-                bel.early_errors(errs, strict)
+                bel.early_errors(errs, strict);
             }
             ArrayBindingPattern::ListRest { bel: lst, bre: Some(rst), .. } => {
                 lst.early_errors(errs, strict);

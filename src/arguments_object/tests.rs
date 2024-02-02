@@ -23,7 +23,7 @@ mod parameter_map {
         let map = ParameterMap::new(env.clone());
 
         assert!(map.properties.is_empty());
-        assert_eq!(map.env.name(), env.name())
+        assert_eq!(map.env.name(), env.name());
     }
 
     #[test_case(|| PropertyKey::from("blue") => None; "Not a numeric key")]

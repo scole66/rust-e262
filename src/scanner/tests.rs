@@ -246,7 +246,7 @@ fn identifier_start_01() {
 #[test]
 fn identifier_start_02() {
     for s in &["$name", "_name", "Gname"] {
-        assert_eq!(identifier_start(&Scanner::new(), s), Ok(Some(Scanner { line: 1, column: 2, start_idx: 1 })))
+        assert_eq!(identifier_start(&Scanner::new(), s), Ok(Some(Scanner { line: 1, column: 2, start_idx: 1 })));
     }
     assert_eq!(identifier_start(&Scanner::new(), "ꘐblue"), Ok(Some(Scanner { line: 1, column: 2, start_idx: 3 })));
 }
@@ -371,62 +371,62 @@ fn radix_digits_11() {
 }
 #[test]
 fn decimal_integer_empty() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), ""), None)
+    assert_eq!(decimal_integer_literal(&Scanner::new(), ""), None);
 }
 #[test]
 fn decimal_integer_0() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "0"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "0"), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
 }
 #[test]
 fn decimal_integer_4() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "4"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "4"), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
 }
 #[test]
 fn decimal_integer_4_3() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "4_3"), Some(Scanner { line: 1, column: 4, start_idx: 3 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "4_3"), Some(Scanner { line: 1, column: 4, start_idx: 3 }));
 }
 #[test]
 fn decimal_integer_43() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "43"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "43"), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
 }
 #[test]
 fn decimal_integer_56_() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "56_"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "56_"), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
 }
 #[test]
 fn non_decimal_integer_literal_01() {
     assert_eq!(
         non_decimal_integer_literal(&Scanner::new(), "0x10", true),
         Some((NumberStyle::Hex, Scanner { line: 1, column: 5, start_idx: 4 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_01() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0x10..."),
         Some((Token::Number(16.0), Scanner { line: 1, column: 5, start_idx: 4 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_02() {
     assert_eq!(
         numeric_literal(&Scanner::new(), ".25"),
         Some((Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_03() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xabcdef"),
         Some((Token::Number(11_259_375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_04() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xFEDCBA"),
         Some((Token::Number(16_702_650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_05() {
@@ -1224,7 +1224,7 @@ fn common_token_test_nstemp() {
             Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }),
             Scanner { line: 1, column: 3, start_idx: 2 }
         ))
-    )
+    );
 }
 
 #[test]
@@ -1328,7 +1328,7 @@ fn scan_token_panic_01() {
 
 #[test]
 fn thd_count_test_01() {
-    assert!(THDCount::try_from(5).is_err())
+    assert!(THDCount::try_from(5).is_err());
 }
 #[test]
 fn thd_count_test_02() {
@@ -2138,7 +2138,10 @@ fn private_identifier_01() {
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.string_value, JSString::from("#bobo"));
     }
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+    );
 }
 #[test]
 fn private_identifier_02() {
@@ -2149,7 +2152,10 @@ fn private_identifier_02() {
     if let Token::Error(msg) = tok {
         assert_eq!(msg, "Unrecognized Token");
     }
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn private_identifier_03() {

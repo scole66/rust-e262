@@ -25,155 +25,155 @@ mod identifier {
     }
     #[test]
     fn await_kwd() {
-        id_kwd_test("await")
+        id_kwd_test("await");
     }
     #[test]
     fn break_kwd() {
-        id_kwd_test("break")
+        id_kwd_test("break");
     }
     #[test]
     fn case() {
-        id_kwd_test("case")
+        id_kwd_test("case");
     }
     #[test]
     fn catch() {
-        id_kwd_test("catch")
+        id_kwd_test("catch");
     }
     #[test]
     fn class() {
-        id_kwd_test("class")
+        id_kwd_test("class");
     }
     #[test]
     fn const_kwd() {
-        id_kwd_test("const")
+        id_kwd_test("const");
     }
     #[test]
     fn continue_kwd() {
-        id_kwd_test("continue")
+        id_kwd_test("continue");
     }
     #[test]
     fn debugger() {
-        id_kwd_test("debugger")
+        id_kwd_test("debugger");
     }
     #[test]
     fn default() {
-        id_kwd_test("default")
+        id_kwd_test("default");
     }
     #[test]
     fn delete() {
-        id_kwd_test("delete")
+        id_kwd_test("delete");
     }
     #[test]
     fn do_kwd() {
-        id_kwd_test("do")
+        id_kwd_test("do");
     }
     #[test]
     fn else_kwd() {
-        id_kwd_test("else")
+        id_kwd_test("else");
     }
     #[test]
     fn enum_kwd() {
-        id_kwd_test("enum")
+        id_kwd_test("enum");
     }
     #[test]
     fn export() {
-        id_kwd_test("export")
+        id_kwd_test("export");
     }
     #[test]
     fn extends() {
-        id_kwd_test("extends")
+        id_kwd_test("extends");
     }
     #[test]
     fn false_kwd() {
-        id_kwd_test("false")
+        id_kwd_test("false");
     }
     #[test]
     fn finally() {
-        id_kwd_test("finally")
+        id_kwd_test("finally");
     }
     #[test]
     fn for_kwd() {
-        id_kwd_test("for")
+        id_kwd_test("for");
     }
     #[test]
     fn function() {
-        id_kwd_test("function")
+        id_kwd_test("function");
     }
     #[test]
     fn if_kwd() {
-        id_kwd_test("if")
+        id_kwd_test("if");
     }
     #[test]
     fn import() {
-        id_kwd_test("import")
+        id_kwd_test("import");
     }
     #[test]
     fn in_kwd() {
-        id_kwd_test("in")
+        id_kwd_test("in");
     }
     #[test]
     fn instanceof() {
-        id_kwd_test("instanceof")
+        id_kwd_test("instanceof");
     }
     #[test]
     fn new() {
-        id_kwd_test("new")
+        id_kwd_test("new");
     }
     #[test]
     fn null() {
-        id_kwd_test("null")
+        id_kwd_test("null");
     }
     #[test]
     fn return_kwd() {
-        id_kwd_test("return")
+        id_kwd_test("return");
     }
     #[test]
     fn super_kwd() {
-        id_kwd_test("super")
+        id_kwd_test("super");
     }
     #[test]
     fn switch() {
-        id_kwd_test("switch")
+        id_kwd_test("switch");
     }
     #[test]
     fn this() {
-        id_kwd_test("this")
+        id_kwd_test("this");
     }
     #[test]
     fn throw() {
-        id_kwd_test("throw")
+        id_kwd_test("throw");
     }
     #[test]
     fn true_kwd() {
-        id_kwd_test("true")
+        id_kwd_test("true");
     }
     #[test]
     fn try_kwd() {
-        id_kwd_test("try")
+        id_kwd_test("try");
     }
     #[test]
     fn typeof_kwd() {
-        id_kwd_test("typeof")
+        id_kwd_test("typeof");
     }
     #[test]
     fn var() {
-        id_kwd_test("var")
+        id_kwd_test("var");
     }
     #[test]
     fn void() {
-        id_kwd_test("void")
+        id_kwd_test("void");
     }
     #[test]
     fn while_kwd() {
-        id_kwd_test("while")
+        id_kwd_test("while");
     }
     #[test]
     fn with() {
-        id_kwd_test("with")
+        id_kwd_test("with");
     }
     #[test]
     fn yield_kwd() {
-        id_kwd_test("yield")
+        id_kwd_test("yield");
     }
     #[test]
     fn err() {
@@ -319,7 +319,7 @@ mod identifier {
         assert_eq!(
             identifier.location,
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 39 } }
-        )
+        );
     }
     #[test]
     fn cache_01() {

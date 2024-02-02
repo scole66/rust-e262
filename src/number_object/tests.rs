@@ -963,7 +963,7 @@ fn double_exponent_test() {
     // 1.0 -> 1<52 zeros> x 2^(-52)
     assert_eq!(double_exponent(1.0), -52);
     // 3e-323 -> denormal; just gets -1074...
-    assert_eq!(double_exponent(3e-323), -1074)
+    assert_eq!(double_exponent(3e-323), -1074);
 }
 
 #[test]

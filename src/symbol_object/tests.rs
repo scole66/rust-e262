@@ -341,7 +341,7 @@ mod symbol_object {
         let sym = wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(sym);
         let res = sym_obj.o.own_property_keys().unwrap();
-        assert!(res.is_empty())
+        assert!(res.is_empty());
     }
 
     #[test]

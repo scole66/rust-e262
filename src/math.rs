@@ -798,7 +798,7 @@ fn math_round(
     }
     let mut rounded = n.round();
     if rounded < n && n - rounded == (rounded + 1.0) - n {
-        rounded += 1.0
+        rounded += 1.0;
     }
     Ok(rounded.into())
 }

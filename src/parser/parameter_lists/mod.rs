@@ -796,7 +796,7 @@ impl FormalParameter {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(errs, strict)
+        self.element.early_errors(errs, strict);
     }
 
     /// Report whether this parameter contains an intializer
