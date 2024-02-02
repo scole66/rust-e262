@@ -750,6 +750,7 @@ mod ordinary_set_prototype_of {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -895,6 +896,7 @@ mod ordinary_prevent_extensions {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -993,6 +995,7 @@ mod ordinary_define_own_property {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1672,6 +1675,7 @@ mod ordinary_has_property {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1808,6 +1812,7 @@ mod ordinary_get {
         let key = PropertyKey::from("test_key");
         (obj, key, ECMAScriptValue::Undefined)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(
         this_value: ECMAScriptValue,
         _: Option<&Object>,
@@ -1957,6 +1962,7 @@ mod ordinary_set {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -2353,6 +2359,7 @@ mod ordinary_delete {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -2474,6 +2481,7 @@ mod ordinary_own_property_keys {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -3570,6 +3578,7 @@ mod enumerable_own_property_names {
         obj.create_data_property_or_throw("one", 1.0).unwrap();
         obj
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
@@ -3672,6 +3681,7 @@ mod set_integrity_level {
         obj.create_data_property_or_throw("one", 1.0).unwrap();
         obj
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
@@ -4336,6 +4346,7 @@ mod object {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
         }
@@ -4472,6 +4483,7 @@ mod test_integrity_level {
         obj.o.prevent_extensions().unwrap();
         obj
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }

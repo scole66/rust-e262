@@ -817,6 +817,7 @@ mod get_iterator_from_method {
     fn object() -> ECMAScriptValue {
         ECMAScriptValue::from(intrinsic(IntrinsicId::Object))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn create_dead_object(
         _: ECMAScriptValue,
         _: Option<&Object>,
@@ -836,6 +837,7 @@ mod get_iterator_from_method {
             None,
         ))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: ECMAScriptValue,
         _: Option<&Object>,
@@ -927,6 +929,7 @@ mod get_iterator {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: ECMAScriptValue,
         _: Option<&Object>,
@@ -1014,6 +1017,7 @@ mod iterator_record {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: ECMAScriptValue,
         _: Option<&Object>,
@@ -1048,6 +1052,7 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn iterator_next(
         this_value: ECMAScriptValue,
         behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
@@ -1081,6 +1086,7 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn ok_next(
         this_value: ECMAScriptValue,
         _: Option<&Object>,
@@ -1099,6 +1105,7 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         iterator_next(this_value, ok_next)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn bad_next(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1163,9 +1170,11 @@ mod iterator_record {
     fn no_value() -> Option<ECMAScriptValue> {
         None
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn undefined() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::Undefined)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn argument() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::from("Argument"))
     }
@@ -1238,6 +1247,7 @@ mod iterator_record {
             .map_err(unwind_any_error)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tracker(this_value: ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
         let result = crate::create_iter_result_object(ECMAScriptValue::from(""), true);
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
@@ -1277,6 +1287,7 @@ mod iterator_record {
         let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn invalid_return(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Null)
     }

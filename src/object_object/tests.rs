@@ -302,6 +302,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn fake_keys(_this: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("once"), PropertyKey::from("twice")])
         }
@@ -378,6 +379,7 @@ mod constructor {
         fn own_property_keys_throws() -> ECMAScriptValue {
             ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys]))
         }
+        #[allow(clippy::unnecessary_wraps)]
         fn own_prop_keys(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("prop")])
         }
@@ -401,6 +403,7 @@ mod constructor {
             obj.create_data_property_or_throw("something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
+        #[allow(clippy::unnecessary_wraps)]
         fn get_own_prop_ok(_: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             Ok(Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(22), writable: true }),
@@ -844,6 +847,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
         }
@@ -1041,6 +1045,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }
@@ -1078,6 +1083,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }

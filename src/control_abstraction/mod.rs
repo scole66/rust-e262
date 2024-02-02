@@ -214,6 +214,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.generator_function_prototype_prototype_next = generator_prototype_next_obj;
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn iterator_prototype_iterator(
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

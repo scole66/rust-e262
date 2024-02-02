@@ -560,14 +560,17 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
     Ok(Some(msg.to_string()))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }

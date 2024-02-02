@@ -163,12 +163,12 @@ impl From<Rc<MetaProperty>> for MemberExpression {
     }
 }
 
-fn me_boxer<T>(pair: (T, Scanner)) -> ParseResult<MemberExpression>
+fn me_boxer<T>(pair: (T, Scanner)) -> (Rc<MemberExpression>, Scanner)
 where
     T: Into<MemberExpression>,
 {
     let (node, scanner) = pair;
-    Ok((Rc::new(node.into()), scanner))
+    (Rc::new(node.into()), scanner)
 }
 
 fn member_expression_head_recursive(
@@ -177,7 +177,7 @@ fn member_expression_head_recursive(
     await_flag: bool,
     me: Rc<MemberExpression>,
     scan: Scanner,
-) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
+) -> (Rc<MemberExpression>, Scanner) {
     enum After {
         Exp(Rc<Expression>, Location),
         Id(IdentifierData, Location),
@@ -228,7 +228,7 @@ fn member_expression_head_recursive(
         };
         after_scan = after_production;
     }
-    Ok((current_me, after_scan))
+    (current_me, after_scan)
 }
 
 impl MemberExpression {
@@ -247,9 +247,9 @@ impl MemberExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MemberExpression), scanner))
             // First: All the non-head-recursive productions
-            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
-            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
-            .otherwise(|| MetaProperty::parse(parser, scanner).and_then(me_boxer))
+            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
+            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
+            .otherwise(|| MetaProperty::parse(parser, scanner).map(me_boxer))
             .otherwise(|| {
                 Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag).map(
                     |(me, args, new_loc, after)| {
@@ -259,7 +259,7 @@ impl MemberExpression {
                 )
             })
             // And then all the head-recursive productions.
-            .and_then(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
+            .map(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
     }
     fn new_memberexpression_arguments(
         parser: &mut Parser,
@@ -908,9 +908,9 @@ pub enum ArgumentList {
 
 impl ArgumentList {
     // Package the results of a successful assignment_expression into an ArgumentList::FallThru.
-    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError> {
+    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> (Self, Scanner) {
         let (ae_boxed, scanner) = pair;
-        Ok((Self::FallThru(ae_boxed), scanner))
+        (Self::FallThru(ae_boxed), scanner)
     }
 
     // Package the results of assignment_expression into an ArgumentList (or pass along a None)
@@ -929,7 +929,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Self, Scanner), ParseError> {
-        AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).and_then(Self::ae_bundle)
+        AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).map(Self::ae_bundle)
     }
 
     // Parse the production

@@ -216,6 +216,7 @@ mod agent {
         super::typeof_operator(expr).map_err(unwind_any_error)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn superproperty() -> FullCompletion {
         // For example: ({method() { delete super.test_property; }}).method()
         // 1. Let F be OrdinaryFunctionCreate(intrinsics.[[%FunctionPrototype%]], source_text, ParameterList, Body, thisMode, env, privateenv).
@@ -230,6 +231,7 @@ mod agent {
         Ok(NormalCompletion::from(myref))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn bool_proto_ref(strict: bool) -> FullCompletion {
         let bool_obj = intrinsic(IntrinsicId::Boolean);
         let myref = Reference::new(Base::Value(bool_obj.into()), "prototype", strict, None);
@@ -241,14 +243,17 @@ mod agent {
     fn nonstrict_proto_ref() -> FullCompletion {
         bool_proto_ref(false)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn dead_ref() -> FullCompletion {
         let dead = DeadObject::object();
         Ok(NormalCompletion::from(Reference::new(Base::Value(dead.into()), "anything", true, None)))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn ref_to_undefined() -> FullCompletion {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "undefined", true, None)))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn dead_env() -> FullCompletion {
         let outer = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let dead = DeadObject::object();
@@ -1509,6 +1514,7 @@ mod begin_call_evaluation {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn test_reporter(
         this_value: ECMAScriptValue,
         _new_target: Option<&Object>,
@@ -1707,6 +1713,7 @@ mod for_in_iterator_prototype_next {
         object.create_data_property_or_throw("masked", 99).unwrap();
         crate::agent::create_for_in_iterator(object).into()
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }

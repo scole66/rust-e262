@@ -6913,7 +6913,7 @@ impl LabelledItem {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            LabelledItem::Function(f) => f.compile(chunk).map(AbruptResult::from),
+            LabelledItem::Function(f) => Ok(AbruptResult::from(f.compile(chunk))),
             LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, text, label_set),
         }
     }
@@ -7121,9 +7121,9 @@ impl CatchParameter {
 }
 
 impl FunctionDeclaration {
-    fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
-        Ok(NeverAbruptRefResult)
+        NeverAbruptRefResult
     }
 
     fn compile_fo_instantiation(

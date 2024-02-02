@@ -1194,6 +1194,7 @@ fn to_string_09() {
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
+#[allow(clippy::unnecessary_wraps)]
 fn tostring_symbol(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1293,6 +1294,7 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_number(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1301,6 +1303,7 @@ fn faux_makes_number(
     Ok(ECMAScriptValue::from(123_456))
 }
 // non-object string
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_string(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1309,6 +1312,7 @@ fn faux_makes_string(
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_obj(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1574,6 +1578,7 @@ fn to_primitive_prefer_number() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
+#[allow(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1637,6 +1642,7 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
+#[allow(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -2142,6 +2148,7 @@ mod agent {
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn returns_10(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }

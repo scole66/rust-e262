@@ -5,11 +5,14 @@
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
 // pedantic denies. (When we turn on pedantic, these denys can be removed)
 #![deny(clippy::uninlined_format_args)]
 #![deny(clippy::unnested_or_patterns)]
 #![deny(clippy::unreadable_literal)]
 #![deny(clippy::ignored_unit_patterns)]
+#![deny(clippy::unnecessary_wraps)]
 
 mod agent;
 mod arguments_object;
@@ -99,9 +102,9 @@ impl VM {
     //    Ok(0)
     //}
 
-    fn run(&mut self) -> Result<i32, String> {
-        Ok(0)
-    }
+    //fn run(&mut self) -> Result<i32, String> {
+    //    Ok(0)
+    //}
 }
 
 fn interpret(source: &str) -> Result<i32, String> {

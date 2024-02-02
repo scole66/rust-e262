@@ -702,6 +702,8 @@ fn array_of(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[allow(clippy::unnecessary_wraps)]
 fn array_species(
     this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -714,6 +716,7 @@ fn array_species(
     //  1. Return the this value.
     Ok(this_value)
 }
+
 fn array_prototype_at(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

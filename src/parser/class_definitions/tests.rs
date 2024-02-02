@@ -8,9 +8,11 @@ use test_case::test_case;
 fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
     items.iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
 }
+#[allow(clippy::unnecessary_wraps)]
 fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
     Some((String::from(s), u))
 }
+#[allow(clippy::unnecessary_wraps)]
 fn ss(s: &str) -> Option<String> {
     Some(s.to_string())
 }

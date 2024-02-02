@@ -4862,20 +4862,13 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", None => Ok((svec(&["EMPTY"]), false, false)); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case("function x(){}", None => svec(&["EMPTY"]); "typical")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> Vec<String> {
         let node = Maker::new(src).function_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c)
-            .map(|status| {
-                (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                    status.maybe_ref(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        node.compile(&mut c);
+        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
     #[test_case("function named(){}", true, &[] => Ok((svec(&["FUNC_OBJ 0 named"]), true, false)); "named function")]

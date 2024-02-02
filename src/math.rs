@@ -751,6 +751,7 @@ fn math_pow(
     Ok(exponentiate(base, exponent).into())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn math_random(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

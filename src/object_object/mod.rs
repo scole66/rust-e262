@@ -726,6 +726,7 @@ fn object_has_own(
     obj.has_own_property(&key).map(ECMAScriptValue::from)
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn object_is(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,
