@@ -1875,22 +1875,21 @@ fn template_hex_digits_by_value(
                 },
                 consumed,
             );
-        } else {
-            consumed += 1;
-            let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
-            let value = digit.to_digit(16).unwrap(); // This is also ok, because we've already validated as a hex digit char.
-
-            // If the _current_ accumulator fits in a CharVal, add the new value to the accumulator. (This may produce
-            // an invalid char; we're only checking to prevent overflow, which takes many additional digits.)
-            match CharVal::try_from(accumulator) {
-                Err(_) => {} // Value already not-a-character. Don't add any more.
-                Ok(_) => {
-                    // There's still room to build up a value. Add 4 more bits!
-                    accumulator = (accumulator << 4) + value;
-                }
-            }
-            raw_chars.push(digit as u16);
         }
+        consumed += 1;
+        let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
+        let value = digit.to_digit(16).unwrap(); // This is also ok, because we've already validated as a hex digit char.
+
+        // If the _current_ accumulator fits in a CharVal, add the new value to the accumulator. (This may produce an
+        // invalid char; we're only checking to prevent overflow, which takes many additional digits.)
+        match CharVal::try_from(accumulator) {
+            Err(_) => {} // Value already not-a-character. Don't add any more.
+            Ok(_) => {
+                // There's still room to build up a value. Add 4 more bits!
+                accumulator = (accumulator << 4) + value;
+            }
+        }
+        raw_chars.push(digit as u16);
     }
 }
 

@@ -14,6 +14,7 @@
 #![deny(clippy::ignored_unit_patterns)]
 #![deny(clippy::unnecessary_wraps)]
 #![deny(clippy::semicolon_if_nothing_returned)]
+#![deny(clippy::redundant_else)]
 
 mod agent;
 mod arguments_object;
