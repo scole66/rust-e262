@@ -167,6 +167,7 @@ mod insn {
     #[test_case(Insn::DefineMethod => "DEFINE_METHOD"; "DefineMethod instruction")]
     #[test_case(Insn::SetFunctionName => "SET_FUNC_NAME"; "SetFunctionName instruction")]
     #[test_case(Insn::DefineMethodProperty => "DEF_METH_PROP"; "DefineMethodProperty instruction")]
+    #[test_case(Insn::DefineGetter => "DEF_GETTER"; "DefineGetter instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -12069,7 +12070,39 @@ mod method_definition {
         ]));
         "success; enumerable"
     )]
-    #[test_case("get a(){}", true, &[], true => panics "not yet implemented"; "getter")]
+    #[test_case(
+        "get a(){}", true, &[], true
+        => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 enumerable"]));
+        "getter"
+    )]
+    #[test_case(
+        "get [1n](){}", true, &[(Fillable::BigInt, 0)], true
+        => serr("Out of room for big ints in this compilation unit");
+        "getter; name compile fails"
+    )]
+    #[test_case(
+        "get [a](){}", true, &[], true
+        => Ok(svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 1",
+            "TO_KEY",
+            "JUMP_IF_ABRUPT 5",
+            "DEF_GETTER 0 enumerable",
+            "JUMP 2",
+            "UNWIND 1"
+        ]));
+        "getter; fallible name"
+    )]
+    #[test_case(
+        "get a(){}", true, &[(Fillable::FunctionStash, 0)], true
+        => serr("Out of room for more functions!");
+        "getter; function doesn't fit"
+    )]
+    #[test_case(
+        "get a(){}", true, &[], false => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 hidden"])); "getter, not enumerable"
+    )]
     #[test_case("set a(b){}", true, &[], true => panics "not yet implemented"; "setter")]
     #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
     #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]

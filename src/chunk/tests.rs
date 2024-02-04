@@ -367,6 +367,8 @@ mod chunk {
         c.op_plus_arg(Insn::Unwind, 3);
         c.op_plus_arg(Insn::LoopContinues, ls_idx);
         c.op_plus_two_args(Insn::AddMappedArgument, string_idx, 3);
+        c.op_plus_two_args(Insn::DefineGetter, 0, 0);
+        c.op_plus_two_args(Insn::DefineGetter, 1, 1);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -386,6 +388,8 @@ mod chunk {
             "    UNWIND                  3",
             "    LOOP_CONT               [alpha, beta, zeta]",
             "    AMA                     3 charlie",
+            "    DEF_GETTER              0 hidden",
+            "    DEF_GETTER              1 enumerable",
         ]);
         assert_eq!(result, expected);
     }
