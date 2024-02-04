@@ -33,6 +33,7 @@ pub enum IntrinsicId {
     GeneratorFunctionPrototype,
     GeneratorFunctionPrototypePrototype,
     GeneratorFunctionPrototypePrototypeNext,
+    Math,
     Number,
     NumberPrototype,
     Object,
@@ -272,6 +273,7 @@ impl Intrinsics {
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
+            IntrinsicId::Math => &self.math,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
@@ -330,6 +332,7 @@ impl Intrinsics {
             o if o == &self.generator_function_prototype_prototype_next => {
                 Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
             }
+            o if o == &self.math => Some(IntrinsicId::Math),
             o if o == &self.number => Some(IntrinsicId::Number),
             o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
             o if o == &self.object => Some(IntrinsicId::Object),
@@ -477,6 +480,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_proxy_intrinsic(&realm_rec);
+    provision_math_intrinsic(&realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {

@@ -153,6 +153,7 @@ impl Chunk {
                 (2, format!("    {:<24}{} ({})", insn, arg, self.bigints[arg]))
             }
             Insn::Unwind
+            | Insn::UnwindIfAbrupt
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
@@ -161,7 +162,9 @@ impl Chunk {
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
-            | Insn::EvaluateClassStaticBlockDefinition => {
+            | Insn::EvaluateClassStaticBlockDefinition
+            | Insn::DefineMethod
+            | Insn::DefineMethodProperty => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<24}{}", insn, arg))
             }
@@ -192,6 +195,7 @@ impl Chunk {
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue
+            | Insn::FunctionPrototype
             | Insn::Call
             | Insn::StrictCall
             | Insn::EndFunction
@@ -271,7 +275,8 @@ impl Chunk {
             | Insn::IteratorDAEElision
             | Insn::EmbellishedIteratorStep
             | Insn::IteratorRest
-            | Insn::EnumerateObjectProperties => (1, format!("    {insn}")),
+            | Insn::EnumerateObjectProperties
+            | Insn::SetFunctionName => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
@@ -290,6 +295,11 @@ impl Chunk {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
+            }
+            Insn::DefineGetter => {
+                let arg = self.opcodes[idx] as usize;
+                let flag = self.opcodes[idx + 1] != 0;
+                (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))
             }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;

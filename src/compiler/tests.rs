@@ -35,9 +35,11 @@ mod insn {
     #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
     #[test_case(Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR"; "EmptyIfNotError instruction")]
     #[test_case(Insn::PutValue => "PUT_VALUE"; "PutValue instruction")]
+    #[test_case(Insn::FunctionPrototype => "FUNC_PROTO"; "FunctionPrototype instruction")]
     #[test_case(Insn::Jump => "JUMP"; "Jump instruction")]
     #[test_case(Insn::JumpIfNormal => "JUMP_IF_NORMAL"; "JumpIfNormal instruction")]
     #[test_case(Insn::Call => "CALL"; "Call instruction")]
+    #[test_case(Insn::StrictCall => "CALL_STRICT"; "StrictCall instruction")]
     #[test_case(Insn::Swap => "SWAP"; "Swap instruction")]
     #[test_case(Insn::Pop => "POP"; "Pop instruction")]
     #[test_case(Insn::PopOrPanic => "POP_PANIC"; "PopOrPanic instruction")]
@@ -48,6 +50,7 @@ mod insn {
     #[test_case(Insn::RotateDown => "ROTATEDOWN"; "RotateDown instruction")]
     #[test_case(Insn::RotateDownList => "ROTATEDOWN_LIST"; "RotateDownList instruction")]
     #[test_case(Insn::Unwind => "UNWIND"; "Unwind instruction")]
+    #[test_case(Insn::UnwindIfAbrupt => "UNWIND_IF_ABRUPT"; "UnwindIfAbrupt instruction")]
     #[test_case(Insn::Ref => "REF"; "Ref instruction")]
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
     #[test_case(Insn::InitializeReferencedBinding => "IRB"; "InitializeReferencedBinding instruction")]
@@ -161,6 +164,10 @@ mod insn {
     #[test_case(Insn::PrivateIdLookup => "PRIV_ID_LOOKUP"; "PrivateIdLookup instruction")]
     #[test_case(Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF"; "EvaluateInitializedClassFieldDefinition instruction")]
     #[test_case(Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF"; "EvaluateClassStaticBlockDefinition instruction")]
+    #[test_case(Insn::DefineMethod => "DEFINE_METHOD"; "DefineMethod instruction")]
+    #[test_case(Insn::SetFunctionName => "SET_FUNC_NAME"; "SetFunctionName instruction")]
+    #[test_case(Insn::DefineMethodProperty => "DEF_METH_PROP"; "DefineMethodProperty instruction")]
+    #[test_case(Insn::DefineGetter => "DEF_GETTER"; "DefineGetter instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -572,6 +579,7 @@ mod nameable_production {
             ParamSource::ArrowParameters(node) => format!("ArrowParameters: {node}"),
             ParamSource::AsyncArrowBinding(node) => format!("AsyncArrowBinding: {node}"),
             ParamSource::ArrowFormals(node) => format!("ArrowFormals: {node}"),
+            ParamSource::UniqueFormalParameters(node) => format!("UniqueFormalParameters: {node}"),
         }
     }
 }
@@ -934,7 +942,34 @@ mod property_definition {
     ]), true, false)); "name:value, ae can error; strict")]
     #[test_case("[a]:@@@", true, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
     #[test_case("__proto__:null", true, &[] => Ok((svec(&["NULL", "SET_PROTO"]), false, false)); "proto-setter")]
-    #[test_case("a(){}", true, &[] => panics "not yet implemented"; "method def")]
+    #[test_case(
+        "a(){}", true, &[]
+        => Ok((
+            svec(&[
+                "DUP",
+                "DUP",
+                "FUNC_PROTO",
+                "SWAP",
+                "STRING 0 (a)",
+                "DEFINE_METHOD 0",
+                "JUMP_IF_ABRUPT 3",
+                "SET_FUNC_NAME",
+                "DEF_METH_PROP 1",
+                "UNWIND_IF_ABRUPT 1",
+                "JUMP_IF_ABRUPT 1",
+                "POP",
+                "UNWIND_IF_ABRUPT 1"
+            ]),
+            true,
+            false
+        ));
+        "method def"
+    )]
+    #[test_case(
+        "a(){}", true, &[(Fillable::FunctionStash, 0)]
+        => serr("Out of room for more functions!");
+        "method def fails"
+    )]
     #[test_case("...a", true, &[] => Ok((svec(&[
         "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
     ]), true, false)); "rest object, strict")]
@@ -11967,5 +12002,122 @@ mod case_block {
         node.case_block_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
             (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
         })
+    }
+}
+
+mod method_definition {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        "[1n] () {}", true, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "class element name compile fails"
+    )]
+    #[test_case(
+        "[1n] () {}", true, &[]
+        => Ok(svec(&["BIGINT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 4", "DEFINE_METHOD 0", "JUMP 2", "UNWIND 2"]));
+        "success; fallible name"
+    )]
+    #[test_case("a(){}", true, &[] => Ok(svec(&["STRING 0 (a)", "DEFINE_METHOD 0"])); "success; infallible name")]
+    #[test_case(
+        "a(){}", true, &[(Fillable::FunctionStash, 0)]
+        => serr("Out of room for more functions!");
+        "no room for functions"
+    )]
+    #[test_case("get a(){}", true, &[] => panics "entered unreachable code"; "not plain method")]
+    fn define_method(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).method_definition();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.define_method(&mut c, strict, src, &node)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+    }
+
+    #[test_case(
+        "[1n](){}", true, &[(Fillable::BigInt, 0)], true
+        => serr("Out of room for big ints in this compilation unit");
+        "define_method fails"
+    )]
+    #[test_case(
+        "a(){}", true, &[], false
+        => Ok(svec(&[
+            "DUP",
+            "FUNC_PROTO",
+            "SWAP",
+            "STRING 0 (a)",
+            "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SET_FUNC_NAME",
+            "DEF_METH_PROP 0",
+            "UNWIND_IF_ABRUPT 1"
+        ]));
+        "success; not enumerable"
+    )]
+    #[test_case(
+        "a(){}", true, &[], true
+        => Ok(svec(&[
+            "DUP",
+            "FUNC_PROTO",
+            "SWAP",
+            "STRING 0 (a)",
+            "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SET_FUNC_NAME",
+            "DEF_METH_PROP 1",
+            "UNWIND_IF_ABRUPT 1"
+        ]));
+        "success; enumerable"
+    )]
+    #[test_case(
+        "get a(){}", true, &[], true
+        => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 enumerable"]));
+        "getter"
+    )]
+    #[test_case(
+        "get [1n](){}", true, &[(Fillable::BigInt, 0)], true
+        => serr("Out of room for big ints in this compilation unit");
+        "getter; name compile fails"
+    )]
+    #[test_case(
+        "get [a](){}", true, &[], true
+        => Ok(svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 1",
+            "TO_KEY",
+            "JUMP_IF_ABRUPT 5",
+            "DEF_GETTER 0 enumerable",
+            "JUMP 2",
+            "UNWIND 1"
+        ]));
+        "getter; fallible name"
+    )]
+    #[test_case(
+        "get a(){}", true, &[(Fillable::FunctionStash, 0)], true
+        => serr("Out of room for more functions!");
+        "getter; function doesn't fit"
+    )]
+    #[test_case(
+        "get a(){}", true, &[], false => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 hidden"])); "getter, not enumerable"
+    )]
+    #[test_case("set a(b){}", true, &[], true => panics "not yet implemented"; "setter")]
+    #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
+    #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]
+    #[test_case("async *a(){}", true, &[], true => panics "not yet implemented"; "async generator")]
+    fn method_definition_evaluation(
+        src: &str,
+        strict: bool,
+        what: &[(Fillable, usize)],
+        enumerable: bool,
+    ) -> Result<Vec<String>, String> {
+        let node = Maker::new(src).method_definition();
+        let mut c = complex_filled_chunk("x", what);
+
+        node.method_definition_evaluation(enumerable, &mut c, strict, src, &node)
+            .map_err(|e| e.to_string())
+            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }

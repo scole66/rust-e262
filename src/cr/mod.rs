@@ -10,6 +10,7 @@ pub enum NormalCompletion {
     Environment(Rc<dyn EnvironmentRecord>),
     IteratorRecord(Rc<IteratorRecord>),
     PrivateName(PrivateName),
+    PrivateElement(Box<PrivateElement>),
 }
 impl PartialEq for NormalCompletion {
     fn eq(&self, other: &Self) -> bool {
@@ -31,6 +32,8 @@ impl PartialEq for NormalCompletion {
             (Self::IteratorRecord(_), _) => false,
             (Self::PrivateName(left), Self::PrivateName(right)) => left == right,
             (Self::PrivateName(_), _) => false,
+            (Self::PrivateElement(left), Self::PrivateElement(right)) => *left == *right,
+            (Self::PrivateElement(_), _) => false,
         }
     }
 }
@@ -45,6 +48,7 @@ impl fmt::Display for NormalCompletion {
             NormalCompletion::Environment(x) => write!(f, "{:?}", x),
             NormalCompletion::IteratorRecord(ir) => f.write_str(&ir.concise()),
             NormalCompletion::PrivateName(pn) => write!(f, "{}", pn),
+            NormalCompletion::PrivateElement(pe) => write!(f, "{pe}"),
         }
     }
 }
@@ -121,6 +125,21 @@ impl From<PrivateName> for NormalCompletion {
     }
 }
 
+impl From<PrivateElement> for NormalCompletion {
+    fn from(value: PrivateElement) -> Self {
+        Self::PrivateElement(Box::new(value))
+    }
+}
+
+impl From<Option<PrivateElement>> for NormalCompletion {
+    fn from(value: Option<PrivateElement>) -> Self {
+        match value {
+            Some(pe) => Self::from(pe),
+            None => Self::Empty,
+        }
+    }
+}
+
 impl TryFrom<NormalCompletion> for ECMAScriptValue {
     type Error = anyhow::Error;
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
@@ -130,7 +149,8 @@ impl TryFrom<NormalCompletion> for ECMAScriptValue {
             | NormalCompletion::Reference(_)
             | NormalCompletion::Empty
             | NormalCompletion::Environment(..)
-            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -144,7 +164,8 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
             NormalCompletion::IteratorRecord(_)
             | NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
-            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }

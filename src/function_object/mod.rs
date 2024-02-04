@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt;
@@ -58,9 +58,10 @@ impl TryFrom<NormalCompletion> for ClassName {
                 | ECMAScriptValue::BigInt(_)
                 | ECMAScriptValue::Object(_) => Err(anyhow::anyhow!("Not a class name")),
             },
-            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) | NormalCompletion::IteratorRecord(_) => {
-                Err(anyhow::anyhow!("Not a class name"))
-            }
+            NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow::anyhow!("Not a class name")),
         }
     }
 }
@@ -254,6 +255,7 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
+    UniqueFormalParameters(Rc<UniqueFormalParameters>),
 }
 
 pub struct ConciseParamSource<'a>(&'a ParamSource);
@@ -270,6 +272,7 @@ impl fmt::Display for ParamSource {
             ParamSource::ArrowParameters(node) => node.fmt(f),
             ParamSource::AsyncArrowBinding(node) => node.fmt(f),
             ParamSource::ArrowFormals(node) => node.fmt(f),
+            ParamSource::UniqueFormalParameters(node) => node.fmt(f),
         }
     }
 }
@@ -278,10 +281,15 @@ impl PartialEq for ParamSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::FormalParameters(l0), Self::FormalParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::FormalParameters(_), _) => false,
             (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ArrowParameters(_), _) => false,
             (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncArrowBinding(_), _) => false,
             (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
-            _ => false,
+            (Self::ArrowFormals(_), _) => false,
+            (Self::UniqueFormalParameters(l0), Self::UniqueFormalParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::UniqueFormalParameters(_), _) => false,
         }
     }
 }
@@ -306,6 +314,11 @@ impl From<Rc<ArrowFormalParameters>> for ParamSource {
         Self::ArrowFormals(src)
     }
 }
+impl From<Rc<UniqueFormalParameters>> for ParamSource {
+    fn from(value: Rc<UniqueFormalParameters>) -> Self {
+        Self::UniqueFormalParameters(value)
+    }
+}
 impl TryFrom<ParamSource> for Rc<FormalParameters> {
     type Error = anyhow::Error;
     fn try_from(value: ParamSource) -> Result<Self, Self::Error> {
@@ -322,6 +335,7 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.expected_argument_count(),
             ParamSource::AsyncArrowBinding(node) => node.expected_argument_count(),
             ParamSource::ArrowFormals(node) => node.expected_argument_count(),
+            ParamSource::UniqueFormalParameters(node) => node.expected_argument_count(),
         }
     }
 
@@ -331,6 +345,7 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.bound_names(),
             ParamSource::AsyncArrowBinding(node) => node.bound_names(),
             ParamSource::ArrowFormals(node) => node.bound_names(),
+            ParamSource::UniqueFormalParameters(node) => node.bound_names(),
         }
     }
 
@@ -340,6 +355,7 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.is_simple_parameter_list(),
             ParamSource::AsyncArrowBinding(node) => node.is_simple_parameter_list(),
             ParamSource::ArrowFormals(node) => node.is_simple_parameter_list(),
+            ParamSource::UniqueFormalParameters(node) => node.is_simple_parameter_list(),
         }
     }
 
@@ -349,6 +365,7 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.contains_expression(),
             ParamSource::AsyncArrowBinding(node) => node.contains_expression(),
             ParamSource::ArrowFormals(node) => node.contains_expression(),
+            ParamSource::UniqueFormalParameters(node) => node.contains_expression(),
         }
     }
 }
@@ -411,6 +428,11 @@ impl From<Rc<ClassStaticBlock>> for FunctionSource {
         Self::ClassStaticBlock(value)
     }
 }
+impl From<Rc<MethodDefinition>> for FunctionSource {
+    fn from(value: Rc<MethodDefinition>) -> Self {
+        Self::MethodDefinition(value)
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
     type Error = anyhow::Error;
 
@@ -458,6 +480,16 @@ impl TryFrom<FunctionSource> for Rc<ClassStaticBlock> {
         match value {
             FunctionSource::ClassStaticBlock(csb) => Ok(csb),
             _ => bail!("ClassStaticBody expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::MethodDefinition(md) => Ok(md),
+            _ => bail!("MethodDefinition expected"),
         }
     }
 }
@@ -1154,7 +1186,7 @@ impl<'a> FuncArgs<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionName {
     String(JSString),
     Symbol(Symbol),
@@ -1190,6 +1222,36 @@ impl From<PrivateName> for FunctionName {
 impl From<JSString> for FunctionName {
     fn from(source: JSString) -> Self {
         FunctionName::String(source)
+    }
+}
+
+impl TryFrom<FunctionName> for PropertyKey {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionName) -> Result<Self, Self::Error> {
+        match value {
+            FunctionName::String(s) => Ok(PropertyKey::from(s)),
+            FunctionName::Symbol(s) => Ok(PropertyKey::from(s)),
+            FunctionName::PrivateName(_) => Err(anyhow!("PrivateName can't be converted to PropertyKey")),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for FunctionName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Value(ECMAScriptValue::String(s)) => Ok(FunctionName::String(s)),
+            NormalCompletion::Value(ECMAScriptValue::Symbol(s)) => Ok(FunctionName::Symbol(s)),
+            NormalCompletion::PrivateName(pn) => Ok(FunctionName::PrivateName(pn)),
+            NormalCompletion::Value(_)
+            | NormalCompletion::Empty
+            | NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => bail!("Completion type not valid for FunctionName"),
+        }
     }
 }
 

@@ -228,7 +228,8 @@ mod agent {
             | NormalCompletion::Empty
             | NormalCompletion::Value(_)
             | NormalCompletion::Environment(_)
-            | NormalCompletion::PrivateName(_) => Err("improper completion".to_string()),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err("improper completion".to_string()),
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }

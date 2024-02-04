@@ -29,6 +29,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::GeneratorFunctionPrototype,
     IntrinsicId::GeneratorFunctionPrototypePrototype,
     IntrinsicId::GeneratorFunctionPrototypePrototypeNext,
+    IntrinsicId::Math,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
     IntrinsicId::ObjectPrototypeToString,
