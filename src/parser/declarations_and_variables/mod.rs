@@ -1206,13 +1206,14 @@ impl ObjectBindingPattern {
         match self {
             ObjectBindingPattern::Empty { .. } => vec![],
             ObjectBindingPattern::RestOnly { brp, .. } => brp.bound_names(),
-            ObjectBindingPattern::ListOnly { bpl, .. } => bpl.bound_names(),
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.bound_names()
+            }
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 let mut names = bpl.bound_names();
                 names.extend(rst.bound_names());
                 names
             }
-            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => bpl.bound_names(),
         }
     }
 

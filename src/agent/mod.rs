@@ -1862,8 +1862,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // 5. Return false.
                     let completion = ec.stack.last().expect("stack must have at least one item");
                     let result = match completion {
-                        Ok(_) => true,
-                        Err(AbruptCompletion::Continue { value: _, target: None }) => true,
+                        Ok(_)
+                        | Err(AbruptCompletion::Continue { value: _, target: None }) => true,
                         Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
                         _ => false,
                     };

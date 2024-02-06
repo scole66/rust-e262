@@ -7,6 +7,7 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::single_match_else)]
 // pedantic denies. (When we turn on pedantic, these denys can be removed)
 #![deny(clippy::uninlined_format_args)]
 #![deny(clippy::unnested_or_patterns)]
@@ -15,6 +16,7 @@
 #![deny(clippy::unnecessary_wraps)]
 #![deny(clippy::semicolon_if_nothing_returned)]
 #![deny(clippy::redundant_else)]
+#![deny(clippy::match_same_arms)]
 
 mod agent;
 mod arguments_object;

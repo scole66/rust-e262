@@ -679,13 +679,12 @@ impl ForStatement {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            ForStatement::For(_, _, _, s, _) => s.var_declared_names(),
             ForStatement::ForVar(v, _, _, s, _) => {
                 let mut names = v.bound_names();
                 names.extend(s.var_declared_names());
                 names
             }
-            ForStatement::ForLex(_, _, _, s, _) => s.var_declared_names(),
+            ForStatement::For(_, _, _, s, _) | ForStatement::ForLex(_, _, _, s, _) => s.var_declared_names(),
         }
     }
 
@@ -939,14 +938,18 @@ impl PrettyPrint for ForInOfStatement {
             ForInOfStatement::DestructuringIn(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
             ForInOfStatement::VarIn(v, e, s, _) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::LexIn(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::Of(lhs, e, s, _) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::DestructuringOf(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
-            ForInOfStatement::VarOf(v, e, s, _) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::LexOf(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::AwaitOf(lhs, e, s, _) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::DestructuringAwaitOf(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
-            ForInOfStatement::AwaitVarOf(v, e, s, _) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::AwaitLexOf(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
+            ForInOfStatement::Of(lhs, e, s, _) | ForInOfStatement::AwaitOf(lhs, e, s, _) => {
+                pp_three(w, &suc, lhs, e, s)
+            }
+            ForInOfStatement::DestructuringOf(pat, e, s, _) | ForInOfStatement::DestructuringAwaitOf(pat, e, s, _) => {
+                pp_three(w, &suc, pat, e, s)
+            }
+            ForInOfStatement::VarOf(v, e, s, _) | ForInOfStatement::AwaitVarOf(v, e, s, _) => {
+                pp_three(w, &suc, v, e, s)
+            }
+            ForInOfStatement::LexOf(lex, e, s, _) | ForInOfStatement::AwaitLexOf(lex, e, s, _) => {
+                pp_three(w, &suc, lex, e, s)
+            }
         }
     }
 

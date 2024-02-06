@@ -64,7 +64,7 @@ impl PrettyPrint for PrimaryExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}PrimaryExpression: {self}")?;
         match self {
-            PrimaryExpression::This { .. } => Ok(()),
+            PrimaryExpression::This { .. } | PrimaryExpression::RegularExpression { .. } => Ok(()),
             PrimaryExpression::IdentifierReference { node } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -78,7 +78,6 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpression::Generator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::AsyncFunction { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::AsyncGenerator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::RegularExpression { .. } => Ok(()),
         }
     }
 
@@ -349,9 +348,10 @@ impl PrimaryExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            PrimaryExpression::This { .. } => true,
-            PrimaryExpression::IdentifierReference { .. } => true,
-            PrimaryExpression::Literal { .. } => true,
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::RegularExpression { .. } => true,
             PrimaryExpression::ArrayLiteral { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::ObjectLiteral { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::Parenthesized { node } => node.all_private_identifiers_valid(names),
@@ -361,7 +361,6 @@ impl PrimaryExpression {
             PrimaryExpression::Generator { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::AsyncFunction { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::AsyncGenerator { node } => node.all_private_identifiers_valid(names),
-            PrimaryExpression::RegularExpression { .. } => true,
         }
     }
 
@@ -3362,10 +3361,8 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         writeln!(writer, "{first}CoverParenthesizedExpressionAndArrowParameterList: {self}")?;
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => Ok(()),
-            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
-                node.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {

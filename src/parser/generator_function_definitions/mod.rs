@@ -610,8 +610,9 @@ impl PrettyPrint for YieldExpression {
         writeln!(writer, "{first}YieldExpression: {self}")?;
         match self {
             YieldExpression::Simple { .. } => Ok(()),
-            YieldExpression::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
-            YieldExpression::From { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                exp.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -682,8 +683,7 @@ impl YieldExpression {
         kind == ParseNodeKind::YieldExpression
             || match self {
                 YieldExpression::Simple { .. } => false,
-                YieldExpression::Expression { exp, .. } => exp.contains(kind),
-                YieldExpression::From { exp, .. } => exp.contains(kind),
+                YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => exp.contains(kind),
             }
     }
 
@@ -696,8 +696,9 @@ impl YieldExpression {
         //  2. Return true.
         match self {
             YieldExpression::Simple { .. } => true,
-            YieldExpression::Expression { exp, .. } => exp.all_private_identifiers_valid(names),
-            YieldExpression::From { exp, .. } => exp.all_private_identifiers_valid(names),
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                exp.all_private_identifiers_valid(names)
+            }
         }
     }
 

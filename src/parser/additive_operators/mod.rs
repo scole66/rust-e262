@@ -114,8 +114,7 @@ impl AdditiveExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),
-            AdditiveExpression::Add(l, r) => l.contains(kind) || r.contains(kind),
-            AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
+            AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
@@ -135,10 +134,7 @@ impl AdditiveExpression {
         //  2. Return true.
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.all_private_identifiers_valid(names),
-            AdditiveExpression::Add(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            AdditiveExpression::Subtract(l, r) => {
+            AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => {
                 l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
             }
         }

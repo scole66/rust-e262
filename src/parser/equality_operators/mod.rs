@@ -131,10 +131,10 @@ impl EqualityExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             EqualityExpression::RelationalExpression(n) => n.contains(kind),
-            EqualityExpression::Equal(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::NotEqual(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::StrictEqual(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::NotStrictEqual(l, r) => l.contains(kind) || r.contains(kind),
+            EqualityExpression::Equal(l, r)
+            | EqualityExpression::NotEqual(l, r)
+            | EqualityExpression::StrictEqual(l, r)
+            | EqualityExpression::NotStrictEqual(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 

@@ -380,7 +380,9 @@ impl MemberExpression {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict);
             }
-            MemberExpression::IdentifierName(n, ..) => n.early_errors(errs, strict),
+            MemberExpression::IdentifierName(n, ..) | MemberExpression::PrivateId(n, ..) => {
+                n.early_errors(errs, strict);
+            }
             MemberExpression::TemplateLiteral(l, r) => {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict, 0xffff_ffff);
@@ -391,7 +393,6 @@ impl MemberExpression {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict);
             }
-            MemberExpression::PrivateId(n, ..) => n.early_errors(errs, strict),
         }
     }
 
@@ -414,12 +415,13 @@ impl MemberExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             MemberExpression::PrimaryExpression(boxed) => boxed.assignment_target_type(strict),
-            MemberExpression::Expression(..) => ATTKind::Simple,
-            MemberExpression::IdentifierName(..) | MemberExpression::PrivateId(..) => ATTKind::Simple,
-            MemberExpression::TemplateLiteral(..) => ATTKind::Invalid,
-            MemberExpression::SuperProperty(..) => ATTKind::Simple,
-            MemberExpression::MetaProperty(..) => ATTKind::Invalid,
-            MemberExpression::NewArguments(..) => ATTKind::Invalid,
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::PrivateId(..)
+            | MemberExpression::SuperProperty(..) => ATTKind::Simple,
+            MemberExpression::TemplateLiteral(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..) => ATTKind::Invalid,
         }
     }
 
@@ -848,8 +850,7 @@ impl Arguments {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Arguments::Empty { .. } => false,
-            Arguments::ArgumentList(n, _) => n.contains(kind),
-            Arguments::ArgumentListComma(n, _) => n.contains(kind),
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.contains(kind),
         }
     }
 
@@ -862,8 +863,9 @@ impl Arguments {
         //  2. Return true.
         match self {
             Arguments::Empty { .. } => true,
-            Arguments::ArgumentList(n, _) => n.all_private_identifiers_valid(names),
-            Arguments::ArgumentListComma(n, _) => n.all_private_identifiers_valid(names),
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => {
+                n.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1079,10 +1081,10 @@ impl ArgumentList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArgumentList::FallThru(boxed) => boxed.contains(kind),
-            ArgumentList::Dots(boxed) => boxed.contains(kind),
-            ArgumentList::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
-            ArgumentList::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.contains(kind),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
+                list.contains(kind) || exp.contains(kind)
+            }
         }
     }
 
@@ -1094,12 +1096,8 @@ impl ArgumentList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArgumentList::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentList::ArgumentList(list, exp) => {
-                list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
-            }
-            ArgumentList::ArgumentListDots(list, exp) => {
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
         }
@@ -1635,15 +1633,13 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _, _) => {
+            CallExpression::CallExpressionIdentifierName(ce, _, _)
+            | CallExpression::CallExpressionPrivateId(ce, _, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
-            CallExpression::CallExpressionPrivateId(ce, _, _) => {
-                ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -1882,12 +1878,12 @@ impl CallExpression {
                 node.early_errors(errs, strict);
                 exp.early_errors(errs, strict);
             }
-            CallExpression::CallExpressionIdentifierName(node, _, _) => node.early_errors(errs, strict),
+            CallExpression::CallExpressionIdentifierName(node, _, _)
+            | CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
             CallExpression::CallExpressionTemplateLiteral(node, tl) => {
                 node.early_errors(errs, strict);
                 tl.early_errors(errs, strict, 0xffff_ffff);
             }
-            CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
         }
     }
 
@@ -2566,14 +2562,12 @@ impl OptionalChain {
         match self {
             OptionalChain::Args(node, _) => node.contains(kind),
             OptionalChain::Exp(node, _) => node.contains(kind),
-            OptionalChain::Ident(_, _) => false,
+            OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => false,
             OptionalChain::Template(node, _) => node.contains(kind),
-            OptionalChain::PrivateId(_, _) => false,
             OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
             OptionalChain::PlusExp(lst, item, _) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusIdent(lst, _, _) => lst.contains(kind),
+            OptionalChain::PlusIdent(lst, _, _) | OptionalChain::PlusPrivateId(lst, _, _) => lst.contains(kind),
             OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusPrivateId(lst, _, _) => lst.contains(kind),
         }
     }
 

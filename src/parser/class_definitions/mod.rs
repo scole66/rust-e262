@@ -664,17 +664,11 @@ impl ClassBody {
                         Some(self.0.location()),
                     ));
                 }
-                Some(&HowSeen::Getter) => {
-                    private_ids.insert(pid.name, HowSeen::Completely);
-                }
                 Some(&HowSeen::Setter) if pid.usage != IdUsage::Getter => {
                     errs.push(create_syntax_error_object(
                         format!("‘{}’ was previously defined as a setter method.", pid.name),
                         Some(self.0.location()),
                     ));
-                }
-                Some(&HowSeen::Setter) => {
-                    private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::StaticGetter) if pid.usage != IdUsage::StaticSetter => {
                     errs.push(create_syntax_error_object(
@@ -682,16 +676,13 @@ impl ClassBody {
                         Some(self.0.location()),
                     ));
                 }
-                Some(&HowSeen::StaticGetter) => {
-                    private_ids.insert(pid.name, HowSeen::Completely);
-                }
                 Some(&HowSeen::StaticSetter) if pid.usage != IdUsage::StaticGetter => {
                     errs.push(create_syntax_error_object(
                         format!("‘{}’ was previously defined as a static setter method.", pid.name),
                         Some(self.0.location()),
                     ));
                 }
-                Some(&HowSeen::StaticSetter) => {
+                Some(&HowSeen::Getter | &HowSeen::Setter | &HowSeen::StaticGetter | &HowSeen::StaticSetter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 None => {
@@ -702,8 +693,7 @@ impl ClassBody {
                             IdUsage::Setter => HowSeen::Setter,
                             IdUsage::StaticGetter => HowSeen::StaticGetter,
                             IdUsage::StaticSetter => HowSeen::StaticSetter,
-                            IdUsage::Public => HowSeen::Completely,
-                            IdUsage::Static => HowSeen::Completely,
+                            IdUsage::Public | IdUsage::Static => HowSeen::Completely,
                         },
                     );
                 }
@@ -985,10 +975,12 @@ impl PrettyPrint for ClassElement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}ClassElement: {self}")?;
         match self {
-            ClassElement::Standard { method } => method.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ClassElement::Static { method, .. } => method.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ClassElement::Field { field, .. } => field.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ClassElement::StaticField { field, .. } => field.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
+                method.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => {
+                field.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ClassElement::StaticBlock { block } => block.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElement::Empty { .. } => Ok(()),
         }
@@ -1106,11 +1098,10 @@ impl ClassElement {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
                 method.computed_property_contains(kind)
             }
-            ClassElement::Empty { .. } => false,
             ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => {
                 field.computed_property_contains(kind)
             }
-            ClassElement::StaticBlock { .. } => false,
+            ClassElement::Empty { .. } | ClassElement::StaticBlock { .. } => false,
         }
     }
 

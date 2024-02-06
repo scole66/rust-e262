@@ -119,9 +119,9 @@ impl ShiftExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.contains(kind),
-            ShiftExpression::LeftShift(l, r) => l.contains(kind) || r.contains(kind),
-            ShiftExpression::SignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
-            ShiftExpression::UnsignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
+            ShiftExpression::LeftShift(l, r)
+            | ShiftExpression::SignedRightShift(l, r)
+            | ShiftExpression::UnsignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
@@ -141,13 +141,9 @@ impl ShiftExpression {
         //  2. Return true.
         match self {
             ShiftExpression::AdditiveExpression(n) => n.all_private_identifiers_valid(names),
-            ShiftExpression::LeftShift(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            ShiftExpression::SignedRightShift(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            ShiftExpression::UnsignedRightShift(l, r) => {
+            ShiftExpression::LeftShift(l, r)
+            | ShiftExpression::SignedRightShift(l, r)
+            | ShiftExpression::UnsignedRightShift(l, r) => {
                 l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
             }
         }

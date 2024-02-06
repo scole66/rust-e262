@@ -799,8 +799,7 @@ impl NameableProduction {
             NameableProduction::AsyncFunction(node) => node.is_named_function(),
             NameableProduction::AsyncGenerator(node) => node.is_named_function(),
             NameableProduction::Class(node) => node.is_named_function(),
-            NameableProduction::Arrow(_) => false,
-            NameableProduction::AsyncArrow(_) => false,
+            NameableProduction::Arrow(_) | NameableProduction::AsyncArrow(_) => false,
         }
     }
 

@@ -51,7 +51,9 @@ impl PrettyPrint for RelationalExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}RelationalExpression: {self}")?;
         match &self {
-            RelationalExpression::ShiftExpression(se) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
+            RelationalExpression::ShiftExpression(se) | RelationalExpression::PrivateIn(_, se, _) => {
+                se.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             RelationalExpression::Less(re, se)
             | RelationalExpression::Greater(re, se)
             | RelationalExpression::LessEqual(re, se)
@@ -61,7 +63,6 @@ impl PrettyPrint for RelationalExpression {
                 re.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            RelationalExpression::PrivateIn(_, se, _) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -193,14 +194,13 @@ impl RelationalExpression {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            RelationalExpression::ShiftExpression(n) => n.contains(kind),
-            RelationalExpression::Less(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::Greater(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::LessEqual(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::PrivateIn(_, r, _) => r.contains(kind),
+            RelationalExpression::ShiftExpression(n) | RelationalExpression::PrivateIn(_, n, _) => n.contains(kind),
+            RelationalExpression::Less(l, r)
+            | RelationalExpression::Greater(l, r)
+            | RelationalExpression::LessEqual(l, r)
+            | RelationalExpression::GreaterEqual(l, r)
+            | RelationalExpression::InstanceOf(l, r)
+            | RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
@@ -220,22 +220,12 @@ impl RelationalExpression {
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
             RelationalExpression::ShiftExpression(n) => n.all_private_identifiers_valid(names),
-            RelationalExpression::Less(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            RelationalExpression::Greater(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            RelationalExpression::LessEqual(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            RelationalExpression::GreaterEqual(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            RelationalExpression::InstanceOf(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            RelationalExpression::In(l, r) => {
+            RelationalExpression::Less(l, r)
+            | RelationalExpression::Greater(l, r)
+            | RelationalExpression::LessEqual(l, r)
+            | RelationalExpression::GreaterEqual(l, r)
+            | RelationalExpression::InstanceOf(l, r)
+            | RelationalExpression::In(l, r) => {
                 l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
             }
 
@@ -261,20 +251,23 @@ impl RelationalExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            RelationalExpression::ShiftExpression(se) => se.contains_arguments(),
+            RelationalExpression::ShiftExpression(se) | RelationalExpression::PrivateIn(_, se, _) => {
+                se.contains_arguments()
+            }
             RelationalExpression::Less(re, se)
             | RelationalExpression::Greater(re, se)
             | RelationalExpression::LessEqual(re, se)
             | RelationalExpression::GreaterEqual(re, se)
             | RelationalExpression::InstanceOf(re, se)
             | RelationalExpression::In(re, se) => re.contains_arguments() || se.contains_arguments(),
-            RelationalExpression::PrivateIn(_, se, _) => se.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            RelationalExpression::ShiftExpression(n) => n.early_errors(errs, strict),
+            RelationalExpression::ShiftExpression(n) | RelationalExpression::PrivateIn(_, n, _) => {
+                n.early_errors(errs, strict);
+            }
             RelationalExpression::Less(l, r)
             | RelationalExpression::Greater(l, r)
             | RelationalExpression::LessEqual(l, r)
@@ -284,7 +277,6 @@ impl RelationalExpression {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict);
             }
-            RelationalExpression::PrivateIn(_, r, _) => r.early_errors(errs, strict),
         }
     }
 

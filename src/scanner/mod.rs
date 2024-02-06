@@ -346,10 +346,10 @@ impl fmt::Display for Token {
             }
             Token::BigInt(val) => val.fmt(f), // This needs a better "render as source" algorithm.
             Token::String(val) => val.fmt(f),
-            Token::NoSubstitutionTemplate(val) => val.fmt(f), // This needs a better "render as source" algorithm.
-            Token::TemplateHead(val) => val.fmt(f),
-            Token::TemplateMiddle(val) => val.fmt(f),
-            Token::TemplateTail(val) => val.fmt(f),
+            Token::NoSubstitutionTemplate(val)  // This needs a better "render as source" algorithm.
+            | Token::TemplateHead(val)
+            | Token::TemplateMiddle(val)
+            | Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
             Token::Debug(c) => write!(f, "@@{c}"),

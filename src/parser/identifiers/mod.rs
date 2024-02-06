@@ -309,8 +309,7 @@ impl IdentifierReference {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             IdentifierReference::Identifier { identifier, .. } => identifier.contains(kind),
-            IdentifierReference::Yield { .. } => false,
-            IdentifierReference::Await { .. } => false,
+            IdentifierReference::Yield { .. } | IdentifierReference::Await { .. } => false,
         }
     }
 
@@ -526,8 +525,7 @@ impl BindingIdentifier {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BindingIdentifier::Yield { .. } => false,
-            BindingIdentifier::Await { .. } => false,
+            BindingIdentifier::Yield { .. } | BindingIdentifier::Await { .. } => false,
             BindingIdentifier::Identifier { identifier, .. } => identifier.contains(kind),
         }
     }
@@ -750,8 +748,7 @@ impl LabelIdentifier {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             LabelIdentifier::Identifier { identifier: node, .. } => node.contains(kind),
-            LabelIdentifier::Yield { .. } => false,
-            LabelIdentifier::Await { .. } => false,
+            LabelIdentifier::Yield { .. } | LabelIdentifier::Await { .. } => false,
         }
     }
 

@@ -219,18 +219,18 @@ impl Statement {
         match &self {
             Statement::Block(node) => node.var_declared_names(),
             Statement::Variable(node) => node.var_declared_names(),
-            Statement::Empty(_) => vec![],
-            Statement::Expression(_) => vec![],
+            Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Debugger(_) => vec![],
             Statement::If(node) => node.var_declared_names(),
             Statement::Breakable(node) => node.var_declared_names(),
-            Statement::Continue(_) => vec![],
-            Statement::Break(_) => vec![],
-            Statement::Return(_) => vec![],
             Statement::With(node) => node.var_declared_names(),
             Statement::Labelled(node) => node.var_declared_names(),
-            Statement::Throw(_) => vec![],
             Statement::Try(node) => node.var_declared_names(),
-            Statement::Debugger(_) => vec![],
         }
     }
 
@@ -275,37 +275,37 @@ impl Statement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             Statement::Block(n) => n.contains_duplicate_labels(label_set),
-            Statement::Break(_) => false,
             Statement::Breakable(n) => n.contains_duplicate_labels(label_set),
-            Statement::Continue(_) => false,
-            Statement::Debugger(_) => false,
-            Statement::Empty(_) => false,
-            Statement::Expression(_) => false,
             Statement::If(n) => n.contains_duplicate_labels(label_set),
             Statement::Labelled(n) => n.contains_duplicate_labels(label_set),
-            Statement::Return(_) => false,
-            Statement::Throw(_) => false,
             Statement::Try(n) => n.contains_duplicate_labels(label_set),
-            Statement::Variable(_) => false,
             Statement::With(n) => n.contains_duplicate_labels(label_set),
+            Statement::Break(_)
+            | Statement::Continue(_)
+            | Statement::Debugger(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Variable(_) => false,
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
         match self {
             Statement::Block(n) => n.contains_undefined_continue_target(iteration_set, &[]),
-            Statement::Break(_) => false,
+            Statement::Break(_)
+            | Statement::Debugger(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Variable(_) => false,
             Statement::Breakable(n) => n.contains_undefined_continue_target(iteration_set, label_set),
             Statement::Continue(n) => n.contains_undefined_continue_target(iteration_set),
-            Statement::Debugger(_) => false,
-            Statement::Empty(_) => false,
-            Statement::Expression(_) => false,
             Statement::If(n) => n.contains_undefined_continue_target(iteration_set),
             Statement::Labelled(n) => n.contains_undefined_continue_target(iteration_set, label_set),
-            Statement::Return(_) => false,
-            Statement::Throw(_) => false,
             Statement::Try(n) => n.contains_undefined_continue_target(iteration_set),
-            Statement::Variable(_) => false,
             Statement::With(n) => n.contains_undefined_continue_target(iteration_set),
         }
     }
@@ -338,11 +338,8 @@ impl Statement {
         //  2. Return true.
         match self {
             Statement::Block(node) => node.all_private_identifiers_valid(names),
-            Statement::Break(_) => true,
+            Statement::Break(_) | Statement::Continue(_) | Statement::Debugger(_) | Statement::Empty(_) => true,
             Statement::Breakable(node) => node.all_private_identifiers_valid(names),
-            Statement::Continue(_) => true,
-            Statement::Debugger(_) => true,
-            Statement::Empty(_) => true,
             Statement::If(node) => node.all_private_identifiers_valid(names),
             Statement::Labelled(node) => node.all_private_identifiers_valid(names),
             Statement::Return(node) => node.all_private_identifiers_valid(names),

@@ -281,15 +281,18 @@ impl PartialEq for ParamSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::FormalParameters(l0), Self::FormalParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::FormalParameters(_), _) => false,
             (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::ArrowParameters(_), _) => false,
             (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::AsyncArrowBinding(_), _) => false,
             (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::ArrowFormals(_), _) => false,
             (Self::UniqueFormalParameters(l0), Self::UniqueFormalParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::UniqueFormalParameters(_), _) => false,
+            (
+                Self::UniqueFormalParameters(_)
+                | Self::FormalParameters(_)
+                | Self::ArrowParameters(_)
+                | Self::AsyncArrowBinding(_)
+                | Self::ArrowFormals(_),
+                _,
+            ) => false,
         }
     }
 }

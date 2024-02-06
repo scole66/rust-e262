@@ -790,9 +790,8 @@ impl From<ECMAScriptValue> for bool {
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
             ECMAScriptValue::String(s) => !s.is_empty(),
-            ECMAScriptValue::Symbol(_) => true,
+            ECMAScriptValue::Symbol(_) | ECMAScriptValue::Object(_) => true,
             ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
-            ECMAScriptValue::Object(_) => true,
         }
     }
 }
@@ -1315,8 +1314,8 @@ impl ECMAScriptValue {
     #[inline]
     pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
         match (self, other) {
-            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => true,
-            (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
             (ECMAScriptValue::String(a), ECMAScriptValue::String(b)) => a == b,
             (ECMAScriptValue::Boolean(a), ECMAScriptValue::Boolean(b)) => a == b,
             (ECMAScriptValue::Symbol(a), ECMAScriptValue::Symbol(b)) => a == b,

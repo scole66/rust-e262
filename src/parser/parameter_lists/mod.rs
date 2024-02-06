@@ -251,8 +251,7 @@ impl FormalParameters {
         match self {
             FormalParameters::Empty(_) => false,
             FormalParameters::Rest(node) => node.contains(kind),
-            FormalParameters::List(node) => node.contains(kind),
-            FormalParameters::ListComma(node, _) => node.contains(kind),
+            FormalParameters::List(node) | FormalParameters::ListComma(node, _) => node.contains(kind),
             FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
         }
     }
@@ -267,8 +266,9 @@ impl FormalParameters {
         match self {
             FormalParameters::Empty(_) => true,
             FormalParameters::Rest(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::List(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::ListComma(node, _) => node.all_private_identifiers_valid(names),
+            FormalParameters::List(node) | FormalParameters::ListComma(node, _) => {
+                node.all_private_identifiers_valid(names)
+            }
             FormalParameters::ListRest(list, rest) => {
                 list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names)
             }

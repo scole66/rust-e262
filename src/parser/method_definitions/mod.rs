@@ -230,8 +230,9 @@ impl MethodDefinition {
             MethodDefinition::Generator(node) => node.computed_property_contains(kind),
             MethodDefinition::Async(node) => node.computed_property_contains(kind),
             MethodDefinition::AsyncGenerator(node) => node.computed_property_contains(kind),
-            MethodDefinition::Getter(name, ..) => name.computed_property_contains(kind),
-            MethodDefinition::Setter(name, ..) => name.computed_property_contains(kind),
+            MethodDefinition::Getter(name, ..) | MethodDefinition::Setter(name, ..) => {
+                name.computed_property_contains(kind)
+            }
         }
     }
 

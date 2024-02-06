@@ -309,7 +309,10 @@ impl AssignmentExpression {
             AssignmentExpression::Yield(node) => kind == ParseNodeKind::YieldExpression || node.contains(kind),
             AssignmentExpression::Arrow(node) => kind == ParseNodeKind::ArrowFunction || node.contains(kind),
             AssignmentExpression::AsyncArrow(node) => kind == ParseNodeKind::AsyncArrowFunction || node.contains(kind),
-            AssignmentExpression::Assignment(left, right) => {
+            AssignmentExpression::Assignment(left, right)
+            | AssignmentExpression::LandAssignment(left, right)
+            | AssignmentExpression::LorAssignment(left, right)
+            | AssignmentExpression::CoalAssignment(left, right) => {
                 [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
                     || left.contains(kind)
                     || right.contains(kind)
@@ -323,21 +326,6 @@ impl AssignmentExpression {
                 .contains(&kind)
                     || left.contains(kind)
                     || op.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::LandAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::LorAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::CoalAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
                     || right.contains(kind)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
@@ -367,19 +355,11 @@ impl AssignmentExpression {
             AssignmentExpression::Yield(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
-            AssignmentExpression::Assignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::OpAssignment(left, _, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::LandAssignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::LorAssignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::CoalAssignment(left, right) => {
+            AssignmentExpression::Assignment(left, right)
+            | AssignmentExpression::OpAssignment(left, _, right)
+            | AssignmentExpression::LandAssignment(left, right)
+            | AssignmentExpression::LorAssignment(left, right)
+            | AssignmentExpression::CoalAssignment(left, right) => {
                 left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
