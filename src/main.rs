@@ -17,6 +17,9 @@
 #![deny(clippy::semicolon_if_nothing_returned)]
 #![deny(clippy::redundant_else)]
 #![deny(clippy::match_same_arms)]
+#![deny(clippy::manual_assert)]
+// nursery denies.
+#![deny(clippy::empty_line_after_doc_comments)]
 
 mod agent;
 mod arguments_object;

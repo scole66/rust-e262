@@ -636,9 +636,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
         let initial_context_index = agent.execution_context_stack.borrow().len() - 1;
         loop {
             let index = agent.execution_context_stack.borrow().len() - 1;
-            if index > RECURSION_LIMIT {
-                panic!("Recursion limit exceeded");
-            }
+            assert!(index <= RECURSION_LIMIT, "Recursion limit exceeded");
             /* Diagnostics */
             print!("Stack: [ ");
             print!(

@@ -1154,9 +1154,9 @@ pub fn set_function_length(func: &Object, length: f64) {
     .unwrap();
 }
 
-///////////////////////////////////////////////////////////////////
-/// BUILT IN FUNCTIONS
-///////////////////////////////////////////////////////////////////
+//#############################################
+//# BUILT IN FUNCTIONS
+//#############################################
 
 // A small little arguments iterator, useful for built-in functions.
 // When you have
