@@ -1027,10 +1027,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
+                    let length = to_usize(f64::try_from(o.get(&"length".into()).unwrap()).unwrap()).unwrap();
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = o.get(&format!("{idx}").into()).unwrap();
+                        let val = o.get(&idx.into()).unwrap();
                         result.push(val);
                     }
                     result
@@ -1181,10 +1181,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
+                    let length = to_usize(f64::try_from(o.get(&"length".into()).unwrap()).unwrap()).unwrap();
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = o.get(&format!("{idx}").into()).unwrap();
+                        let val = o.get(&idx.into()).unwrap();
                         result.push(val);
                     }
                     result

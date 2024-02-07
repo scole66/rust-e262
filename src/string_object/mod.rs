@@ -254,7 +254,7 @@ impl StringObject {
             let string = self.string_data.borrow();
             let len = string.len();
             (index >= 0.0 && index < len as f64).then_some(())?;
-            let idx = index as usize;
+            let idx = to_usize(index).expect("index should be a valid integer");
             let value = JSString::from(&string.as_slice()[idx..idx + 1]);
             Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: value.into(), writable: false }),
@@ -610,7 +610,8 @@ fn string_prototype_index_of(
     let search_str = to_string(search_string)?;
     let pos = to_integer_or_infinity(position)?;
     let len = s.len();
-    let start = pos.clamp(0.0, len as f64) as u64;
+    let start =
+        to_usize(pos.clamp(0.0, len as f64)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
 }
 

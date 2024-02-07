@@ -553,7 +553,7 @@ mod agent {
         #[test_case(&[88.into()]; "one arg")]
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
@@ -577,7 +577,7 @@ mod agent {
                 assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
                 for (idx, val) in values.iter().enumerate() {
                     assert_eq!(
-                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        stack[stack_size - 2 - num_values + idx].as_ref().unwrap(),
                         &NormalCompletion::from(val.clone())
                     );
                 }
@@ -647,7 +647,7 @@ mod agent {
 
             let func_obj = ordinary_object_create(None, &[]);
 
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -670,7 +670,7 @@ mod agent {
                 assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
                 for (idx, val) in values.iter().enumerate() {
                     assert_eq!(
-                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        stack[stack_size - 2 - num_values + idx].as_ref().unwrap(),
                         &NormalCompletion::from(val.clone())
                     );
                 }
@@ -729,7 +729,7 @@ mod agent {
             let realm = current_realm_record().unwrap();
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
@@ -768,9 +768,9 @@ mod agent {
             for (idx, (name, value)) in zip(names, values).enumerate() {
                 let val = ao.get(&idx.into()).unwrap();
                 assert_eq!(&val, value);
-                ao.set(idx, idx as u32, true).unwrap();
+                ao.set(idx, idx, true).unwrap();
                 let val = lex.get_binding_value(name, true).unwrap();
-                assert_eq!(val, ECMAScriptValue::from(idx as u32));
+                assert_eq!(val, ECMAScriptValue::from(idx));
             }
         }
 

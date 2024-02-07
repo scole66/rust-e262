@@ -2412,7 +2412,7 @@ mod for_in_of_statement {
     #[test_case("for({a(){}} of b);", true => Err((PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), -12)); "bad of destructure")]
     #[test_case("for await(", false => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), -6)); "not await mode")]
     fn parse(src: &str, await_flag: bool) -> Result<(Scanner, Vec<String>, Vec<String>), (PECode, i32)> {
-        let after_idx = src.len() as u32 + 1;
+        let after_idx = u32::try_from(src.len() + 1).unwrap();
         let (node, scanner) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, await_flag, true)
             .map_err(|pe| pe.unpack(after_idx))?;
         let pretty_elements = pretty_data(&*node);

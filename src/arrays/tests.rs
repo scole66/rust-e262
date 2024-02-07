@@ -1303,11 +1303,10 @@ mod array_constructor_function {
             .map_err(unwind_any_error)?;
         let array = Object::try_from(array).unwrap();
         let mut result = vec![];
-        let length = f64::try_from(array.get(&"length".into()).unwrap()).unwrap();
+        let length = to_usize(f64::try_from(array.get(&"length".into()).unwrap()).unwrap()).unwrap();
 
-        for x in 0..(length as usize) {
-            let pk = format!("{x}");
-            let item = array.get(&pk.into()).unwrap();
+        for x in 0..length {
+            let item = array.get(&x.into()).unwrap();
             result.push(item);
         }
 

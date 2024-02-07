@@ -1317,10 +1317,10 @@ mod iterator_record {
             return Ok((r.try_into().unwrap(), vec![]));
         }
         let tracker = tracker.unwrap();
-        let tracker_len = to_number(tracker.get(&"length".into()).unwrap()).unwrap() as u64;
+        let tracker_len = to_usize(to_number(tracker.get(&"length".into()).unwrap()).unwrap()).unwrap();
         let mut tracks = vec![];
         for idx in 0..tracker_len {
-            let item = tracker.get(&format!("{idx}").into()).unwrap();
+            let item = tracker.get(&idx.into()).unwrap();
             tracks.push(format!("{item}"));
         }
         Ok((r.try_into().unwrap(), tracks))

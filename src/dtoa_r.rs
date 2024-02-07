@@ -41,7 +41,11 @@ pub fn dtoa(value: f64) -> DtoAResult {
             dtoa_rust(value as c_double, 0, 0, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
         }
     }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt, sign: sign as i8 }
+    DtoAResult {
+        chars: String::from_utf8_lossy(&digits).to_string(),
+        decpt,
+        sign: i8::try_from(sign).expect("sign should fit into an i8"),
+    }
 }
 
 pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
@@ -65,7 +69,11 @@ pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
             );
         }
     }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt, sign: sign as i8 }
+    DtoAResult {
+        chars: String::from_utf8_lossy(&digits).to_string(),
+        decpt,
+        sign: i8::try_from(sign).expect("sign should fit into an i8"),
+    }
 }
 pub fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
     let mut decpt: c_int = 0;
@@ -88,5 +96,9 @@ pub fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
             );
         }
     }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt, sign: sign as i8 }
+    DtoAResult {
+        chars: String::from_utf8_lossy(&digits).to_string(),
+        decpt,
+        sign: i8::try_from(sign).expect("sign should fit into an i8"),
+    }
 }

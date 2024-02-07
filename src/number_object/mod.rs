@@ -611,7 +611,7 @@ fn number_prototype_to_exponential(
         let fd_str = to_string(fraction_digits).unwrap();
         return Err(create_range_error(format!("FractionDigits ‘{fd_str}’ must lie within the range 0..100")));
     }
-    let fraction = fraction as i32;
+    let fraction = to_int32(fraction).expect("integer floats in the range 0..100 should convert fine");
 
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
@@ -722,7 +722,7 @@ fn number_prototype_to_fixed(
 
     Ok(ECMAScriptValue::from({
         let sign = if value < 0.0 { "-" } else { "" };
-        let f = fraction as i32;
+        let f = to_int32(fraction).expect("integer floats should convert cleanly");
         let mut workbuf: [u8; 101] = [b'0'; 101];
         let info = dtoa_fixed(magnitude, f);
         let mut k = info.decpt + f;
@@ -852,8 +852,8 @@ fn number_prototype_to_precision(
         return Err(create_range_error(format!("Precision ‘{precision_str}’ must lie within the range 1..100")));
     }
 
-    let p_size = prec as usize;
-    let p_val = prec as i32;
+    let p_size = to_usize(prec).expect("vals 0..100 should convert just fine");
+    let p_val = i32::try_from(p_size).expect("vals 0..100 should convert just fine");
     let info = dtoa_precise(value, p_val);
     let strbuf = info.chars.as_bytes();
     // copy digits out of that, right-padding with '0', until we get p chars.
@@ -989,7 +989,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             fraction *= radix as f64;
             delta *= radix as f64;
             // Write digit.
-            let digit = fraction as usize;
+            let digit = to_usize(fraction.floor()).expect("one digit should fit");
             buffer[fraction_cursor] = chars[digit];
             fraction_cursor += 1;
             // Calculate remainder.
@@ -1034,7 +1034,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
     loop {
         let remainder = integer % radix as f64;
         integer_cursor -= 1;
-        buffer[integer_cursor] = chars[remainder as usize];
+        buffer[integer_cursor] = chars[to_usize(remainder).expect("remainder should fit")];
         integer = (integer - remainder) / radix as f64;
         if integer <= 0.0 {
             break;
@@ -1082,7 +1082,7 @@ fn number_prototype_to_string(
     if !(2.0..=36.0).contains(&radix_mv) {
         Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
     } else {
-        let int_radix = radix_mv as i32;
+        let int_radix = to_int32(radix_mv)?;
         if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {

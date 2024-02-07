@@ -2968,7 +2968,7 @@ mod private_element_find {
         let elem = result.unwrap();
         let keys_match = elem.key == names[idx];
         if let PrivateElementKind::Field { value } = &elem.kind {
-            let values_match = *value.borrow() == ECMAScriptValue::from(idx as u32 + 1);
+            let values_match = *value.borrow() == ECMAScriptValue::from(idx + 1);
             (keys_match, values_match)
         } else {
             panic!("Bad element kind came back")

@@ -30,7 +30,7 @@ fn create_native_error_object(
         define_property_or_throw(
             &loc,
             "byte_length",
-            PotentialPropertyDescriptor::new().value(location.span.length as u32).writable(true).configurable(true),
+            PotentialPropertyDescriptor::new().value(location.span.length).writable(true).configurable(true),
         )
         .unwrap();
         define_property_or_throw(

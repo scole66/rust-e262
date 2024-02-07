@@ -490,6 +490,7 @@ fn math_floor(
     Ok(to_number(args.next_arg())?.floor().into())
 }
 
+#[allow(clippy::cast_possible_truncation)]
 fn math_fround(
     _this_value: ECMAScriptValue,
     _new_target: Option<&Object>,

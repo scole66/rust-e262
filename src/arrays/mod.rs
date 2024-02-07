@@ -639,7 +639,7 @@ fn array_constructor_function(
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
     let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
-    let number_of_args = arguments.len() as u64;
+    let number_of_args = arguments.len();
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
         1 => {
@@ -662,13 +662,13 @@ fn array_constructor_function(
             Ok(array.into())
         }
         _ => {
-            let array = array_create(number_of_args, Some(proto))
-                .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
-            for k in 0..number_of_args {
-                let pk = format!("{k}");
-                array
-                    .create_data_property_or_throw(pk, arguments[k as usize].clone())
-                    .expect("property creation should succeed");
+            let array = array_create(
+                u64::try_from(number_of_args).expect("number of array elements should fit in a usize"),
+                Some(proto),
+            )
+            .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
+            for (k, arg) in arguments.iter().enumerate().take(number_of_args) {
+                array.create_data_property_or_throw(k, arg.clone()).expect("property creation should succeed");
             }
             Ok(array.into())
         }
@@ -961,14 +961,14 @@ fn array_prototype_push(
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value)?;
-    let len = length_of_array_like(&o)? as usize;
-    let arg_count = arguments.len();
+    let len = length_of_array_like(&o)? as u64;
+    let arg_count = arguments.len() as u64;
     let new_len = len + arg_count;
     if new_len >= 1 << 53 {
         return Err(create_type_error("Array too large"));
     }
     for (idx, e) in arguments.iter().cloned().enumerate() {
-        o.set(PropertyKey::from(format!("{}", len + idx)), e, true)?;
+        o.set(len + idx as u64, e, true)?;
     }
     o.set("length", new_len, true)?;
     Ok(new_len.into())

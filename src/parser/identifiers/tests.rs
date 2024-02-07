@@ -369,7 +369,7 @@ fn idref_create(text: &str) -> Rc<IdentifierReference> {
     );
     assert!(result.is_ok());
     let (idref, scanner) = result.unwrap();
-    assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
+    assert_eq!(scanner, Scanner { line: 1, column: u32::try_from(text.len() + 1).unwrap(), start_idx: text.len() });
     idref
 }
 
@@ -589,7 +589,7 @@ fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
     );
     assert!(result.is_ok());
     let (bid, scanner) = result.unwrap();
-    assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
+    assert_eq!(scanner, Scanner { line: 1, column: u32::try_from(text.len() + 1).unwrap(), start_idx: text.len() });
     bid
 }
 

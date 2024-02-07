@@ -348,6 +348,18 @@ impl From<usize> for PropertyKey {
     }
 }
 
+impl From<u64> for PropertyKey {
+    fn from(num: u64) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<i32> for PropertyKey {
+    fn from(num: i32) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
 impl From<PropertyKey> for ECMAScriptValue {
     fn from(source: PropertyKey) -> Self {
         match source {
@@ -957,6 +969,15 @@ pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completio
     }
 }
 
+#[allow(clippy::cast_possible_truncation)]
+pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
+    if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
+        Ok(arg as usize)
+    } else {
+        Err(anyhow!("invalid conversion of {arg} to usize"))
+    }
+}
+
 // ToInt32 ( argument )
 //
 // The abstract operation ToInt32 takes argument argument. It converts argument to one of 232 integral Number values in
@@ -1005,6 +1026,7 @@ fn to_core_signed(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completi
         }
     })
 }
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
     Ok(to_core_signed(4_294_967_296.0, argument)? as i32)
 }
@@ -1028,10 +1050,12 @@ pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint32(argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
     let i = to_core_int(4_294_967_296.0, argument)? as i64;
     Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
     let i = to_core_int_agentless(4_294_967_296.0, argument)? as i64;
     Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1047,6 +1071,7 @@ pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Resu
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
     Ok(to_core_signed(65536.0, argument)? as i16)
 }
@@ -1066,6 +1091,7 @@ pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
     let i = to_core_int(65536.0, argument)? as i64;
     Ok((if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1081,6 +1107,7 @@ pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
     Ok(to_core_signed(256.0, argument)? as i8)
 }
@@ -1095,6 +1122,7 @@ pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint8(argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
     let i = to_core_int(256.0, argument)? as i64;
     Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1219,6 +1247,7 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let len = to_integer_or_infinity(argument)?;
     Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)

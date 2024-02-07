@@ -29,13 +29,13 @@ impl JSString {
         JSString { s: Rc::from(combined) }
     }
 
-    pub fn index_of(&self, search_value: &JSString, from_index: u64) -> i64 {
+    pub fn index_of(&self, search_value: &JSString, from_index: usize) -> i64 {
         let len = self.len();
-        if search_value.is_empty() && from_index as usize <= len {
+        if search_value.is_empty() && from_index <= len {
             i64::try_from(from_index).unwrap()
         } else {
             let search_len = search_value.len();
-            for i in from_index as usize..=(len - search_len) {
+            for i in from_index..=(len - search_len) {
                 if self.s[i..(i + search_len)] == search_value.s[..] {
                     return i64::try_from(i).unwrap();
                 }

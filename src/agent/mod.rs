@@ -230,12 +230,12 @@ pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
     AGENT.with(|agent| {
         let mut ec_stack = agent.execution_context_stack.borrow_mut();
         let ec = ec_stack.last_mut().ok_or_else(|| anyhow!("no execution context"))?;
-        let len = f64::try_from(ECMAScriptValue::try_from(
+        let len = to_usize(f64::try_from(ECMAScriptValue::try_from(
             ec.stack
                 .pop()
                 .ok_or_else(|| anyhow!("empty application stack"))?
                 .map_err(|_| anyhow!("Unexpected abrupt completion"))?,
-        )?)? as usize;
+        )?)?)?;
         let mut result = Vec::with_capacity(len);
         for _ in 0..len {
             result.push(ECMAScriptValue::try_from(
@@ -932,11 +932,12 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec.pc += 1;
                     let stack = &mut ec.stack;
                     let len = stack.len();
-                    let list_len = f64::try_from(
+                    let list_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(stack[len - 2].clone().expect("length should not be error"))
                             .expect("length should be value"),
                     )
-                    .expect("length must be a number") as usize;
+                    .expect("length must be a number"))
+                    .expect("length should be a valid integer");
                     stack[len - list_len - amt - 2..len].rotate_right(1);
                 }
                 Insn::Ref | Insn::StrictRef => {
@@ -983,24 +984,26 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
                     assert!(stack_size >= 2);
-                    let list_len = f64::try_from(
+                    let list_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack[stack_size - 1].clone().expect("Top of stack must contain a list"),
                         )
                         .expect("Top of stack must contain a list"),
                     )
-                    .expect("Top of stack must contain a list") as usize;
+                    .expect("Top of stack must contain a list"))
+                    .expect("List length should be a valid integer");
                     let item = ec.stack.remove(stack_size - list_len - 2);
                     ec.stack.push(item);
                 }
                 Insn::PopList => {
-                    let length = f64::try_from(
+                    let length = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec_pop().expect("should be arguments").expect("should not be errors"),
                         )
                         .expect("length should be a value"),
                     )
-                    .expect("length should be a number") as usize;
+                    .expect("length should be a number"))
+                    .expect("length should be a valid integer");
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
                     ec.stack.truncate(stack_size - length);
@@ -1012,13 +1015,14 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let skip = chunk.opcodes[ec.pc] as usize;
                     ec.pc += 1;
                     let stack_size = ec.stack.len();
-                    let list_len = f64::try_from(
+                    let list_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack[stack_size - skip - 1].clone().expect("list len should not be an error"),
                         )
                         .expect("list len should be a value"),
                     )
-                    .expect("length should be a number") as usize;
+                    .expect("length should be a number"))
+                    .expect("length should be a valid integer");
                     //   SL-1   SL-2   SL-3  SL-4   SL-5   SL-6
                     //   item1  item2   3    listx  listy  listz
                     //   skip = 2;
@@ -1032,14 +1036,15 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // Output: LIST_A LIST_B item
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack_size = ec.stack.len();
-                    let a_len = f64::try_from(
+                    let a_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack[stack_size - 1].clone().expect("list len should not be an error"),
                         )
                         .expect("list len should be a value"),
                     )
-                    .expect("length should be a number") as usize;
-                    let b_len = f64::try_from(
+                    .expect("length should be a number"))
+                    .expect("length should be a valid integer");
+                    let b_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack[stack_size - 1 - (a_len + 1) - 1]
                                 .clone()
@@ -1047,7 +1052,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("list len should be a value"),
                     )
-                    .expect("length should be a number") as usize;
+                    .expect("length should be a number"))
+                    .expect("length should be a valid integer");
 
                     // 3 l2 l1 l0 item 6 n5 n4 n3 n2 n1 n0
                     // =>
@@ -1221,20 +1227,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // Out: Undefined 0
                     let stack_len = ec.stack.len();
                     assert!(stack_len > 0, "ExtractArg must have an argument list on the stack");
-                    let arg_count = f64::try_from(
+                    let arg_count = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack[stack_len - 1].clone().expect("ExtractArg must have a 'count' argument"),
                         )
                         .expect("ExtractArg must have a 'count' argument"),
                     )
-                    .expect("ExtractArg 'count' arg must be a number");
-                    if arg_count < 0.5 {
+                    .expect("ExtractArg 'count' arg must be a number"))
+                    .expect("count must be a valid integer");
+                    if arg_count == 0 {
                         ec.stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
                     } else {
-                        let arg_count = arg_count as usize;
                         assert!(stack_len > arg_count, "Stack must contain an argument list");
                         let arg0 = ec.stack.remove(stack_len - arg_count - 1);
-                        ec.stack[stack_len - 2] = Ok(NormalCompletion::from((arg_count - 1) as u32));
+                        ec.stack[stack_len - 2] = Ok(NormalCompletion::from(arg_count - 1));
                         ec.stack.push(arg0);
                     }
                 }
@@ -1243,7 +1249,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // Stack: N arg[N-1] ... arg[0]
                     // Out:
                     // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
-                    let arg_count = f64::try_from(
+                    let arg_count = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec.stack
                                 .pop()
@@ -1252,8 +1258,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("FinishArgs must have a 'count' argument"),
                     )
-                    .expect("FinishArgs 'count' arg must be a number");
-                    let to_retain = ec.stack.len() - arg_count as usize;
+                    .expect("FinishArgs 'count' arg must be a number"))
+                    .expect("count must be a valid integer");
+                    let to_retain = ec.stack.len() - arg_count;
                     ec.stack.truncate(to_retain);
                 }
                 Insn::Object => {
@@ -1341,13 +1348,14 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // output dups that value behind the list: N item(n-1) ... item(0) value value
                     let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
                     let stack_len = stack.len();
-                    let list_len = f64::try_from(
+                    let list_len = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             stack[stack_len - 1].clone().expect("list len must be normal completion"),
                         )
                         .expect("list len must be a value"),
                     )
-                    .expect("list len must be a number") as usize;
+                    .expect("list len must be a number"))
+                    .expect("list len must be a valid integer");
                     assert!(stack_len >= list_len + 2, "stack must contain a list and a completion");
                     let value_index = stack_len - (list_len + 2);
                     let value = stack[value_index].clone();
@@ -1459,7 +1467,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .stack
                         .pop()
                         .expect("UnwindList has two stack args");
-                    let vals_to_remove = f64::try_from(
+                    let vals_to_remove = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             agent.execution_context_stack.borrow_mut()[index]
                                 .stack
@@ -1469,7 +1477,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("UnwindList expects a value"),
                     )
-                    .expect("UnwindList expects a number") as usize;
+                    .expect("UnwindList expects a number"))
+                    .expect("UnwindList list length should be a valid integer");
                     if vals_to_remove > 0 {
                         let old_stack_size = agent.execution_context_stack.borrow()[index].stack.len();
                         assert!(vals_to_remove <= old_stack_size);
@@ -1482,7 +1491,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
                     // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
                     // call them ListA and ListB ...
-                    let len_a = f64::try_from(
+                    let len_a = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec_pop()
                                 .expect("AppendList stack depth should be at least 2")
@@ -1490,7 +1499,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("list length should be an ecmascript value"),
                     )
-                    .expect("list length should be a ecamscript number value") as usize;
+                    .expect("list length should be a ecamscript number value"))
+                    .expect("list length should be a valid integer");
                     {
                         let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                         let stack = &mut ec.stack;
@@ -1498,7 +1508,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         assert!(len > len_a);
                         stack[len - (len_a + 1)..len].rotate_left(1);
                     }
-                    let len_b = f64::try_from(
+                    let len_b = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec_pop()
                                 .expect("AppendList stack dep th should include two lists")
@@ -1506,14 +1516,17 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("list length shoud be a value"),
                     )
-                    .expect("list length should be a number value") as usize;
+                    .expect("list length should be a number value"))
+                    .expect("list length should be a valid integer");
                     let new_len = len_a + len_b;
                     ec_push(Ok((new_len as f64).into()));
                 }
                 Insn::Call | Insn::StrictCall => {
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
-                    let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
+                    let arg_count: usize = to_usize(f64::try_from(arg_count_val)
+                        .expect("arg_count should be a number"))
+                        .expect("arg_count should be a valid integer");
                     let mut arguments = Vec::with_capacity(arg_count);
                     for _ in 1..=arg_count {
                         let nc = ECMAScriptValue::try_from(
@@ -1583,7 +1596,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
                     let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
                     let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
-                    let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
+                    let arg_count: usize = to_usize(f64::try_from(arg_count_val)
+                        .expect("arg_count should be a number"))
+                        .expect("arg_count should be a valid integer");
                     let mut arguments = Vec::with_capacity(arg_count);
                     for _ in 1..=arg_count {
                         let nc = ECMAScriptValue::try_from(
@@ -2017,7 +2032,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // The Elision form of IteratorDestructuringAssignmentEvaluation
                     // Input on stack: <elision count as a float value> <iterator record>
                     // Ouptut on stack: <iterator record>/err
-                    let mut count = f64::try_from(
+                    let mut count = to_usize(f64::try_from(
                         ECMAScriptValue::try_from(
                             ec_pop()
                                 .expect("IteratorDAEElision stack should include two items")
@@ -2025,7 +2040,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         )
                         .expect("elision count shoud be a value"),
                     )
-                    .expect("elision count should be a number value") as usize;
+                    .expect("elision count should be a number value"))
+                    .expect("elision count should be a valid integer");
                     let ir: Rc<IteratorRecord> = ec_pop()
                         .expect("IteratorDAEElision stack should include two items")
                         .expect("iterator record should not be an error")
@@ -3308,15 +3324,18 @@ pub fn create_unmapped_arguments_object(index: usize) {
 
     let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
     assert!(stack_len > 0, "Stack must not be empty");
-    let length = f64::try_from(
-        ECMAScriptValue::try_from(AGENT.with(|agent| {
-            agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
-                .clone()
-                .expect("Non-error arguments needed")
-        }))
-        .expect("Value arguments needed"),
+    let length = to_usize(
+        f64::try_from(
+            ECMAScriptValue::try_from(AGENT.with(|agent| {
+                agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
+                    .clone()
+                    .expect("Non-error arguments needed")
+            }))
+            .expect("Value arguments needed"),
+        )
+        .expect("Numeric arguments needed"),
     )
-    .expect("Numeric arguments needed") as u32;
+    .expect("length should be a valid integer");
     assert!(stack_len > length as usize, "Stack too short to fit all the arguments");
 
     let obj = ArgumentsObject::object(None);
@@ -3327,9 +3346,9 @@ pub fn create_unmapped_arguments_object(index: usize) {
     )
     .expect("Normal Object");
 
-    let first_arg_index = stack_len - length as usize - 1;
+    let first_arg_index = stack_len - length - 1;
     let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length as usize].to_vec()
+        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
     });
 
     for (arg_number, item) in arguments.into_iter().enumerate() {
@@ -3367,20 +3386,23 @@ pub fn create_mapped_arguments_object(index: usize) {
 
     let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
     assert!(stack_len > 0, "Stack must not be empty");
-    let length = f64::try_from(
-        ECMAScriptValue::try_from(
-            AGENT
-                .with(|agent| agent.execution_context_stack.borrow()[index].stack[stack_len - 1].clone())
-                .expect("Non-error arguments needed"),
+    let length = to_usize(
+        f64::try_from(
+            ECMAScriptValue::try_from(
+                AGENT
+                    .with(|agent| agent.execution_context_stack.borrow()[index].stack[stack_len - 1].clone())
+                    .expect("Non-error arguments needed"),
+            )
+            .expect("Value arguments needed"),
         )
-        .expect("Value arguments needed"),
+        .expect("Numeric arguments needed"),
     )
-    .expect("Numeric arguments needed") as u32;
-    assert!(stack_len > length as usize + 1, "Stack too short to fit all the arguments plus the function obj");
+    .expect("length should be a valid integer");
+    assert!(stack_len > length + 1, "Stack too short to fit all the arguments plus the function obj");
 
-    let first_arg_index = stack_len - length as usize - 1;
+    let first_arg_index = stack_len - length - 1;
     let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length as usize].to_vec()
+        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
     });
 
     let env = current_lexical_environment().expect("A lex env must exist");

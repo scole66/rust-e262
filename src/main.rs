@@ -18,6 +18,7 @@
 #![deny(clippy::redundant_else)]
 #![deny(clippy::match_same_arms)]
 #![deny(clippy::manual_assert)]
+#![deny(clippy::cast_possible_truncation)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

@@ -245,7 +245,7 @@ mod jsstring {
     #[test_case("12345", "45", 0 => 3; "match at end")]
     #[test_case("12345", "", 10000 => -1; "empty search, large start")]
     #[test_case("12345", "g", 3 => -1; "not found")]
-    fn index_of(src: impl Into<JSString>, needle: impl Into<JSString>, start: u64) -> i64 {
+    fn index_of(src: impl Into<JSString>, needle: impl Into<JSString>, start: usize) -> i64 {
         let src = src.into();
         let needle = needle.into();
         src.index_of(&needle, start)

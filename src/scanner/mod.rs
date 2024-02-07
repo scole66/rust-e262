@@ -683,7 +683,7 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
             if mv <= 0x0010_FFFF {
                 return Some(Scanner {
                     line: scanner.line,
-                    column: scanner.column + count as u32,
+                    column: u32::try_from(scanner.column as usize + count).expect("column should fit in 32 bits"),
                     start_idx: scanner.start_idx + count,
                 });
             }
@@ -1653,8 +1653,10 @@ fn literal_string_value(source: &str) -> (JSString, bool) {
                     '\'' => result.push(0x27),
                     '\\' => result.push(0x5c),
                     'x' => {
-                        let digit_1 = chars.next().unwrap().to_digit(16).unwrap() as u16;
-                        let digit_2 = chars.next().unwrap().to_digit(16).unwrap() as u16;
+                        let digit_1 = u16::try_from(chars.next().unwrap().to_digit(16).unwrap())
+                            .expect("digit should fit in a u16");
+                        let digit_2 = u16::try_from(chars.next().unwrap().to_digit(16).unwrap())
+                            .expect("digit should fit in a u16");
                         let value = digit_1 * 16 + digit_2;
                         result.push(value);
                     }
@@ -1678,7 +1680,7 @@ fn literal_string_value(source: &str) -> (JSString, bool) {
                                 let digit_3 = chars.next().unwrap().to_digit(16).unwrap();
                                 let digit_4 = chars.next().unwrap().to_digit(16).unwrap();
                                 let value = (digit_1 << 12) | (digit_2 << 8) | (digit_3 << 4) | digit_4;
-                                result.push(value as u16);
+                                result.push(u16::try_from(value).expect("4 digits should fit in 16 bits"));
                             }
                         }
                     }
@@ -1790,11 +1792,15 @@ fn template_hex_digits(
         raw_chars[i + 1] = pot_digit.unwrap() as u16;
     }
     (
-        if successful { Some(vec![accumulator as u16]) } else { None },
+        if successful {
+            Some(vec![u16::try_from(accumulator).expect("accumulator should be small enough")])
+        } else {
+            None
+        },
         raw_chars[..consumed].to_vec(),
         Scanner {
             line: scanner.line,
-            column: scanner.column + consumed as u32,
+            column: u32::try_from(scanner.column as usize + consumed).expect("column should fit in 32 bits"),
             start_idx: scanner.start_idx + consumed,
         },
         consumed,
@@ -1837,9 +1843,12 @@ impl From<char> for CharVal {
 fn utf16_encode_code_point(cv: CharVal) -> Vec<u16> {
     let CharVal(value) = cv;
     if value <= 0xffff {
-        vec![value as u16]
+        vec![u16::try_from(value).expect("value should fit in 16 bits")]
     } else {
-        vec![(((value - 0x10000) >> 10) + 0xD800) as u16, (((value - 0x10000) & 0x3ff) + 0xDC00) as u16]
+        vec![
+            u16::try_from(((value - 0x10000) >> 10) + 0xD800).expect("first half should be <= 16 bits"),
+            u16::try_from(((value - 0x10000) & 0x3ff) + 0xDC00).expect("second half should fit in 16 bits"),
+        ]
     }
 }
 
@@ -1870,7 +1879,7 @@ fn template_hex_digits_by_value(
                 raw_chars,
                 Scanner {
                     line: scanner.line,
-                    column: scanner.column + consumed as u32,
+                    column: u32::try_from(scanner.column as usize + consumed).expect("column should be less than 64k"),
                     start_idx: scanner.start_idx + consumed,
                 },
                 consumed,
@@ -2081,8 +2090,11 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
                                     Token::Debug(DebugKind::Number(num)),
                                     Scanner {
                                         line: s.line,
-                                        column: s.column
-                                            + source[s.start_idx..=s.start_idx + 1 + idx].chars().count() as u32,
+                                        column: u32::try_from(
+                                            s.column as usize
+                                                + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
+                                        )
+                                        .expect("column should be less than 64k"),
                                         start_idx: s.start_idx + 1 + idx + 1,
                                     },
                                 ))
@@ -2195,7 +2207,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let chars_in_match = source[scanner.start_idx..scanner.start_idx + flag_end].chars().count();
                 let after_scanner = Scanner {
                     line: scanner.line,
-                    column: scanner.column + chars_in_match as u32,
+                    column: u32::try_from(scanner.column as usize + chars_in_match).expect("column should fit"),
                     start_idx: scanner.start_idx + flag_end,
                 };
                 let token = Token::RegularExpression(RegularExpressionData { body, flags });

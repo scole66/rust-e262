@@ -555,7 +555,7 @@ fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
         (
             Token::Identifier(IdentifierData { string_value: JSString::from(inp), keyword_id: expected }),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-            Scanner { line: 1, column: inp.len() as u32 + 1, start_idx: inp.len() }
+            Scanner { line: 1, column: u32::try_from(inp.len() + 1).unwrap(), start_idx: inp.len() }
         )
     );
 }
@@ -700,7 +700,7 @@ mod punctuator {
             (
                 tok,
                 Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-                Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }
+                Scanner { line: 1, column: u32::try_from(inp.chars().count() + 1).unwrap(), start_idx: inp.len() }
             )
         );
     }
@@ -976,7 +976,7 @@ fn non_zero_digit_empty() {
 fn dbil_helper(text: &str) {
     assert_eq!(
         decimal_big_integer_literal(&Scanner::new(), text),
-        Some(Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() })
+        Some(Scanner { line: 1, column: u32::try_from(text.len() + 1).unwrap(), start_idx: text.len() })
     );
 }
 #[test]

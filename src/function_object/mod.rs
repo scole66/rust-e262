@@ -1059,7 +1059,7 @@ fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
     for item in args.iter() {
         ec_push(Ok(item.clone().into()));
     }
-    ec_push(Ok((args.len() as u32).into()));
+    ec_push(Ok(args.len().into()));
 }
 
 pub fn nameify(src: &str, limit: usize) -> String {

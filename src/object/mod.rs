@@ -2171,9 +2171,9 @@ pub fn create_list_from_array_like(
         ValueKind::Object,
     ]);
     let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
-    let len = length_of_array_like(&obj)?;
+    let len = usize::try_from(length_of_array_like(&obj)?).expect("array lengths should fit");
     let mut list = Vec::new();
-    for index in 0..len as usize {
+    for index in 0..len {
         let index_name = to_string(index).expect("number to string works");
         let next = obj.get(&index_name.into())?;
         if !element_types.contains(&next.kind()) {
