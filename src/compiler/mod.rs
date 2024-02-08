@@ -1059,6 +1059,8 @@ impl Elisions {
         // POP                  next_index array
         // exit:
 
+        assert!(self.count < 1 << 53);
+        #[allow(clippy::cast_precision_loss)]
         let count = self.count as f64; // loss of accuracy for large values.
         let count_index = chunk.add_to_float_pool(count)?;
         let length_index = chunk.add_to_string_pool(JSString::from("length"))?;
@@ -1126,6 +1128,8 @@ impl Elisions {
         //   FLOAT count               count ir
         //   IDAE_ELISION              ir/err
 
+        assert!(self.count < 1 << 53);
+        #[allow(clippy::cast_precision_loss)]
         let count_val = self.count as f64; // loss of accuracy for large values.
         let count = chunk.add_to_float_pool(count_val)?;
         // have to store count on the stack, as it can easily overflow the u16 that is an instruction parameter

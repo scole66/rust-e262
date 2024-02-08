@@ -1457,7 +1457,15 @@ fn bigify(style: NumberStyle) -> NumberStyle {
 
 fn int_to_number(src: &str, radix: u32) -> f64 {
     match u64::from_str_radix(src, radix) {
-        Ok(x) => x as f64,
+        Ok(x) =>
+        {
+            #[allow(clippy::cast_precision_loss)]
+            if x < 1 << 53 {
+                x as f64
+            } else {
+                f64::INFINITY
+            }
+        }
         Err(_) => f64::INFINITY,
     }
 }

@@ -989,11 +989,12 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             fraction *= radix as f64;
             delta *= radix as f64;
             // Write digit.
-            let digit = to_usize(fraction.floor()).expect("one digit should fit");
+            let digit_f = fraction.floor();
+            let digit = to_usize(digit_f).expect("one digit should fit");
             buffer[fraction_cursor] = chars[digit];
             fraction_cursor += 1;
             // Calculate remainder.
-            fraction -= digit as f64;
+            fraction -= digit_f;
             // Round to even.
             assert!(
                 !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),

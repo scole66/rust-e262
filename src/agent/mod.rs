@@ -1519,6 +1519,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("list length should be a number value"))
                     .expect("list length should be a valid integer");
                     let new_len = len_a + len_b;
+                    assert!(new_len < 1<<53);
+                    #[allow(clippy::cast_precision_loss)]
                     ec_push(Ok((new_len as f64).into()));
                 }
                 Insn::Call | Insn::StrictCall => {

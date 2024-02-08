@@ -168,6 +168,7 @@ impl From<i32> for ECMAScriptValue {
 }
 
 impl From<u64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: u64) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -178,6 +179,7 @@ impl From<u64> for ECMAScriptValue {
 }
 
 impl From<usize> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: usize) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -187,6 +189,7 @@ impl From<usize> for ECMAScriptValue {
     }
 }
 impl From<i64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
             Self::from(val as f64)
@@ -970,6 +973,7 @@ pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completio
 }
 
 #[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_precision_loss)]
 pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
     if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
         Ok(arg as usize)
@@ -1250,7 +1254,7 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 #[allow(clippy::cast_possible_truncation)]
 pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let len = to_integer_or_infinity(argument)?;
-    Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
+    Ok(len.clamp(0.0, 9_007_199_254_740_991.0) as i64)
 }
 
 // CanonicalNumericIndexString ( argument )
@@ -1300,6 +1304,7 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     } else {
         let integer = to_integer_or_infinity(value)?;
         let clamped = to_length(integer).unwrap();
+        #[allow(clippy::cast_precision_loss)]
         if clamped as f64 != integer {
             Err(create_range_error(format!("{integer} out of range for index").as_str()))
         } else {

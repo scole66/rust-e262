@@ -216,7 +216,7 @@ impl StringObject {
         // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length),
         //    [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
-        let length = value.len() as f64;
+        let length = value.len();
         let s = Object { o: Rc::new(Self::new(value, prototype)) };
         define_property_or_throw(
             &s,
@@ -253,6 +253,7 @@ impl StringObject {
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
             let string = self.string_data.borrow();
             let len = string.len();
+            #[allow(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
             let idx = to_usize(index).expect("index should be a valid integer");
             let value = JSString::from(&string.as_slice()[idx..idx + 1]);
@@ -610,6 +611,8 @@ fn string_prototype_index_of(
     let search_str = to_string(search_string)?;
     let pos = to_integer_or_infinity(position)?;
     let len = s.len();
+    assert!(len < 1 << 53, "len needs to fit into a float");
+    #[allow(clippy::cast_precision_loss)]
     let start =
         to_usize(pos.clamp(0.0, len as f64)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
