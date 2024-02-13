@@ -1326,6 +1326,7 @@ impl Default for Stage {
         Self::Data
     }
 }
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Default)]
 struct VAPDIter {
     value: u8,

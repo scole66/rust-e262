@@ -28,6 +28,7 @@
 #![deny(clippy::if_not_else)]
 #![deny(clippy::missing_fields_in_debug)]
 #![deny(clippy::from_iter_instead_of_collect)]
+#![deny(clippy::struct_excessive_bools)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

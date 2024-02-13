@@ -137,20 +137,35 @@ pub fn setup_test_agent() {
     initialize_host_defined_realm(0, true);
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ThrowsOrNot {
+    Throws,
+    BehavesNormally,
+}
+impl From<bool> for ThrowsOrNot {
+    fn from(value: bool) -> Self {
+        if value {
+            ThrowsOrNot::Throws
+        } else {
+            ThrowsOrNot::BehavesNormally
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TestObject {
     common: RefCell<CommonObjectData>,
-    get_prototype_of_throws: bool,
-    set_prototype_of_throws: bool,
-    is_extensible_throws: bool,
-    prevent_extensions_throws: bool,
-    get_own_property_throws: (bool, Option<PropertyKey>),
-    define_own_property_throws: (bool, Option<PropertyKey>),
-    has_property_throws: (bool, Option<PropertyKey>),
-    get_throws: (bool, Option<PropertyKey>),
-    set_throws: (bool, Option<PropertyKey>),
-    delete_throws: (bool, Option<PropertyKey>),
-    own_property_keys_throws: bool,
+    get_prototype_of: ThrowsOrNot,
+    set_prototype_of: ThrowsOrNot,
+    is_extensible: ThrowsOrNot,
+    prevent_extensions: ThrowsOrNot,
+    get_own_property: (ThrowsOrNot, Option<PropertyKey>),
+    define_own_property: (ThrowsOrNot, Option<PropertyKey>),
+    has_property: (ThrowsOrNot, Option<PropertyKey>),
+    get: (ThrowsOrNot, Option<PropertyKey>),
+    set: (ThrowsOrNot, Option<PropertyKey>),
+    delete: (ThrowsOrNot, Option<PropertyKey>),
+    own_property_keys: ThrowsOrNot,
 }
 
 impl<'a> From<&'a TestObject> for &'a dyn ObjectInterface {
@@ -164,84 +179,91 @@ impl ObjectInterface for TestObject {
         &self.common
     }
     fn uses_ordinary_get_prototype_of(&self) -> bool {
-        !(self.get_prototype_of_throws || self.set_prototype_of_throws)
+        matches!(
+            (self.get_prototype_of, self.set_prototype_of),
+            (ThrowsOrNot::BehavesNormally, ThrowsOrNot::BehavesNormally)
+        )
     }
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        if self.get_prototype_of_throws {
+        if self.get_prototype_of == ThrowsOrNot::Throws {
             Err(create_type_error("[[GetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_get_prototype_of(self))
         }
     }
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        if self.set_prototype_of_throws {
+        if self.set_prototype_of == ThrowsOrNot::Throws {
             Err(create_type_error("[[SetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_set_prototype_of(self, obj))
         }
     }
     fn is_extensible(&self) -> Completion<bool> {
-        if self.is_extensible_throws {
+        if self.is_extensible == ThrowsOrNot::Throws {
             Err(create_type_error("[[IsExtensible]] called on TestObject"))
         } else {
             Ok(ordinary_is_extensible(self))
         }
     }
     fn prevent_extensions(&self) -> Completion<bool> {
-        if self.prevent_extensions_throws {
+        if self.prevent_extensions == ThrowsOrNot::Throws {
             Err(create_type_error("[[PreventExtensions]] called on TestObject"))
         } else {
             Ok(ordinary_prevent_extensions(self))
         }
     }
     fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        if self.get_own_property_throws.0 && self.get_own_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.get_own_property.0 == ThrowsOrNot::Throws
+            && self.get_own_property.1.as_ref().map_or(true, |k| *k == *key)
+        {
             Err(create_type_error("[[GetOwnProperty]] called on TestObject"))
         } else {
             Ok(ordinary_get_own_property(self, key))
         }
     }
     fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
-        if self.define_own_property_throws.0 && self.define_own_property_throws.1.as_ref().map_or(true, |k| *k == key) {
+        if self.define_own_property.0 == ThrowsOrNot::Throws
+            && self.define_own_property.1.as_ref().map_or(true, |k| *k == key)
+        {
             Err(create_type_error("[[DefineOwnProperty]] called on TestObject"))
         } else {
             ordinary_define_own_property(self, key, desc)
         }
     }
     fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.has_property_throws.0 && self.has_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.has_property.0 == ThrowsOrNot::Throws && self.has_property.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[HasProperty]] called on TestObject"))
         } else {
             ordinary_has_property(self, key)
         }
     }
     fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        if self.get_throws.0 && self.get_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.get.0 == ThrowsOrNot::Throws && self.get.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[Get]] called on TestObject"))
         } else {
             ordinary_get(self, key, receiver)
         }
     }
     fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        if self.set_throws.0 && self.set_throws.1.as_ref().map_or(true, |k| *k == key) {
+        if self.set.0 == ThrowsOrNot::Throws && self.set.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error("[[Set]] called on TestObject"))
         } else {
             ordinary_set(self, key, value, receiver)
         }
     }
     fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.delete_throws.0 && self.delete_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.delete.0 == ThrowsOrNot::Throws && self.delete.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[Delete]] called on TestObject"))
         } else {
             ordinary_delete(self, key)
         }
     }
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        if self.own_property_keys_throws {
+        if self.own_property_keys == ThrowsOrNot::Throws {
             Err(create_type_error("[[OwnPropertyKeys]] called on TestObject"))
         } else {
             Ok(ordinary_own_property_keys(self))
@@ -284,31 +306,31 @@ impl TestObject {
     fn check_for_key(
         matcher: fn(&FunctionId) -> (bool, Option<PropertyKey>),
         throwers: &[FunctionId],
-    ) -> (bool, Option<PropertyKey>) {
+    ) -> (ThrowsOrNot, Option<PropertyKey>) {
         for item in throwers {
             match matcher(item) {
                 (true, rval) => {
-                    return (true, rval);
+                    return (ThrowsOrNot::Throws, rval);
                 }
                 (false, _) => {}
             }
         }
-        (false, None)
+        (ThrowsOrNot::BehavesNormally, None)
     }
     pub fn new(prototype: Option<Object>, throwers: &[FunctionId]) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
-            get_prototype_of_throws: throwers.contains(&FunctionId::GetPrototypeOf),
-            set_prototype_of_throws: throwers.contains(&FunctionId::SetPrototypeOf),
-            is_extensible_throws: throwers.contains(&FunctionId::IsExtensible),
-            prevent_extensions_throws: throwers.contains(&FunctionId::PreventExtensions),
-            get_own_property_throws: TestObject::check_for_key(TestObject::get_own_match, throwers),
-            define_own_property_throws: TestObject::check_for_key(TestObject::define_own_match, throwers),
-            has_property_throws: TestObject::check_for_key(TestObject::has_prop_match, throwers),
-            get_throws: TestObject::check_for_key(TestObject::get_match, throwers),
-            set_throws: TestObject::check_for_key(TestObject::set_match, throwers),
-            delete_throws: TestObject::check_for_key(TestObject::delete_match, throwers),
-            own_property_keys_throws: throwers.contains(&FunctionId::OwnPropertyKeys),
+            get_prototype_of: throwers.contains(&FunctionId::GetPrototypeOf).into(),
+            set_prototype_of: throwers.contains(&FunctionId::SetPrototypeOf).into(),
+            is_extensible: throwers.contains(&FunctionId::IsExtensible).into(),
+            prevent_extensions: throwers.contains(&FunctionId::PreventExtensions).into(),
+            get_own_property: TestObject::check_for_key(TestObject::get_own_match, throwers),
+            define_own_property: TestObject::check_for_key(TestObject::define_own_match, throwers),
+            has_property: TestObject::check_for_key(TestObject::has_prop_match, throwers),
+            get: TestObject::check_for_key(TestObject::get_match, throwers),
+            set: TestObject::check_for_key(TestObject::set_match, throwers),
+            delete: TestObject::check_for_key(TestObject::delete_match, throwers),
+            own_property_keys: throwers.contains(&FunctionId::OwnPropertyKeys).into(),
         }
     }
     pub fn object(throwers: &[FunctionId]) -> Object {
