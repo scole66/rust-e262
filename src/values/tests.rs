@@ -1949,7 +1949,7 @@ mod array_index {
         #[test_case(4_294_967_294 => Ok(ArrayIndex(4_294_967_294)); "upper bound")]
         #[test_case(4_294_967_295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
         fn from_u32(u: u32) -> Result<ArrayIndex, String> {
-            ArrayIndex::try_from(u).map_err(|e| e.into())
+            ArrayIndex::try_from(u).map_err(Into::into)
         }
 
         #[test_case(|| wks(WksId::ToPrimitive).into() => Err("Symbols are not u32s".to_string()); "symbol")]
@@ -1961,7 +1961,7 @@ mod array_index {
         fn property_key(make_key: fn() -> PropertyKey) -> Result<ArrayIndex, String> {
             setup_test_agent();
             let key = make_key();
-            ArrayIndex::try_from(&key).map_err(|e| e.into())
+            ArrayIndex::try_from(&key).map_err(Into::into)
         }
     }
 

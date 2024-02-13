@@ -93,7 +93,7 @@ mod agent {
     #[test]
     fn active_function_object() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // no Running Execution Context, so this should be None.
         let afo = super::active_function_object();
         assert!(afo.is_none());
@@ -115,7 +115,7 @@ mod agent {
     #[test]
     fn next_object_id() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // Starts at something, and then increases monotonically.
         let first = super::next_object_id();
         for x in 1..10 {
@@ -125,7 +125,7 @@ mod agent {
     #[test]
     fn next_symbol_id() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // Starts at something, and then increases monotonically.
         let first = super::next_symbol_id();
         for x in 1..10 {
@@ -140,7 +140,7 @@ mod agent {
     #[test]
     fn global_symbol_registry() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         let registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| agent.set_global_symbol_registry(registry.clone()));
         let gsr = super::global_symbol_registry();
@@ -153,7 +153,7 @@ mod agent {
         #[test]
         fn empty_ec_stack() {
             setup_test_agent();
-            AGENT.with(|agent| agent.reset());
+            AGENT.with(Agent::reset);
             assert!(current_realm_record().is_none());
         }
 
@@ -1201,8 +1201,10 @@ mod global_declaration_instantiation {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-            let new_vardecl = after_vardecl.difference(&prior_vardecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
-            let new_lexdecl = after_lexdecl.difference(&prior_lexdecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            let new_vardecl =
+                after_vardecl.difference(&prior_vardecl).map(ToString::to_string).collect::<AHashSet<_>>();
+            let new_lexdecl =
+                after_lexdecl.difference(&prior_lexdecl).map(ToString::to_string).collect::<AHashSet<_>>();
             (new_vardecl, new_lexdecl)
         })
     }

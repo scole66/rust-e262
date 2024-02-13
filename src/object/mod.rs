@@ -623,7 +623,7 @@ fn validate_and_apply_property_descriptor<'a, T>(
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let converted = oo.map(|x| x.into());
+    let converted = oo.map(Into::into);
     internal_validate_and_apply_property_descriptor(converted, p, extensible, desc, current)
 }
 fn internal_validate_and_apply_property_descriptor(

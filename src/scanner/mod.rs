@@ -1936,7 +1936,7 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('"') => single_char('"', 0x22, &scanner),
         Some('\'') => single_char('\'', 0x27, &scanner),
         Some('\\') => single_char('\\', 0x5c, &scanner),
-        Some('0') if !chars.peek().map_or(false, |c| c.is_ascii_digit()) => single_char('0', 0, &scanner),
+        Some('0') if !chars.peek().map_or(false, char::is_ascii_digit) => single_char('0', 0, &scanner),
         Some(c) if c.is_ascii_digit() => (
             None,
             utf16_encode_code_point(CharVal::from(c)),

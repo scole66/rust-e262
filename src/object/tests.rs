@@ -3984,7 +3984,7 @@ mod object {
         fn value_ref(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
             setup_test_agent();
             Object::try_from(&make_val())
-                .map_err(|e| e.to_string())
+                .map_err(ToString::to_string)
                 .map(|o| ECMAScriptValue::from(o).test_result_string())
         }
     }
@@ -4971,7 +4971,7 @@ mod data_descriptor {
         setup_test_agent();
         let pd = make_pd();
         DataDescriptor::try_from(pd)
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
             .map(|dd| (dd.value.test_result_string(), dd.writable, dd.enumerable, dd.configurable))
     }
 }

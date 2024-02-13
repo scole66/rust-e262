@@ -24,6 +24,7 @@
 #![deny(clippy::needless_pass_by_value)]
 #![deny(clippy::explicit_iter_loop)]
 #![deny(clippy::map_unwrap_or)]
+#![deny(clippy::redundant_closure_for_method_calls)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 
