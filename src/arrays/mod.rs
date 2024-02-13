@@ -230,7 +230,7 @@ impl ArrayObject {
         let mut new_len_desc = descriptor.clone();
         let new_len = to_uint32(descriptor.value.clone().unwrap())?;
         let number_len = to_number(descriptor.value.unwrap())?;
-        if !number_same_value_zero(new_len as f64, number_len) {
+        if !number_same_value_zero(f64::from(new_len), number_len) {
             return Err(create_range_error("Invalid array length"));
         }
         new_len_desc.value = Some(ECMAScriptValue::from(new_len));
@@ -648,7 +648,7 @@ fn array_constructor_function(
             let int_len = match len {
                 ECMAScriptValue::Number(len) => {
                     let int_len = to_uint32(len).expect("number to uint32 should not fail");
-                    if !number_same_value_zero(int_len as f64, len) {
+                    if !number_same_value_zero(f64::from(int_len), len) {
                         return Err(create_range_error("Bad length in array construction"));
                     }
                     int_len

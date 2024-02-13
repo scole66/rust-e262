@@ -2624,7 +2624,7 @@ impl Arguments {
                         assert!(status.maybe_abrupt());
                         let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                         chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
-                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
                         chunk.fixup(exit).expect("Jump too short to fail");
@@ -2636,7 +2636,7 @@ impl Arguments {
                     //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
                     // exit:
                     let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                    let index = chunk.add_to_float_pool(fixed_len as f64)?;
+                    let index = chunk.add_to_float_pool(f64::from(fixed_len))?;
                     chunk.op_plus_arg(Insn::Float, index);
                     if let Some(mark) = exit {
                         chunk.fixup(mark).expect("Jump is too short to overflow.");
@@ -2797,12 +2797,12 @@ impl ArgumentList {
                 if has_variable {
                     if fixed_len > 0 {
                         chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
-                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
                     }
                 } else {
-                    let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                    let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                     chunk.op_plus_arg(Insn::Float, idx);
                 }
 

@@ -1378,7 +1378,7 @@ impl Iterator for VAPDIter {
                 self.id_name(),
                 PotentialPropertyDescriptor {
                     value: if self.stage == Stage::Data {
-                        Some(ECMAScriptValue::from(self.value as i32))
+                        Some(ECMAScriptValue::from(i32::from(self.value)))
                     } else {
                         None
                     },

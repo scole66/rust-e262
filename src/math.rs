@@ -508,7 +508,7 @@ fn math_fround(
     let mut args = FuncArgs::from(arguments);
     let n = to_number(args.next_arg())?;
     let n32 = n as f32;
-    Ok((n32 as f64).into())
+    Ok(f64::from(n32).into())
 }
 
 fn math_hypot(
@@ -578,7 +578,7 @@ fn math_imul(
     let a = to_uint32(args.next_arg())?;
     let b = to_uint32(args.next_arg())?;
     let product = a * b;
-    let result = if product >= 2_147_483_648 { product as i64 - 4_294_967_296 } else { product as i64 };
+    let result = if product >= 2_147_483_648 { i64::from(product) - 4_294_967_296 } else { i64::from(product) };
     Ok(result.into())
 }
 

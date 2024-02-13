@@ -67,7 +67,7 @@ impl From<&str> for JSString {
 
 impl From<&[u8]> for JSString {
     fn from(source: &[u8]) -> Self {
-        let v: Vec<u16> = source.iter().map(|v| *v as u16).collect();
+        let v: Vec<u16> = source.iter().map(|v| u16::from(*v)).collect();
         Self::from(v)
     }
 }
@@ -153,7 +153,7 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
 fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
-    let cp: u32 = ((lead - 0xD800) as u32) * 0x400 + ((trail - 0xDC00) as u32) + 0x10000;
+    let cp: u32 = u32::from(lead - 0xD800) * 0x400 + u32::from(trail - 0xDC00) + 0x10000;
     cp
 }
 
@@ -185,7 +185,7 @@ struct CodePointAtResult {
 fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
-    let cp: u32 = first as u32;
+    let cp: u32 = u32::from(first);
     if !(0xD800..=0xDFFF).contains(&first) {
         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: false }
     } else if first >= 0xDC00 || position + 1 == size {

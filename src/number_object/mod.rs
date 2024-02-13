@@ -986,8 +986,8 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
         fraction_cursor += 1;
         while fraction >= delta {
             // Shift up by one digit.
-            fraction *= radix as f64;
-            delta *= radix as f64;
+            fraction *= f64::from(radix);
+            delta *= f64::from(radix);
             // Write digit.
             let digit_f = fraction.floor();
             let digit = to_usize(digit_f).expect("one digit should fit");
@@ -1011,7 +1011,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                         panic!("Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                         break;
                     }
-                    let c = buffer[fraction_cursor] as i32;
+                    let c = i32::from(buffer[fraction_cursor]);
                     // Reconstruct digit.
                     let digit = if c > '9' as i32 { c - 'a' as i32 + 10 } else { c - '0' as i32 };
                     if digit + 1 < radix {
@@ -1027,16 +1027,16 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
     }
 
     // Compute integer digits. Fill unrepresented digits with zero.
-    while double_exponent(integer / radix as f64) > 0 {
-        integer /= radix as f64;
+    while double_exponent(integer / f64::from(radix)) > 0 {
+        integer /= f64::from(radix);
         integer_cursor -= 1;
         buffer[integer_cursor] = b'0';
     }
     loop {
-        let remainder = integer % radix as f64;
+        let remainder = integer % f64::from(radix);
         integer_cursor -= 1;
         buffer[integer_cursor] = chars[to_usize(remainder).expect("remainder should fit")];
-        integer = (integer - remainder) / radix as f64;
+        integer = (integer - remainder) / f64::from(radix);
         if integer <= 0.0 {
             break;
         }
