@@ -529,7 +529,7 @@ mod potential_property_descriptor {
             (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, true),
             (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, true),
         ];
-        for (desc, expected) in items.iter() {
+        for (desc, expected) in &items {
             assert_eq!(desc.is_generic_descriptor(), *expected);
         }
     }
@@ -543,7 +543,7 @@ mod potential_property_descriptor {
             (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
             (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
         ];
-        for (desc, expected) in items.iter() {
+        for (desc, expected) in &items {
             assert_eq!(desc.is_data_descriptor(), *expected);
         }
     }
@@ -557,7 +557,7 @@ mod potential_property_descriptor {
             (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
             (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
         ];
-        for (desc, expected) in items.iter() {
+        for (desc, expected) in &items {
             assert_eq!(desc.is_accessor_descriptor(), *expected);
         }
     }
@@ -4903,7 +4903,7 @@ fn initiate_call(
     setup_test_agent();
     let (func, this_value, arguments) = make_items();
     let res = super::initiate_call(&func, &this_value, arguments.as_slice());
-    let tos = ec_pop().unwrap().map(|nc| format!("{nc:?}")).unwrap_or_else(unwind_any_error);
+    let tos = ec_pop().unwrap().map_or_else(unwind_any_error, |nc| format!("{nc:?}"));
     (res, tos)
 }
 

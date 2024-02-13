@@ -1043,7 +1043,7 @@ fn int_to_number_test() {
 #[test]
 fn escape_sequence_test() {
     let singles = ['\'', '"', '\\', 'b', 'f', 'n', 'r', 't', 'v', 'a', 'Q', '😊'];
-    for ch in singles.iter() {
+    for ch in &singles {
         assert_eq!(
             escape_sequence(&Scanner::new(), &String::from(*ch)),
             Some(Scanner { line: 1, column: 2, start_idx: ch.len_utf8() })
@@ -1061,7 +1061,7 @@ fn escape_sequence_test() {
 #[test]
 fn line_terminator_sequence_test() {
     let valid = ["\r", "\r\n", "\n", "\u{2028}", "\u{2029}"];
-    for lt in valid.iter() {
+    for lt in &valid {
         let result = line_terminator_sequence(&Scanner::new(), lt);
         assert_eq!(result, Some(Scanner { line: 2, column: 1, start_idx: lt.len() }));
     }

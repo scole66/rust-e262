@@ -23,6 +23,7 @@
 #![deny(clippy::cast_precision_loss)]
 #![deny(clippy::needless_pass_by_value)]
 #![deny(clippy::explicit_iter_loop)]
+#![deny(clippy::map_unwrap_or)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

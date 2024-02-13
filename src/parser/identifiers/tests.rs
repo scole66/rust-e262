@@ -594,9 +594,9 @@ fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
 }
 
 fn bid_allflags(text: &str) {
-    for yflag in [false, true].iter() {
-        for aflag in [false, true].iter() {
-            let bid = bindingid_create(text, *yflag, *aflag);
+    for yflag in [false, true] {
+        for aflag in [false, true] {
+            let bid = bindingid_create(text, yflag, aflag);
             assert_eq!(bid.string_value(), text);
             assert_eq!(bid.bound_names(), [text]);
             let (yield_flag, await_flag) = match &*bid {
@@ -604,8 +604,8 @@ fn bid_allflags(text: &str) {
                 | BindingIdentifier::Yield { data }
                 | BindingIdentifier::Await { data } => (data.yield_flag, data.await_flag),
             };
-            assert!((yield_flag && *yflag) || (!yield_flag && !*yflag));
-            assert!((await_flag && *aflag) || (!await_flag && !*aflag));
+            assert!((yield_flag && yflag) || (!yield_flag && !yflag));
+            assert!((await_flag && aflag) || (!await_flag && !aflag));
             assert_eq!(bid.contains(ParseNodeKind::Super), false);
         }
     }

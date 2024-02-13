@@ -1030,7 +1030,7 @@ impl ECMAScriptValue {
                         false
                     };
                     if !named_function_was_added {
-                        let value_str = value.map(|val| format!("{val}")).unwrap_or_else(unwind_any_error);
+                        let value_str = value.map_or_else(unwind_any_error, |val| format!("{val}"));
                         r.push_str(&format!("{key}:{value_str}"));
                     }
                 }

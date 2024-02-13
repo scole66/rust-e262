@@ -359,7 +359,7 @@ impl ClassTail {
         };
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        let location = heritage.as_ref().map(|node| node.location()).unwrap_or(lb_loc).merge(&rb_loc);
+        let location = heritage.as_ref().map_or(lb_loc, |node| node.location()).merge(&rb_loc);
         Ok((Rc::new(ClassTail { heritage, body, location }), after_rb))
     }
 

@@ -881,8 +881,7 @@ mod proxy_object {
             po.o.get_own_property(&key).map_err(unwind_any_error).map(|pd| {
                 (
                     from_property_descriptor(pd)
-                        .map(|pd| ECMAScriptValue::from(pd).test_result_string())
-                        .unwrap_or_else(|| "undefined".to_string()),
+                        .map_or_else(|| "undefined".to_string(), |pd| ECMAScriptValue::from(pd).test_result_string()),
                     {
                         let handler =
                             po.o.to_proxy_object()

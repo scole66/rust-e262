@@ -1450,24 +1450,21 @@ mod create_per_iteration_environment {
         bindings.sort_unstable();
 
         let outer = current_lexical_env.get_outer_env().as_ref().cloned();
-        let outer_name = outer.as_ref().map(|e| e.name()).unwrap_or_else(String::new);
-        let mut outer_bindings = outer
-            .map(|e| {
-                e.binding_names()
-                    .into_iter()
-                    .map(|name| {
-                        let value = String::from(
-                            JSString::try_from(
-                                e.get_binding_value(&name, true)
-                                    .unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
-                            )
-                            .unwrap(),
-                        );
-                        (String::from(name), value)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_else(Vec::new);
+        let outer_name = outer.as_ref().map_or_else(String::new, |e| e.name());
+        let mut outer_bindings = outer.map_or_else(Vec::new, |e| {
+            e.binding_names()
+                .into_iter()
+                .map(|name| {
+                    let value = String::from(
+                        JSString::try_from(
+                            e.get_binding_value(&name, true).unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
+                        )
+                        .unwrap(),
+                    );
+                    (String::from(name), value)
+                })
+                .collect::<Vec<_>>()
+        });
         outer_bindings.sort_unstable();
 
         let prior_name = prior.name();
@@ -1581,7 +1578,7 @@ mod begin_call_evaluation {
         let reference = make_this();
         begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")]);
 
-        ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
+        ec_pop().map(|v| v.map_err(unwind_any_error).map_or_else(|err| err, |nc| format!("{nc}")))
     }
 }
 

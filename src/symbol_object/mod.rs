@@ -528,7 +528,7 @@ fn symbol_description(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let sym = this_symbol_value(this_value.clone())?;
-    Ok(sym.description().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined))
+    Ok(sym.description().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from))
 }
 
 #[derive(Debug, Default)]

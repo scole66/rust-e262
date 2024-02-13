@@ -2510,7 +2510,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
         agent.execution_context_stack.borrow_mut()[index]
             .stack
             .pop()
-            .map(|svr| {
+            .map_or(Ok(ECMAScriptValue::Undefined), |svr| {
                 svr.map(|sv| match sv {
                     NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
                     NormalCompletion::Value(v) => v,
@@ -2519,7 +2519,6 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     | NormalCompletion::PrivateName(_) | NormalCompletion::PrivateElement(_) => unreachable!(),
                 })
             })
-            .unwrap_or(Ok(ECMAScriptValue::Undefined))
     })
 }
 
@@ -2535,9 +2534,7 @@ fn begin_call_evaluation(func: &ECMAScriptValue, reference: &NormalCompletion, a
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => panic!("begin_call_evaluation called with unresolvable ref"),
-            Base::Environment(e) => {
-                e.with_base_object().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined)
-            }
+            Base::Environment(e) => e.with_base_object().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from),
             Base::Value(_) => r.get_this_value(),
         },
     };
@@ -2742,8 +2739,7 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
         (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => left
             .checked_div(&right)
             .map(NormalCompletion::from)
-            .map(Ok)
-            .unwrap_or_else(|| Err(create_range_error("Division by zero"))),
+            .map_or_else(|| Err(create_range_error("Division by zero")), Ok),
         (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Remainder) => {
             if right.is_zero() {
                 Err(create_range_error("Division by zero"))
@@ -3731,7 +3727,7 @@ pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
 
     let script = sr.ecmascript_code.clone();
 
-    let strict = script.body.as_ref().map(|b| b.contains_use_strict()).unwrap_or(false);
+    let strict = script.body.as_ref().is_some_and(|b| b.contains_use_strict());
 
     let result = global_declaration_instantiation(&script, &global_env.unwrap(), strict, &sr.text)
         .and_then(|()| evaluate(sr.compiled, &sr.text));

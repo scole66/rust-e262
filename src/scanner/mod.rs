@@ -2316,14 +2316,16 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Lo
                     .or_else(|| right_brace_punctuator(&after_skippable, source, goal))
                     .or_else(|| regular_expression_literal(&after_skippable, source, goal))
                     .or_else(|| template_substitution_tail(&after_skippable, source, goal))
-                    .map(|(token, after)| (token, Location::from((&after_skippable, &after)), after))
-                    .unwrap_or_else(|| {
-                        (
-                            Token::Error(String::from("Unrecognized Token")),
-                            Location::from(&after_skippable),
-                            after_skippable,
-                        )
-                    })
+                    .map_or_else(
+                        || {
+                            (
+                                Token::Error(String::from("Unrecognized Token")),
+                                Location::from(&after_skippable),
+                                after_skippable,
+                            )
+                        },
+                        |(token, after)| (token, Location::from((&after_skippable, &after)), after),
+                    )
             }
         }
     }
