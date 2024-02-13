@@ -366,11 +366,11 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn delete_binding(&self, name: &JSString) -> Completion<bool> {
         let mut bindings = self.bindings.borrow_mut();
         let item = bindings.get(name).unwrap();
-        if item.mutability != Mutability::Mutable(Removability::Deletable) {
-            Ok(false)
-        } else {
+        if item.mutability == Mutability::Mutable(Removability::Deletable) {
             bindings.remove(name);
             Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -613,14 +613,12 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let has_prop = has_property(binding_object, &name_key)?;
-        if !has_prop {
-            if !strict {
-                Ok(ECMAScriptValue::Undefined)
-            } else {
-                Err(create_reference_error("Unresolvable reference"))
-            }
-        } else {
+        if has_prop {
             binding_object.get(&name_key)
+        } else if strict {
+            Err(create_reference_error("Unresolvable reference"))
+        } else {
+            Ok(ECMAScriptValue::Undefined)
         }
     }
 

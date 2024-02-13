@@ -192,11 +192,11 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
     } else {
         let second = string[position + 1];
-        if !(0xDC00..=0xDFFF).contains(&second) {
-            CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
-        } else {
+        if (0xDC00..=0xDFFF).contains(&second) {
             let cp = utf16_surrogate_pair_to_code_point(first, second);
             CodePointAtResult { code_point: cp, code_unit_count: 2, is_unpaired_surrogate: false }
+        } else {
+            CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
         }
     }
 }

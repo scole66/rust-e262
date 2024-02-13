@@ -2608,19 +2608,7 @@ impl Arguments {
 
                 let (ArgListSizeHint { fixed_len, has_variable }, status) =
                     al.argument_list_evaluation(chunk, strict, text)?;
-                if !has_variable {
-                    // size known at compile time:
-                    //   <argument_list>       (err) or (arg(n-1) arg(n-2) ... arg0)
-                    //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
-                    //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
-                    // exit:
-                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                    let index = chunk.add_to_float_pool(fixed_len as f64)?;
-                    chunk.op_plus_arg(Insn::Float, index);
-                    if let Some(mark) = exit {
-                        chunk.fixup(mark).expect("Jump is too short to overflow.");
-                    }
-                } else {
+                if has_variable {
                     // size variable at compile time
                     //   <argument_list>       (err) or (arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0)
                     //   --- if N > 0 ---
@@ -2640,6 +2628,18 @@ impl Arguments {
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
                         chunk.fixup(exit).expect("Jump too short to fail");
+                    }
+                } else {
+                    // size known at compile time:
+                    //   <argument_list>       (err) or (arg(n-1) arg(n-2) ... arg0)
+                    //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
+                    //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
+                    // exit:
+                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    let index = chunk.add_to_float_pool(fixed_len as f64)?;
+                    chunk.op_plus_arg(Insn::Float, index);
+                    if let Some(mark) = exit {
+                        chunk.fixup(mark).expect("Jump is too short to overflow.");
                     }
                 }
                 Ok(status)
@@ -5894,7 +5894,9 @@ impl ForInOfStatement {
         //   GET_ASYNC_ITERATOR        ir/err
         // exit:
 
-        let exp_status = if !uninitialized_bound_names.is_empty() {
+        let exp_status = if uninitialized_bound_names.is_empty() {
+            exp.compile(chunk, strict, text)?
+        } else {
             chunk.op(Insn::PushNewLexEnv);
             for name in uninitialized_bound_names.iter().cloned() {
                 let idx = chunk.add_to_string_pool(name)?;
@@ -5903,8 +5905,6 @@ impl ForInOfStatement {
             let exp_status = exp.compile(chunk, strict, text)?;
             chunk.op(Insn::PopLexEnv);
             exp_status
-        } else {
-            exp.compile(chunk, strict, text)?
         };
         if exp_status.maybe_ref() {
             chunk.op(Insn::GetValue);
@@ -7522,19 +7522,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     // Stack: func ...
 
     // 27-28.
-    if !has_parameter_expressions {
-        let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
-        for n in var_names {
-            if !instantiated_var_names.contains(&n) {
-                let idx = chunk.add_to_string_pool(n.clone())?;
-                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
-                chunk.op(Insn::Undefined);
-                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
-                instantiated_var_names.insert(n);
-            }
-        }
-        // let varEnv be env == current lexical environment
-    } else {
+    if has_parameter_expressions {
         // b. Let varEnv be NewDeclarativeEnvironment(env).
         // c. Set the VariableEnvironment of calleeContext to varEnv.
         chunk.op(Insn::PushNewVarEnvFromLex);
@@ -7553,6 +7541,18 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
             }
         }
         // now varEnv == current variable environment
+    } else {
+        let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
+        for n in var_names {
+            if !instantiated_var_names.contains(&n) {
+                let idx = chunk.add_to_string_pool(n.clone())?;
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                chunk.op(Insn::Undefined);
+                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
+                instantiated_var_names.insert(n);
+            }
+        }
+        // let varEnv be env == current lexical environment
     }
 
     // 30-32.

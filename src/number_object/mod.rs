@@ -616,7 +616,19 @@ fn number_prototype_to_exponential(
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
     let digits;
-    if !fraction_digits.is_undefined() {
+    if fraction_digits.is_undefined() {
+        info = dtoa(value);
+        let strbuf = info.chars.as_bytes();
+        // Find the first null
+        let mut null_idx: Option<usize> = None;
+        for (idx, ch) in strbuf.iter().enumerate() {
+            if *ch == 0 {
+                null_idx = Some(idx);
+                break;
+            }
+        }
+        digits = &strbuf[0..null_idx.unwrap()];
+    } else {
         info = dtoa_precise(value, fraction + 1);
         // We need fraction +1 digits to come out of this.
         let strbuf = info.chars.as_bytes();
@@ -636,18 +648,6 @@ fn number_prototype_to_exponential(
             };
         }
         digits = &workbuf[0..(fraction + 1) as usize];
-    } else {
-        info = dtoa(value);
-        let strbuf = info.chars.as_bytes();
-        // Find the first null
-        let mut null_idx: Option<usize> = None;
-        for (idx, ch) in strbuf.iter().enumerate() {
-            if *ch == 0 {
-                null_idx = Some(idx);
-                break;
-            }
-        }
-        digits = &strbuf[0..null_idx.unwrap()];
     }
     let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };
@@ -880,7 +880,7 @@ fn number_prototype_to_precision(
         // exponential form
         if e < -6 || e >= p_val {
             let before_pt = String::from_utf8_lossy(&digits[0..1]);
-            let decpt = if p_val != 1 { "." } else { "" };
+            let decpt = if p_val == 1 { "" } else { "." };
             let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
             format!("{sign}{before_pt}{decpt}{after_pt}e{e}")
         } else if e == p_val - 1 {
@@ -1080,15 +1080,15 @@ fn number_prototype_to_string(
     let radix = args.next_arg();
     let x = this_number_value(&this_value.clone())?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
-    if !(2.0..=36.0).contains(&radix_mv) {
-        Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
-    } else {
+    if (2.0..=36.0).contains(&radix_mv) {
         let int_radix = to_int32(radix_mv)?;
         if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {
             Ok(ECMAScriptValue::from(double_to_radix_string(x, int_radix)))
         }
+    } else {
+        Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
     }
 }
 

@@ -2164,39 +2164,38 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let a = array_create(0, None).expect("0 should fit in ram");
                     let mut n = 0;
                     loop {
-                        if !ir.done.get() {
-                            match ir.step() {
-                                Ok(None) => {
-                                    ir.done.set(true);
-                                    ec_push(Ok(NormalCompletion::from(ir)));
-                                    ec_push(Ok(NormalCompletion::from(a)));
-                                    break;
-                                }
-                                Ok(Some(next_obj)) => {
-                                    match iterator_value(&next_obj) {
-                                        Ok(next_value) => {
-                                            a.create_data_property_or_throw(format!("{n}"), next_value)
-                                                .expect("array property set should work");
-                                            n += 1;
-                                        }
-                                        Err(e) => {
-                                            ir.done.set(true);
-                                            ec_push(Err(e));
-                                            break;
-                                        }
-                                    };
-                                }
-                                Err(e) => {
-                                    ir.done.set(true);
-                                    ec_push(Err(e));
-                                    break;
-                                }
-                            };
-                        } else {
+                        if ir.done.get() {
                             ec_push(Ok(NormalCompletion::from(ir)));
                             ec_push(Ok(NormalCompletion::from(a)));
                             break;
                         }
+                        match ir.step() {
+                            Ok(None) => {
+                                ir.done.set(true);
+                                ec_push(Ok(NormalCompletion::from(ir)));
+                                ec_push(Ok(NormalCompletion::from(a)));
+                                break;
+                            }
+                            Ok(Some(next_obj)) => {
+                                match iterator_value(&next_obj) {
+                                    Ok(next_value) => {
+                                        a.create_data_property_or_throw(format!("{n}"), next_value)
+                                            .expect("array property set should work");
+                                        n += 1;
+                                    }
+                                    Err(e) => {
+                                        ir.done.set(true);
+                                        ec_push(Err(e));
+                                        break;
+                                    }
+                                };
+                            }
+                            Err(e) => {
+                                ir.done.set(true);
+                                ec_push(Err(e));
+                                break;
+                            }
+                        };
                     }
                 }
                 Insn::RequireCoercible => {
@@ -2255,7 +2254,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .try_into()
                         .expect("arg should be an iterator record");
                     let done = ir.done.get();
-                    let right = if !done { iterator_close(&ir, result) } else { result };
+                    let right = if done { result } else { iterator_close(&ir, result) };
                     ec_push(right.map(NormalCompletion::from));
                 }
                 Insn::IteratorNext => {
@@ -3300,10 +3299,10 @@ fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullComp
             let instof_handler = target.get_method(&hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
-                    if !is_callable(target) {
-                        Err(create_type_error("Right-hand side of 'instanceof' is not callable"))
-                    } else {
+                    if is_callable(target) {
                         ordinary_has_instance(target, &v).map(NormalCompletion::from)
+                    } else {
+                        Err(create_type_error("Right-hand side of 'instanceof' is not callable"))
                     }
                 }
                 _ => {
@@ -3761,10 +3760,10 @@ impl fmt::Display for ProcessError {
                 write!(f, "During compilation: ")?;
                 let mut first = true;
                 for err_obj in values {
-                    if !first {
-                        write!(f, ", ")?;
-                    } else {
+                    if first {
                         first = false;
+                    } else {
+                        write!(f, ", ")?;
                     }
                     write!(f, "[{}]", unwind_any_error_object(err_obj))?;
                 }

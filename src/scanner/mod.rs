@@ -853,9 +853,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             None => break,
             Some(c) => c,
         };
-        if ch != '\\' {
-            result.append(&mut code_point_to_utf16_code_units(ch));
-        } else {
+        if ch == '\\' {
             // We know the strings are valid constructions, so we don't need to
             // check error conditions here. We'll rely on the panics from unwrap
             // to detect coding errors.
@@ -885,6 +883,8 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 .unwrap();
             }
             result.append(&mut code_point_to_utf16_code_units(cp));
+        } else {
+            result.append(&mut code_point_to_utf16_code_units(ch));
         }
     }
     JSString::from(result)
@@ -2089,38 +2089,35 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
         match_char(scanner, source, '@').and_then(|s| match_char(&s, source, '@')).and_then(|s| {
             let c = source[s.start_idx..].chars().next();
             if let Some(c) = c {
-                if !is_whitespace(c) {
-                    if c == '(' {
-                        let closing_idx = source[s.start_idx + 1..].find(')');
-                        if let Some(idx) = closing_idx {
-                            let value = source[s.start_idx + 1..s.start_idx + 1 + idx].parse::<i64>();
-                            if let Ok(num) = value {
-                                Some((
-                                    Token::Debug(DebugKind::Number(num)),
-                                    Scanner {
-                                        line: s.line,
-                                        column: u32::try_from(
-                                            s.column as usize
-                                                + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
-                                        )
-                                        .expect("column should be less than 64k"),
-                                        start_idx: s.start_idx + 1 + idx + 1,
-                                    },
-                                ))
-                            } else {
-                                None
-                            }
+                if is_whitespace(c) {
+                    None
+                } else if c == '(' {
+                    let closing_idx = source[s.start_idx + 1..].find(')');
+                    if let Some(idx) = closing_idx {
+                        let value = source[s.start_idx + 1..s.start_idx + 1 + idx].parse::<i64>();
+                        if let Ok(num) = value {
+                            Some((
+                                Token::Debug(DebugKind::Number(num)),
+                                Scanner {
+                                    line: s.line,
+                                    column: u32::try_from(
+                                        s.column as usize + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
+                                    )
+                                    .expect("column should be less than 64k"),
+                                    start_idx: s.start_idx + 1 + idx + 1,
+                                },
+                            ))
                         } else {
                             None
                         }
                     } else {
-                        Some((
-                            Token::Debug(DebugKind::Char(c)),
-                            Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
-                        ))
+                        None
                     }
                 } else {
-                    None
+                    Some((
+                        Token::Debug(DebugKind::Char(c)),
+                        Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
+                    ))
                 }
             } else {
                 None

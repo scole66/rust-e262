@@ -704,7 +704,9 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
         ECMAScriptValue::String(x) => {
             let eval_realm = current_realm_record().unwrap();
             let (in_function, in_method, in_derived_constructor, in_class_field_initializer) =
-                if call_state != EvalCallStatus::NotDirect {
+                if call_state == EvalCallStatus::NotDirect {
+                    (false, false, false, false)
+                } else {
                     let this_env_rec = get_this_environment();
                     if let Some(f) = this_env_rec.get_function_object() {
                         let fo = f.o.to_function_obj().unwrap().function_data().borrow();
@@ -717,8 +719,6 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                     } else {
                         (false, false, false, false)
                     }
-                } else {
-                    (false, false, false, false)
                 };
             let source_text = String::from(x);
             let script = parse_text(

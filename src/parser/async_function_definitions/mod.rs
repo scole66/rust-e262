@@ -76,10 +76,10 @@ impl AsyncFunctionDeclaration {
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, yield_flag, await_flag) {
             Err(e) => {
-                if !default_flag {
-                    Err(e)
-                } else {
+                if default_flag {
                     Ok((None, after_function))
+                } else {
+                    Err(e)
                 }
             }
             Ok((node, scan)) => Ok((Some(node), scan)),

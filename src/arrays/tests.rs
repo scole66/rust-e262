@@ -1208,14 +1208,14 @@ mod array_iterator {
             let item = ir.step().map_err(unwind_any_error)?;
             match item {
                 Some(iter_result) => {
-                    if kind != KeyValueKind::KeyValue {
-                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
-                    } else {
+                    if kind == KeyValueKind::KeyValue {
                         let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
                         let left = pair.get(&"0".into()).map_err(unwind_any_error)?;
                         let right = pair.get(&"1".into()).map_err(unwind_any_error)?;
                         result.push(left);
                         result.push(right);
+                    } else {
+                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
                     }
                 }
                 None => break,

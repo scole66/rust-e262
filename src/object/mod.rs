@@ -635,9 +635,7 @@ fn internal_validate_and_apply_property_descriptor(
 ) -> bool {
     match current {
         None => {
-            if !extensible {
-                false
-            } else {
+            if extensible {
                 if let Some(o) = oo {
                     let mut data = o.common_object_data().borrow_mut();
                     let property_descriptor = PropertyDescriptor {
@@ -660,6 +658,8 @@ fn internal_validate_and_apply_property_descriptor(
                     data.next_spot += 1;
                 }
                 true
+            } else {
+                false
             }
         }
         Some(cur) => {
@@ -1557,10 +1557,10 @@ impl Object {
         //          already exist. If it does exist and is not configurable or if O is not extensible,
         //          [[DefineOwnProperty]] will return false causing this operation to throw a TypeError exception.
         let success = self.create_data_property(p, v)?;
-        if !success {
-            Err(create_type_error("Unable to create data property"))
-        } else {
+        if success {
             Ok(())
+        } else {
+            Err(create_type_error("Unable to create data property"))
         }
     }
 
@@ -1837,10 +1837,10 @@ fn internal_define_property_or_throw(
     //  4. If success is false, throw a TypeError exception.
     //  5. Return success.
     let success = obj.o.define_own_property(p, desc)?;
-    if !success {
-        Err(create_type_error("Property cannot be assigned to"))
-    } else {
+    if success {
         Ok(())
+    } else {
+        Err(create_type_error("Property cannot be assigned to"))
     }
 }
 
@@ -1856,10 +1856,10 @@ impl Object {
         //  2. If success is false, throw a TypeError exception.
         //  3. Return unused.
         let success = self.o.delete(p)?;
-        if !success {
-            Err(create_type_error("Property could not be deleted"))
-        } else {
+        if success {
             Ok(())
+        } else {
+            Err(create_type_error("Property could not be deleted"))
         }
     }
 }

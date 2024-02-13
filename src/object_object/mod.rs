@@ -342,10 +342,10 @@ fn object_create(
     };
     let properties = args.next_arg();
     let obj = ordinary_object_create(o, &[]);
-    if !properties.is_undefined() {
-        object_define_properties_helper(obj, properties)
-    } else {
+    if properties.is_undefined() {
         Ok(ECMAScriptValue::from(obj))
+    } else {
+        object_define_properties_helper(obj, properties)
     }
 }
 
@@ -486,10 +486,10 @@ fn object_freeze(
     match o_arg {
         ECMAScriptValue::Object(o) => {
             let status = set_integrity_level(&o, IntegrityLevel::Frozen)?;
-            if !status {
-                Err(create_type_error("Object cannot be frozen"))
-            } else {
+            if status {
                 Ok(o.into())
+            } else {
+                Err(create_type_error("Object cannot be frozen"))
             }
         }
         _ => Ok(o_arg),
@@ -854,10 +854,10 @@ fn object_prevent_extensions(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = o.o.prevent_extensions()?;
-            if !status {
-                Err(create_type_error("cannot prevent extensions for this object"))
-            } else {
+            if status {
                 Ok(o.into())
+            } else {
+                Err(create_type_error("cannot prevent extensions for this object"))
             }
         }
     }
@@ -887,10 +887,10 @@ fn object_seal(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = set_integrity_level(&o, IntegrityLevel::Sealed)?;
-            if !status {
-                Err(create_type_error("cannot seal this object"))
-            } else {
+            if status {
                 Ok(o.into())
+            } else {
+                Err(create_type_error("cannot seal this object"))
             }
         }
     }
@@ -936,10 +936,10 @@ fn object_set_prototype_of(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = o.o.set_prototype_of(proto)?;
-            if !status {
-                Err(create_type_error("Prototype setting failed"))
-            } else {
+            if status {
                 Ok(o.into())
+            } else {
+                Err(create_type_error("Prototype setting failed"))
             }
         }
     }

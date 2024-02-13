@@ -167,10 +167,10 @@ mod add_entries_from_iterable {
                 let mut first = true;
                 for key in keys {
                     let value = o.get(&key).map_err(unwind_any_error)?;
-                    if !first {
-                        r.push(',');
-                    } else {
+                    if first {
                         first = false;
+                    } else {
+                        r.push(',');
                     }
                     r.push_str(&format!("{key}:{value}"));
                 }

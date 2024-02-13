@@ -95,9 +95,7 @@ impl ObjectInterface for ArrayObject {
                 Ok(false)
             } else {
                 let succeeded = ordinary_define_own_property(self, PropertyKey::from(p), desc).unwrap();
-                if !succeeded {
-                    Ok(false)
-                } else {
+                if succeeded {
                     if index >= old_len {
                         ordinary_define_own_property(
                             self,
@@ -111,6 +109,8 @@ impl ObjectInterface for ArrayObject {
                         .unwrap();
                     }
                     Ok(true)
+                } else {
+                    Ok(false)
                 }
             }
         } else {

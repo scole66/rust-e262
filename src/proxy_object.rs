@@ -294,15 +294,15 @@ impl ObjectInterface for ProxyObject {
             return match target_desc {
                 None => Ok(None),
                 Some(pd) => {
-                    if !pd.configurable {
-                        Err(create_type_error("proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object."))
-                    } else {
+                    if pd.configurable {
                         let extensible_target = is_extensible(target)?;
-                        if !extensible_target {
-                            Err(create_type_error("proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible."))
-                        } else {
+                        if extensible_target {
                             Ok(None)
+                        } else {
+                            Err(create_type_error("proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible."))
                         }
+                    } else {
+                        Err(create_type_error("proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object."))
                     }
                 }
             };
@@ -654,15 +654,15 @@ impl ObjectInterface for ProxyObject {
         match target_desc {
             None => Ok(true),
             Some(target_desc) => {
-                if !target_desc.configurable {
-                    Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as a non-configurable own property of the target object."))
-                } else {
+                if target_desc.configurable {
                     let extensible_target = is_extensible(target)?;
-                    if !extensible_target {
-                        Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as an own property of the target object and the target object is non-extensible."))
-                    } else {
+                    if extensible_target {
                         Ok(true)
+                    } else {
+                        Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as an own property of the target object and the target object is non-extensible."))
                     }
+                } else {
+                    Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as a non-configurable own property of the target object."))
                 }
             }
         }

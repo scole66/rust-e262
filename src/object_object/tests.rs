@@ -897,10 +897,10 @@ mod constructor {
             let mut first = true;
             for key in keys {
                 let value = info.get(&key).unwrap();
-                if !first {
-                    r.push(',');
-                } else {
+                if first {
                     first = false;
+                } else {
+                    r.push(',');
                 }
                 let value_str = value.test_result_string();
                 r.push_str(&format!("{key}:{{{value_str}}}"));
@@ -955,10 +955,10 @@ mod constructor {
                 ECMAScriptValue::Object(obj) => {
                     let key = global_symbol("gpo_test".into());
                     let val = obj.get(&key.into()).unwrap();
-                    if !val.is_string() {
-                        Ok(obj.into())
-                    } else {
+                    if val.is_string() {
                         Ok(val)
+                    } else {
+                        Ok(obj.into())
                     }
                 }
                 _ => Ok(result),

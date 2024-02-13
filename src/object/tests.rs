@@ -1397,36 +1397,36 @@ impl Iterator for VAPDIter {
                 },
             ));
 
-            if !self.configurable {
-                self.configurable = true;
-            } else {
+            if self.configurable {
                 self.configurable = false;
-                if !self.enumerable {
-                    self.enumerable = true;
-                } else {
+                if self.enumerable {
                     self.enumerable = false;
                     if self.stage == Stage::Data {
-                        if !self.writable {
-                            self.writable = true;
-                        } else {
+                        if self.writable {
                             self.writable = false;
                             if self.value == 0 {
                                 self.value = 1;
                             } else {
                                 self.stage = Stage::Accessor;
                             }
+                        } else {
+                            self.writable = true;
                         }
                     } else if !self.get_throws {
                         self.get_throws = true;
                     } else {
                         self.get_throws = false;
-                        if !self.set_throws {
-                            self.set_throws = true;
-                        } else {
+                        if self.set_throws {
                             self.stage = Stage::Done;
+                        } else {
+                            self.set_throws = true;
                         }
                     }
+                } else {
+                    self.enumerable = true;
                 }
+            } else {
+                self.configurable = true;
             }
 
             result

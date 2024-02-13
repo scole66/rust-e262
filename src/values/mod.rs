@@ -1306,10 +1306,10 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
         let integer = to_integer_or_infinity(value)?;
         let clamped = to_length(integer).unwrap();
         #[allow(clippy::cast_precision_loss)]
-        if clamped as f64 != integer {
-            Err(create_range_error(format!("{integer} out of range for index").as_str()))
-        } else {
+        if clamped as f64 == integer {
             Ok(clamped)
+        } else {
+            Err(create_range_error(format!("{integer} out of range for index").as_str()))
         }
     }
 }

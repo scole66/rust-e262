@@ -1006,10 +1006,10 @@ impl ECMAScriptValue {
                 let mut first = true;
                 for key in keys {
                     let value = o.get(&key);
-                    if !first {
-                        r.push(',');
-                    } else {
+                    if first {
                         first = false;
+                    } else {
+                        r.push(',');
                     }
                     let named_function_was_added = if let Ok(v) = value.as_ref() {
                         if is_callable(v) {
@@ -1017,11 +1017,11 @@ impl ECMAScriptValue {
                                 to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
                             )
                             .unwrap_or_else(|_| JSString::from("undefined"));
-                            if name != "undefined" {
+                            if name == "undefined" {
+                                false
+                            } else {
                                 r.push_str(&format!("{key}:function {name}"));
                                 true
-                            } else {
-                                false
                             }
                         } else {
                             false
