@@ -15,8 +15,8 @@ mod update_expression {
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: 78", vec!["LeftHandSideExpression: 78"]);
-        concise_check(&*ue, "Numeric: 78", vec![]);
+        pretty_check(&*ue, "UpdateExpression: 78", &["LeftHandSideExpression: 78"]);
+        concise_check(&*ue, "Numeric: 78", &[]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -25,11 +25,11 @@ mod update_expression {
         chk_scan(&scanner, 8);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", vec!["LeftHandSideExpression: ( x => x * 2 )"]);
+        pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", &["LeftHandSideExpression: ( x => x * 2 )"]);
         concise_check(
             &*ue,
             "ParenthesizedExpression: ( x => x * 2 )",
-            vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"],
+            &["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"],
         );
         assert!(ue.is_function_definition());
     }
@@ -39,8 +39,8 @@ mod update_expression {
         chk_scan(&scanner, 1);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: x", vec!["LeftHandSideExpression: x"]);
-        concise_check(&*ue, "IdentifierName: x", vec![]);
+        pretty_check(&*ue, "UpdateExpression: x", &["LeftHandSideExpression: x"]);
+        concise_check(&*ue, "IdentifierName: x", &[]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -49,8 +49,8 @@ mod update_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreIncrement { .. }));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
-        concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
+        pretty_check(&*ue, "UpdateExpression: ++ a", &["UnaryExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: ++ a", &["Punctuator: ++", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -59,8 +59,8 @@ mod update_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreDecrement { .. }));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
-        concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
+        pretty_check(&*ue, "UpdateExpression: -- a", &["UnaryExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: -- a", &["Punctuator: --", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -69,8 +69,8 @@ mod update_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostIncrement { .. }));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
-        concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
+        pretty_check(&*ue, "UpdateExpression: a ++", &["LeftHandSideExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: a ++", &["IdentifierName: a", "Punctuator: ++"]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -79,8 +79,8 @@ mod update_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostDecrement { .. }));
         format!("{ue:?}");
-        pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
-        concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);
+        pretty_check(&*ue, "UpdateExpression: a --", &["LeftHandSideExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: a --", &["IdentifierName: a", "Punctuator: --"]);
         assert!(!ue.is_function_definition());
     }
     #[test]
@@ -253,7 +253,7 @@ mod update_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

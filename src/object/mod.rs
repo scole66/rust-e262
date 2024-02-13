@@ -2031,7 +2031,7 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
 //  6. Return true.
 //
 // https://tc39.es/ecma262/#sec-setintegritylevel
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum IntegrityLevel {
     Sealed,
     Frozen,
@@ -2445,15 +2445,15 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: Option<Object>) -> Completion<bool>
+pub fn set_immutable_prototype<'a, T>(o: T, val: &Option<Object>) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     set_immutable_prototype_internal(o.into(), val)
 }
-fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> Completion<bool> {
+fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: &Option<Object>) -> Completion<bool> {
     let current = obj.get_prototype_of()?;
-    Ok(current == val)
+    Ok(current == *val)
 }
 
 #[derive(Debug)]
@@ -2495,7 +2495,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? SetImmutablePrototype(O, V).
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        set_immutable_prototype(self, obj)
+        set_immutable_prototype(self, &obj)
     }
 
     // [[IsExtensible]] ( )

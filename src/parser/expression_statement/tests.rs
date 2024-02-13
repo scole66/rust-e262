@@ -10,8 +10,8 @@ use test_case::test_case;
 fn expression_statement_test_01() {
     let (node, scanner) = check(ExpressionStatement::parse(&mut newparser("a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "ExpressionStatement: a ;", vec!["Expression: a"]);
-    concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "ExpressionStatement: a ;", &["Expression: a"]);
+    concise_check(&*node, "ExpressionStatement: a ;", &["IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -20,8 +20,8 @@ fn expression_statement_test_01() {
 fn expression_statement_test_02() {
     let (node, scanner) = check(ExpressionStatement::parse(&mut newparser("async;"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "ExpressionStatement: async ;", vec!["Expression: async"]);
-    concise_check(&*node, "ExpressionStatement: async ;", vec!["IdentifierName: async", "Punctuator: ;"]);
+    pretty_check(&*node, "ExpressionStatement: async ;", &["Expression: async"]);
+    concise_check(&*node, "ExpressionStatement: async ;", &["IdentifierName: async", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -31,8 +31,8 @@ fn expression_statement_test_03() {
     let (node, scanner) =
         check(ExpressionStatement::parse(&mut newparser("async\nfunction a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ExpressionStatement: async ;", vec!["Expression: async"]);
-    concise_check(&*node, "ExpressionStatement: async ;", vec!["IdentifierName: async", "Punctuator: ;"]);
+    pretty_check(&*node, "ExpressionStatement: async ;", &["Expression: async"]);
+    concise_check(&*node, "ExpressionStatement: async ;", &["IdentifierName: async", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -41,8 +41,8 @@ fn expression_statement_test_03() {
 fn expression_statement_test_asi_01() {
     let (node, scanner) = check(ExpressionStatement::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ExpressionStatement: a ;", vec!["Expression: a"]);
-    concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "ExpressionStatement: a ;", &["Expression: a"]);
+    concise_check(&*node, "ExpressionStatement: a ;", &["IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -126,7 +126,7 @@ mod expression_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).expression_statement().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]

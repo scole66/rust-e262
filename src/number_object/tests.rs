@@ -465,6 +465,7 @@ fn number_is_safe_integer_one_arg() {
     let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
+    #[allow(clippy::cast_precision_loss)]
     for (arg, expected) in [
         (f64::INFINITY, false),
         (f64::NAN, false),
@@ -494,7 +495,7 @@ fn this_number_value_01() {
     let number_constructor = intrinsic(IntrinsicId::Number);
     let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = this_number_value(number).unwrap();
+    let result = this_number_value(&number).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
@@ -503,7 +504,7 @@ fn this_number_value_02() {
     // called with number value
     setup_test_agent();
 
-    let result = this_number_value(ECMAScriptValue::from(123)).unwrap();
+    let result = this_number_value(&ECMAScriptValue::from(123)).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
@@ -512,7 +513,7 @@ fn this_number_value_03() {
     setup_test_agent();
     let obj = ordinary_object_create(None, &[]);
 
-    let result = this_number_value(ECMAScriptValue::from(obj)).unwrap_err();
+    let result = this_number_value(&ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
@@ -520,7 +521,7 @@ fn this_number_value_04() {
     // called with non-number, non-object value
     setup_test_agent();
 
-    let result = this_number_value(ECMAScriptValue::from(true)).unwrap_err();
+    let result = this_number_value(&ECMAScriptValue::from(true)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 

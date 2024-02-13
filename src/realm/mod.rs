@@ -414,7 +414,7 @@ impl Realm {
 //  6. Return realmRec.
 pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
     let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
-    create_intrinsics(r.clone());
+    create_intrinsics(&r);
     r
 }
 
@@ -436,7 +436,7 @@ pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
+pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
@@ -457,30 +457,30 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     // %ThrowTypeError%
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
 
-    provision_function_intrinsic(&realm_rec);
-    provision_boolean_intrinsic(&realm_rec);
+    provision_function_intrinsic(realm_rec);
+    provision_boolean_intrinsic(realm_rec);
 
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
-    provision_number_intrinsic(&realm_rec);
+    provision_number_intrinsic(realm_rec);
 
-    provision_error_intrinsic(&realm_rec);
-    provision_eval_error_intrinsic(&realm_rec);
-    provision_range_error_intrinsic(&realm_rec);
-    provision_reference_error_intrinsic(&realm_rec);
-    provision_syntax_error_intrinsic(&realm_rec);
-    provision_type_error_intrinsic(&realm_rec);
-    provision_uri_error_intrinsic(&realm_rec);
-    provision_object_intrinsic(&realm_rec);
-    provision_array_intrinsic(&realm_rec);
-    provision_symbol_intrinsic(&realm_rec);
-    provision_string_intrinsic(&realm_rec);
-    provision_iterator_prototype(&realm_rec);
-    provision_generator_function_intrinsics(&realm_rec);
-    provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
-    provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
-    provision_proxy_intrinsic(&realm_rec);
-    provision_math_intrinsic(&realm_rec);
+    provision_error_intrinsic(realm_rec);
+    provision_eval_error_intrinsic(realm_rec);
+    provision_range_error_intrinsic(realm_rec);
+    provision_reference_error_intrinsic(realm_rec);
+    provision_syntax_error_intrinsic(realm_rec);
+    provision_type_error_intrinsic(realm_rec);
+    provision_uri_error_intrinsic(realm_rec);
+    provision_object_intrinsic(realm_rec);
+    provision_array_intrinsic(realm_rec);
+    provision_symbol_intrinsic(realm_rec);
+    provision_string_intrinsic(realm_rec);
+    provision_iterator_prototype(realm_rec);
+    provision_generator_function_intrinsics(realm_rec);
+    provision_array_iterator_intrinsic(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_for_in_iterator_prototype(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_proxy_intrinsic(realm_rec);
+    provision_math_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
@@ -522,7 +522,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(f: &Object, realm: Rc<RefCell<Realm>>) {
+pub fn add_restricted_function_properties(f: &Object, realm: &Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
         f,
@@ -557,7 +557,7 @@ pub fn add_restricted_function_properties(f: &Object, realm: Rc<RefCell<Realm>>)
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
 pub fn throw_type_error(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -594,7 +594,7 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
 }
 
 pub fn do_nothing(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -602,28 +602,28 @@ pub fn do_nothing(
 }
 
 fn decode_uri(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn decode_uri_component(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn encode_uri(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn encode_uri_component(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -631,7 +631,7 @@ fn encode_uri_component(
 }
 
 fn eval(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -641,7 +641,7 @@ fn eval(
 }
 
 fn is_finite(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -659,7 +659,7 @@ fn is_finite(
 }
 
 fn is_nan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -677,7 +677,7 @@ fn is_nan(
 }
 
 fn parse_float(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -685,7 +685,7 @@ fn parse_float(
 }
 
 fn parse_int(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -781,9 +781,9 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                             push_execution_context(eval_context);
                             let result = match eval_declaration_instantiation(
                                 body,
-                                var_env,
-                                lex_env,
-                                private_env,
+                                &var_env,
+                                &lex_env,
+                                &private_env,
                                 strict_eval,
                                 &source_text,
                             ) {
@@ -811,9 +811,9 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
 
 fn eval_declaration_instantiation(
     body: &Rc<ScriptBody>,
-    var_env: Rc<dyn EnvironmentRecord>,
-    lex_env: Rc<dyn EnvironmentRecord>,
-    private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    var_env: &Rc<dyn EnvironmentRecord>,
+    lex_env: &Rc<dyn EnvironmentRecord>,
+    private_env: &Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
     source_text: &str,
 ) -> Completion<()> {
@@ -831,7 +831,7 @@ fn eval_declaration_instantiation(
             }
         }
         let mut this_env = lex_env.clone();
-        while !Rc::ptr_eq(&this_env, &var_env) {
+        while !Rc::ptr_eq(&this_env, var_env) {
             if this_env.as_object_environment_record().is_none() {
                 for name in var_names.iter() {
                     if this_env.has_binding(name).unwrap() {

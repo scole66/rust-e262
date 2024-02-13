@@ -8,11 +8,11 @@ use std::rc::Rc;
 //
 //      1. Return ? ToObject(this value).
 fn object_prototype_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    to_object(this_value).map(ECMAScriptValue::from)
+    to_object(this_value.clone()).map(ECMAScriptValue::from)
 }
 
 // Object.prototype.toString ( )
@@ -44,7 +44,7 @@ fn object_prototype_value_of(
 //            for other kinds of built-in or program defined objects. In addition, programs can use @@toStringTag in
 //            ways that will invalidate the reliability of such legacy type tests.
 pub fn object_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -54,7 +54,7 @@ pub fn object_prototype_to_string(
     if this_value.is_null() {
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
-    let o = to_object(this_value).unwrap();
+    let o = to_object(this_value.clone()).unwrap();
     let builtin_tag = if o.is_array()? {
         "Array"
     } else if o.o.is_arguments_object() {
@@ -248,7 +248,7 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
 //  3. Return ! ToObject(value).
 // The "length" property of the Object function is 1𝔽.
 fn object_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -291,7 +291,7 @@ fn object_constructor_function(
 //
 // The "length" property of the assign function is 2𝔽.
 fn object_assign(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -327,7 +327,7 @@ fn object_assign(
 //      a. Return ? ObjectDefineProperties(obj, Properties).
 //  4. Return obj.
 fn object_create(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -397,7 +397,7 @@ fn object_define_properties_helper(o: Object, properties: ECMAScriptValue) -> Co
 //  1. If Type(O) is not Object, throw a TypeError exception.
 //  2. Return ? ObjectDefineProperties(O, Properties).
 fn object_define_properties(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -423,7 +423,7 @@ fn object_define_properties(
 //  4. Perform ? DefinePropertyOrThrow(O, key, desc).
 //  5. Return O.
 fn object_define_property(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -455,7 +455,7 @@ fn object_define_property(
 //
 // https://tc39.es/ecma262/#sec-object.entries
 fn object_entries(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -477,7 +477,7 @@ fn object_entries(
 //
 // https://tc39.es/ecma262/#sec-object.freeze
 fn object_freeze(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -533,7 +533,7 @@ fn object_freeze(
 /// See
 /// [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries).
 fn object_from_entries(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -556,7 +556,7 @@ fn object_from_entries(
     require_object_coercible(&iterable)?;
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(Some(obj_proto), &[]);
-    let closure = |this: ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| {
+    let closure = |this: &ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| {
         let this_obj = Object::try_from(this).expect("'this' should be an object");
         let mut args = FuncArgs::from(args);
         let key = args.next_arg();
@@ -572,7 +572,7 @@ fn object_from_entries(
 }
 
 fn object_get_own_property_descriptor(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -597,7 +597,7 @@ fn object_get_own_property_descriptor(
 }
 
 fn object_get_own_property_descriptors(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -660,7 +660,7 @@ fn get_own_property_keys(o: ECMAScriptValue, typ: KeyType) -> Completion<Vec<ECM
 }
 
 fn object_get_own_property_names(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -674,7 +674,7 @@ fn object_get_own_property_names(
     Ok(create_array_from_list(keys.as_slice()).into())
 }
 fn object_get_own_property_symbols(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -689,7 +689,7 @@ fn object_get_own_property_symbols(
 }
 
 fn object_get_prototype_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -708,7 +708,7 @@ fn object_get_prototype_of(
 }
 
 fn object_has_own(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -728,7 +728,7 @@ fn object_has_own(
 
 #[allow(clippy::unnecessary_wraps)]
 fn object_is(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -742,7 +742,7 @@ fn object_is(
     Ok(value1.same_value(&value2).into())
 }
 fn object_is_extensible(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -766,7 +766,7 @@ fn object_is_extensible(
 }
 
 fn object_is_frozen(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -790,7 +790,7 @@ fn object_is_frozen(
 }
 
 fn object_is_sealed(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -813,7 +813,7 @@ fn object_is_sealed(
     }
 }
 fn object_keys(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -831,7 +831,7 @@ fn object_keys(
 }
 
 fn object_prevent_extensions(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -864,7 +864,7 @@ fn object_prevent_extensions(
 }
 
 fn object_seal(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -897,7 +897,7 @@ fn object_seal(
 }
 
 fn object_set_prototype_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -946,7 +946,7 @@ fn object_set_prototype_of(
 }
 
 fn object_values(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -964,7 +964,7 @@ fn object_values(
 }
 
 fn object_prototype_has_own_property(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -980,12 +980,12 @@ fn object_prototype_has_own_property(
     let mut args = FuncArgs::from(arguments);
     let v = args.next_arg();
     let p = to_property_key(v)?;
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     o.has_own_property(&p).map(ECMAScriptValue::from)
 }
 
 fn object_prototype_is_prototype_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1004,7 +1004,7 @@ fn object_prototype_is_prototype_of(
     let v = args.next_arg();
     match v {
         ECMAScriptValue::Object(mut v) => {
-            let o = to_object(this_value)?;
+            let o = to_object(this_value.clone())?;
             loop {
                 match v.o.get_prototype_of()? {
                     None => return Ok(ECMAScriptValue::from(false)),
@@ -1022,7 +1022,7 @@ fn object_prototype_is_prototype_of(
 }
 
 fn object_prototype_property_is_enumerable(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1043,7 +1043,7 @@ fn object_prototype_property_is_enumerable(
     let mut args = FuncArgs::from(arguments);
     let v = args.next_arg();
     let p = to_property_key(v)?;
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     let desc = o.o.get_own_property(&p)?;
     Ok(match desc {
         None => false,
@@ -1053,7 +1053,7 @@ fn object_prototype_property_is_enumerable(
 }
 
 fn object_prototype_to_locale_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

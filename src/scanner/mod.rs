@@ -1815,7 +1815,7 @@ fn template_hex_digits(
     )
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct CharVal(u32);
 impl TryFrom<u32> for CharVal {
     type Error = &'static str;
@@ -2025,6 +2025,7 @@ fn template_characters(scanner: &Scanner, source: &str) -> (Option<JSString>, JS
     }
 }
 
+#[derive(Copy, Clone)]
 enum TemplateStyle {
     NoSubOrHead,
     MiddleOrTail,

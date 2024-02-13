@@ -20,8 +20,8 @@ mod identifier {
     fn pprint() {
         let pot_id = Identifier::parse(&mut newparser("phil"), Scanner::new());
         let (id, _) = pot_id.unwrap();
-        pretty_check(&*id, "Identifier: phil", vec![]);
-        concise_check(&*id, "IdentifierName: phil", vec![]);
+        pretty_check(&*id, "Identifier: phil", &[]);
+        concise_check(&*id, "IdentifierName: phil", &[]);
     }
     #[test]
     fn await_kwd() {
@@ -223,7 +223,7 @@ mod identifier {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(&errs.swap_remove(0)))
             }
         }
 
@@ -270,7 +270,7 @@ mod identifier {
             let mut errs = vec![];
             identifier.early_errors(&mut errs, false, false);
             assert_eq!(errs.len(), 1);
-            unwind_syntax_error_object(errs.swap_remove(0))
+            unwind_syntax_error_object(&errs.swap_remove(0))
         }
 
         #[test_case("aw\\u0061it", true => Err(String::from("‘await’ not allowed as an identifier in modules")); "await in module")]
@@ -284,7 +284,7 @@ mod identifier {
                 Ok(())
             } else {
                 assert_eq!(errs.len(), 1);
-                Err(unwind_syntax_error_object(errs.swap_remove(0)))
+                Err(unwind_syntax_error_object(&errs.swap_remove(0)))
             }
         }
     }
@@ -379,8 +379,8 @@ fn identifier_reference_test_simple_success() {
     assert!(matches!(*idref, IdentifierReference::Identifier { .. }));
     assert_eq!(idref.string_value(), "identifier");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
-    pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
-    concise_check(&*idref, "IdentifierName: identifier", vec![]);
+    pretty_check(&*idref, "IdentifierReference: identifier", &["Identifier: identifier"]);
+    concise_check(&*idref, "IdentifierName: identifier", &[]);
 }
 #[test]
 fn identifier_reference_test_yield() {
@@ -388,8 +388,8 @@ fn identifier_reference_test_yield() {
     assert!(matches!(*idref, IdentifierReference::Yield { .. }));
     assert_eq!(idref.string_value(), "yield");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
-    pretty_check(&*idref, "IdentifierReference: yield", vec![]);
-    concise_check(&*idref, "Keyword: yield", vec![]);
+    pretty_check(&*idref, "IdentifierReference: yield", &[]);
+    concise_check(&*idref, "Keyword: yield", &[]);
 }
 #[test]
 fn identifier_reference_test_yield_02() {
@@ -402,8 +402,8 @@ fn identifier_reference_test_await() {
     assert!(matches!(*idref, IdentifierReference::Await { .. }));
     assert_eq!(idref.string_value(), "await");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
-    pretty_check(&*idref, "IdentifierReference: await", vec![]);
-    concise_check(&*idref, "Keyword: await", vec![]);
+    pretty_check(&*idref, "IdentifierReference: await", &[]);
+    concise_check(&*idref, "Keyword: await", &[]);
 }
 #[test]
 fn identifier_reference_test_await_02() {
@@ -544,7 +544,7 @@ mod identifier_reference {
         .unwrap();
         let mut errs = vec![];
         item.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "IdentifierName/no")]
@@ -626,14 +626,14 @@ fn binding_identifier_test_await() {
 #[test]
 fn binding_identifier_test_pprint() {
     let b1 = bindingid_create("joe", false, false);
-    pretty_check(&*b1, "BindingIdentifier: joe", vec!["Identifier: joe"]);
-    concise_check(&*b1, "IdentifierName: joe", vec![]);
+    pretty_check(&*b1, "BindingIdentifier: joe", &["Identifier: joe"]);
+    concise_check(&*b1, "IdentifierName: joe", &[]);
     let b2 = bindingid_create("yield", false, false);
-    pretty_check(&*b2, "BindingIdentifier: yield", vec![]);
-    concise_check(&*b2, "Keyword: yield", vec![]);
+    pretty_check(&*b2, "BindingIdentifier: yield", &[]);
+    concise_check(&*b2, "Keyword: yield", &[]);
     let b3 = bindingid_create("await", false, false);
-    pretty_check(&*b3, "BindingIdentifier: await", vec![]);
-    concise_check(&*b3, "Keyword: await", vec![]);
+    pretty_check(&*b3, "BindingIdentifier: await", &[]);
+    concise_check(&*b3, "Keyword: await", &[]);
 }
 #[test]
 fn binding_identifier_test_debug() {
@@ -843,7 +843,7 @@ mod binding_identifier {
             .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
         }
     }
 
@@ -870,8 +870,8 @@ fn label_identifier_test_normal_noyield_noawait() {
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-    concise_check(&*lid, "IdentifierName: id", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
+    concise_check(&*lid, "IdentifierName: id", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -881,8 +881,8 @@ fn label_identifier_test_normal_yield_noawait() {
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-    concise_check(&*lid, "IdentifierName: id", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
+    concise_check(&*lid, "IdentifierName: id", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -892,8 +892,8 @@ fn label_identifier_test_normal_noyield_await() {
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-    concise_check(&*lid, "IdentifierName: id", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
+    concise_check(&*lid, "IdentifierName: id", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -903,8 +903,8 @@ fn label_identifier_test_normal_yield_await() {
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-    concise_check(&*lid, "IdentifierName: id", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
+    concise_check(&*lid, "IdentifierName: id", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -914,8 +914,8 @@ fn label_identifier_test_yield_noyield_noawait() {
     assert!(matches!(*lid, LabelIdentifier::Yield { .. }));
     assert_eq!(lid.string_value(), "yield");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
-    concise_check(&*lid, "Keyword: yield", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: yield", &[]);
+    concise_check(&*lid, "Keyword: yield", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -933,8 +933,8 @@ fn label_identifier_test_yield_noyield_await() {
     assert!(matches!(*lid, LabelIdentifier::Yield { .. }));
     assert_eq!(lid.string_value(), "yield");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
-    concise_check(&*lid, "Keyword: yield", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: yield", &[]);
+    concise_check(&*lid, "Keyword: yield", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -952,8 +952,8 @@ fn label_identifier_test_await_noyield_noawait() {
     assert!(matches!(*lid, LabelIdentifier::Await { .. }));
     assert_eq!(lid.string_value(), "await");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: await", vec![]);
-    concise_check(&*lid, "Keyword: await", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: await", &[]);
+    concise_check(&*lid, "Keyword: await", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -963,8 +963,8 @@ fn label_identifier_test_await_yield_noawait() {
     assert!(matches!(*lid, LabelIdentifier::Await { .. }));
     assert_eq!(lid.string_value(), "await");
     assert_eq!(lid.contains(ParseNodeKind::Super), false);
-    pretty_check(&*lid, "LabelIdentifier: await", vec![]);
-    concise_check(&*lid, "Keyword: await", vec![]);
+    pretty_check(&*lid, "LabelIdentifier: await", &[]);
+    concise_check(&*lid, "Keyword: await", &[]);
     format!("{lid:?}");
 }
 #[test]
@@ -1111,7 +1111,7 @@ mod label_identifier {
             .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
         }
     }
 

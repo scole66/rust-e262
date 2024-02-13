@@ -222,7 +222,7 @@ where
 {
     setup_test_agent();
     let value = make_val().into();
-    super::boolean_prototype_value_of(value, None, &[]).map_err(unwind_any_error).map(to_boolean)
+    super::boolean_prototype_value_of(&value, None, &[]).map_err(unwind_any_error).map(to_boolean)
 }
 
 #[test_case(|| true => sok("true"); "true value")]
@@ -236,7 +236,7 @@ where
 {
     setup_test_agent();
     let value = make_val().into();
-    super::boolean_prototype_to_string(value, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::boolean_prototype_to_string(&value, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
 #[test_case(
@@ -263,7 +263,7 @@ fn boolean_constructor_function(
     setup_test_agent();
     let new_target = make_nt();
     let arguments = make_args();
-    super::boolean_constructor_function(ECMAScriptValue::Undefined, new_target.as_ref(), arguments.as_slice())
+    super::boolean_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), arguments.as_slice())
         .map_err(unwind_any_error)
         .map(|v| match &v {
             ECMAScriptValue::Boolean(b) => (*b, format!("Boolean({b})")),

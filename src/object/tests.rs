@@ -751,7 +751,7 @@ mod ordinary_set_prototype_of {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
@@ -841,7 +841,7 @@ mod ordinary_set_prototype_of {
     #[test_case(|| (OrdinaryObject::new(None, true), None) => (true, None); "using OrdinaryObject")]
     #[test_case(|| (TestObject::new(None, &[]), None) => (true, None); "using TestObject")]
     #[test_case(
-        || (AdaptableObject::new(None, AdaptableMethods { ..Default::default() }), None)
+        || (AdaptableObject::new(None, &AdaptableMethods { ..Default::default() }), None)
         => (true, None);
         "using AdaptableObject"
     )]
@@ -897,12 +897,12 @@ mod ordinary_prevent_extensions {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
     #[test_case(|| ordinary_object_create(None, &[]) => (true, false); "normal")]
-    #[test_case(|| AdaptableObject::new(None, AdaptableMethods::default()) => (true, false); "with AdaptableObject")]
+    #[test_case(|| AdaptableObject::new(None, &AdaptableMethods::default()) => (true, false); "with AdaptableObject")]
     #[test_case(|| StringObject::new("".into(), None) => (true, false); "with StringObject")]
     #[test_case(
         || ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object))
@@ -996,7 +996,7 @@ mod ordinary_define_own_property {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
@@ -1160,7 +1160,7 @@ mod ordinary_define_own_property {
         "using SymbolObject"
     )]
     #[test_case(
-        || AdaptableObject::new(None, AdaptableMethods::default()),
+        || AdaptableObject::new(None, &AdaptableMethods::default()),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
@@ -1676,7 +1676,7 @@ mod ordinary_has_property {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
@@ -1742,7 +1742,7 @@ mod ordinary_has_property {
     #[test_case(|| setup(TestObject::new(None, &[])) => Ok(true); "using TestObject")]
     #[test_case(|| setup(ErrorObject::new(None)) => Ok(true); "using ErrorObject")]
     #[test_case(|| setup(ArgumentsObject::new(None, None)) => Ok(true); "using ArgumentsObject")]
-    #[test_case(|| setup(AdaptableObject::new(None, AdaptableMethods{..Default::default()})) => Ok(true); "using AdaptableObject")]
+    #[test_case(|| setup(AdaptableObject::new(None, &AdaptableMethods{..Default::default()})) => Ok(true); "using AdaptableObject")]
     #[test_case(|| setup(StringObject::new("".into(), None)) => Ok(true); "using StringObject")]
     #[test_case(
         || {
@@ -1780,13 +1780,13 @@ mod ordinary_has_property {
 }
 
 fn test_getter(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     // This is a getter; it is essentially:
     // function() { return this.result; }
-    let obj = to_object(this_value)?;
+    let obj = to_object(this_value.clone())?;
     let key = PropertyKey::from("result");
     obj.get(&key)
 }
@@ -1814,7 +1814,7 @@ mod ordinary_get {
     }
     #[allow(clippy::unnecessary_wraps)]
     fn steps(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1823,7 +1823,7 @@ mod ordinary_get {
         Ok(ECMAScriptValue::from(rval))
     }
     fn cbf(
-        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
             behavior,
@@ -1944,7 +1944,7 @@ mod ordinary_get {
         "using FunctionObject")]
     #[test_case(|| withoutprop(ArgumentsObject::new(None, None)) => sok("undefined"); "using ArgumentsObject")]
     #[test_case(
-        || withoutprop(AdaptableObject::new(None, AdaptableMethods{..Default::default()}))
+        || withoutprop(AdaptableObject::new(None, &AdaptableMethods{..Default::default()}))
         => sok("undefined");
         "using AdaptableObject"
     )]
@@ -1963,7 +1963,7 @@ mod ordinary_set {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
@@ -2067,7 +2067,7 @@ mod ordinary_set {
         "StringObject argument"
     )]
     #[test_case(
-        || setup(AdaptableObject::new(None, AdaptableMethods { ..Default::default() }))
+        || setup(AdaptableObject::new(None, &AdaptableMethods { ..Default::default() }))
         => Ok((true, "undefined".to_string()));
         "AdaptableObject argument"
     )]
@@ -2271,13 +2271,13 @@ fn ordinary_set_with_own_descriptor_09() {
     assert_eq!(item, value);
 }
 fn test_setter(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     // This is a setter; it is essentially:
     // function(val) { this.value = val; }
-    let obj = to_object(this_value)?;
+    let obj = to_object(this_value.clone())?;
     let key = PropertyKey::from("result");
     let mut args = arguments.iter();
     let val = args.next().cloned().unwrap_or(ECMAScriptValue::Undefined);
@@ -2360,7 +2360,7 @@ mod ordinary_delete {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
 
@@ -2421,7 +2421,7 @@ mod ordinary_delete {
     )]
     #[test_case(|| StringObject::new("".into(), None), "key" => Ok((true, "".to_string())); "with StringObject")]
     #[test_case(
-        || AdaptableObject::new(None, AdaptableMethods::default()), "key"
+        || AdaptableObject::new(None, &AdaptableMethods::default()), "key"
         => Ok((true, "".to_string()));
         "with AdaptableObject"
     )]
@@ -2482,7 +2482,7 @@ mod ordinary_own_property_keys {
     use test_case::test_case;
 
     #[allow(clippy::unnecessary_wraps)]
-    fn steps(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
     #[test_case(
@@ -2522,7 +2522,7 @@ mod ordinary_own_property_keys {
         => svec(&[]);
         "BuiltinFunctionObject")]
     #[test_case(|| OrdinaryObject::new(None, true) => svec(&[]); "OrdinaryObject")]
-    #[test_case(|| AdaptableObject::new(None, AdaptableMethods{..Default::default()}) => svec(&[]); "AdaptableObject")]
+    #[test_case(|| AdaptableObject::new(None, &AdaptableMethods{..Default::default()}) => svec(&[]); "AdaptableObject")]
     #[test_case(
         || {
             FunctionObject::new(
@@ -2975,10 +2975,10 @@ mod private_element_find {
         }
     }
 
-    #[test_case(PrivateName::new("ice cream") => false; "not present")]
-    fn missing(name: PrivateName) -> bool {
+    #[test_case(&PrivateName::new("ice cream") => false; "not present")]
+    fn missing(name: &PrivateName) -> bool {
         let (obj, _) = setup();
-        let result = private_element_find(&obj, &name);
+        let result = private_element_find(&obj, name);
         result.is_some()
     }
 }
@@ -3015,8 +3015,8 @@ mod private_field_add {
         (obj, names)
     }
 
-    #[test_case(PrivateName::new("orange") => (true, Some(ECMAScriptValue::Null)); "orange")]
-    fn normal(name: PrivateName) -> (bool, Option<ECMAScriptValue>) {
+    #[test_case(&PrivateName::new("orange") => (true, Some(ECMAScriptValue::Null)); "orange")]
+    fn normal(name: &PrivateName) -> (bool, Option<ECMAScriptValue>) {
         setup_test_agent();
         let (obj, _) = setup();
 
@@ -3024,7 +3024,7 @@ mod private_field_add {
 
         (
             result.is_ok(),
-            private_element_find(&obj, &name).map(|pe| match &pe.kind {
+            private_element_find(&obj, name).map(|pe| match &pe.kind {
                 PrivateElementKind::Field { value } => value.borrow().clone(),
                 _ => {
                     panic!("Bad element kind")
@@ -3149,7 +3149,7 @@ mod private_get {
 
         (obj, field_name, method_name, getter_name, nogetter_name)
     }
-
+    #[derive(Copy, Clone)]
     enum FieldName {
         Field,
         Method,
@@ -3246,6 +3246,7 @@ mod private_set {
 
         (obj, field_name, method_name, setter_name, nosetter_name, broken_setter_name)
     }
+    #[derive(Clone, Copy)]
     enum FieldName {
         Field,
         Method,
@@ -3383,7 +3384,7 @@ mod to_property_descriptor {
     }
 
     fn faux_errors(
-        _this_value: ECMAScriptValue,
+        _this_value: &ECMAScriptValue,
         _new_target: Option<&Object>,
         _arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -3566,7 +3567,7 @@ mod enumerable_own_property_names {
         }
     }
     fn ownprop() -> Object {
-        let obj = AdaptableObject::object(AdaptableMethods {
+        let obj = AdaptableObject::object(&AdaptableMethods {
             get_own_property_override: Some(gop_override),
             ..Default::default()
         });
@@ -3583,7 +3584,7 @@ mod enumerable_own_property_names {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> Object {
-        AdaptableObject::object(AdaptableMethods {
+        AdaptableObject::object(&AdaptableMethods {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         })
@@ -3642,7 +3643,7 @@ mod set_integrity_level {
         DeadObject::object()
     }
     fn prevention_disabled() -> Object {
-        AdaptableObject::object(AdaptableMethods {
+        AdaptableObject::object(&AdaptableMethods {
             prevent_extensions_override: Some(|_| Ok(false)),
             ..Default::default()
         })
@@ -3651,7 +3652,7 @@ mod set_integrity_level {
         TestObject::object(&[FunctionId::OwnPropertyKeys])
     }
     fn dop_throws() -> Object {
-        let obj = AdaptableObject::object(AdaptableMethods {
+        let obj = AdaptableObject::object(&AdaptableMethods {
             define_own_property_override: Some(|this, key, desc| {
                 if this.something.get() == 0 {
                     this.something.set(1);
@@ -3674,7 +3675,7 @@ mod set_integrity_level {
         }
     }
     fn gop_throws() -> Object {
-        let obj = AdaptableObject::object(AdaptableMethods {
+        let obj = AdaptableObject::object(&AdaptableMethods {
             get_own_property_override: Some(gop_override),
             ..Default::default()
         });
@@ -3686,7 +3687,7 @@ mod set_integrity_level {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> Object {
-        AdaptableObject::object(AdaptableMethods {
+        AdaptableObject::object(&AdaptableMethods {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         })
@@ -4366,7 +4367,7 @@ mod object {
         }
         fn throwing_get_own_property() -> Object {
             let throwing_key = PropertyKey::from("kabloom");
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 get_own_property_override: Some(second_kabloom_throws),
                 ..Default::default()
             });
@@ -4391,7 +4392,7 @@ mod object {
         #[test_case(|| "bob", || vec!["1".into(), "0".into()] => sok("2:b"); "check exclusion")]
         #[test_case(
             || AdaptableObject::object(
-                AdaptableMethods {
+                &AdaptableMethods {
                     own_property_keys_override: Some(lying_ownprops),
                     ..Default::default()
                 }
@@ -4475,7 +4476,7 @@ mod test_integrity_level {
     }
     fn throwing_get_own_property() -> Object {
         let throwing_key = PropertyKey::from("kabloom");
-        let obj = AdaptableObject::object(AdaptableMethods {
+        let obj = AdaptableObject::object(&AdaptableMethods {
             get_own_property_override: Some(second_kabloom_throws),
             ..Default::default()
         });
@@ -4488,7 +4489,7 @@ mod test_integrity_level {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> Object {
-        let obj = AdaptableObject::object(AdaptableMethods {
+        let obj = AdaptableObject::object(&AdaptableMethods {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         });
@@ -4857,7 +4858,7 @@ where
     setup_test_agent();
     let obj = make_obj();
     let proto = make_proto();
-    super::set_immutable_prototype(&obj, proto).map_err(unwind_any_error)
+    super::set_immutable_prototype(&obj, &proto).map_err(unwind_any_error)
 }
 
 #[test_case(
@@ -4987,11 +4988,11 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
-#[test_case(|| ordinary_object_create(None, &[]), ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
-fn define_field(make_obj: impl FnOnce() -> Object, fdr: ClassFieldDefinitionRecord) -> Result<(), String> {
+#[test_case(|| ordinary_object_create(None, &[]), &ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
+fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(), String> {
     setup_test_agent();
     let obj = make_obj();
-    super::define_field(&obj, &fdr).map_err(unwind_any_error)
+    super::define_field(&obj, fdr).map_err(unwind_any_error)
 }
 
 mod property_info {
@@ -5010,13 +5011,13 @@ mod property_info {
     }
 
     #[test_case(
-        PropertyInfo {
+        &PropertyInfo {
             name: "name".into(),
             enumerable: true,
             configurable: true,
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
         },
-        PropertyInfo {
+        &PropertyInfo {
             name: "name".into(),
             enumerable: true,
             configurable: true,
@@ -5026,13 +5027,13 @@ mod property_info {
         "equal"
     )]
     #[test_case(
-        PropertyInfo {
+        &PropertyInfo {
             name: "name".into(),
             enumerable: true,
             configurable: true,
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
         },
-        PropertyInfo {
+        &PropertyInfo {
             name: "name".into(),
             enumerable: true,
             configurable: false,
@@ -5041,7 +5042,7 @@ mod property_info {
         => false;
         "not equal"
     )]
-    fn eq(left: PropertyInfo, right: PropertyInfo) -> bool {
+    fn eq(left: &PropertyInfo, right: &PropertyInfo) -> bool {
         left == right
     }
 }
@@ -5057,18 +5058,18 @@ mod property_info_kind {
     }
 
     #[test_case(
-        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
-        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true }
+        &PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        &PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true }
         => true;
         "equal"
     )]
     #[test_case(
-        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
-        PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: false }
+        &PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: true },
+        &PropertyInfoKind::Data { value: ECMAScriptValue::Null, writable: false }
         => false;
         "not equal"
     )]
-    fn eq(left: PropertyInfoKind, right: PropertyInfoKind) -> bool {
+    fn eq(left: &PropertyInfoKind, right: &PropertyInfoKind) -> bool {
         left == right
     }
 }
@@ -5240,7 +5241,7 @@ mod get_prototype_from_constructor {
     use test_case::test_case;
 
     fn cbf(
-        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
             behavior,
@@ -5256,7 +5257,7 @@ mod get_prototype_from_constructor {
 
     fn fn_returning_target_then_revoking() -> Object {
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {

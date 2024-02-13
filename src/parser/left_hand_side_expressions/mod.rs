@@ -674,6 +674,7 @@ impl PrettyPrint for MetaProperty {
     }
 }
 
+#[derive(Copy, Clone)]
 enum MetaHelper {
     NewTarget,
     ImportMeta(ParseGoal),

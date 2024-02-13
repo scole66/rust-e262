@@ -10,8 +10,8 @@ fn multiplicative_operator_test_01() {
     let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("*"), Scanner::new()));
     chk_scan(&scanner, 1);
     assert!(matches!(*mo, MultiplicativeOperator::Multiply));
-    pretty_check(&*mo, "MultiplicativeOperator: *", vec![]);
-    concise_check(&*mo, "Punctuator: *", vec![]);
+    pretty_check(&*mo, "MultiplicativeOperator: *", &[]);
+    concise_check(&*mo, "Punctuator: *", &[]);
     format!("{mo:?}");
 }
 #[test]
@@ -19,8 +19,8 @@ fn multiplicative_operator_test_02() {
     let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("/"), Scanner::new()));
     chk_scan(&scanner, 1);
     assert!(matches!(*mo, MultiplicativeOperator::Divide));
-    pretty_check(&*mo, "MultiplicativeOperator: /", vec![]);
-    concise_check(&*mo, "Punctuator: /", vec![]);
+    pretty_check(&*mo, "MultiplicativeOperator: /", &[]);
+    concise_check(&*mo, "Punctuator: /", &[]);
     format!("{mo:?}");
 }
 #[test]
@@ -28,8 +28,8 @@ fn multiplicative_operator_test_03() {
     let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("%"), Scanner::new()));
     chk_scan(&scanner, 1);
     assert!(matches!(*mo, MultiplicativeOperator::Modulo));
-    pretty_check(&*mo, "MultiplicativeOperator: %", vec![]);
-    concise_check(&*mo, "Punctuator: %", vec![]);
+    pretty_check(&*mo, "MultiplicativeOperator: %", &[]);
+    concise_check(&*mo, "Punctuator: %", &[]);
     format!("{mo:?}");
 }
 #[test]
@@ -87,8 +87,8 @@ mod multiplicative_expression {
         let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*me, MultiplicativeExpression::ExponentiationExpression(_)));
-        pretty_check(&*me, "MultiplicativeExpression: a", vec!["ExponentiationExpression: a"]);
-        concise_check(&*me, "IdentifierName: a", vec![]);
+        pretty_check(&*me, "MultiplicativeExpression: a", &["ExponentiationExpression: a"]);
+        concise_check(&*me, "IdentifierName: a", &[]);
         format!("{me:?}");
         assert_eq!(me.is_function_definition(), false);
     }
@@ -100,12 +100,12 @@ mod multiplicative_expression {
         pretty_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+            &["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
         );
         concise_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
         );
         format!("{me:?}");
         assert_eq!(me.is_function_definition(), false);
@@ -119,12 +119,12 @@ mod multiplicative_expression {
         pretty_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+            &["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
         );
         concise_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
         );
         format!("{me:?}");
     }
@@ -215,7 +215,7 @@ mod multiplicative_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

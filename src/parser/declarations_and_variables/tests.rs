@@ -13,8 +13,8 @@ fn lexical_declaration_test_01() {
     let (node, scanner) =
         check(LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "LexicalDeclaration: let a ;", vec!["LetOrConst: let", "BindingList: a"]);
-    concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "LexicalDeclaration: let a ;", &["LetOrConst: let", "BindingList: a"]);
+    concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
@@ -22,11 +22,11 @@ fn lexical_declaration_test_02() {
     let (node, scanner) =
         check(LexicalDeclaration::parse(&mut newparser("const a=0;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "LexicalDeclaration: const a = 0 ;", vec!["LetOrConst: const", "BindingList: a = 0"]);
+    pretty_check(&*node, "LexicalDeclaration: const a = 0 ;", &["LetOrConst: const", "BindingList: a = 0"]);
     concise_check(
         &*node,
         "LexicalDeclaration: const a = 0 ;",
-        vec!["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"],
+        &["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"],
     );
     format!("{node:?}");
 }
@@ -42,8 +42,8 @@ fn lexical_declaration_test_cache_01() {
 fn lexical_declaration_test_asi_01() {
     let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "LexicalDeclaration: let a ;", vec!["LetOrConst: let", "BindingList: a"]);
-    concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "LexicalDeclaration: let a ;", &["LetOrConst: let", "BindingList: a"]);
+    concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
@@ -127,7 +127,7 @@ mod lexical_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("let a=arguments;" => true; "yes")]
@@ -147,8 +147,8 @@ mod lexical_declaration {
 fn let_or_const_test_01() {
     let item = LetOrConst::Const;
     assert!(format!("{item}") == "const");
-    pretty_check(&item, "LetOrConst: const", vec![]);
-    concise_check(&item, "Keyword: const", vec![]);
+    pretty_check(&item, "LetOrConst: const", &[]);
+    concise_check(&item, "Keyword: const", &[]);
     pretty_error_validate(&item);
     concise_error_validate(&item);
 }
@@ -156,8 +156,8 @@ fn let_or_const_test_01() {
 fn let_or_const_test_02() {
     let item = LetOrConst::Let;
     assert!(format!("{item}") == "let");
-    pretty_check(&item, "LetOrConst: let", vec![]);
-    concise_check(&item, "Keyword: let", vec![]);
+    pretty_check(&item, "LetOrConst: let", &[]);
+    concise_check(&item, "Keyword: let", &[]);
     pretty_error_validate(&item);
     concise_error_validate(&item);
 }
@@ -191,8 +191,8 @@ fn binding_list_test_01() {
     let (node, scanner) = check(BindingList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingList::Item(..)));
-    pretty_check(&*node, "BindingList: a", vec!["LexicalBinding: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingList: a", &["LexicalBinding: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -202,8 +202,8 @@ fn binding_list_test_02() {
     let (node, scanner) = check(BindingList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingList::List(..)));
-    pretty_check(&*node, "BindingList: a , b", vec!["BindingList: a", "LexicalBinding: b"]);
-    concise_check(&*node, "BindingList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    pretty_check(&*node, "BindingList: a , b", &["BindingList: a", "LexicalBinding: b"]);
+    concise_check(&*node, "BindingList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -261,7 +261,7 @@ mod binding_list {
             strict,
             is_constant_declaration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -286,8 +286,8 @@ fn lexical_binding_test_01() {
     let (node, scanner) = check(LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, LexicalBinding::Identifier(_, None)));
-    pretty_check(&*node, "LexicalBinding: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "LexicalBinding: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -297,8 +297,8 @@ fn lexical_binding_test_02() {
     let (node, scanner) = check(LexicalBinding::parse(&mut newparser("a=0"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, LexicalBinding::Identifier(_, Some(_))));
-    pretty_check(&*node, "LexicalBinding: a = 0", vec!["BindingIdentifier: a", "Initializer: = 0"]);
-    concise_check(&*node, "LexicalBinding: a = 0", vec!["IdentifierName: a", "Initializer: = 0"]);
+    pretty_check(&*node, "LexicalBinding: a = 0", &["BindingIdentifier: a", "Initializer: = 0"]);
+    concise_check(&*node, "LexicalBinding: a = 0", &["IdentifierName: a", "Initializer: = 0"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -308,8 +308,8 @@ fn lexical_binding_test_03() {
     let (node, scanner) = check(LexicalBinding::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, LexicalBinding::Pattern(..)));
-    pretty_check(&*node, "LexicalBinding: { a } = b", vec!["BindingPattern: { a }", "Initializer: = b"]);
-    concise_check(&*node, "LexicalBinding: { a } = b", vec!["ObjectBindingPattern: { a }", "Initializer: = b"]);
+    pretty_check(&*node, "LexicalBinding: { a } = b", &["BindingPattern: { a }", "Initializer: = b"]);
+    concise_check(&*node, "LexicalBinding: { a } = b", &["ObjectBindingPattern: { a }", "Initializer: = b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -392,7 +392,7 @@ mod lexical_binding {
             strict,
             is_constant_declaration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "id")]
@@ -418,8 +418,8 @@ mod lexical_binding {
 fn variable_statement_test_01() {
     let (node, scanner) = check(VariableStatement::parse(&mut newparser("var a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "VariableStatement: var a ;", vec!["VariableDeclarationList: a"]);
-    concise_check(&*node, "VariableStatement: var a ;", vec!["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "VariableStatement: var a ;", &["VariableDeclarationList: a"]);
+    concise_check(&*node, "VariableStatement: var a ;", &["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -428,8 +428,8 @@ fn variable_statement_test_01() {
 fn variable_statement_test_asi_01() {
     let (node, scanner) = check(VariableStatement::parse(&mut newparser("var a"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "VariableStatement: var a ;", vec!["VariableDeclarationList: a"]);
-    concise_check(&*node, "VariableStatement: var a ;", vec!["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "VariableStatement: var a ;", &["VariableDeclarationList: a"]);
+    concise_check(&*node, "VariableStatement: var a ;", &["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -484,7 +484,7 @@ mod variable_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("var a=arguments;" => true; "yes")]
@@ -510,8 +510,8 @@ fn variable_declaration_list_test_01() {
     let (node, scanner) =
         check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "VariableDeclarationList: a", vec!["VariableDeclaration: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "VariableDeclarationList: a", &["VariableDeclaration: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -521,11 +521,11 @@ fn variable_declaration_list_test_02() {
     let (node, scanner) =
         check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
-    pretty_check(&*node, "VariableDeclarationList: a , b", vec!["VariableDeclaration: a", "VariableDeclaration: b"]);
+    pretty_check(&*node, "VariableDeclarationList: a , b", &["VariableDeclaration: a", "VariableDeclaration: b"]);
     concise_check(
         &*node,
         "VariableDeclarationList: a , b",
-        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+        &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -610,7 +610,7 @@ mod variable_declaration_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -643,8 +643,8 @@ fn variable_declaration_test_01() {
     let (node, scanner) = check(VariableDeclaration::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, VariableDeclaration::Identifier(_, None)));
-    pretty_check(&*node, "VariableDeclaration: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "VariableDeclaration: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -654,8 +654,8 @@ fn variable_declaration_test_02() {
     let (node, scanner) = check(VariableDeclaration::parse(&mut newparser("a=b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, VariableDeclaration::Identifier(_, Some(_))));
-    pretty_check(&*node, "VariableDeclaration: a = b", vec!["BindingIdentifier: a", "Initializer: = b"]);
-    concise_check(&*node, "VariableDeclaration: a = b", vec!["IdentifierName: a", "Initializer: = b"]);
+    pretty_check(&*node, "VariableDeclaration: a = b", &["BindingIdentifier: a", "Initializer: = b"]);
+    concise_check(&*node, "VariableDeclaration: a = b", &["IdentifierName: a", "Initializer: = b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -666,8 +666,8 @@ fn variable_declaration_test_03() {
         check(VariableDeclaration::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, VariableDeclaration::Pattern(..)));
-    pretty_check(&*node, "VariableDeclaration: { a } = b", vec!["BindingPattern: { a }", "Initializer: = b"]);
-    concise_check(&*node, "VariableDeclaration: { a } = b", vec!["ObjectBindingPattern: { a }", "Initializer: = b"]);
+    pretty_check(&*node, "VariableDeclaration: { a } = b", &["BindingPattern: { a }", "Initializer: = b"]);
+    concise_check(&*node, "VariableDeclaration: { a } = b", &["ObjectBindingPattern: { a }", "Initializer: = b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -755,7 +755,7 @@ mod variable_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -778,8 +778,8 @@ fn binding_pattern_test_01() {
     let (node, scanner) = check(BindingPattern::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingPattern::Object(..)));
-    pretty_check(&*node, "BindingPattern: { a }", vec!["ObjectBindingPattern: { a }"]);
-    concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
+    pretty_check(&*node, "BindingPattern: { a }", &["ObjectBindingPattern: { a }"]);
+    concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -789,8 +789,8 @@ fn binding_pattern_test_02() {
     let (node, scanner) = check(BindingPattern::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingPattern::Array(..)));
-    pretty_check(&*node, "BindingPattern: [ a ]", vec!["ArrayBindingPattern: [ a ]"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    pretty_check(&*node, "BindingPattern: [ a ]", &["ArrayBindingPattern: [ a ]"]);
+    concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -858,7 +858,7 @@ mod binding_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("{a=arguments}" => true; "Object (yes)")]
@@ -890,8 +890,8 @@ fn object_binding_pattern_test_01() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(&*node, ObjectBindingPattern::Empty { .. }));
-    pretty_check(&*node, "ObjectBindingPattern: { }", vec![]);
-    concise_check(&*node, "ObjectBindingPattern: { }", vec!["Punctuator: {", "Punctuator: }"]);
+    pretty_check(&*node, "ObjectBindingPattern: { }", &[]);
+    concise_check(&*node, "ObjectBindingPattern: { }", &["Punctuator: {", "Punctuator: }"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -901,11 +901,11 @@ fn object_binding_pattern_test_02() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{...a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, ObjectBindingPattern::RestOnly { .. }));
-    pretty_check(&*node, "ObjectBindingPattern: { ... a }", vec!["BindingRestProperty: ... a"]);
+    pretty_check(&*node, "ObjectBindingPattern: { ... a }", &["BindingRestProperty: ... a"]);
     concise_check(
         &*node,
         "ObjectBindingPattern: { ... a }",
-        vec!["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"],
+        &["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -916,8 +916,8 @@ fn object_binding_pattern_test_03() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, ObjectBindingPattern::ListOnly { .. }));
-    pretty_check(&*node, "ObjectBindingPattern: { a }", vec!["BindingPropertyList: a"]);
-    concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
+    pretty_check(&*node, "ObjectBindingPattern: { a }", &["BindingPropertyList: a"]);
+    concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -930,12 +930,12 @@ fn object_binding_pattern_test_04() {
     pretty_check(
         &*node,
         "ObjectBindingPattern: { a , ... b }",
-        vec!["BindingPropertyList: a", "BindingRestProperty: ... b"],
+        &["BindingPropertyList: a", "BindingRestProperty: ... b"],
     );
     concise_check(
         &*node,
         "ObjectBindingPattern: { a , ... b }",
-        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"],
+        &["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -946,11 +946,11 @@ fn object_binding_pattern_test_05() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: None, .. }));
-    pretty_check(&*node, "ObjectBindingPattern: { a , }", vec!["BindingPropertyList: a"]);
+    pretty_check(&*node, "ObjectBindingPattern: { a , }", &["BindingPropertyList: a"]);
     concise_check(
         &*node,
         "ObjectBindingPattern: { a , }",
-        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"],
+        &["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1083,7 +1083,7 @@ mod object_binding_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -1123,8 +1123,8 @@ fn array_binding_pattern_test_01() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: None, .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ ]", vec![]);
-    concise_check(&*node, "ArrayBindingPattern: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ ]", &[]);
+    concise_check(&*node, "ArrayBindingPattern: [ ]", &["Punctuator: [", "Punctuator: ]"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1134,8 +1134,8 @@ fn array_binding_pattern_test_02() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: None, .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Elisions: ,"]);
-    concise_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ , ]", &["Elisions: ,"]);
+    concise_check(&*node, "ArrayBindingPattern: [ , ]", &["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1145,11 +1145,11 @@ fn array_binding_pattern_test_03() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: Some(_), .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["BindingRestElement: ... a"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", &["BindingRestElement: ... a"]);
     concise_check(
         &*node,
         "ArrayBindingPattern: [ ... a ]",
-        vec!["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"],
+        &["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1160,11 +1160,11 @@ fn array_binding_pattern_test_04() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: Some(_), .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Elisions: ,", "BindingRestElement: ... a"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", &["Elisions: ,", "BindingRestElement: ... a"]);
     concise_check(
         &*node,
         "ArrayBindingPattern: [ , ... a ]",
-        vec!["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"],
+        &["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1175,8 +1175,8 @@ fn array_binding_pattern_test_05() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, ArrayBindingPattern::ListOnly { .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ a ]", vec!["BindingElementList: a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ a ]", &["BindingElementList: a"]);
+    concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1186,11 +1186,11 @@ fn array_binding_pattern_test_06() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest { bre: None, elision: None, .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["BindingElementList: a"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ a , ]", &["BindingElementList: a"]);
     concise_check(
         &*node,
         "ArrayBindingPattern: [ a , ]",
-        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
+        &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1201,11 +1201,11 @@ fn array_binding_pattern_test_07() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: None, .. }));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["BindingElementList: a", "Elisions: ,"]);
+    pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", &["BindingElementList: a", "Elisions: ,"]);
     concise_check(
         &*node,
         "ArrayBindingPattern: [ a , , ]",
-        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
+        &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1216,15 +1216,11 @@ fn array_binding_pattern_test_08() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: None, bre: Some(_), .. }));
-    pretty_check(
-        &*node,
-        "ArrayBindingPattern: [ a , ... b ]",
-        vec!["BindingElementList: a", "BindingRestElement: ... b"],
-    );
+    pretty_check(&*node, "ArrayBindingPattern: [ a , ... b ]", &["BindingElementList: a", "BindingRestElement: ... b"]);
     concise_check(
         &*node,
         "ArrayBindingPattern: [ a , ... b ]",
-        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"],
+        &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"],
     );
     format!("{node:?}");
     pretty_error_validate(&*node);
@@ -1238,12 +1234,12 @@ fn array_binding_pattern_test_09() {
     pretty_check(
         &*node,
         "ArrayBindingPattern: [ a , , ... b ]",
-        vec!["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"],
+        &["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"],
     );
     concise_check(
         &*node,
         "ArrayBindingPattern: [ a , , ... b ]",
-        vec![
+        &[
             "Punctuator: [",
             "IdentifierName: a",
             "Punctuator: ,",
@@ -1477,7 +1473,7 @@ mod array_binding_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("[]" => false; "emtpy")]
@@ -1530,8 +1526,8 @@ mod array_binding_pattern {
 fn binding_rest_property_test_01() {
     let (node, scanner) = check(BindingRestProperty::parse(&mut newparser("...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "BindingRestProperty: ... b", vec!["BindingIdentifier: b"]);
-    concise_check(&*node, "BindingRestProperty: ... b", vec!["Punctuator: ...", "IdentifierName: b"]);
+    pretty_check(&*node, "BindingRestProperty: ... b", &["BindingIdentifier: b"]);
+    concise_check(&*node, "BindingRestProperty: ... b", &["Punctuator: ...", "IdentifierName: b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1579,7 +1575,7 @@ mod binding_rest_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 }
 
@@ -1589,8 +1585,8 @@ fn binding_property_list_test_01() {
     let (node, scanner) = check(BindingPropertyList::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingPropertyList::Item(..)));
-    pretty_check(&*node, "BindingPropertyList: a", vec!["BindingProperty: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingPropertyList: a", &["BindingProperty: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1600,12 +1596,8 @@ fn binding_property_list_test_02() {
     let (node, scanner) = check(BindingPropertyList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingPropertyList::List(..)));
-    pretty_check(&*node, "BindingPropertyList: a , b", vec!["BindingPropertyList: a", "BindingProperty: b"]);
-    concise_check(
-        &*node,
-        "BindingPropertyList: a , b",
-        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
-    );
+    pretty_check(&*node, "BindingPropertyList: a , b", &["BindingPropertyList: a", "BindingProperty: b"]);
+    concise_check(&*node, "BindingPropertyList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1615,8 +1607,8 @@ fn binding_property_list_test_03() {
     let (node, scanner) = check(BindingPropertyList::parse(&mut newparser("a,"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingPropertyList::Item(..)));
-    pretty_check(&*node, "BindingPropertyList: a", vec!["BindingProperty: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingPropertyList: a", &["BindingProperty: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1688,7 +1680,7 @@ mod binding_property_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1716,8 +1708,8 @@ fn binding_element_list_test_01() {
     let (node, scanner) = check(BindingElementList::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingElementList::Item(..)));
-    pretty_check(&*node, "BindingElementList: a", vec!["BindingElisionElement: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingElementList: a", &["BindingElisionElement: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1727,8 +1719,8 @@ fn binding_element_list_test_02() {
     let (node, scanner) = check(BindingElementList::parse(&mut newparser("a,"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingElementList::Item(..)));
-    pretty_check(&*node, "BindingElementList: a", vec!["BindingElisionElement: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingElementList: a", &["BindingElisionElement: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1738,8 +1730,8 @@ fn binding_element_list_test_03() {
     let (node, scanner) = check(BindingElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingElementList::List(..)));
-    pretty_check(&*node, "BindingElementList: a , b", vec!["BindingElementList: a", "BindingElisionElement: b"]);
-    concise_check(&*node, "BindingElementList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    pretty_check(&*node, "BindingElementList: a , b", &["BindingElementList: a", "BindingElisionElement: b"]);
+    concise_check(&*node, "BindingElementList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1811,7 +1803,7 @@ mod binding_element_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1839,8 +1831,8 @@ fn binding_elision_element_test_01() {
     let (node, scanner) = check(BindingElisionElement::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingElisionElement::Element(None, _)));
-    pretty_check(&*node, "BindingElisionElement: a", vec!["BindingElement: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingElisionElement: a", &["BindingElement: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1850,8 +1842,8 @@ fn binding_elision_element_test_02() {
     let (node, scanner) = check(BindingElisionElement::parse(&mut newparser(",a"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(&*node, BindingElisionElement::Element(Some(_), _)));
-    pretty_check(&*node, "BindingElisionElement: , a", vec!["Elisions: ,", "BindingElement: a"]);
-    concise_check(&*node, "BindingElisionElement: , a", vec!["Elisions: ,", "IdentifierName: a"]);
+    pretty_check(&*node, "BindingElisionElement: , a", &["Elisions: ,", "BindingElement: a"]);
+    concise_check(&*node, "BindingElisionElement: , a", &["Elisions: ,", "IdentifierName: a"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1911,7 +1903,7 @@ mod binding_elision_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -1937,8 +1929,8 @@ fn binding_property_test_01() {
     let (node, scanner) = check(BindingProperty::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingProperty::Single(..)));
-    pretty_check(&*node, "BindingProperty: a", vec!["SingleNameBinding: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingProperty: a", &["SingleNameBinding: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1948,8 +1940,8 @@ fn binding_property_test_02() {
     let (node, scanner) = check(BindingProperty::parse(&mut newparser("a:b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingProperty::Property(..)));
-    pretty_check(&*node, "BindingProperty: a : b", vec!["PropertyName: a", "BindingElement: b"]);
-    concise_check(&*node, "BindingProperty: a : b", vec!["IdentifierName: a", "Punctuator: :", "IdentifierName: b"]);
+    pretty_check(&*node, "BindingProperty: a : b", &["PropertyName: a", "BindingElement: b"]);
+    concise_check(&*node, "BindingProperty: a : b", &["IdentifierName: a", "Punctuator: :", "IdentifierName: b"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1959,8 +1951,8 @@ fn binding_property_test_03() {
     let (node, scanner) = check(BindingProperty::parse(&mut newparser("a:"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingProperty::Single(..)));
-    pretty_check(&*node, "BindingProperty: a", vec!["SingleNameBinding: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingProperty: a", &["SingleNameBinding: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2032,7 +2024,7 @@ mod binding_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -2060,8 +2052,8 @@ fn binding_element_test_01() {
     let (node, scanner) = check(BindingElement::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, BindingElement::Single(..)));
-    pretty_check(&*node, "BindingElement: a", vec!["SingleNameBinding: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "BindingElement: a", &["SingleNameBinding: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2071,8 +2063,8 @@ fn binding_element_test_02() {
     let (node, scanner) = check(BindingElement::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingElement::Pattern(_, None)));
-    pretty_check(&*node, "BindingElement: { a }", vec!["BindingPattern: { a }"]);
-    concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
+    pretty_check(&*node, "BindingElement: { a }", &["BindingPattern: { a }"]);
+    concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2082,8 +2074,8 @@ fn binding_element_test_03() {
     let (node, scanner) = check(BindingElement::parse(&mut newparser("{a}=n"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, BindingElement::Pattern(_, Some(_))));
-    pretty_check(&*node, "BindingElement: { a } = n", vec!["BindingPattern: { a }", "Initializer: = n"]);
-    concise_check(&*node, "BindingElement: { a } = n", vec!["ObjectBindingPattern: { a }", "Initializer: = n"]);
+    pretty_check(&*node, "BindingElement: { a } = n", &["BindingPattern: { a }", "Initializer: = n"]);
+    concise_check(&*node, "BindingElement: { a } = n", &["ObjectBindingPattern: { a }", "Initializer: = n"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2179,7 +2171,7 @@ mod binding_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a=arguments" => true; "Single (yes)")]
@@ -2224,8 +2216,8 @@ fn single_name_binding_test_01() {
     let (node, scanner) = check(SingleNameBinding::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, SingleNameBinding::Id(_, None)));
-    pretty_check(&*node, "SingleNameBinding: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "SingleNameBinding: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2235,8 +2227,8 @@ fn single_name_binding_test_02() {
     let (node, scanner) = check(SingleNameBinding::parse(&mut newparser("a=0"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, SingleNameBinding::Id(_, Some(_))));
-    pretty_check(&*node, "SingleNameBinding: a = 0", vec!["BindingIdentifier: a", "Initializer: = 0"]);
-    concise_check(&*node, "SingleNameBinding: a = 0", vec!["IdentifierName: a", "Initializer: = 0"]);
+    pretty_check(&*node, "SingleNameBinding: a = 0", &["BindingIdentifier: a", "Initializer: = 0"]);
+    concise_check(&*node, "SingleNameBinding: a = 0", &["IdentifierName: a", "Initializer: = 0"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2304,7 +2296,7 @@ mod single_name_binding {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "Id")]
@@ -2339,8 +2331,8 @@ fn binding_rest_element_test_01() {
     let (node, scanner) = check(BindingRestElement::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, BindingRestElement::Identifier(..)));
-    pretty_check(&*node, "BindingRestElement: ... a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "BindingRestElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
+    pretty_check(&*node, "BindingRestElement: ... a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "BindingRestElement: ... a", &["Punctuator: ...", "IdentifierName: a"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2350,8 +2342,8 @@ fn binding_rest_element_test_02() {
     let (node, scanner) = check(BindingRestElement::parse(&mut newparser("...{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, BindingRestElement::Pattern(..)));
-    pretty_check(&*node, "BindingRestElement: ... { a }", vec!["BindingPattern: { a }"]);
-    concise_check(&*node, "BindingRestElement: ... { a }", vec!["Punctuator: ...", "ObjectBindingPattern: { a }"]);
+    pretty_check(&*node, "BindingRestElement: ... { a }", &["BindingPattern: { a }"]);
+    concise_check(&*node, "BindingRestElement: ... { a }", &["Punctuator: ...", "ObjectBindingPattern: { a }"]);
     format!("{node:?}");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -2422,7 +2414,7 @@ mod binding_rest_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("...a" => false; "id")]

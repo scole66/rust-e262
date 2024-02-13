@@ -11,8 +11,8 @@ fn shift_expression_test_01() {
     let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
-    pretty_check(&*se, "ShiftExpression: a", vec!["AdditiveExpression: a"]);
-    concise_check(&*se, "IdentifierName: a", vec![]);
+    pretty_check(&*se, "ShiftExpression: a", &["AdditiveExpression: a"]);
+    concise_check(&*se, "IdentifierName: a", &[]);
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
@@ -21,8 +21,8 @@ fn shift_expression_test_02() {
     let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a << b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*se, ShiftExpression::LeftShift(_, _)));
-    pretty_check(&*se, "ShiftExpression: a << b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
-    concise_check(&*se, "ShiftExpression: a << b", vec!["IdentifierName: a", "Punctuator: <<", "IdentifierName: b"]);
+    pretty_check(&*se, "ShiftExpression: a << b", &["ShiftExpression: a", "AdditiveExpression: b"]);
+    concise_check(&*se, "ShiftExpression: a << b", &["IdentifierName: a", "Punctuator: <<", "IdentifierName: b"]);
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
@@ -31,8 +31,8 @@ fn shift_expression_test_03() {
     let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >> b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*se, ShiftExpression::SignedRightShift(_, _)));
-    pretty_check(&*se, "ShiftExpression: a >> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
-    concise_check(&*se, "ShiftExpression: a >> b", vec!["IdentifierName: a", "Punctuator: >>", "IdentifierName: b"]);
+    pretty_check(&*se, "ShiftExpression: a >> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
+    concise_check(&*se, "ShiftExpression: a >> b", &["IdentifierName: a", "Punctuator: >>", "IdentifierName: b"]);
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
@@ -41,8 +41,8 @@ fn shift_expression_test_04() {
     let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> b"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
     assert!(matches!(&*se, ShiftExpression::UnsignedRightShift(_, _)));
-    pretty_check(&*se, "ShiftExpression: a >>> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
-    concise_check(&*se, "ShiftExpression: a >>> b", vec!["IdentifierName: a", "Punctuator: >>>", "IdentifierName: b"]);
+    pretty_check(&*se, "ShiftExpression: a >>> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
+    concise_check(&*se, "ShiftExpression: a >>> b", &["IdentifierName: a", "Punctuator: >>>", "IdentifierName: b"]);
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
@@ -199,7 +199,7 @@ mod shift_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

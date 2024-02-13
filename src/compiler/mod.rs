@@ -2044,7 +2044,7 @@ impl MemberExpression {
             MemberExpression::SuperProperty(_) => todo!(),
             MemberExpression::MetaProperty(_) => todo!(),
             MemberExpression::NewArguments(me, args, ..) => {
-                compile_new_evaluator(chunk, strict, text, ConstructExpr::Member(me.clone()), Some(args.clone()))
+                compile_new_evaluator(chunk, strict, text, &ConstructExpr::Member(me.clone()), Some(args.clone()))
             }
             MemberExpression::PrivateId(..) => todo!(),
         }
@@ -2056,7 +2056,7 @@ impl NewExpression {
         match self {
             NewExpression::MemberExpression(me) => me.compile(chunk, strict, text),
             NewExpression::NewExpression(ne, ..) => {
-                compile_new_evaluator(chunk, strict, text, ConstructExpr::New(ne.clone()), None)
+                compile_new_evaluator(chunk, strict, text, &ConstructExpr::New(ne.clone()), None)
             }
         }
     }
@@ -2081,7 +2081,7 @@ fn compile_new_evaluator(
     chunk: &mut Chunk,
     strict: bool,
     text: &str,
-    expr: ConstructExpr,
+    expr: &ConstructExpr,
     args: Option<Rc<Arguments>>,
 ) -> anyhow::Result<CompilerStatusFlags> {
     // EvaluateNew ( constructExpr, arguments )
@@ -5455,7 +5455,7 @@ impl ForStatement {
         src_text: &str,
         test: Option<Rc<Expression>>,
         increment: Option<Rc<Expression>>,
-        stmt: Rc<Statement>,
+        stmt: &Rc<Statement>,
         per_iteration_bindings: &[JSString],
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
@@ -5633,16 +5633,8 @@ impl ForStatement {
                     }
                     chunk.op(Insn::Pop);
                 }
-                let body_status = Self::compile_for_body(
-                    chunk,
-                    strict,
-                    src_text,
-                    test.clone(),
-                    incr.clone(),
-                    stmt.clone(),
-                    &[],
-                    label_set,
-                )?;
+                let body_status =
+                    Self::compile_for_body(chunk, strict, src_text, test.clone(), incr.clone(), stmt, &[], label_set)?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -5668,16 +5660,8 @@ impl ForStatement {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
                 chunk.op(Insn::Pop);
-                let body_status = Self::compile_for_body(
-                    chunk,
-                    strict,
-                    src_text,
-                    test.clone(),
-                    incr.clone(),
-                    stmt.clone(),
-                    &[],
-                    label_set,
-                )?;
+                let body_status =
+                    Self::compile_for_body(chunk, strict, src_text, test.clone(), incr.clone(), stmt, &[], label_set)?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -5752,7 +5736,7 @@ impl ForStatement {
                     src_text,
                     test.clone(),
                     incr.clone(),
-                    stmt.clone(),
+                    stmt,
                     per_iteration_lets,
                     label_set,
                 )?;
@@ -5772,6 +5756,7 @@ enum IterationKind {
     AsyncIterate,
 }
 
+#[derive(Copy, Clone)]
 enum ForInOfExpr<'a> {
     Expression(&'a Rc<Expression>),
     AssignmentExpression(&'a Rc<AssignmentExpression>),
@@ -5798,6 +5783,7 @@ impl<'a> ForInOfExpr<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 enum ForInOfLHSExpr<'a> {
     LeftHandSideExpression(&'a Rc<LeftHandSideExpression>),
     AssignmentPattern(&'a Rc<AssignmentPattern>),
@@ -7200,6 +7186,7 @@ impl ScriptBody {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum NameLoc {
     None,
     OnStack,

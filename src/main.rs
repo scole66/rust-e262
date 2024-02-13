@@ -21,6 +21,7 @@
 #![deny(clippy::manual_assert)]
 #![deny(clippy::cast_possible_truncation)]
 #![deny(clippy::cast_precision_loss)]
+#![deny(clippy::needless_pass_by_value)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

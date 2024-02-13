@@ -14,8 +14,8 @@ mod relational_expression {
         let (se, scanner) = check(RelationalExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
-        pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
+        pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
@@ -25,11 +25,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a < b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, RelationalExpression::Less(_, _)));
-        pretty_check(&*se, "RelationalExpression: a < b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        pretty_check(&*se, "RelationalExpression: a < b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: a < b",
-            vec!["IdentifierName: a", "Punctuator: <", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: <", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -40,11 +40,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a > b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, RelationalExpression::Greater(_, _)));
-        pretty_check(&*se, "RelationalExpression: a > b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        pretty_check(&*se, "RelationalExpression: a > b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: a > b",
-            vec!["IdentifierName: a", "Punctuator: >", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: >", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -55,11 +55,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a <= b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::LessEqual(_, _)));
-        pretty_check(&*se, "RelationalExpression: a <= b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        pretty_check(&*se, "RelationalExpression: a <= b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: a <= b",
-            vec!["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -70,11 +70,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a >= b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::GreaterEqual(_, _)));
-        pretty_check(&*se, "RelationalExpression: a >= b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        pretty_check(&*se, "RelationalExpression: a >= b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: a >= b",
-            vec!["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -85,15 +85,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a instanceof b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 14);
         assert!(matches!(&*se, RelationalExpression::InstanceOf(_, _)));
-        pretty_check(
-            &*se,
-            "RelationalExpression: a instanceof b",
-            vec!["RelationalExpression: a", "ShiftExpression: b"],
-        );
+        pretty_check(&*se, "RelationalExpression: a instanceof b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: a instanceof b",
-            vec!["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"],
+            &["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -104,12 +100,8 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a in b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::In(_, _)));
-        pretty_check(&*se, "RelationalExpression: a in b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
-        concise_check(
-            &*se,
-            "RelationalExpression: a in b",
-            vec!["IdentifierName: a", "Keyword: in", "IdentifierName: b"],
-        );
+        pretty_check(&*se, "RelationalExpression: a in b", &["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a in b", &["IdentifierName: a", "Keyword: in", "IdentifierName: b"]);
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
@@ -119,8 +111,8 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a in b"), Scanner::new(), false, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
-        pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
+        pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
@@ -130,8 +122,8 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("a >= @"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
-        pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
+        pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
@@ -150,11 +142,11 @@ mod relational_expression {
             check(RelationalExpression::parse(&mut newparser("#a in b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(&*se, RelationalExpression::PrivateIn(..)));
-        pretty_check(&*se, "RelationalExpression: #a in b", vec!["ShiftExpression: b"]);
+        pretty_check(&*se, "RelationalExpression: #a in b", &["ShiftExpression: b"]);
         concise_check(
             &*se,
             "RelationalExpression: #a in b",
-            vec!["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"],
+            &["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"],
         );
         format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
@@ -454,7 +446,7 @@ mod relational_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

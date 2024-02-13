@@ -13,8 +13,8 @@ mod throw_statement {
     fn parse() {
         let (node, scanner) = check(ThrowStatement::parse(&mut newparser("throw 0;"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
-        pretty_check(&*node, "ThrowStatement: throw 0 ;", vec!["Expression: 0"]);
-        concise_check(&*node, "ThrowStatement: throw 0 ;", vec!["Keyword: throw", "Numeric: 0", "Punctuator: ;"]);
+        pretty_check(&*node, "ThrowStatement: throw 0 ;", &["Expression: 0"]);
+        concise_check(&*node, "ThrowStatement: throw 0 ;", &["Keyword: throw", "Numeric: 0", "Punctuator: ;"]);
         format!("{node:?}");
     }
     #[test]
@@ -66,7 +66,7 @@ mod throw_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).throw_statement().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("throw arguments;" => true; "yes")]

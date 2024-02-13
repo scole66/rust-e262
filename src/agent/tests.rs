@@ -820,7 +820,7 @@ fn dead_object() -> ECMAScriptValue {
     ECMAScriptValue::from(DeadObject::object())
 }
 fn test_has_instance(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -871,7 +871,7 @@ fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<EC
     let v = make_v();
     let target = make_target();
 
-    super::instanceof_operator(v, target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
+    super::instanceof_operator(v, &target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
 }
 
 #[test]
@@ -935,7 +935,7 @@ mod parse_script {
         setup_test_agent();
         let starting_realm = current_realm_record().unwrap();
         let errs = super::parse_script(src, starting_realm).unwrap_err();
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 }
 
@@ -1097,11 +1097,11 @@ mod fcn_def {
             .map_err(|err| err.to_string())
     }
 
-    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => "fcn"; "function decl")]
-    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => "fcn"; "generator decl")]
-    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => "fcn"; "async function decl")]
-    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => "fcn"; "async generator decl")]
-    fn bound_name(part: FcnDef) -> String {
+    #[test_case(&FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => "fcn"; "function decl")]
+    #[test_case(&FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => "fcn"; "generator decl")]
+    #[test_case(&FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => "fcn"; "async function decl")]
+    #[test_case(&FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => "fcn"; "async generator decl")]
+    fn bound_name(part: &FcnDef) -> String {
         part.bound_name().to_string()
     }
 
@@ -1195,7 +1195,7 @@ mod global_declaration_instantiation {
         let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
         let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
+        let result = super::global_declaration_instantiation(&script, &global_env.clone(), false, src);
 
         result.map_err(unwind_any_error).map(|()| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
@@ -1250,6 +1250,7 @@ mod process_error {
         let error = ordinary_object_create(None, &[]).into();
         ProcessError::RuntimeError { error }
     }
+    #[allow(clippy::needless_pass_by_value)]
     fn matches_object(s: String) {
         lazy_static! {
             static ref MATCH: Regex = Regex::new("^Thrown: <Object [0-9]+>$").expect("Valid regex");
@@ -1297,19 +1298,19 @@ mod process_ecmascript {
     }
 }
 
-#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFFFF_FFFF_FFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
-fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
-    super::bigint_leftshift(&left, &right).map_err(|e| e.to_string())
+#[test_case(&BigInt::from(10), &BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(0xFFFF_FFFF_FFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, String> {
+    super::bigint_leftshift(left, right).map_err(|e| e.to_string())
 }
 
-#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFF_FFFF_FFFF_u64) => Ok(BigInt::from(0)); "underflow")]
-#[test_case(BigInt::from(10), BigInt::from(-0xFF_FFFF_FFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
-fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
-    super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
+#[test_case(&BigInt::from(10), &BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(0xFF_FFFF_FFFF_u64) => Ok(BigInt::from(0)); "underflow")]
+#[test_case(&BigInt::from(10), &BigInt::from(-0xFF_FFFF_FFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, String> {
+    super::bigint_rightshift(left, right).map_err(|e| e.to_string())
 }
 
 mod current_script_or_module {
@@ -1516,13 +1517,13 @@ mod begin_call_evaluation {
 
     #[allow(clippy::unnecessary_wraps)]
     fn test_reporter(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _new_target: Option<&Object>,
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let my_this = match this_value {
             ECMAScriptValue::Object(o) => o.get(&"marker".into()).unwrap(),
-            _ => this_value,
+            _ => this_value.clone(),
         };
         let this_repr = String::from(to_string(my_this).unwrap());
         let args_repr = arguments.iter().cloned().map(|val| String::from(to_string(val).unwrap())).join(",");
@@ -1578,7 +1579,7 @@ mod begin_call_evaluation {
         setup_test_agent();
         let func = make_func();
         let reference = make_this();
-        begin_call_evaluation(func, reference, &[ECMAScriptValue::from("sentinel")]);
+        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")]);
 
         ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
     }
@@ -1718,7 +1719,7 @@ mod for_in_iterator_prototype_next {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> ECMAScriptValue {
-        let o = AdaptableObject::object(AdaptableMethods {
+        let o = AdaptableObject::object(&AdaptableMethods {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         });
@@ -1732,7 +1733,7 @@ mod for_in_iterator_prototype_next {
         }
     }
     fn get_own_property_failure() -> ECMAScriptValue {
-        let o = AdaptableObject::object(AdaptableMethods {
+        let o = AdaptableObject::object(&AdaptableMethods {
             get_own_property_override: Some(gop_failure),
             ..Default::default()
         });
@@ -1752,7 +1753,7 @@ mod for_in_iterator_prototype_next {
         let this = make_this();
         let mut result = vec![];
         loop {
-            let ir = for_in_iterator_prototype_next(this.clone(), None, &[]).map_err(unwind_any_error)?;
+            let ir = for_in_iterator_prototype_next(&this, None, &[]).map_err(unwind_any_error)?;
             let iro = Object::try_from(ir).unwrap();
             if iterator_complete(&iro).unwrap() {
                 return Ok(result);

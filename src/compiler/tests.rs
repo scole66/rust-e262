@@ -440,14 +440,14 @@ mod nameable_production {
         assert_ne!(format!("{x:?}"), "");
     }
 
-    #[test_case(NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
-    #[test_case(NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
-    #[test_case(NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
-    #[test_case(NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
-    #[test_case(NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
-    #[test_case(NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
-    #[test_case(NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
-    fn display(node: NameableProduction) -> String {
+    #[test_case(&NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
+    #[test_case(&NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
+    #[test_case(&NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
+    #[test_case(&NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
+    #[test_case(&NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
+    #[test_case(&NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
+    #[test_case(&NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
+    fn display(node: &NameableProduction) -> String {
         node.to_string()
     }
 
@@ -4931,7 +4931,7 @@ mod function_expression {
             })
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -5976,7 +5976,7 @@ mod compile_fdi {
 mod arrow_function {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -6188,7 +6188,7 @@ mod expression_body {
 mod param_source {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum Kind {
         Formal,
         Arrow,
@@ -7076,7 +7076,7 @@ fn compile_new_evaluator(
     };
     let mut c = complex_filled_chunk("x", what);
 
-    super::compile_new_evaluator(&mut c, strict, src, constructor_expression, potential_arguments)
+    super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
         .map(|status| {
             (
                 c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9812,7 +9812,7 @@ mod destructuring_assignment_target {
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum ForInOfExprKind {
         Expression,
         AssignmentExpression,
@@ -10382,7 +10382,7 @@ mod for_in_of_statement {
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum LHSKind {
         Assignment,
         Destructuring,

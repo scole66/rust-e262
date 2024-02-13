@@ -71,7 +71,7 @@ where
     }
 }
 
-pub fn unwind_error_object(kind: &str, err: Object) -> String {
+pub fn unwind_error_object(kind: &str, err: &Object) -> String {
     assert!(err.o.to_error_obj().is_some());
     let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
@@ -90,7 +90,7 @@ pub fn unwind_error_object(kind: &str, err: Object) -> String {
 pub fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
     assert!(matches!(completion, AbruptCompletion::Throw { value: ECMAScriptValue::Object(_) }));
     if let AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } = completion {
-        unwind_error_object(kind, err)
+        unwind_error_object(kind, &err)
     } else {
         unreachable!()
     }
@@ -104,7 +104,7 @@ pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
 
-pub fn unwind_syntax_error_object(err: Object) -> String {
+pub fn unwind_syntax_error_object(err: &Object) -> String {
     unwind_error_object("SyntaxError", err)
 }
 
@@ -112,7 +112,7 @@ pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
-pub fn unwind_reference_error_object(err: Object) -> String {
+pub fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
 
@@ -120,7 +120,7 @@ pub fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
-pub fn unwind_range_error_object(err: Object) -> String {
+pub fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }
 
@@ -473,7 +473,7 @@ pub struct AdaptableMethods {
 }
 
 impl AdaptableObject {
-    pub fn new(prototype: Option<Object>, methods: AdaptableMethods) -> Self {
+    pub fn new(prototype: Option<Object>, methods: &AdaptableMethods) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
             get_prototype_of_override: methods.get_prototype_of_override,
@@ -490,7 +490,7 @@ impl AdaptableObject {
             something: Cell::new(0),
         }
     }
-    pub fn object(methods: AdaptableMethods) -> Object {
+    pub fn object(methods: &AdaptableMethods) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object { o: Rc::new(Self::new(Some(prototype), methods)) }
     }
@@ -498,7 +498,7 @@ impl AdaptableObject {
 
 // error
 pub fn faux_errors(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -575,6 +575,7 @@ pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn disasm_filt(s: String) -> Option<String> {
     if s.starts_with('=') {
         return None;
@@ -616,7 +617,7 @@ macro_rules! tbd_function {
         #[should_panic(expected = "not yet implemented")]
         fn $name() {
             setup_test_agent();
-            super::$name(ECMAScriptValue::Undefined, None, &[]).unwrap();
+            super::$name(&ECMAScriptValue::Undefined, None, &[]).unwrap();
         }
     };
 }

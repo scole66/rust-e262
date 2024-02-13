@@ -11,8 +11,8 @@ fn conditional_expression_test_01() {
     let (se, scanner) = check(ConditionalExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*se, ConditionalExpression::FallThru(_)));
-    pretty_check(&*se, "ConditionalExpression: a", vec!["ShortCircuitExpression: a"]);
-    concise_check(&*se, "IdentifierName: a", vec![]);
+    pretty_check(&*se, "ConditionalExpression: a", &["ShortCircuitExpression: a"]);
+    concise_check(&*se, "IdentifierName: a", &[]);
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
@@ -25,12 +25,12 @@ fn conditional_expression_test_02() {
     pretty_check(
         &*se,
         "ConditionalExpression: a ? b : c",
-        vec!["ShortCircuitExpression: a", "AssignmentExpression: b", "AssignmentExpression: c"],
+        &["ShortCircuitExpression: a", "AssignmentExpression: b", "AssignmentExpression: c"],
     );
     concise_check(
         &*se,
         "ConditionalExpression: a ? b : c",
-        vec!["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"],
+        &["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"],
     );
     format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
@@ -136,7 +136,7 @@ mod conditional_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

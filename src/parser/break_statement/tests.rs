@@ -9,40 +9,40 @@ use ahash::AHashSet;
 fn break_statement_test_01() {
     let (node, scanner) = check(BreakStatement::parse(&mut newparser("break;"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "BreakStatement: break ;", vec![]);
-    concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
+    pretty_check(&*node, "BreakStatement: break ;", &[]);
+    concise_check(&*node, "BreakStatement: break ;", &["Keyword: break", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
 fn break_statement_test_02() {
     let (node, scanner) = check(BreakStatement::parse(&mut newparser("break a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "BreakStatement: break a ;", vec!["LabelIdentifier: a"]);
-    concise_check(&*node, "BreakStatement: break a ;", vec!["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "BreakStatement: break a ;", &["LabelIdentifier: a"]);
+    concise_check(&*node, "BreakStatement: break a ;", &["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
 fn break_statement_test_03() {
     let (node, scanner) = check(BreakStatement::parse(&mut newparser("break"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "BreakStatement: break ;", vec![]);
-    concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
+    pretty_check(&*node, "BreakStatement: break ;", &[]);
+    concise_check(&*node, "BreakStatement: break ;", &["Keyword: break", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
 fn break_statement_test_04() {
     let (node, scanner) = check(BreakStatement::parse(&mut newparser("break\na"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "BreakStatement: break ;", vec![]);
-    concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
+    pretty_check(&*node, "BreakStatement: break ;", &[]);
+    concise_check(&*node, "BreakStatement: break ;", &["Keyword: break", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
 fn break_statement_test_05() {
     let (node, scanner) = check(BreakStatement::parse(&mut newparser("break a\nb"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "BreakStatement: break a ;", vec!["LabelIdentifier: a"]);
-    concise_check(&*node, "BreakStatement: break a ;", vec!["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
+    pretty_check(&*node, "BreakStatement: break a ;", &["LabelIdentifier: a"]);
+    concise_check(&*node, "BreakStatement: break a ;", &["Keyword: break", "IdentifierName: a", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
@@ -119,7 +119,7 @@ mod break_statement {
             strict,
             within_breakable,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "no label")]

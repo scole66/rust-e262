@@ -2301,7 +2301,7 @@ impl Numeric {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DebugKind {
     Char(char),
     Number(i64),

@@ -1828,22 +1828,22 @@ mod string_token {
         assert_eq!(s1, s2);
     }
 
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => true; "equal")]
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => false; "unequal")]
-    fn eq(left: StringToken, right: StringToken) -> bool {
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => true; "equal")]
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => false; "unequal")]
+    fn eq(left: &StringToken, right: &StringToken) -> bool {
         left == right
     }
 
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => false; "equal")]
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => true; "unequal")]
-    fn ne(left: StringToken, right: StringToken) -> bool {
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => false; "equal")]
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => true; "unequal")]
+    fn ne(left: &StringToken, right: &StringToken) -> bool {
         left != right
     }
 
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Double, raw: None} => "\"blue\""; "double quotes")]
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: None} => "'blue'"; "single quotes")]
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: Some("\\x62lue".into())} => "'\\x62lue'"; "single quotes; raw")]
-    fn display(st: StringToken) -> String {
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Double, raw: None} => "\"blue\""; "double quotes")]
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: None} => "'blue'"; "single quotes")]
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: Some("\\x62lue".into())} => "'\\x62lue'"; "single quotes; raw")]
+    fn display(st: &StringToken) -> String {
         format!("{st}")
     }
 }
@@ -2084,35 +2084,35 @@ mod regular_expression_data {
         assert_ne!(format!("{:?}", RegularExpressionData { body: String::from("abcd"), flags: String::from("g") }), "");
     }
 
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => true; "equal")]
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => false; "unequal")]
-    fn eq(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::from("") }, &RegularExpressionData { body: String::from("rust"), flags: String::from("") } => true; "equal")]
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::from("") }, &RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => false; "unequal")]
+    fn eq(left: &RegularExpressionData, right: &RegularExpressionData) -> bool {
         left == right
     }
 
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => false; "equal")]
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => true; "unequal")]
-    fn ne(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::from("") }, &RegularExpressionData { body: String::from("rust"), flags: String::from("") } => false; "equal")]
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::from("") }, &RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => true; "unequal")]
+    fn ne(left: &RegularExpressionData, right: &RegularExpressionData) -> bool {
         left != right
     }
 
-    #[test_case(RegularExpressionData { body: "rust".into(), flags: "g".into() } => "/rust/g"; "with flags")]
-    #[test_case(RegularExpressionData { body: "rust".into(), flags: "".into() } => "/rust/"; "empty flags")]
-    #[test_case(RegularExpressionData { body: "".into(), flags: "g".into() } => "//g"; "empty expr")]
-    #[test_case(RegularExpressionData { body: "".into(), flags: "".into() } => "//"; "empty everything")]
-    fn display(red: RegularExpressionData) -> String {
+    #[test_case(&RegularExpressionData { body: "rust".into(), flags: "g".into() } => "/rust/g"; "with flags")]
+    #[test_case(&RegularExpressionData { body: "rust".into(), flags: "".into() } => "/rust/"; "empty flags")]
+    #[test_case(&RegularExpressionData { body: "".into(), flags: "g".into() } => "//g"; "empty expr")]
+    #[test_case(&RegularExpressionData { body: "".into(), flags: "".into() } => "//"; "empty everything")]
+    fn display(red: &RegularExpressionData) -> String {
         format!("{red}")
     }
 
-    #[test_case(RegularExpressionData{body:"anything".into(), flags:"gg".into()} => serr("Duplicate ‘g’ flag found in regex flags ‘gg’"); "duplicate g")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuy".into()} => Ok(()); "all opts, otherwise good")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"giimsuy".into()} => serr("Duplicate ‘i’ flag found in regex flags ‘giimsuy’"); "duplicate i")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimmsuy".into()} => serr("Duplicate ‘m’ flag found in regex flags ‘gimmsuy’"); "duplicate m")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimssuy".into()} => serr("Duplicate ‘s’ flag found in regex flags ‘gimssuy’"); "duplicate s")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuuy".into()} => serr("Duplicate ‘u’ flag found in regex flags ‘gimsuuy’"); "duplicate u")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyy".into()} => serr("Duplicate ‘y’ flag found in regex flags ‘gimsuyy’"); "duplicate y")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyq".into()} => serr("Unknown regex flag ‘q’ in flags ‘gimsuyq’"); "unknown flag")]
-    fn validate_regular_expression_literal(red: RegularExpressionData) -> Result<(), String> {
+    #[test_case(&RegularExpressionData{body:"anything".into(), flags:"gg".into()} => serr("Duplicate ‘g’ flag found in regex flags ‘gg’"); "duplicate g")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimsuy".into()} => Ok(()); "all opts, otherwise good")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"giimsuy".into()} => serr("Duplicate ‘i’ flag found in regex flags ‘giimsuy’"); "duplicate i")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimmsuy".into()} => serr("Duplicate ‘m’ flag found in regex flags ‘gimmsuy’"); "duplicate m")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimssuy".into()} => serr("Duplicate ‘s’ flag found in regex flags ‘gimssuy’"); "duplicate s")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimsuuy".into()} => serr("Duplicate ‘u’ flag found in regex flags ‘gimsuuy’"); "duplicate u")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimsuyy".into()} => serr("Duplicate ‘y’ flag found in regex flags ‘gimsuyy’"); "duplicate y")]
+    #[test_case(&RegularExpressionData{body:"".into(), flags:"gimsuyq".into()} => serr("Unknown regex flag ‘q’ in flags ‘gimsuyq’"); "unknown flag")]
+    fn validate_regular_expression_literal(red: &RegularExpressionData) -> Result<(), String> {
         red.validate_regular_expression_literal()
     }
 }

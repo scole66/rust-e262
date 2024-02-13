@@ -34,7 +34,7 @@ pub fn concise_data(item: &impl PrettyPrint) -> Vec<String> {
     split_message(whole_message)
 }
 
-fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
+fn check_message(msg: &str, selfstring: &str, childstrings: &[&str]) {
     let mut line_iter = msg.split('\n');
     let first = line_iter.next().unwrap();
     assert_eq!(first, selfstring);
@@ -58,7 +58,7 @@ fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
     assert!(expected_iter.next().is_none());
 }
 
-pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {
@@ -68,7 +68,7 @@ where
     pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
-pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {

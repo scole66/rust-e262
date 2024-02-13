@@ -599,7 +599,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn array_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -676,14 +676,14 @@ fn array_constructor_function(
 }
 
 fn array_from(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_is_array(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -696,7 +696,7 @@ fn array_is_array(
     arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -705,7 +705,7 @@ fn array_of(
 
 #[allow(clippy::unnecessary_wraps)]
 fn array_species(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -714,116 +714,116 @@ fn array_species(
     // function performs the following steps when called:
     //
     //  1. Return the this value.
-    Ok(this_value)
+    Ok(this_value.clone())
 }
 
 fn array_prototype_at(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_concat(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_copy_within(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_entries(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_every(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_fill(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_filter(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_index(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_last(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_last_index(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_flat(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_flat_map(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_for_each(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_includes(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_index_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -851,13 +851,13 @@ fn array_prototype_index_of(
 //      e. Set k to k + 1.
 //  8. Return R.
 fn array_prototype_join(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let separator = args.next_arg();
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)?;
 
     let sep = if separator.is_undefined() { JSString::from(",") } else { to_string(separator)? };
@@ -876,28 +876,28 @@ fn array_prototype_join(
 }
 
 fn array_prototype_keys(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_last_index_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_map(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_pop(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -921,7 +921,7 @@ fn array_prototype_pop(
     //      g. Return element.
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)?;
     if len == 0 {
         o.set("length", 0.0, true)?;
@@ -937,7 +937,7 @@ fn array_prototype_pop(
 }
 
 fn array_prototype_push(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -960,7 +960,7 @@ fn array_prototype_push(
     //
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)? as u64;
     let arg_count = arguments.len() as u64;
     let new_len = len + arg_count;
@@ -975,84 +975,84 @@ fn array_prototype_push(
 }
 
 fn array_prototype_reduce(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_reduce_right(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_reverse(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_shift(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_slice(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_some(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_sort(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_splice(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_locale_string(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_reversed(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_sorted(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_spliced(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1068,11 +1068,11 @@ fn array_prototype_to_spliced(
 //  3. If IsCallable(func) is false, set func to the intrinsic function %Object.prototype.toString%.
 //  4. Return ? Call(func, array).
 fn array_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let array = to_object(this_value)?;
+    let array = to_object(this_value.clone())?;
     let mut func = array.get(&"join".into())?;
     if !is_callable(&func) {
         func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
@@ -1081,7 +1081,7 @@ fn array_prototype_to_string(
 }
 
 fn array_prototype_unshift(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1095,16 +1095,16 @@ fn array_prototype_unshift(
 //  1. Let O be ? ToObject(this value).
 //  2. Return CreateArrayIterator(O, value).
 fn array_prototype_values(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     Ok(ECMAScriptValue::from(create_array_iterator(o, KeyValueKind::Value)))
 }
 
 fn array_prototype_with(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1117,7 +1117,7 @@ fn array_prototype_with(
 // created by calling certain methods of Array instance objects.
 
 fn array_iterator_prototype_next(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

@@ -675,7 +675,7 @@ fn string_constructor_function(
 ) -> Result<(bool, String), String> {
     setup_test_agent();
     let (new_target, arguments) = make_params();
-    super::string_constructor_function(ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
+    super::string_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
             ECMAScriptValue::Object(o) => {
@@ -692,7 +692,7 @@ fn string_constructor_function(
 fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
     setup_test_agent();
     let args = make_params();
-    super::string_from_char_code(ECMAScriptValue::Undefined, None, &args)
+    super::string_from_char_code(&ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected String value from String.fromCharCode: {val:?}"),
@@ -711,7 +711,7 @@ fn string_prototype_index_of(
 ) -> Result<f64, String> {
     setup_test_agent();
     let (this_value, arguments) = make_params();
-    super::string_prototype_index_of(this_value, None, &arguments)
+    super::string_prototype_index_of(&this_value, None, &arguments)
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
             _ => panic!("Expected number value from String.prototype.indexOf: {val:?}"),
@@ -724,7 +724,7 @@ fn string_prototype_index_of(
 fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_to_string(this_value, None, &[])
+    super::string_prototype_to_string(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.toString: {val:?}"),
@@ -737,7 +737,7 @@ fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> 
 fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_value_of(this_value, None, &[])
+    super::string_prototype_value_of(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.valueOf: {val:?}"),

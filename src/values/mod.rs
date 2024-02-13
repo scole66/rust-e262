@@ -414,7 +414,7 @@ impl TryFrom<ECMAScriptValue> for Option<Object> {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
 pub struct ArrayIndex(u32);
 
 impl TryFrom<u32> for ArrayIndex {
@@ -494,7 +494,7 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueKind {
     Undefined,
     Null,
@@ -706,6 +706,7 @@ where
 //          i. Let result be ? Call(method, O).
 //          ii. If Type(result) is not Object, return result.
 //  6. Throw a TypeError exception.
+#[derive(Copy, Clone)]
 pub enum ConversionHint {
     String,
     Number,
@@ -1270,12 +1271,12 @@ pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
 //
 // A canonical numeric string is any String value for which the CanonicalNumericIndexString abstract operation does not
 // return undefined.
-pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
-    if argument == "-0" {
+pub fn canonical_numeric_index_string(argument: &JSString) -> Option<f64> {
+    if *argument == "-0" {
         Some(-0.0)
     } else {
         let n = to_number_agentless(argument.clone()).unwrap();
-        if argument == to_string_agentless(n).unwrap() {
+        if *argument == to_string_agentless(n).unwrap() {
             Some(n)
         } else {
             None

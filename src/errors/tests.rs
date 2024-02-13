@@ -9,7 +9,7 @@ fn create_native_error_object_01() {
     let message = "Great Googly Moogly!";
     let proto_id = IntrinsicId::RangeErrorPrototype;
 
-    let result = create_native_error_object(message, constructor, proto_id, None);
+    let result = create_native_error_object(message, &constructor, proto_id, None);
 
     assert!(result.o.is_error_object());
     let msg_val = result.get(&PropertyKey::from("message")).unwrap();

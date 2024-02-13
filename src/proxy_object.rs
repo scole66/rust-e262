@@ -894,7 +894,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn proxy_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -914,7 +914,7 @@ fn proxy_constructor_function(
 }
 
 fn proxy_revocable(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

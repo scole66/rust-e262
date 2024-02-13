@@ -14,8 +14,8 @@ mod bitwise_and_expression {
         let (pn, scanner) = check(BitwiseANDExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
-        pretty_check(&*pn, "BitwiseANDExpression: a", vec!["EqualityExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
+        pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
         format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
@@ -25,11 +25,11 @@ mod bitwise_and_expression {
             check(BitwiseANDExpression::parse(&mut newparser("a&b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*pn, BitwiseANDExpression::BitwiseAND(_, _)));
-        pretty_check(&*pn, "BitwiseANDExpression: a & b", vec!["BitwiseANDExpression: a", "EqualityExpression: b"]);
+        pretty_check(&*pn, "BitwiseANDExpression: a & b", &["BitwiseANDExpression: a", "EqualityExpression: b"]);
         concise_check(
             &*pn,
             "BitwiseANDExpression: a & b",
-            vec!["IdentifierName: a", "Punctuator: &", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: &", "IdentifierName: b"],
         );
         format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
@@ -40,8 +40,8 @@ mod bitwise_and_expression {
             check(BitwiseANDExpression::parse(&mut newparser("a&@"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
-        pretty_check(&*pn, "BitwiseANDExpression: a", vec!["EqualityExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
+        pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
         format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
@@ -121,7 +121,7 @@ mod bitwise_and_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -172,8 +172,8 @@ fn bitwise_xor_expression_test_01() {
     let (pn, scanner) = check(BitwiseXORExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
-    pretty_check(&*pn, "BitwiseXORExpression: a", vec!["BitwiseANDExpression: a"]);
-    concise_check(&*pn, "IdentifierName: a", vec![]);
+    pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
+    concise_check(&*pn, "IdentifierName: a", &[]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -182,8 +182,8 @@ fn bitwise_xor_expression_test_02() {
     let (pn, scanner) = check(BitwiseXORExpression::parse(&mut newparser("a^b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseXOR(_, _)));
-    pretty_check(&*pn, "BitwiseXORExpression: a ^ b", vec!["BitwiseXORExpression: a", "BitwiseANDExpression: b"]);
-    concise_check(&*pn, "BitwiseXORExpression: a ^ b", vec!["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
+    pretty_check(&*pn, "BitwiseXORExpression: a ^ b", &["BitwiseXORExpression: a", "BitwiseANDExpression: b"]);
+    concise_check(&*pn, "BitwiseXORExpression: a ^ b", &["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -192,8 +192,8 @@ fn bitwise_xor_expression_test_03() {
     let (pn, scanner) = check(BitwiseXORExpression::parse(&mut newparser("a^@"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
-    pretty_check(&*pn, "BitwiseXORExpression: a", vec!["BitwiseANDExpression: a"]);
-    concise_check(&*pn, "IdentifierName: a", vec![]);
+    pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
+    concise_check(&*pn, "IdentifierName: a", &[]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -272,7 +272,7 @@ mod bitwise_xor_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -323,8 +323,8 @@ fn bitwise_or_expression_test_01() {
     let (pn, scanner) = check(BitwiseORExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
-    pretty_check(&*pn, "BitwiseORExpression: a", vec!["BitwiseXORExpression: a"]);
-    concise_check(&*pn, "IdentifierName: a", vec![]);
+    pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
+    concise_check(&*pn, "IdentifierName: a", &[]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -333,8 +333,8 @@ fn bitwise_or_expression_test_02() {
     let (pn, scanner) = check(BitwiseORExpression::parse(&mut newparser("a|b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseOR(_, _)));
-    pretty_check(&*pn, "BitwiseORExpression: a | b", vec!["BitwiseORExpression: a", "BitwiseXORExpression: b"]);
-    concise_check(&*pn, "BitwiseORExpression: a | b", vec!["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
+    pretty_check(&*pn, "BitwiseORExpression: a | b", &["BitwiseORExpression: a", "BitwiseXORExpression: b"]);
+    concise_check(&*pn, "BitwiseORExpression: a | b", &["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -343,8 +343,8 @@ fn bitwise_or_expression_test_03() {
     let (pn, scanner) = check(BitwiseORExpression::parse(&mut newparser("a|@"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
-    pretty_check(&*pn, "BitwiseORExpression: a", vec!["BitwiseXORExpression: a"]);
-    concise_check(&*pn, "IdentifierName: a", vec![]);
+    pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
+    concise_check(&*pn, "IdentifierName: a", &[]);
     format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
@@ -429,7 +429,7 @@ mod bitwise_or_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

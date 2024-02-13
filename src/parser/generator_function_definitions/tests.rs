@@ -13,12 +13,12 @@ fn generator_method_test_01() {
     pretty_check(
         &*node,
         "GeneratorMethod: * a (  ) {  }",
-        vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "],
+        &["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
         "GeneratorMethod: * a (  ) {  }",
-        vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
 }
@@ -135,7 +135,7 @@ mod generator_method {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_method().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test]
@@ -171,12 +171,12 @@ fn generator_declaration_test_01() {
     pretty_check(
         &*node,
         "GeneratorDeclaration: function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+        &["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
         "GeneratorDeclaration: function * a (  ) {  }",
-        vec![
+        &[
             "Keyword: function",
             "Punctuator: *",
             "IdentifierName: a",
@@ -193,11 +193,11 @@ fn generator_declaration_test_02() {
     let (node, scanner) =
         check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "GeneratorDeclaration: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(&*node, "GeneratorDeclaration: function * (  ) {  }", &["FormalParameters: ", "GeneratorBody: "]);
     concise_check(
         &*node,
         "GeneratorDeclaration: function * (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
 }
@@ -396,7 +396,7 @@ mod generator_declaration {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_declaration().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("   function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 15 } }; "typical")]
@@ -424,12 +424,12 @@ fn generator_expression_test_01() {
     pretty_check(
         &*node,
         "GeneratorExpression: function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+        &["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
         "GeneratorExpression: function * a (  ) {  }",
-        vec![
+        &[
             "Keyword: function",
             "Punctuator: *",
             "IdentifierName: a",
@@ -446,11 +446,11 @@ fn generator_expression_test_01() {
 fn generator_expression_test_02() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *(){}"), Scanner::new()));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "GeneratorExpression: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(&*node, "GeneratorExpression: function * (  ) {  }", &["FormalParameters: ", "GeneratorBody: "]);
     concise_check(
         &*node,
         "GeneratorExpression: function * (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
     assert!(node.is_function_definition());
@@ -571,7 +571,7 @@ mod generator_expression {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_expression().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("function *a(){}" => true; "named")]
@@ -591,8 +591,8 @@ mod generator_expression {
 fn generator_body_test_01() {
     let (node, scanner) = GeneratorBody::parse(&mut newparser("yield 1;"), Scanner::new());
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "GeneratorBody: yield 1 ;", vec!["FunctionBody: yield 1 ;"]);
-    concise_check(&*node, "ExpressionStatement: yield 1 ;", vec!["YieldExpression: yield 1", "Punctuator: ;"]);
+    pretty_check(&*node, "GeneratorBody: yield 1 ;", &["FunctionBody: yield 1 ;"]);
+    concise_check(&*node, "ExpressionStatement: yield 1 ;", &["YieldExpression: yield 1", "Punctuator: ;"]);
     format!("{node:?}");
 }
 #[test]
@@ -638,7 +638,7 @@ mod generator_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).generator_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("'one'; 3;" => false; "directive no strict")]
@@ -681,8 +681,8 @@ fn yield_expression_test_01() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
-    pretty_check(&*pn, "YieldExpression: yield", vec![]);
-    concise_check(&*pn, "Keyword: yield", vec![]);
+    pretty_check(&*pn, "YieldExpression: yield", &[]);
+    concise_check(&*pn, "Keyword: yield", &[]);
     format!("{pn:?}");
 }
 #[test]
@@ -690,8 +690,8 @@ fn yield_expression_test_02() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield 5"), Scanner::new(), true, false));
     chk_scan(&scanner, 7);
     assert!(matches!(&*pn, YieldExpression::Expression { .. }));
-    pretty_check(&*pn, "YieldExpression: yield 5", vec!["AssignmentExpression: 5"]);
-    concise_check(&*pn, "YieldExpression: yield 5", vec!["Keyword: yield", "Numeric: 5"]);
+    pretty_check(&*pn, "YieldExpression: yield 5", &["AssignmentExpression: 5"]);
+    concise_check(&*pn, "YieldExpression: yield 5", &["Keyword: yield", "Numeric: 5"]);
     format!("{pn:?}");
 }
 #[test]
@@ -699,8 +699,8 @@ fn yield_expression_test_03() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *5"), Scanner::new(), true, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*pn, YieldExpression::From { .. }));
-    pretty_check(&*pn, "YieldExpression: yield * 5", vec!["AssignmentExpression: 5"]);
-    concise_check(&*pn, "YieldExpression: yield * 5", vec!["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
+    pretty_check(&*pn, "YieldExpression: yield * 5", &["AssignmentExpression: 5"]);
+    concise_check(&*pn, "YieldExpression: yield * 5", &["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
     format!("{pn:?}");
 }
 #[test]
@@ -708,8 +708,8 @@ fn yield_expression_test_04() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield \n*5"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
-    pretty_check(&*pn, "YieldExpression: yield", vec![]);
-    concise_check(&*pn, "Keyword: yield", vec![]);
+    pretty_check(&*pn, "YieldExpression: yield", &[]);
+    concise_check(&*pn, "Keyword: yield", &[]);
     format!("{pn:?}");
 }
 #[test]
@@ -717,8 +717,8 @@ fn yield_expression_test_05() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield @"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
-    pretty_check(&*pn, "YieldExpression: yield", vec![]);
-    concise_check(&*pn, "Keyword: yield", vec![]);
+    pretty_check(&*pn, "YieldExpression: yield", &[]);
+    concise_check(&*pn, "Keyword: yield", &[]);
     format!("{pn:?}");
 }
 #[test]
@@ -726,8 +726,8 @@ fn yield_expression_test_06() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *@"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
-    pretty_check(&*pn, "YieldExpression: yield", vec![]);
-    concise_check(&*pn, "Keyword: yield", vec![]);
+    pretty_check(&*pn, "YieldExpression: yield", &[]);
+    concise_check(&*pn, "Keyword: yield", &[]);
     format!("{pn:?}");
 }
 #[test]
@@ -814,7 +814,7 @@ mod yield_expression {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).yield_expression().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("yield" => false; "bare")]

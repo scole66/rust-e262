@@ -156,10 +156,10 @@ mod ecmascript_value {
         let new_obj: Object = val.try_into().unwrap();
         assert_eq!(new_obj.o.id(), orig_id);
     }
-    #[test_case(Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
-    #[test_case(Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
-    fn from_numeric_ref(n: Numeric) -> ECMAScriptValue {
-        ECMAScriptValue::from(&n)
+    #[test_case(&Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
+    #[test_case(&Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
+    fn from_numeric_ref(n: &Numeric) -> ECMAScriptValue {
+        ECMAScriptValue::from(n)
     }
     #[test_case(Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
     #[test_case(Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
@@ -327,14 +327,14 @@ mod ecmascript_value {
         use super::*;
         use test_case::test_case;
 
-        #[test_case(ECMAScriptValue::Undefined => "undefined"; "undefined")]
-        #[test_case(ECMAScriptValue::Null => "null"; "null")]
-        #[test_case(ECMAScriptValue::Boolean(true) => "true"; "bool true")]
-        #[test_case(ECMAScriptValue::Boolean(false) => "false"; "bool false")]
-        #[test_case(ECMAScriptValue::String("turnip".into()) => "turnip"; "string")]
-        #[test_case(ECMAScriptValue::Number(67.331) => "67.331"; "number")]
-        #[test_case(ECMAScriptValue::BigInt(Rc::new(BigInt::from(12345))) => "12345n"; "bigint")]
-        fn simple(val: ECMAScriptValue) -> String {
+        #[test_case(&ECMAScriptValue::Undefined => "undefined"; "undefined")]
+        #[test_case(&ECMAScriptValue::Null => "null"; "null")]
+        #[test_case(&ECMAScriptValue::Boolean(true) => "true"; "bool true")]
+        #[test_case(&ECMAScriptValue::Boolean(false) => "false"; "bool false")]
+        #[test_case(&ECMAScriptValue::String("turnip".into()) => "turnip"; "string")]
+        #[test_case(&ECMAScriptValue::Number(67.331) => "67.331"; "number")]
+        #[test_case(&ECMAScriptValue::BigInt(Rc::new(BigInt::from(12345))) => "12345n"; "bigint")]
+        fn simple(val: &ECMAScriptValue) -> String {
             format!("{val}")
         }
 
@@ -628,8 +628,8 @@ mod private_name {
         assert_eq!(s.len(), 4);
     }
 
-    #[test_case(PrivateName::new("something") => "PN[something]"; "normal")]
-    fn display(pn: PrivateName) -> String {
+    #[test_case(&PrivateName::new("something") => "PN[something]"; "normal")]
+    fn display(pn: &PrivateName) -> String {
         format!("{pn}")
     }
 }
@@ -701,18 +701,18 @@ mod private_element_kind {
     }
 
     #[test_case(
-        PrivateElementKind::Field{ value: RefCell::new(ECMAScriptValue::from("field")) },
-        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) }
+        &PrivateElementKind::Field{ value: RefCell::new(ECMAScriptValue::from("field")) },
+        &PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) }
         => true;
         "field equal"
     )]
     #[test_case(
-        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) },
-        PrivateElementKind::Method{value: ECMAScriptValue::from("method")}
+        &PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) },
+        &PrivateElementKind::Method{value: ECMAScriptValue::from("method")}
         => false;
         "field/method"
     )]
-    fn eq(left: PrivateElementKind, right: PrivateElementKind) -> bool {
+    fn eq(left: &PrivateElementKind, right: &PrivateElementKind) -> bool {
         left == right
     }
 }
@@ -1196,7 +1196,7 @@ fn to_string_09() {
 }
 #[allow(clippy::unnecessary_wraps)]
 fn tostring_symbol(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1296,7 +1296,7 @@ fn to_object_08() {
 // non-object number
 #[allow(clippy::unnecessary_wraps)]
 fn faux_makes_number(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1305,7 +1305,7 @@ fn faux_makes_number(
 // non-object string
 #[allow(clippy::unnecessary_wraps)]
 fn faux_makes_string(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1314,7 +1314,7 @@ fn faux_makes_string(
 // object value
 #[allow(clippy::unnecessary_wraps)]
 fn faux_makes_obj(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1324,12 +1324,13 @@ fn faux_makes_obj(
 }
 // error
 fn faux_errors(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     Err(create_type_error("Test Sentinel"))
 }
+#[derive(Copy, Clone)]
 enum FauxKind {
     Object,
     Primitive,
@@ -1580,7 +1581,7 @@ fn to_primitive_prefer_number() {
 }
 #[allow(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1598,7 +1599,7 @@ fn exotic_to_prim(
     }
 }
 fn make_toprimitive_obj(
-    steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
 ) -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -1644,7 +1645,7 @@ fn to_primitive_uses_exotics() {
 }
 #[allow(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1663,7 +1664,7 @@ fn to_primitive_exotic_returns_object() {
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1760,11 +1761,12 @@ mod canonical_numeric_index_string {
     #[test_case("0.250000" => None; "trailing zeroes")]
     #[test_case("Infinity" => Some(f64::INFINITY); "infinity")]
     fn f(src: &str) -> Option<f64> {
-        canonical_numeric_index_string(src.into())
+        let p = src.into();
+        canonical_numeric_index_string(&p)
     }
     #[test]
     fn negzero() {
-        let result = canonical_numeric_index_string("-0".into()).unwrap();
+        let result = canonical_numeric_index_string(&"-0".into()).unwrap();
         assert_eq!(result, 0.0);
         assert_eq!(result.signum(), -1.0);
     }
@@ -2149,7 +2151,7 @@ mod agent {
         DeadObject::object().into()
     }
     #[allow(clippy::unnecessary_wraps)]
-    fn returns_10(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn returns_10(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
     fn object_10() -> ECMAScriptValue {

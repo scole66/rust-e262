@@ -1570,7 +1570,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     }
 
                     if !was_direct_eval {
-                        begin_call_evaluation(func_val, ref_nc, &arguments);
+                        begin_call_evaluation(&func_val, &ref_nc, &arguments);
                     }
                 }
                 Insn::EndFunction => {
@@ -1759,7 +1759,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 }
                 Insn::InstanceOf => {
                     let (left, right) = agent.two_values(index);
-                    let result = instanceof_operator(left, right);
+                    let result = instanceof_operator(left, &right);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
                 }
                 Insn::In => {
@@ -2523,8 +2523,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
     })
 }
 
-fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) {
-    let this_value = match &reference {
+fn begin_call_evaluation(func: &ECMAScriptValue, reference: &NormalCompletion, arguments: &[ECMAScriptValue]) {
+    let this_value = match reference {
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Empty
         | NormalCompletion::Environment(..)
@@ -2546,12 +2546,12 @@ fn begin_call_evaluation(func: ECMAScriptValue, reference: NormalCompletion, arg
         ec_push(err);
         return;
     }
-    if !is_callable(&func) {
+    if !is_callable(func) {
         let err = Err(create_type_error("not a function"));
         ec_push(err);
         return;
     }
-    initiate_call(&func, &this_value, arguments);
+    initiate_call(func, &this_value, arguments);
 }
 
 fn begin_constructor_evaluation(cstr: ECMAScriptValue, newtgt: ECMAScriptValue, args: &[ECMAScriptValue]) {
@@ -3278,7 +3278,7 @@ fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Com
     }
 }
 
-fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompletion {
+fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullCompletion {
     // InstanceofOperator ( V, target )
     //
     // The abstract operation InstanceofOperator takes arguments V (an ECMAScript language value) and target (an
@@ -3298,20 +3298,20 @@ fn instanceof_operator(v: ECMAScriptValue, target: ECMAScriptValue) -> FullCompl
     // NOTE    | Steps 4 and 5 provide compatibility with previous editions of ECMAScript that did not use a
     //         | @@hasInstance method to define the instanceof operator semantics. If an object does not define or
     //         | inherit @@hasInstance it uses the default instanceof semantics.
-    match &target {
+    match target {
         ECMAScriptValue::Object(_) => {
             let hi = wks(WksId::HasInstance);
             let instof_handler = target.get_method(&hi.into())?;
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
-                    if !is_callable(&target) {
+                    if !is_callable(target) {
                         Err(create_type_error("Right-hand side of 'instanceof' is not callable"))
                     } else {
-                        ordinary_has_instance(&target, &v).map(NormalCompletion::from)
+                        ordinary_has_instance(target, &v).map(NormalCompletion::from)
                     }
                 }
                 _ => {
-                    let res = call(&instof_handler, &target, &[v])?;
+                    let res = call(&instof_handler, target, &[v])?;
                     Ok(NormalCompletion::from(to_boolean(res)))
                 }
             }
@@ -3630,8 +3630,8 @@ impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
 }
 
 pub fn global_declaration_instantiation(
-    script: Rc<Script>,
-    env: Rc<GlobalEnvironmentRecord>,
+    script: &Rc<Script>,
+    env: &Rc<GlobalEnvironmentRecord>,
     strict: bool,
     text: &str,
 ) -> Completion<()> {
@@ -3733,7 +3733,7 @@ pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
 
     let strict = script.body.as_ref().map(|b| b.contains_use_strict()).unwrap_or(false);
 
-    let result = global_declaration_instantiation(script, global_env.unwrap(), strict, &sr.text)
+    let result = global_declaration_instantiation(&script, &global_env.unwrap(), strict, &sr.text)
         .and_then(|()| evaluate(sr.compiled, &sr.text));
 
     pop_execution_context();
@@ -4072,7 +4072,7 @@ pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn for_in_iterator_prototype_next(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

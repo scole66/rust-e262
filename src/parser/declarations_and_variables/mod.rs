@@ -151,7 +151,7 @@ impl LexicalDeclaration {
 // LetOrConst :
 //      let
 //      const
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum LetOrConst {
     Let,
     Const,

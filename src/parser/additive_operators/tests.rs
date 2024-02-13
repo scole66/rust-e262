@@ -14,8 +14,8 @@ mod additive_expression {
         let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(_)));
-        pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
-        concise_check(&*ae, "IdentifierName: a", vec![]);
+        pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
+        concise_check(&*ae, "IdentifierName: a", &[]);
         format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -24,12 +24,8 @@ mod additive_expression {
         let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a+b"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Add(..)));
-        pretty_check(&*ae, "AdditiveExpression: a + b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(
-            &*ae,
-            "AdditiveExpression: a + b",
-            vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"],
-        );
+        pretty_check(&*ae, "AdditiveExpression: a + b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
+        concise_check(&*ae, "AdditiveExpression: a + b", &["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
         format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -38,12 +34,8 @@ mod additive_expression {
         let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a-b"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Subtract(..)));
-        pretty_check(&*ae, "AdditiveExpression: a - b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(
-            &*ae,
-            "AdditiveExpression: a - b",
-            vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"],
-        );
+        pretty_check(&*ae, "AdditiveExpression: a - b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
+        concise_check(&*ae, "AdditiveExpression: a - b", &["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
         format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -52,8 +44,8 @@ mod additive_expression {
         let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a-@"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(..)));
-        pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
-        concise_check(&*ae, "IdentifierName: a", vec![]);
+        pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
+        concise_check(&*ae, "IdentifierName: a", &[]);
         format!("{ae:?}");
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -159,7 +151,7 @@ mod additive_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]

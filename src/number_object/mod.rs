@@ -404,7 +404,7 @@ pub fn create_number_object(n: f64) -> Object {
 //      5. Set O.[[NumberData]] to n.
 //      6. Return O.
 fn number_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -440,7 +440,7 @@ fn number_constructor_function(
 //      3. Otherwise, return true.
 #[allow(clippy::unnecessary_wraps)]
 fn number_is_finite(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -459,7 +459,7 @@ fn number_is_finite(
 //      1. Return ! IsIntegralNumber(number).
 #[allow(clippy::unnecessary_wraps)]
 fn number_is_integer(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -480,7 +480,7 @@ fn number_is_integer(
 //          Number before determining whether it is NaN.
 #[allow(clippy::unnecessary_wraps)]
 fn number_is_nan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -501,7 +501,7 @@ fn number_is_nan(
 //      2. Return false.
 #[allow(clippy::unnecessary_wraps)]
 fn number_is_safe_integer(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -524,9 +524,9 @@ fn number_is_safe_integer(
 //
 // The phrase “this Number value” within the specification of a method refers to the result returned by calling the
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
-fn this_number_value(value: ECMAScriptValue) -> Completion<f64> {
+fn this_number_value(value: &ECMAScriptValue) -> Completion<f64> {
     match value {
-        ECMAScriptValue::Number(x) => Ok(x),
+        ECMAScriptValue::Number(x) => Ok(*x),
         ECMAScriptValue::Object(o) if o.o.is_number_object() => {
             let no = o.o.to_number_obj().unwrap();
             let n = *no.number_data().borrow();
@@ -595,14 +595,14 @@ fn this_number_value(value: ECMAScriptValue) -> Completion<f64> {
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
 fn number_prototype_to_exponential(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
 
-    let value = this_number_value(this_value)?;
+    let value = this_number_value(&this_value.clone())?;
     let fraction = to_integer_or_infinity(fraction_digits.clone())?;
     if !value.is_finite() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
@@ -704,13 +704,13 @@ fn number_prototype_to_exponential(
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
 fn number_prototype_to_fixed(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
-    let value = this_number_value(this_value)?;
+    let value = this_number_value(&this_value.clone())?;
     let fraction = to_integer_or_infinity(fraction_digits)?;
     if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
         return Err(create_range_error("Argument for Number.toFixed must be in the range 0..100"));
@@ -777,7 +777,7 @@ fn number_prototype_to_fixed(
 // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
 // that do not include ECMA-402 support must not use those parameter positions for anything else.
 fn number_prototype_to_locale_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -833,13 +833,13 @@ fn number_prototype_to_locale_string(
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
 fn number_prototype_to_precision(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let precision = args.next_arg();
-    let value = this_number_value(this_value)?;
+    let value = this_number_value(&this_value.clone())?;
     if precision.is_undefined() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
@@ -1072,13 +1072,13 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
 //
 // The "length" property of the toString method is 1𝔽.
 fn number_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
-    let x = this_number_value(this_value)?;
+    let x = this_number_value(&this_value.clone())?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
     if !(2.0..=36.0).contains(&radix_mv) {
         Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
@@ -1095,11 +1095,11 @@ fn number_prototype_to_string(
 // Number.prototype.valueOf ( )
 //  1. Return ? thisNumberValue(this value).
 fn number_prototype_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    this_number_value(this_value).map(ECMAScriptValue::Number)
+    this_number_value(&this_value.clone()).map(ECMAScriptValue::Number)
 }
 
 #[cfg(test)]

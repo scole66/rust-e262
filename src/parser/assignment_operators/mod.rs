@@ -507,7 +507,7 @@ impl AssignmentExpression {
 
 // AssignmentOperator : one of
 //      *= /= %= += -= <<= >>= >>>= &= ^= |= **=
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum AssignmentOperator {
     Multiply,
     Divide,

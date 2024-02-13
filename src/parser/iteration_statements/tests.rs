@@ -13,15 +13,11 @@ fn iteration_statement_test_01() {
     let (node, scanner) =
         check(IterationStatement::parse(&mut newparser("do {} while (true);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 19);
-    pretty_check(
-        &*node,
-        "IterationStatement: do { } while ( true ) ;",
-        vec!["DoWhileStatement: do { } while ( true ) ;"],
-    );
+    pretty_check(&*node, "IterationStatement: do { } while ( true ) ;", &["DoWhileStatement: do { } while ( true ) ;"]);
     concise_check(
         &*node,
         "DoWhileStatement: do { } while ( true ) ;",
-        vec![
+        &[
             "Keyword: do",
             "Block: { }",
             "Keyword: while",
@@ -38,11 +34,11 @@ fn iteration_statement_test_02() {
     let (node, scanner) =
         check(IterationStatement::parse(&mut newparser("while (true) {}"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "IterationStatement: while ( true ) { }", vec!["WhileStatement: while ( true ) { }"]);
+    pretty_check(&*node, "IterationStatement: while ( true ) { }", &["WhileStatement: while ( true ) { }"]);
     concise_check(
         &*node,
         "WhileStatement: while ( true ) { }",
-        vec!["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"],
+        &["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"],
     );
     format!("{node:?}");
 }
@@ -51,11 +47,11 @@ fn iteration_statement_test_03() {
     let (node, scanner) =
         check(IterationStatement::parse(&mut newparser("for (;;) {}"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "IterationStatement: for ( ; ; ) { }", vec!["ForStatement: for ( ; ; ) { }"]);
+    pretty_check(&*node, "IterationStatement: for ( ; ; ) { }", &["ForStatement: for ( ; ; ) { }"]);
     concise_check(
         &*node,
         "ForStatement: for ( ; ; ) { }",
-        vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"],
+        &["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"],
     );
     format!("{node:?}");
 }
@@ -64,11 +60,11 @@ fn iteration_statement_test_04() {
     let (node, scanner) =
         check(IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "IterationStatement: for ( v in x ) ;", vec!["ForInOfStatement: for ( v in x ) ;"]);
+    pretty_check(&*node, "IterationStatement: for ( v in x ) ;", &["ForInOfStatement: for ( v in x ) ;"]);
     concise_check(
         &*node,
         "ForInOfStatement: for ( v in x ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "IdentifierName: v",
@@ -299,7 +295,7 @@ mod iteration_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("do arguments; while(0);" => true; "dowhile (yes)")]
@@ -337,11 +333,11 @@ fn do_while_statement_test_01() {
     let (node, scanner) =
         check(DoWhileStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Statement: ;", "Expression: 0"]);
+    pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", &["Statement: ;", "Expression: 0"]);
     concise_check(
         &*node,
         "DoWhileStatement: do ; while ( 0 ) ;",
-        vec![
+        &[
             "Keyword: do",
             "Punctuator: ;",
             "Keyword: while",
@@ -358,11 +354,11 @@ fn do_while_statement_test_02() {
     let (node, scanner) =
         check(DoWhileStatement::parse(&mut newparser("do;while(0)"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Statement: ;", "Expression: 0"]);
+    pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", &["Statement: ;", "Expression: 0"]);
     concise_check(
         &*node,
         "DoWhileStatement: do ; while ( 0 ) ;",
-        vec![
+        &[
             "Keyword: do",
             "Punctuator: ;",
             "Keyword: while",
@@ -497,7 +493,7 @@ mod do_while_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("do arguments;while(0);" => true; "binary (left)")]
@@ -523,11 +519,11 @@ mod do_while_statement {
 fn while_statement_test_01() {
     let (node, scanner) = check(WhileStatement::parse(&mut newparser("while(0);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "WhileStatement: while ( 0 ) ;", vec!["Expression: 0", "Statement: ;"]);
+    pretty_check(&*node, "WhileStatement: while ( 0 ) ;", &["Expression: 0", "Statement: ;"]);
     concise_check(
         &*node,
         "WhileStatement: while ( 0 ) ;",
-        vec!["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"],
+        &["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"],
     );
     format!("{node:?}");
 }
@@ -632,7 +628,7 @@ mod while_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("while(arguments);" => true; "left")]
@@ -661,12 +657,12 @@ fn for_statement_test_01() {
     pretty_check(
         &*node,
         "ForStatement: for ( x ; y ; z ) ;",
-        vec!["Expression: x", "Expression: y", "Expression: z", "Statement: ;"],
+        &["Expression: x", "Expression: y", "Expression: z", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( x ; y ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "IdentifierName: x",
@@ -684,11 +680,11 @@ fn for_statement_test_01() {
 fn for_statement_test_02() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;y;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "ForStatement: for ( ; y ; z ) ;", vec!["Expression: y", "Expression: z", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( ; y ; z ) ;", &["Expression: y", "Expression: z", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( ; y ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Punctuator: ;",
@@ -705,11 +701,11 @@ fn for_statement_test_02() {
 fn for_statement_test_03() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(x;;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "ForStatement: for ( x ; ; z ) ;", vec!["Expression: x", "Expression: z", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( x ; ; z ) ;", &["Expression: x", "Expression: z", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( x ; ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "IdentifierName: x",
@@ -726,11 +722,11 @@ fn for_statement_test_03() {
 fn for_statement_test_04() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(x;y;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "ForStatement: for ( x ; y ; ) ;", vec!["Expression: x", "Expression: y", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( x ; y ; ) ;", &["Expression: x", "Expression: y", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( x ; y ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "IdentifierName: x",
@@ -747,11 +743,11 @@ fn for_statement_test_04() {
 fn for_statement_test_05() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(x;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ForStatement: for ( x ; ; ) ;", vec!["Expression: x", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( x ; ; ) ;", &["Expression: x", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( x ; ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "IdentifierName: x",
@@ -767,11 +763,11 @@ fn for_statement_test_05() {
 fn for_statement_test_06() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;y;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ForStatement: for ( ; y ; ) ;", vec!["Expression: y", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( ; y ; ) ;", &["Expression: y", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( ; y ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Punctuator: ;",
@@ -787,11 +783,11 @@ fn for_statement_test_06() {
 fn for_statement_test_07() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ForStatement: for ( ; ; z ) ;", vec!["Expression: z", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( ; ; z ) ;", &["Expression: z", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( ; ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Punctuator: ;",
@@ -807,11 +803,11 @@ fn for_statement_test_07() {
 fn for_statement_test_08() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ForStatement: for ( ; ; ) ;", vec!["Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( ; ; ) ;", &["Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( ; ; ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+        &["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
     );
     format!("{node:?}");
 }
@@ -823,12 +819,12 @@ fn for_statement_test_09() {
     pretty_check(
         &*node,
         "ForStatement: for ( var x ; y ; z ) ;",
-        vec!["VariableDeclarationList: x", "Expression: y", "Expression: z", "Statement: ;"],
+        &["VariableDeclarationList: x", "Expression: y", "Expression: z", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; y ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Keyword: var",
@@ -851,12 +847,12 @@ fn for_statement_test_10() {
     pretty_check(
         &*node,
         "ForStatement: for ( var x ; ; z ) ;",
-        vec!["VariableDeclarationList: x", "Expression: z", "Statement: ;"],
+        &["VariableDeclarationList: x", "Expression: z", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Keyword: var",
@@ -878,12 +874,12 @@ fn for_statement_test_11() {
     pretty_check(
         &*node,
         "ForStatement: for ( var x ; y ; ) ;",
-        vec!["VariableDeclarationList: x", "Expression: y", "Statement: ;"],
+        &["VariableDeclarationList: x", "Expression: y", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; y ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Keyword: var",
@@ -901,11 +897,11 @@ fn for_statement_test_11() {
 fn for_statement_test_12() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(var x;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "ForStatement: for ( var x ; ; ) ;", vec!["VariableDeclarationList: x", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( var x ; ; ) ;", &["VariableDeclarationList: x", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( var x ; ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "Keyword: var",
@@ -926,12 +922,12 @@ fn for_statement_test_13() {
     pretty_check(
         &*node,
         "ForStatement: for ( let x ; y ; z ) ;",
-        vec!["LexicalDeclaration: let x ;", "Expression: y", "Expression: z", "Statement: ;"],
+        &["LexicalDeclaration: let x ;", "Expression: y", "Expression: z", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; y ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "LexicalDeclaration: let x ;",
@@ -952,12 +948,12 @@ fn for_statement_test_14() {
     pretty_check(
         &*node,
         "ForStatement: for ( let x ; ; z ) ;",
-        vec!["LexicalDeclaration: let x ;", "Expression: z", "Statement: ;"],
+        &["LexicalDeclaration: let x ;", "Expression: z", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; ; z ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "LexicalDeclaration: let x ;",
@@ -977,12 +973,12 @@ fn for_statement_test_15() {
     pretty_check(
         &*node,
         "ForStatement: for ( let x ; y ; ) ;",
-        vec!["LexicalDeclaration: let x ;", "Expression: y", "Statement: ;"],
+        &["LexicalDeclaration: let x ;", "Expression: y", "Statement: ;"],
     );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; y ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "LexicalDeclaration: let x ;",
@@ -998,11 +994,11 @@ fn for_statement_test_15() {
 fn for_statement_test_16() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(let x;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "ForStatement: for ( let x ; ; ) ;", vec!["LexicalDeclaration: let x ;", "Statement: ;"]);
+    pretty_check(&*node, "ForStatement: for ( let x ; ; ) ;", &["LexicalDeclaration: let x ;", "Statement: ;"]);
     concise_check(
         &*node,
         "ForStatement: for ( let x ; ; ) ;",
-        vec![
+        &[
             "Keyword: for",
             "Punctuator: (",
             "LexicalDeclaration: let x ;",
@@ -1547,7 +1543,7 @@ mod for_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("for(;;)arguments;" => true; "000-for (yes)")]
@@ -2455,7 +2451,7 @@ mod for_in_of_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("for(arguments in a);" => true; "lhs-in (left)")]
@@ -2548,16 +2544,16 @@ mod for_in_of_statement {
 fn for_declaration_test_01() {
     let (node, scanner) = check(ForDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, true));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ForDeclaration: let a", vec!["LetOrConst: let", "ForBinding: a"]);
-    concise_check(&*node, "ForDeclaration: let a", vec!["Keyword: let", "IdentifierName: a"]);
+    pretty_check(&*node, "ForDeclaration: let a", &["LetOrConst: let", "ForBinding: a"]);
+    concise_check(&*node, "ForDeclaration: let a", &["Keyword: let", "IdentifierName: a"]);
     format!("{node:?}");
 }
 #[test]
 fn for_declaration_test_02() {
     let (node, scanner) = check(ForDeclaration::parse(&mut newparser("const a"), Scanner::new(), true, true));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "ForDeclaration: const a", vec!["LetOrConst: const", "ForBinding: a"]);
-    concise_check(&*node, "ForDeclaration: const a", vec!["Keyword: const", "IdentifierName: a"]);
+    pretty_check(&*node, "ForDeclaration: const a", &["LetOrConst: const", "ForBinding: a"]);
+    concise_check(&*node, "ForDeclaration: const a", &["Keyword: const", "IdentifierName: a"]);
     format!("{node:?}");
 }
 #[test]
@@ -2623,7 +2619,7 @@ mod for_declaration {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_declaration().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("let {a=arguments}" => true; "yes")]
@@ -2649,16 +2645,16 @@ mod for_declaration {
 fn for_binding_test_01() {
     let (node, scanner) = check(ForBinding::parse(&mut newparser("a"), Scanner::new(), true, true));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ForBinding: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
+    pretty_check(&*node, "ForBinding: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
     format!("{node:?}");
 }
 #[test]
 fn for_binding_test_02() {
     let (node, scanner) = check(ForBinding::parse(&mut newparser("{a}"), Scanner::new(), true, true));
     chk_scan(&scanner, 3);
-    pretty_check(&*node, "ForBinding: { a }", vec!["BindingPattern: { a }"]);
-    concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
+    pretty_check(&*node, "ForBinding: { a }", &["BindingPattern: { a }"]);
+    concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{node:?}");
 }
 #[test]
@@ -2735,7 +2731,7 @@ mod for_binding {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_binding().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("a" => false; "id")]

@@ -187,10 +187,10 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-#[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
-#[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
-fn hash_ahash(a: JSString, b: JSString) -> bool {
-    calculate_hash(&a) == calculate_hash(&b)
+#[test_case(&JSString::from("a"), &JSString::from("b") => false; "not equal")]
+#[test_case(&JSString::from("a"), &JSString::from("a") => true; "equal")]
+fn hash_ahash(a: &JSString, b: &JSString) -> bool {
+    calculate_hash(a) == calculate_hash(b)
 }
 
 fn calculate_def_hash<T: Hash>(t: &T) -> u64 {
@@ -198,15 +198,15 @@ fn calculate_def_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-#[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
-#[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
-fn hash_defhash(a: JSString, b: JSString) -> bool {
-    calculate_def_hash(&a) == calculate_def_hash(&b)
+#[test_case(&JSString::from("a"), &JSString::from("b") => false; "not equal")]
+#[test_case(&JSString::from("a"), &JSString::from("a") => true; "equal")]
+fn hash_defhash(a: &JSString, b: &JSString) -> bool {
+    calculate_def_hash(a) == calculate_def_hash(b)
 }
 
-#[test_case(JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
-#[test_case(JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
-fn concat(s1: JSString, s2: impl Into<JSString>) -> String {
+#[test_case(&JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
+#[test_case(&JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
+fn concat(s1: &JSString, s2: impl Into<JSString>) -> String {
     s1.concat(s2).to_string()
 }
 

@@ -234,7 +234,7 @@ mod array_object {
         use test_case::test_case;
 
         fn value_just_once(
-            this_value: ECMAScriptValue,
+            this_value: &ECMAScriptValue,
             _: Option<&Object>,
             _: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -709,9 +709,9 @@ fn defaults() {
 #[test_case(super::array_prototype_to_spliced => panics; "array_prototype_to_spliced")]
 #[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
 #[test_case(super::array_prototype_with => panics; "array_prototype_with")]
-fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
-    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
 #[test_case(|| ECMAScriptValue::Undefined => vok(false); "not an array")]
@@ -723,7 +723,7 @@ fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completio
 fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let arg = make_arg();
-    super::array_is_array(ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
+    super::array_is_array(&ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
 }
 
 #[test_case(
@@ -738,7 +738,7 @@ fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScri
 fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this = make_this();
-    super::array_species(this, None, &[]).map_err(unwind_any_error).map(|val| val.test_result_string())
+    super::array_species(&this, None, &[]).map_err(unwind_any_error).map(|val| val.test_result_string())
 }
 
 #[test_case(
@@ -779,7 +779,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
         let array = create_array_from_list(&[1.into(), 2.into()]);
         let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -826,7 +826,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
         let array = create_array_from_list(&[1.into(), 2.into()]);
         let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -863,7 +863,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(String, String), String> {
     setup_test_agent();
     let this = make_this();
-    super::array_prototype_pop(this.clone(), None, &[])
+    super::array_prototype_pop(&this, None, &[])
         .map_err(unwind_any_error)
         .map(|v| (v.test_result_string(), this.test_result_string()))
 }
@@ -905,7 +905,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
         let array = create_array_from_list(&[1.into(), 2.into()]);
         let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -949,7 +949,7 @@ fn array_prototype_push(
 ) -> Result<(String, String), String> {
     setup_test_agent();
     let (this, args) = make_inputs();
-    super::array_prototype_push(this.clone(), None, &args)
+    super::array_prototype_push(&this, None, &args)
         .map(|v| (v.test_result_string(), this.test_result_string()))
         .map_err(unwind_any_error)
 }
@@ -1146,7 +1146,7 @@ fn array_prototype_join(
     setup_test_agent();
     let this_value = make_this();
     let sep = make_sep();
-    super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
+    super::array_prototype_join(&this_value, None, &[sep]).map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::Undefined
@@ -1164,7 +1164,7 @@ fn array_prototype_join(
 fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let this_value = make_this();
-    super::array_prototype_to_string(this_value, None, &[]).map_err(unwind_any_error)
+    super::array_prototype_to_string(&this_value, None, &[]).map_err(unwind_any_error)
 }
 
 mod array_iterator {
@@ -1225,7 +1225,7 @@ mod array_iterator {
     }
 
     fn throwing_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1248,7 +1248,7 @@ mod array_iterator {
 fn array_prototype_values(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
     setup_test_agent();
     let this_value = make_this();
-    let iter = super::array_prototype_values(this_value, None, &[]).map_err(unwind_any_error)?;
+    let iter = super::array_prototype_values(&this_value, None, &[]).map_err(unwind_any_error)?;
     let ir = get_iterator(&iter, IteratorKind::Sync).map_err(unwind_any_error)?;
     let mut result = vec![];
     loop {
@@ -1299,7 +1299,7 @@ mod array_constructor_function {
         let nt = make_nt();
         let args = make_arguments();
 
-        let array = super::array_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args)
+        let array = super::array_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), &args)
             .map_err(unwind_any_error)?;
         let array = Object::try_from(array).unwrap();
         let mut result = vec![];

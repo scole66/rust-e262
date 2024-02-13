@@ -23,12 +23,12 @@ fn function_declaration_test_01() {
     pretty_check(
         &*node,
         "FunctionDeclaration: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "FunctionDeclaration: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: function",
             "IdentifierName: bob",
             "Punctuator: (",
@@ -46,18 +46,11 @@ fn function_declaration_test_02() {
     let (node, scanner) =
         check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
+    pretty_check(&*node, "FunctionDeclaration: function ( z ) {  }", &["FormalParameters: z", "FunctionBody: "]);
     concise_check(
         &*node,
         "FunctionDeclaration: function ( z ) {  }",
-        vec![
-            "Keyword: function",
-            "Punctuator: (",
-            "IdentifierName: z",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
 }
@@ -229,7 +222,7 @@ mod function_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
@@ -258,12 +251,12 @@ fn function_expression_test_01() {
     pretty_check(
         &*node,
         "FunctionExpression: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "FunctionExpression: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: function",
             "IdentifierName: bob",
             "Punctuator: (",
@@ -281,18 +274,11 @@ fn function_expression_test_01() {
 fn function_expression_test_02() {
     let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function (z) {}"), Scanner::new()));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
+    pretty_check(&*node, "FunctionExpression: function ( z ) {  }", &["FormalParameters: z", "FunctionBody: "]);
     concise_check(
         &*node,
         "FunctionExpression: function ( z ) {  }",
-        vec![
-            "Keyword: function",
-            "Punctuator: (",
-            "IdentifierName: z",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
     assert!(node.is_function_definition());
@@ -378,7 +364,7 @@ mod function_expression {
         setup_test_agent();
         let mut errs = vec![];
         FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("function a(){}" => true; "named")]
@@ -398,8 +384,8 @@ mod function_expression {
 fn function_body_test_01() {
     let (node, scanner) = FunctionBody::parse(&mut newparser(""), Scanner::new(), false, false);
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "FunctionBody: ", vec!["FunctionStatementList: "]);
-    concise_check(&*node, "", vec![]);
+    pretty_check(&*node, "FunctionBody: ", &["FunctionStatementList: "]);
+    concise_check(&*node, "", &[]);
     format!("{node:?}");
 }
 #[test]
@@ -473,7 +459,7 @@ mod function_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -508,8 +494,8 @@ mod function_body {
 fn function_statement_list_test_01() {
     let (node, scanner) = FunctionStatementList::parse(&mut newparser(""), Scanner::new(), false, false);
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "FunctionStatementList: ", vec![]);
-    concise_check(&*node, "", vec![]);
+    pretty_check(&*node, "FunctionStatementList: ", &[]);
+    concise_check(&*node, "", &[]);
     format!("{node:?}");
 }
 #[test]
@@ -605,7 +591,7 @@ mod function_statement_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_statement_list().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
     }
 
     #[test_case("" => false; "empty")]

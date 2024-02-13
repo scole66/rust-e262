@@ -1321,7 +1321,7 @@ impl ClassElement {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CEKind {
     ConstructorMethod,
     NonConstructorMethod,
