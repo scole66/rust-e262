@@ -367,6 +367,7 @@ impl fmt::Debug for AdaptableObject {
             .field("set_override", &self.set_override.and(Some("replacement function")))
             .field("delete_override", &self.delete_override.and(Some("replacement function")))
             .field("own_property_keys_override", &self.own_property_keys_override.and(Some("replacement function")))
+            .field("something", &self.something.get())
             .finish()
     }
 }

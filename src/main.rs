@@ -26,6 +26,7 @@
 #![deny(clippy::map_unwrap_or)]
 #![deny(clippy::redundant_closure_for_method_calls)]
 #![deny(clippy::if_not_else)]
+#![deny(clippy::missing_fields_in_debug)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

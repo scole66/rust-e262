@@ -1270,6 +1270,8 @@ impl fmt::Debug for BuiltInFunctionData {
         f.debug_struct("BuiltInFunctionData")
             .field("realm", &self.realm)
             .field("initial_name", &self.initial_name)
+            .field("steps", &"<steps>")
+            .field("is_constructor", &self.is_constructor)
             .finish()
     }
 }

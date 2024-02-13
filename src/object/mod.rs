@@ -1220,6 +1220,7 @@ impl fmt::Debug for CommonObjectData {
             .field("next_spot", &self.next_spot)
             .field("objid", &self.objid)
             .field("slots", &self.slots)
+            .field("private_elements", &self.private_elements)
             .finish()
     }
 }
