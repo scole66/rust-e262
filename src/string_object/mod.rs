@@ -155,7 +155,7 @@ impl ObjectInterface for StringObject {
         let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut extra_numbers: Vec<(PropertyKey, u32)> = Vec::new();
-        for (key, desc) in bindings.iter() {
+        for (key, desc) in bindings {
             if key.is_array_index() {
                 let keyval = array_index_key(key);
                 assert!(keyval as usize >= len); // All lower array indices are part of the string, and no one should have been able to make them independently.

@@ -611,7 +611,7 @@ pub struct VariableDeclarationList {
 impl fmt::Display for VariableDeclarationList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.list[0].fmt(f)?;
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             write!(f, " , {item}")?;
         }
         Ok(())
@@ -626,7 +626,7 @@ impl PrettyPrint for VariableDeclarationList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}VariableDeclarationList: {self}")?;
         let last_item_index = usize::from(self.list.len()) - 1;
-        for item in self.list[0..last_item_index].iter() {
+        for item in &self.list[0..last_item_index] {
             item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         self.list[last_item_index].pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -641,7 +641,7 @@ impl PrettyPrint for VariableDeclarationList {
             _ => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{first}VariableDeclarationList: {self}")?;
-                for item in self.list[0..usize::from(self.list.len()) - 1].iter() {
+                for item in &self.list[0..usize::from(self.list.len()) - 1] {
                     item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 }
@@ -724,7 +724,7 @@ impl VariableDeclarationList {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        for item in self.list.iter() {
+        for item in &self.list {
             item.early_errors(errs, strict);
         }
     }

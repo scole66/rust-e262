@@ -821,7 +821,7 @@ fn eval_declaration_instantiation(
     let var_declarations = body.var_scoped_declarations();
     if !strict {
         if let Some(ger) = var_env.as_global_environment_record() {
-            for name in var_names.iter() {
+            for name in &var_names {
                 if ger.has_lexical_declaration(name) {
                     return Err(create_syntax_error(
                         format!("Cannot create lexical binding {name} as it would shadow a global"),
@@ -833,7 +833,7 @@ fn eval_declaration_instantiation(
         let mut this_env = lex_env.clone();
         while !Rc::ptr_eq(&this_env, var_env) {
             if this_env.as_object_environment_record().is_none() {
-                for name in var_names.iter() {
+                for name in &var_names {
                     if this_env.has_binding(name).unwrap() {
                         return Err(create_syntax_error(
                             format!("Cannot create binding {name} as it would shadow an existing var name"),
@@ -850,7 +850,7 @@ fn eval_declaration_instantiation(
     while let Some(ref per) = pointer {
         let outer = {
             let penv = per.borrow();
-            for binding in penv.names.iter() {
+            for binding in &penv.names {
                 if !private_identifiers.contains(&binding.description) {
                     private_identifiers.push(binding.description.clone());
                 }
@@ -882,7 +882,7 @@ fn eval_declaration_instantiation(
     // Step 11
     let mut declared_var_names = vec![];
     // Step 12
-    for d in var_declarations.iter() {
+    for d in &var_declarations {
         if matches!(d, VarScopeDecl::ForBinding(_) | VarScopeDecl::VariableDeclaration(_)) {
             for vn in d.bound_names() {
                 if !declared_function_names.contains(&vn) {
@@ -901,7 +901,7 @@ fn eval_declaration_instantiation(
     // Step 15
     let lex_declarations = body.lexically_scoped_declarations();
     // Step 16
-    for d in lex_declarations.iter() {
+    for d in &lex_declarations {
         for dn in d.bound_names() {
             if d.is_constant_declaration() {
                 lex_env.create_immutable_binding(dn, true)?;

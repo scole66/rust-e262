@@ -720,7 +720,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
             vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")]
         }
     };
-    for name in method_names.iter() {
+    for name in &method_names {
         let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;

@@ -4840,7 +4840,7 @@ impl StatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         let mut status = self.list[0].compile(chunk, strict, text)?;
         let mut exits = vec![];
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             if status.maybe_abrupt() {
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
             }
@@ -5124,7 +5124,7 @@ impl VariableDeclarationList {
         let mut status = self.list[0].compile(chunk, strict, text)?;
         // Stack: empty/err ...
         let mut exits = vec![];
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             // Stack: empty/err ...
             if status.maybe_abrupt() {
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -5715,7 +5715,7 @@ impl ForStatement {
                 chunk.op(Insn::PushNewLexEnv);
                 let bound_names = lexdecl.bound_names();
                 let is_const = lexdecl.is_constant_declaration();
-                for bn in bound_names.iter() {
+                for bn in &bound_names {
                     let idx = chunk.add_to_string_pool(bn.clone())?;
                     chunk.op_plus_arg(
                         if is_const {
@@ -7478,7 +7478,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         chunk.op(Insn::PushNewLexEnv);
     }
 
-    for param_name in parameter_names.iter() {
+    for param_name in &parameter_names {
         let sidx = chunk.add_to_string_pool(param_name.clone())?;
         chunk.op_plus_arg(
             if has_duplicates {

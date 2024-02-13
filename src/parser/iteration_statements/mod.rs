@@ -1442,7 +1442,7 @@ impl ForInOfStatement {
                 for name in duplicates(&bn) {
                     errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(stmt.location())));
                 }
-                for name in bn.iter() {
+                for name in &bn {
                     if name == &JSString::from("let") {
                         errs.push(create_syntax_error_object(
                             "‘let’ is not a valid binding identifier",

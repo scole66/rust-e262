@@ -1049,7 +1049,7 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     let mut keys: Vec<PropertyKey> = Vec::with_capacity(data.properties.len());
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
-    for (key, desc) in data.properties.iter() {
+    for (key, desc) in &data.properties {
         if key.is_array_index() {
             keys.push(key.clone());
         } else {
@@ -1254,7 +1254,7 @@ struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
 impl<'a> fmt::Debug for ConciseProperties<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut work = f.debug_struct("AHashMap");
-        for (key, value) in self.0.iter() {
+        for (key, value) in self.0 {
             work.field(format!("{key}").as_str(), &ConcisePropertyDescriptor::from(value));
         }
         work.finish()
@@ -1702,7 +1702,7 @@ pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalS
     if slot_list.len() != slot_set.len() {
         return false;
     }
-    for slot_id in slot_list.iter() {
+    for slot_id in slot_list {
         if !slot_set.contains(slot_id) {
             return false;
         }
@@ -1712,7 +1712,7 @@ pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalS
 
 pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
     let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
-    for slot in internal_slots_list.iter() {
+    for slot in internal_slots_list {
         slot_set.insert(slot);
     }
 

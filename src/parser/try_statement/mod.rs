@@ -434,7 +434,7 @@ impl Catch {
             for name in duplicates(&bn) {
                 errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.block.location())));
             }
-            for name in bn.iter() {
+            for name in &bn {
                 if ldn.contains(name) || vdn.contains(name) {
                     errs.push(create_syntax_error_object(
                         format!("‘{name}’ already defined"),

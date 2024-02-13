@@ -813,10 +813,10 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
     //      a. Perform ? DefineField(O, fieldRecord).
     //  5. Return unused.
     let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-    for method in data.private_methods.iter() {
+    for method in &data.private_methods {
         private_method_or_accessor_add(this_argument, method.clone())?;
     }
-    for field_record in data.fields.iter() {
+    for field_record in &data.fields {
         define_field(this_argument, field_record)?;
     }
     Ok(())
@@ -1056,7 +1056,7 @@ fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
     let chunk = Rc::clone(&data.compiled);
     prepare_running_ec_for_execution(chunk);
     ec_push(Ok(func_val));
-    for item in args.iter() {
+    for item in args {
         ec_push(Ok(item.clone().into()));
     }
     ec_push(Ok(args.len().into()));

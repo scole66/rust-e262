@@ -542,7 +542,7 @@ fn math_hypot(
     let coerced = arguments.iter().map(|val| to_number(val.clone())).collect::<Completion<Vec<_>>>()?;
     let mut saw_nan = false;
     let mut only_zero = true;
-    for item in coerced.iter() {
+    for item in &coerced {
         if item.is_infinite() {
             return Ok(f64::INFINITY.into());
         }
