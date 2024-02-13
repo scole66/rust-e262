@@ -233,7 +233,7 @@ mod try_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).try_statement().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("try { arguments; } catch {}" => true; "try-catch (left)")]
@@ -399,7 +399,7 @@ mod catch {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("catch({a=arguments}){}" => true; "param (left)")]
@@ -499,7 +499,7 @@ mod finally {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).finally().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("finally{arguments;}" => true; "yes")]
@@ -601,7 +601,7 @@ mod catch_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "id")]

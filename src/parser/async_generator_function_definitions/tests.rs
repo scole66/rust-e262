@@ -186,7 +186,7 @@ mod async_generator_method {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_method();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test]
@@ -541,7 +541,7 @@ mod async_generator_declaration {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_declaration();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -786,7 +786,7 @@ mod async_generator_expression {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_expression();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async function *a(){}" => true; "named")]
@@ -853,7 +853,7 @@ mod async_generator_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_generator_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]

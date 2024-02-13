@@ -393,7 +393,7 @@ mod member_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -622,7 +622,7 @@ mod super_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("super[arguments]" => true; "Expression (yes)")]
@@ -726,7 +726,7 @@ mod meta_property {
         setup_test_agent();
         let mut errs = vec![];
         MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "new.target")]
@@ -866,7 +866,7 @@ mod arguments {
         setup_test_agent();
         let mut errs = vec![];
         Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("()" => false; "empty")]
@@ -1082,7 +1082,7 @@ mod argument_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "AssignmentExpression (yes)")]
@@ -1222,7 +1222,7 @@ mod new_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -1359,7 +1359,7 @@ mod call_member_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments()" => true; "Exp Args (left)")]
@@ -1431,7 +1431,7 @@ mod super_call {
         setup_test_agent();
         let mut errs = vec![];
         SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("super(arguments)" => true; "yes")]
@@ -1516,7 +1516,7 @@ mod import_call {
         setup_test_agent();
         let mut errs = vec![];
         ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("import(arguments)" => true; "yes")]
@@ -1902,7 +1902,7 @@ mod call_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a()" => true; "standard")]
@@ -2128,7 +2128,7 @@ mod optional_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a?.b" => true; "member exp")]
@@ -2571,7 +2571,7 @@ mod optional_chain {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("?.()" => true; "args")]
@@ -2759,7 +2759,7 @@ mod left_hand_side_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

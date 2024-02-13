@@ -14,7 +14,7 @@ fn split_message(msg: &str) -> Vec<String> {
             for _ in 0..4 {
                 ch_iter.next().unwrap();
             }
-            lines.push(String::from_iter(ch_iter));
+            lines.push(ch_iter.collect());
         }
     }
     lines

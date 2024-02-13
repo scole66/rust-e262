@@ -568,7 +568,7 @@ mod method_definition {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).method_definition().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
@@ -678,7 +678,7 @@ mod property_set_parameter_list {
         setup_test_agent();
         let mut errs = vec![];
         PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => vec!["a"]; "FormalParameter")]

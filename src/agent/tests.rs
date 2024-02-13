@@ -935,7 +935,7 @@ mod parse_script {
         setup_test_agent();
         let starting_realm = current_realm_record().unwrap();
         let errs = super::parse_script(src, starting_realm).unwrap_err();
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 }
 

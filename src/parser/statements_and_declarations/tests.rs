@@ -526,7 +526,7 @@ mod statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, wi, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -800,7 +800,7 @@ mod declaration {
         setup_test_agent();
         let mut errs = vec![];
         Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function a(){}" => false; "Hoistable")]
@@ -1044,7 +1044,7 @@ mod hoistable_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function a(){}" => "function a (  ) {  }"; "function def")]
@@ -1198,7 +1198,7 @@ mod breakable_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("for(;;)arguments;" => true; "Iteration (yes)")]

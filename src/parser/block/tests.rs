@@ -95,7 +95,7 @@ mod block_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{arguments;}" => true; "yes")]
@@ -266,7 +266,7 @@ mod block {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{arguments;}" => true; "yes")]
@@ -525,7 +525,7 @@ mod statement_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
     #[test_case("arguments;" => true; "Item (yes)")]
     #[test_case("no;" => false; "Item (no)")]
@@ -784,7 +784,7 @@ mod statement_list_item {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "Stmt (yes)")]

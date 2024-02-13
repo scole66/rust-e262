@@ -295,7 +295,7 @@ mod iteration_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("do arguments; while(0);" => true; "dowhile (yes)")]
@@ -493,7 +493,7 @@ mod do_while_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("do arguments;while(0);" => true; "binary (left)")]
@@ -628,7 +628,7 @@ mod while_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("while(arguments);" => true; "left")]
@@ -1543,7 +1543,7 @@ mod for_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("for(;;)arguments;" => true; "000-for (yes)")]
@@ -2451,7 +2451,7 @@ mod for_in_of_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("for(arguments in a);" => true; "lhs-in (left)")]
@@ -2619,7 +2619,7 @@ mod for_declaration {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_declaration().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("let {a=arguments}" => true; "yes")]
@@ -2731,7 +2731,7 @@ mod for_binding {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).for_binding().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "id")]

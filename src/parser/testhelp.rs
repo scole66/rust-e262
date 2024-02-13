@@ -41,7 +41,7 @@ where
     assert_eq!(format!("{pe}"), msg.into());
 }
 pub fn sset(items: &[&str]) -> AHashSet<String> {
-    AHashSet::from_iter(items.iter().map(|&x| String::from(x)))
+    items.iter().map(|&x| String::from(x)).collect()
 }
 
 pub fn svec(items: &[&str]) -> Vec<String> {

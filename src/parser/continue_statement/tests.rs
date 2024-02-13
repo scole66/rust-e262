@@ -134,7 +134,7 @@ mod continue_statement {
             strict,
             within_iteration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "no label")]

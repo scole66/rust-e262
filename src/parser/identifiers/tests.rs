@@ -544,7 +544,7 @@ mod identifier_reference {
         .unwrap();
         let mut errs = vec![];
         item.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "IdentifierName/no")]
@@ -843,7 +843,7 @@ mod binding_identifier {
             .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+            errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
         }
     }
 
@@ -1111,7 +1111,7 @@ mod label_identifier {
             .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+            errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
         }
     }
 

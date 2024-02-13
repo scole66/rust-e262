@@ -222,7 +222,7 @@ mod function_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
@@ -364,7 +364,7 @@ mod function_expression {
         setup_test_agent();
         let mut errs = vec![];
         FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function a(){}" => true; "named")]
@@ -459,7 +459,7 @@ mod function_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -591,7 +591,7 @@ mod function_statement_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_statement_list().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => false; "empty")]

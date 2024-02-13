@@ -248,7 +248,7 @@ mod if_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("if(arguments);else;" => true; "trinary (left)")]

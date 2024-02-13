@@ -61,7 +61,7 @@ mod unique_formal_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).unique_formal_parameters().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
@@ -313,7 +313,7 @@ mod formal_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameters().early_errors(&mut errs, strict, dups_already_checked);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => false; "empty")]
@@ -480,7 +480,7 @@ mod formal_parameter_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameter_list().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -582,7 +582,7 @@ mod function_rest_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_rest_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("...{a=arguments}" => true; "yes")]
@@ -678,7 +678,7 @@ mod formal_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a=arguments" => true; "yes")]

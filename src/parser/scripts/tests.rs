@@ -142,7 +142,7 @@ mod script {
         setup_test_agent();
         let mut errs = vec![];
         Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => svec(&[]); "empty")]
@@ -282,7 +282,7 @@ mod script_body {
         setup_test_agent();
         let mut errs = vec![];
         ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]

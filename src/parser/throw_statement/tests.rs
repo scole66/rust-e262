@@ -66,7 +66,7 @@ mod throw_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).throw_statement().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("throw arguments;" => true; "yes")]

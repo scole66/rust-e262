@@ -270,7 +270,7 @@ mod async_function_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   async function abc() {}" => Location{ starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 23 } }; "typical")]
@@ -474,7 +474,7 @@ mod async_function_expression {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_function_expression().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async function a(){}" => true; "named")]
@@ -647,7 +647,7 @@ mod async_method {
         setup_test_agent();
         let mut errs = vec![];
         AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async [arguments](){}" => true; "yes")]
@@ -728,7 +728,7 @@ mod async_function_body {
         setup_test_agent();
         let mut errs = vec![];
         AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -816,7 +816,7 @@ mod await_expression {
         setup_test_agent();
         let mut errs = vec![];
         AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("await arguments" => true; "yes")]

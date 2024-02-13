@@ -119,7 +119,7 @@ mod break_statement {
             strict,
             within_breakable,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "no label")]
