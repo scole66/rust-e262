@@ -37,6 +37,7 @@
 #![deny(clippy::manual_string_new)]
 #![deny(clippy::range_plus_one)]
 #![deny(clippy::return_self_not_must_use)]
+#![deny(clippy::borrow_as_ptr)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

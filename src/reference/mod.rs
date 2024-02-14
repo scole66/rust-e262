@@ -2,6 +2,7 @@ use super::*;
 use anyhow::anyhow;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
+use std::ptr::addr_of;
 use std::rc::Rc;
 
 // The Reference Record Specification Type
@@ -58,8 +59,8 @@ impl PartialEq for Base {
         match (self, other) {
             (Self::Environment(left), Self::Environment(right)) => {
                 //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
-                let left = &**left as *const dyn EnvironmentRecord as *const u8;
-                let right = &**right as *const dyn EnvironmentRecord as *const u8;
+                let left = addr_of!(**left) as *const u8;
+                let right = addr_of!(**right) as *const u8;
                 std::ptr::eq(left, right)
             }
             (Self::Value(left), Self::Value(right)) => left == right,
