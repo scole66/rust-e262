@@ -961,7 +961,7 @@ fn array_prototype_push(
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)? as u64;
+    let len = u64::try_from(length_of_array_like(&o)?).expect("Array lengths should be positive and fit in 64 bits");
     let arg_count = arguments.len() as u64;
     let new_len = len + arg_count;
     if new_len >= 1 << 53 {

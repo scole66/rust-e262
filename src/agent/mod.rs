@@ -764,9 +764,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                     if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_err() {
                         if jump >= 0 {
-                            agent.execution_context_stack.borrow_mut()[index].pc += jump as usize;
+                            agent.execution_context_stack.borrow_mut()[index].pc += usize::try_from(jump).expect("jump is positive");
                         } else {
-                            agent.execution_context_stack.borrow_mut()[index].pc -= (-jump) as usize;
+                            agent.execution_context_stack.borrow_mut()[index].pc -= usize::try_from(-jump).expect("-jump is positive");
                         }
                     }
                 }
@@ -776,9 +776,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
                     if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_ok() {
                         if jump >= 0 {
-                            agent.execution_context_stack.borrow_mut()[index].pc += jump as usize;
+                            agent.execution_context_stack.borrow_mut()[index].pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            agent.execution_context_stack.borrow_mut()[index].pc -= (-jump) as usize;
+                            agent.execution_context_stack.borrow_mut()[index].pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -798,9 +798,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     if (instruction == Insn::JumpIfFalse && !bool_val) || (instruction == Insn::JumpIfTrue && bool_val)
                     {
                         if jump >= 0 {
-                            execution_context.pc += jump as usize;
+                            execution_context.pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            execution_context.pc -= (-jump) as usize;
+                            execution_context.pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -821,9 +821,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         || (instruction == Insn::JumpPopIfTrue && bool_val)
                     {
                         if jump >= 0 {
-                            ec.pc += jump as usize;
+                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            ec.pc -= (-jump) as usize;
+                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -840,9 +840,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         ^ (val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null);
                     if should_jump {
                         if jump >= 0 {
-                            ec.pc += jump as usize;
+                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            ec.pc -= (-jump) as usize;
+                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -857,9 +857,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     .expect("Undef Jumps may only be used with Values");
                     if val != ECMAScriptValue::Undefined {
                         if jump >= 0 {
-                            ec.pc += jump as usize;
+                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            ec.pc -= (-jump) as usize;
+                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -872,9 +872,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
 
                     if !matches!(completion, Err(AbruptCompletion::Throw { .. })) {
                         if jump >= 0 {
-                            ec.pc += jump as usize;
+                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
                         } else {
-                            ec.pc -= (-jump) as usize;
+                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
                         }
                     }
                 }
@@ -883,9 +883,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let jump = chunk.opcodes[ec.pc] as i16;
                     ec.pc += 1;
                     if jump >= 0 {
-                        ec.pc += jump as usize;
+                        ec.pc += usize::try_from(jump).expect("jump should be >= 0");
                     } else {
-                        ec.pc -= (-jump) as usize;
+                        ec.pc -= usize::try_from(-jump).expect("jump sjould be < 0");
                     }
                 }
                 Insn::UpdateEmpty => {

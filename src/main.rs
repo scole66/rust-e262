@@ -9,6 +9,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::single_match_else)]
 #![allow(clippy::float_cmp)]
+#![allow(clippy::module_name_repetitions)]
 // pedantic denies. (When we turn on pedantic, these denys can be removed)
 #![deny(clippy::uninlined_format_args)]
 #![deny(clippy::unnested_or_patterns)]
@@ -31,6 +32,7 @@
 #![deny(clippy::struct_excessive_bools)]
 #![deny(clippy::cast_lossless)]
 #![deny(clippy::default_trait_access)]
+#![deny(clippy::cast_sign_loss)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

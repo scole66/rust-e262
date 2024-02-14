@@ -99,6 +99,7 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
         let delta = location as isize - self.opcodes.len() as isize - 1;
@@ -107,6 +108,7 @@ impl Chunk {
         Ok(())
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {

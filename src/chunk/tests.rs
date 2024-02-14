@@ -246,6 +246,7 @@ mod chunk {
         use super::*;
 
         #[test]
+        #[allow(clippy::cast_sign_loss)]
         fn normal() {
             let mut c = Chunk::new("op_jump_back");
 

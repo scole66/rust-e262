@@ -975,6 +975,7 @@ pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completio
 
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_sign_loss)]
 pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
     if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
         Ok(arg as usize)

@@ -630,11 +630,12 @@ fn number_prototype_to_exponential(
         digits = &strbuf[0..null_idx.unwrap()];
     } else {
         info = dtoa_precise(value, fraction + 1);
+        let ufract = usize::try_from(fraction).expect("fraction should be >= 0");
         // We need fraction +1 digits to come out of this.
         let strbuf = info.chars.as_bytes();
         // copy digits out of that, right-padding with '0', until we get p chars.
         let mut out_of_chars = false;
-        for idx in 0..(fraction + 1) as usize {
+        for idx in 0..ufract + 1 {
             workbuf[idx] = if out_of_chars {
                 b'0'
             } else {
@@ -647,7 +648,7 @@ fn number_prototype_to_exponential(
                 }
             };
         }
-        digits = &workbuf[0..(fraction + 1) as usize];
+        digits = &workbuf[0..ufract + 1];
     }
     let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };
@@ -727,9 +728,10 @@ fn number_prototype_to_fixed(
         let info = dtoa_fixed(magnitude, f);
         let mut k = info.decpt + f;
         if f == 0 {
+            let ku = usize::try_from(k).expect("k should be >= 0");
             // sign + the k digits from dtoa.
             let strbuf = info.chars.as_bytes();
-            for idx in 0..k as usize {
+            for idx in 0..ku {
                 workbuf[idx] = {
                     let ch = strbuf[idx];
                     if ch == 0 {
@@ -738,7 +740,7 @@ fn number_prototype_to_fixed(
                     ch
                 };
             }
-            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
+            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..ku.max(1)]))
         } else {
             let mut write_offset = 0;
             if k <= f {
@@ -747,8 +749,10 @@ fn number_prototype_to_fixed(
             }
             let strbuf = info.chars.as_bytes();
             // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
-            for read_idx in 0..(info.decpt + f - write_offset) as usize {
-                workbuf[read_idx + write_offset as usize] = {
+            let limit = usize::try_from(info.decpt + f - write_offset).expect("values should combine positively");
+            let wo_u = usize::try_from(write_offset).expect("write_offset should be >= 0");
+            for read_idx in 0..limit {
+                workbuf[read_idx + wo_u] = {
                     let ch = strbuf[read_idx];
                     if ch == 0 {
                         break;
@@ -756,8 +760,10 @@ fn number_prototype_to_fixed(
                     ch
                 };
             }
-            let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
-            let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
+            let delta = usize::try_from(k - f).expect("k should be >= f");
+            let end = usize::try_from(k).expect("k should be >= 0");
+            let before_point = String::from_utf8_lossy(&workbuf[0..delta]);
+            let after_point = String::from_utf8_lossy(&workbuf[delta..end]);
 
             format!("{sign}{before_point}.{after_point}")
         }
@@ -888,14 +894,14 @@ fn number_prototype_to_precision(
             format!("{}{}", sign, String::from_utf8_lossy(digits))
         } else if e >= 0 {
             // No leading zeroes
-            let e_us: usize = e as usize + 1;
+            let e_us: usize = usize::try_from(e).expect("e should be >= 0") + 1;
             let a = &digits[0..e_us];
             let b = &digits[e_us..p_size];
             format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
         } else {
             // Leading zeroes
             let digit_str = String::from_utf8_lossy(digits);
-            let num_zeroes: usize = (-e - 1) as usize;
+            let num_zeroes: usize = usize::try_from(-e - 1).expect("e should be < 0");
             format!("{}0.{:0>width$}", sign, digit_str, width = num_zeroes + digit_str.len())
         },
     ))
@@ -954,7 +960,7 @@ fn double_exponent(dbl: f64) -> i32 {
 #[allow(clippy::float_cmp)]
 #[allow(unused_assignments)] // Remove this when the Condition B panic is removed
 #[allow(unreachable_code)] // Remove this when the Condition B panic is removed
-pub fn double_to_radix_string(val: f64, radix: i32) -> String {
+pub fn double_to_radix_string(val: f64, radix: u32) -> String {
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
     // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
 
@@ -1011,9 +1017,9 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                         panic!("Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                         break;
                     }
-                    let c = i32::from(buffer[fraction_cursor]);
+                    let c = u32::from(buffer[fraction_cursor]);
                     // Reconstruct digit.
-                    let digit = if c > '9' as i32 { c - 'a' as i32 + 10 } else { c - '0' as i32 };
+                    let digit = if c > '9' as u32 { c - 'a' as u32 + 10 } else { c - '0' as u32 };
                     if digit + 1 < radix {
                         buffer[fraction_cursor] = chars[digit as usize + 1];
                         fraction_cursor += 1;
@@ -1081,7 +1087,7 @@ fn number_prototype_to_string(
     let x = this_number_value(&this_value.clone())?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
     if (2.0..=36.0).contains(&radix_mv) {
-        let int_radix = to_int32(radix_mv)?;
+        let int_radix = to_uint32(radix_mv)?;
         if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {
