@@ -3275,7 +3275,7 @@ mod statement {
         let node = Maker::new(src).statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4189,7 +4189,7 @@ mod breakable_statement {
         let node = Maker::new(src).breakable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4298,7 +4298,7 @@ mod iteration_statement {
         let node = Maker::new(src).iteration_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4382,7 +4382,7 @@ mod do_while_statement {
         let node = Maker::new(src).do_while_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.do_while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4414,7 +4414,7 @@ mod while_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).while_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -4747,7 +4747,7 @@ mod for_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.compile_for_loop(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -5013,7 +5013,7 @@ mod labelled_item {
         let node = Maker::new(src).labelled_item();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -5072,7 +5072,7 @@ mod labelled_statement {
         let node = Maker::new(src).labelled_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
