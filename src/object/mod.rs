@@ -133,31 +133,37 @@ impl PotentialPropertyDescriptor {
         PotentialPropertyDescriptor::default()
     }
 
+    #[must_use]
     pub fn value(mut self, value: impl Into<ECMAScriptValue>) -> Self {
         self.value = Some(value.into());
         self
     }
 
+    #[must_use]
     pub fn writable(mut self, writable: bool) -> Self {
         self.writable = Some(writable);
         self
     }
 
+    #[must_use]
     pub fn enumerable(mut self, enumerable: bool) -> Self {
         self.enumerable = Some(enumerable);
         self
     }
 
+    #[must_use]
     pub fn configurable(mut self, configurable: bool) -> Self {
         self.configurable = Some(configurable);
         self
     }
 
+    #[must_use]
     pub fn get(mut self, get: impl Into<ECMAScriptValue>) -> Self {
         self.get = Some(get.into());
         self
     }
 
+    #[must_use]
     pub fn set(mut self, set: impl Into<ECMAScriptValue>) -> Self {
         self.set = Some(set.into());
         self

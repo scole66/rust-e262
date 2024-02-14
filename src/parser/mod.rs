@@ -348,6 +348,7 @@ impl Ord for Location {
 }
 
 impl Location {
+    #[must_use]
     pub fn merge(&self, other: &Self) -> Self {
         assert!(self.span.starting_index <= other.span.starting_index + other.span.length);
         Location {

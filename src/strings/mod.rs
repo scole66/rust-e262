@@ -23,6 +23,7 @@ impl JSString {
         self.s.is_empty()
     }
 
+    #[must_use]
     pub fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
         let combined = [self.clone().s, tail.s].concat().into_boxed_slice();

@@ -36,6 +36,7 @@
 #![deny(clippy::cast_sign_loss)]
 #![deny(clippy::manual_string_new)]
 #![deny(clippy::range_plus_one)]
+#![deny(clippy::return_self_not_must_use)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

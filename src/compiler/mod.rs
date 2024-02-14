@@ -419,9 +419,11 @@ impl CompilerStatusFlags {
     pub fn new() -> Self {
         Self::default()
     }
+    #[must_use]
     pub fn abrupt(self, potentially_abrupt: bool) -> Self {
         Self { can_be_abrupt: potentially_abrupt.into(), ..self }
     }
+    #[must_use]
     pub fn reference(self, potentially_reference: bool) -> Self {
         Self { can_be_reference: potentially_reference.into(), ..self }
     }

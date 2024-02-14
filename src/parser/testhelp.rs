@@ -116,6 +116,7 @@ impl<'a> Maker<'a> {
     ///
     /// `true` means that yield expressions are allowed; `false` means that the `yield` keyword can be used as an
     /// identifier.
+    #[must_use]
     pub fn yield_ok(self, yield_flag: bool) -> Self {
         Self { yield_flag, ..self }
     }
@@ -123,6 +124,7 @@ impl<'a> Maker<'a> {
     ///
     /// `true` means that await expressions are allowed; `false` means that the `await` keyword can be used as an
     /// identifier.
+    #[must_use]
     pub fn await_ok(self, await_flag: bool) -> Self {
         Self { await_flag, ..self }
     }
@@ -130,6 +132,7 @@ impl<'a> Maker<'a> {
     ///
     /// `true` means that the `in` keyword may be used in a [`RelationalExpression`]; `false` means that it may not.
     /// (This is the case in some `for` statements.)
+    #[must_use]
     pub fn in_ok(self, in_flag: bool) -> Self {
         Self { in_flag, ..self }
     }
@@ -137,6 +140,7 @@ impl<'a> Maker<'a> {
     ///
     /// `true` means that `return` statements are currently allowed (generally within function bodies); `false` means
     /// they are not.
+    #[must_use]
     pub fn return_ok(self, return_flag: bool) -> Self {
         Self { return_flag, ..self }
     }
@@ -145,12 +149,14 @@ impl<'a> Maker<'a> {
     /// `true` means that a template literal is being treated as a [tagged template][1]; `false` means that is is not.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-tagged-templates
+    #[must_use]
     pub fn tagged_ok(self, tagged_flag: bool) -> Self {
         Self { tagged_flag, ..self }
     }
     /// Set the `default_flag` in the maker object.
     ///
     /// `true` means that nameless functions are allowed.
+    #[must_use]
     pub fn default_ok(self, default_flag: bool) -> Self {
         Self { default_flag, ..self }
     }
