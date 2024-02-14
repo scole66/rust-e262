@@ -20,8 +20,8 @@ impl PartialEq for NormalCompletion {
             (Self::Reference(left), Self::Reference(right)) => left == right,
             (Self::Environment(left), Self::Environment(right)) => {
                 //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
-                let left = addr_of!(**left) as *const u8;
-                let right = addr_of!(**right) as *const u8;
+                let left = addr_of!(**left).cast::<u8>();
+                let right = addr_of!(**right).cast::<u8>();
                 std::ptr::eq(left, right)
             }
             (Self::Empty, Self::Empty) => true,
