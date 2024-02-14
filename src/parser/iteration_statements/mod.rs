@@ -1044,12 +1044,13 @@ impl ForInOfStatement {
     ) -> ParseResult<Self> {
         let (for_loc, after_for) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
-        let (await_seen, after_await) = match await_flag {
-            true => match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
+        let (await_seen, after_await) = if await_flag {
+            match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
                 Ok((_, scan)) => (true, scan),
                 Err(_) => (false, after_for),
-            },
-            false => (false, after_for),
+            }
+        } else {
+            (false, after_for)
         };
         let (_, after_open) =
             scan_for_punct(after_await, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;

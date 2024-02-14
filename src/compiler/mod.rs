@@ -3808,10 +3808,7 @@ impl AssignmentProperty {
                 let p_value = ident.string_value();
                 let p = chunk.add_to_string_pool(p_value)?;
                 chunk.op_plus_arg(Insn::String, p);
-                chunk.op(match strict {
-                    true => Insn::StrictResolve,
-                    false => Insn::Resolve,
-                });
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                 let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Swap);
                 chunk.op(Insn::Pop2Push3);
@@ -6173,10 +6170,7 @@ impl ForInOfStatement {
                         .add_to_string_pool(bn.pop().expect("should be exactly one name"))
                         .expect("names should have already been added to string pool in instantiation");
                     chunk.op_plus_arg(Insn::String, name);
-                    chunk.op(match strict {
-                        true => Insn::StrictResolve,
-                        false => Insn::Resolve,
-                    });
+                    chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                     chunk.op(Insn::Swap);
                     chunk.op(Insn::InitializeReferencedBinding);
                 }
@@ -6391,9 +6385,10 @@ impl ForDeclaration {
         //      b. Else,
         //          i. Perform ! environment.CreateMutableBinding(name, false).
         //  2. Return unused.
-        let insn = match self.loc.is_constant_declaration() {
-            true => Insn::CreateStrictImmutableLexBinding,
-            false => Insn::CreatePermanentMutableLexBinding,
+        let insn = if self.loc.is_constant_declaration() {
+            Insn::CreateStrictImmutableLexBinding
+        } else {
+            Insn::CreatePermanentMutableLexBinding
         };
         for name_val in self.binding.bound_names() {
             let name = chunk.add_to_string_pool(name_val)?;
@@ -7869,10 +7864,7 @@ impl BindingIdentifier {
             BindingIdentifier::Await { .. } => "await".into(),
         })?;
         chunk.op_plus_arg(Insn::String, binding_id);
-        chunk.op(match strict {
-            true => Insn::StrictResolve,
-            false => Insn::Resolve,
-        });
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
         Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
     }
 }

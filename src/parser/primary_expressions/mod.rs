@@ -2631,9 +2631,10 @@ impl TemplateLiteral {
                 //  2. Else,
                 //      a. Let string be the TRV of NoSubstitutionTemplate.
                 //  3. Return « string ».
-                match raw {
-                    false => vec![nst.tv.clone()],
-                    true => vec![Some(nst.trv.clone())],
+                if raw {
+                    vec![Some(nst.trv.clone())]
+                } else {
+                    vec![nst.tv.clone()]
                 }
             }
             TemplateLiteral::SubstitutionTemplate(st) => {
@@ -2777,10 +2778,8 @@ impl SubstitutionTemplate {
         //      a. Let head be the TRV of TemplateHead.
         //  3. Let tail be TemplateStrings of TemplateSpans with argument raw.
         //  4. Return the list-concatenation of « head » and tail.
-        let mut head = match raw {
-            false => vec![self.template_head.tv.clone()],
-            true => vec![Some(self.template_head.trv.clone())],
-        };
+        let mut head =
+            if raw { vec![Some(self.template_head.trv.clone())] } else { vec![self.template_head.tv.clone()] };
         let tail = self.template_spans.template_strings(raw);
         head.extend(tail);
         head
@@ -2961,9 +2960,10 @@ impl TemplateSpans {
                 //  2. Else,
                 //      a. Let tail be the TRV of TemplateTail.
                 //  3. Return « tail ».
-                match raw {
-                    false => vec![tail.tv.clone()],
-                    true => vec![Some(tail.trv.clone())],
+                if raw {
+                    vec![Some(tail.trv.clone())]
+                } else {
+                    vec![tail.tv.clone()]
                 }
             }
             TemplateSpans::List { tml: template_middle_list, data: template_tail, .. } => {
@@ -2975,10 +2975,7 @@ impl TemplateSpans {
                 //      a. Let tail be the TRV of TemplateTail.
                 //  4. Return the list-concatenation of middle and « tail ».
                 let mut middle = template_middle_list.template_strings(raw);
-                let tail = match raw {
-                    false => template_tail.tv.clone(),
-                    true => Some(template_tail.trv.clone()),
-                };
+                let tail = if raw { Some(template_tail.trv.clone()) } else { template_tail.tv.clone() };
                 middle.push(tail);
                 middle
             }
@@ -3176,9 +3173,10 @@ impl TemplateMiddleList {
                 //  2. Else,
                 //      a. Let string be the TRV of TemplateMiddle.
                 //  3. Return « string ».
-                match raw {
-                    false => vec![template_middle.tv.clone()],
-                    true => vec![Some(template_middle.trv.clone())],
+                if raw {
+                    vec![Some(template_middle.trv.clone())]
+                } else {
+                    vec![template_middle.tv.clone()]
                 }
             }
             TemplateMiddleList::ListMid(template_middle_list, template_middle, _, _) => {
@@ -3190,10 +3188,7 @@ impl TemplateMiddleList {
                 //      a. Let last be the TRV of TemplateMiddle.
                 //  4. Return the list-concatenation of front and « last ».
                 let mut front = template_middle_list.template_strings(raw);
-                let last = match raw {
-                    false => template_middle.tv.clone(),
-                    true => Some(template_middle.trv.clone()),
-                };
+                let last = if raw { Some(template_middle.trv.clone()) } else { template_middle.tv.clone() };
                 front.push(last);
                 front
             }

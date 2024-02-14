@@ -755,9 +755,10 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                     let lex_env: Rc<dyn EnvironmentRecord> = Rc::new(
                                         DeclarativeEnvironmentRecord::new(current_lexical_environment(), "eval"),
                                     );
-                                    let var_env = match strict_eval {
-                                        true => lex_env.clone(),
-                                        false => current_variable_environment().unwrap(),
+                                    let var_env = if strict_eval {
+                                        lex_env.clone()
+                                    } else {
+                                        current_variable_environment().unwrap()
                                     };
                                     let private_env = current_private_environment();
                                     (lex_env, var_env, private_env)
@@ -767,10 +768,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                         eval_realm.borrow().global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
                                     let lex_env: Rc<dyn EnvironmentRecord> =
                                         Rc::new(DeclarativeEnvironmentRecord::new(global_env.clone(), "eval"));
-                                    let var_env = match strict_eval {
-                                        true => lex_env.clone(),
-                                        false => global_env.unwrap(),
-                                    };
+                                    let var_env = if strict_eval { lex_env.clone() } else { global_env.unwrap() };
                                     (lex_env, var_env, None)
                                 }
                             };

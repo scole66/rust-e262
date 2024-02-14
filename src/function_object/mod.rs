@@ -1695,10 +1695,13 @@ pub fn ordinary_function_create(
     //  23. Return F.
     let this_mode = match this_mode {
         ThisLexicality::LexicalThis => ThisMode::Lexical,
-        ThisLexicality::NonLexicalThis => match strict {
-            true => ThisMode::Strict,
-            false => ThisMode::Global,
-        },
+        ThisLexicality::NonLexicalThis => {
+            if strict {
+                ThisMode::Strict
+            } else {
+                ThisMode::Global
+            }
+        }
     };
     let script_or_module = get_active_script_or_module();
     let realm = current_realm_record().unwrap();

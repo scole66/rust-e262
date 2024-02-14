@@ -2102,37 +2102,34 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                         .expect("iterator record should not be an error")
                         .try_into()
                         .expect("completion should be an iterator record");
-                    match ir.done.get() {
-                        false => {
-                            let next_result = ir.step();
-                            match next_result {
-                                Err(e) => {
-                                    ir.done.set(true);
-                                    ec_push(Err(e));
-                                }
-                                Ok(None) => {
-                                    ir.done.set(true);
-                                    ec_push(Ok(NormalCompletion::from(ir)));
-                                    ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                                }
-                                Ok(Some(next_obj)) => {
-                                    let v = iterator_value(&next_obj);
-                                    match v {
-                                        Err(e) => {
-                                            ir.done.set(true);
-                                            ec_push(Err(e));
-                                        }
-                                        Ok(v) => {
-                                            ec_push(Ok(NormalCompletion::from(ir)));
-                                            ec_push(Ok(NormalCompletion::from(v)));
-                                        }
+                    if ir.done.get() {
+                        ec_push(Ok(NormalCompletion::from(ir)));
+                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                    } else  {
+                        let next_result = ir.step();
+                        match next_result {
+                            Err(e) => {
+                                ir.done.set(true);
+                                ec_push(Err(e));
+                            }
+                            Ok(None) => {
+                                ir.done.set(true);
+                                ec_push(Ok(NormalCompletion::from(ir)));
+                                ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
+                            }
+                            Ok(Some(next_obj)) => {
+                                let v = iterator_value(&next_obj);
+                                match v {
+                                    Err(e) => {
+                                        ir.done.set(true);
+                                        ec_push(Err(e));
+                                    }
+                                    Ok(v) => {
+                                        ec_push(Ok(NormalCompletion::from(ir)));
+                                        ec_push(Ok(NormalCompletion::from(v)));
                                     }
                                 }
                             }
-                        }
-                        true => {
-                            ec_push(Ok(NormalCompletion::from(ir)));
-                            ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
                         }
                     }
                 }

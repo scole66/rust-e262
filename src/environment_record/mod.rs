@@ -160,9 +160,10 @@ enum Removability {
 
 impl From<bool> for Removability {
     fn from(source: bool) -> Self {
-        match source {
-            true => Removability::Deletable,
-            false => Removability::Permanent,
+        if source {
+            Removability::Deletable
+        } else {
+            Removability::Permanent
         }
     }
 }
@@ -175,9 +176,10 @@ enum Strictness {
 
 impl From<bool> for Strictness {
     fn from(source: bool) -> Self {
-        match source {
-            true => Strictness::Strict,
-            false => Strictness::Sloppy,
+        if source {
+            Strictness::Strict
+        } else {
+            Strictness::Sloppy
         }
     }
 }
@@ -667,9 +669,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //  1. If envRec.[[IsWithEnvironment]] is true, return envRec.[[BindingObject]].
     //  2. Otherwise, return undefined.
     fn with_base_object(&self) -> Option<Object> {
-        match self.is_with_environment {
-            true => Some(self.binding_object.clone()),
-            false => None,
+        if self.is_with_environment {
+            Some(self.binding_object.clone())
+        } else {
+            None
         }
     }
 

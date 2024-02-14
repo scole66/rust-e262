@@ -965,28 +965,32 @@ fn ordinary_set_with_own_descriptor_internal(
         Some(x) => x,
     };
     match &own_desc.property {
-        PropertyKind::Data(data_fields) => match data_fields.writable {
-            false => Ok(false),
-            true => match receiver {
-                ECMAScriptValue::Object(receiver) => {
-                    let maybe_existing_descriptor = receiver.o.get_own_property(&p)?;
-                    match maybe_existing_descriptor {
-                        Some(existing_descriptor) => match &existing_descriptor.property {
-                            PropertyKind::Accessor(_) => Ok(false),
-                            PropertyKind::Data(existing_data_fields) => match existing_data_fields.writable {
-                                false => Ok(false),
-                                true => {
-                                    let value_desc = PotentialPropertyDescriptor::new().value(v);
-                                    receiver.o.define_own_property(p, value_desc)
+        PropertyKind::Data(data_fields) => {
+            if data_fields.writable {
+                match receiver {
+                    ECMAScriptValue::Object(receiver) => {
+                        let maybe_existing_descriptor = receiver.o.get_own_property(&p)?;
+                        match maybe_existing_descriptor {
+                            Some(existing_descriptor) => match &existing_descriptor.property {
+                                PropertyKind::Accessor(_) => Ok(false),
+                                PropertyKind::Data(existing_data_fields) => {
+                                    if existing_data_fields.writable {
+                                        let value_desc = PotentialPropertyDescriptor::new().value(v);
+                                        receiver.o.define_own_property(p, value_desc)
+                                    } else {
+                                        Ok(false)
+                                    }
                                 }
                             },
-                        },
-                        None => receiver.create_data_property(p, v),
+                            None => receiver.create_data_property(p, v),
+                        }
                     }
+                    _ => Ok(false),
                 }
-                _ => Ok(false),
-            },
-        },
+            } else {
+                Ok(false)
+            }
+        }
         PropertyKind::Accessor(acc_methods) => {
             let setter = &acc_methods.set;
             match setter {

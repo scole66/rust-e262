@@ -1006,9 +1006,10 @@ impl IteratorRecord {
         //  4. Return result.
         let result = self.next(None)?;
         let done = iterator_complete(&result)?;
-        match done {
-            true => Ok(None),
-            false => Ok(Some(result)),
+        if done {
+            Ok(None)
+        } else {
+            Ok(Some(result))
         }
     }
 
