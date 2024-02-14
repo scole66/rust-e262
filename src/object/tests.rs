@@ -2375,7 +2375,7 @@ mod ordinary_delete {
     )]
     #[test_case(
         || ordinary_object_create(None, &[]), "a"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "property isn't actually there"
     )]
     #[test_case(
@@ -2400,38 +2400,38 @@ mod ordinary_delete {
         => Ok((true, "alt:sticks around (wec)".to_string()));
         "normal property"
     )]
-    #[test_case(|| OrdinaryObject::new(None, true), "key" => Ok((true, "".to_string())); "with OrdinaryObject")]
+    #[test_case(|| OrdinaryObject::new(None, true), "key" => Ok((true, String::new())); "with OrdinaryObject")]
     #[test_case(
         || GeneratorObject::new(None, GeneratorState::Undefined, ""), "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with GeneratorObject"
     )]
-    #[test_case(|| SymbolObject::new(None), "key" => Ok((true, "".to_string())); "with SymbolObject")]
-    #[test_case(|| NumberObject::new(None), "key" => Ok((true, "".to_string())); "with NumberObject")]
-    #[test_case(|| ErrorObject::new(None), "key" => Ok((true, "".to_string())); "with ErrorObject")]
-    #[test_case(|| TestObject::new(None, &[]), "key" => Ok((true, "".to_string())); "with TestObject")]
+    #[test_case(|| SymbolObject::new(None), "key" => Ok((true, String::new())); "with SymbolObject")]
+    #[test_case(|| NumberObject::new(None), "key" => Ok((true, String::new())); "with NumberObject")]
+    #[test_case(|| ErrorObject::new(None), "key" => Ok((true, String::new())); "with ErrorObject")]
+    #[test_case(|| TestObject::new(None, &[]), "key" => Ok((true, String::new())); "with TestObject")]
     #[test_case(
         || ImmutablePrototypeExoticObject::new(None), "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with ImmutablePrototypeExoticObject"
     )]
-    #[test_case(|| ArgumentsObject::new(None, None), "key" => Ok((true, "".to_string())); "with ArgumentsObject")]
-    #[test_case(|| ArrayObject::new(None), "key" => Ok((true, "".to_string())); "with ArrayObject")]
-    #[test_case(|| BooleanObject::new(None), "key" => Ok((true, "".to_string())); "with BooleanObject")]
+    #[test_case(|| ArgumentsObject::new(None, None), "key" => Ok((true, String::new())); "with ArgumentsObject")]
+    #[test_case(|| ArrayObject::new(None), "key" => Ok((true, String::new())); "with ArrayObject")]
+    #[test_case(|| BooleanObject::new(None), "key" => Ok((true, String::new())); "with BooleanObject")]
     #[test_case(
         || ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object)), "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with ForInIteratorObject"
     )]
-    #[test_case(|| StringObject::new("".into(), None), "key" => Ok((true, "".to_string())); "with StringObject")]
+    #[test_case(|| StringObject::new("".into(), None), "key" => Ok((true, String::new())); "with StringObject")]
     #[test_case(
         || AdaptableObject::new(None, &AdaptableMethods::default()), "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with AdaptableObject"
     )]
     #[test_case(
         || BuiltInFunctionObject::new(None, false, current_realm_record().unwrap(), None, steps, false), "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with BuiltInFunctionObject"
     )]
     #[test_case(
@@ -2455,7 +2455,7 @@ mod ordinary_delete {
             Rc::new(Chunk::new("test"))
         ),
         "key"
-        => Ok((true, "".to_string()));
+        => Ok((true, String::new()));
         "with FunctionObject"
     )]
     fn t<O>(make_obj: impl FnOnce() -> O, key: impl Into<PropertyKey>) -> Result<(bool, String), String>

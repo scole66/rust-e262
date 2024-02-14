@@ -1536,7 +1536,7 @@ mod proxy_object {
             => Ok((
                 "undefined".to_string(),
                 "fn_only_watches called".to_string(),
-                vec!["test_marker:target object".to_string(), "test_key".to_string(), "".to_string()]
+                vec!["test_marker:target object".to_string(), "test_key".to_string(), String::new()]
             ));
             "reading not-present")]
         #[test_case(target_get_own_prop_throws, || None
@@ -1554,7 +1554,7 @@ mod proxy_object {
                 vec![
                     "test_marker:target object,test_key:nonconfig/nonwrite".to_string(),
                     "test_key".to_string(),
-                    "".to_string()
+                    String::new()
                     ]
                 ));
             "target non-config and non-write; handler returns same")]
@@ -1746,7 +1746,7 @@ mod proxy_object {
                     "test_marker:target object".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string(),
+                    String::new(),
                     ]
                 ));
             "handler returns false, recording")]
@@ -1758,7 +1758,7 @@ mod proxy_object {
                     "test_marker:target object,test_key:test_value".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string()
+                    String::new()
                     ]
                 ));
             "target nonconfig/nonwrite, handler true but same value")]
@@ -1770,7 +1770,7 @@ mod proxy_object {
                     "test_marker:target object".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string(),
+                    String::new(),
                     ]
                 ));
             "set seems to function simply")]

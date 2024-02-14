@@ -33,6 +33,7 @@
 #![deny(clippy::cast_lossless)]
 #![deny(clippy::default_trait_access)]
 #![deny(clippy::cast_sign_loss)]
+#![deny(clippy::manual_string_new)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

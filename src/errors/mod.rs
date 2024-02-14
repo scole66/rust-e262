@@ -584,7 +584,7 @@ pub fn unwind_any_error_object(o: &Object) -> String {
     let name_prop = o.get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined);
     let name = if name_prop.is_undefined() { String::from("Error") } else { name_prop.to_string() };
     let msg_prop = o.get(&"message".into()).unwrap_or(ECMAScriptValue::Undefined);
-    let msg = if msg_prop.is_undefined() { String::from("") } else { msg_prop.to_string() };
+    let msg = if msg_prop.is_undefined() { String::new() } else { msg_prop.to_string() };
     if name.is_empty() {
         msg
     } else if msg.is_empty() {

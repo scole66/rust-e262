@@ -1856,7 +1856,7 @@ mod define_method_property {
     #[test_case(
         ordinary, FunctionName::from(PrivateName::new("private")), || intrinsic(IntrinsicId::IsNaN), true
         => TestResult::PrivateLike {
-            obj_desc: "".to_string(),
+            obj_desc: String::new(),
             name: "private".to_string(),
             func: "length:1,name:isNaN".to_string()
         };

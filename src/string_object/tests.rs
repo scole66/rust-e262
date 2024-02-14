@@ -664,7 +664,7 @@ fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<Strin
     super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
 }
 
-#[test_case(|| (None, vec![]) => Ok((false, "".to_string())); "AsFunc / no args")]
+#[test_case(|| (None, vec![]) => Ok((false, String::new())); "AsFunc / no args")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(true)]) => Ok((false, "true".to_string())); "AsFunc / stringable")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))]) => Ok((false, "Symbol(Symbol.toPrimitive)".to_string())); "AsFunc / Symbol")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(DeadObject::object())]) => serr("TypeError: get called on DeadObject"); "to_string failure")]

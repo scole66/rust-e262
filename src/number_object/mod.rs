@@ -749,7 +749,7 @@ fn number_prototype_to_fixed(
             }
             let strbuf = info.chars.as_bytes();
             // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
-            let limit = usize::try_from(info.decpt + f - write_offset).expect("values should combine positively");
+            let limit = usize::try_from(info.decpt + f - write_offset).unwrap_or(usize::MAX);
             let wo_u = usize::try_from(write_offset).expect("write_offset should be >= 0");
             for read_idx in 0..limit {
                 workbuf[read_idx + wo_u] = {
