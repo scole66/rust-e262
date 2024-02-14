@@ -256,7 +256,7 @@ impl StringObject {
             #[allow(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
             let idx = to_usize(index).expect("index should be a valid integer");
-            let value = JSString::from(&string.as_slice()[idx..idx + 1]);
+            let value = JSString::from(&string.as_slice()[idx..=idx]);
             Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: value.into(), writable: false }),
                 enumerable: true,

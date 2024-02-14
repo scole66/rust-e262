@@ -635,7 +635,7 @@ fn number_prototype_to_exponential(
         let strbuf = info.chars.as_bytes();
         // copy digits out of that, right-padding with '0', until we get p chars.
         let mut out_of_chars = false;
-        for idx in 0..ufract + 1 {
+        for idx in 0..=ufract {
             workbuf[idx] = if out_of_chars {
                 b'0'
             } else {
@@ -648,7 +648,7 @@ fn number_prototype_to_exponential(
                 }
             };
         }
-        digits = &workbuf[0..ufract + 1];
+        digits = &workbuf[0..=ufract];
     }
     let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };

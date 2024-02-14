@@ -638,7 +638,8 @@ where
     }
     let info = dtoa(value);
 
-    let k = info.chars.find('\u{0}').unwrap() as i64;
+    let k = i64::try_from(info.chars.find('\u{0}').expect("a NUL shoul exist"))
+        .expect("number string representation isn't as large as an i64");
     let n = i64::from(info.decpt);
     let mut iter = info.chars.chars();
     if k <= n && n <= 21 {
