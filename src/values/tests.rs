@@ -107,7 +107,7 @@ mod ecmascript_value {
     }
     #[test]
     fn default() {
-        let def: ECMAScriptValue = Default::default();
+        let def = ECMAScriptValue::default();
         assert_eq!(def, ECMAScriptValue::Undefined);
     }
     #[test]
@@ -620,7 +620,7 @@ mod private_name {
     }
     #[test]
     fn hash() {
-        let mut s: AHashSet<PrivateName> = Default::default();
+        let mut s: AHashSet<PrivateName> = AHashSet::default();
         s.insert(PrivateName::new("blue"));
         s.insert(PrivateName::new("green"));
         s.insert(PrivateName::new("red"));

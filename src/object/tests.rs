@@ -36,7 +36,7 @@ fn data_property_clone() {
 }
 #[test]
 fn data_property_default() {
-    let p: DataProperty = Default::default();
+    let p: DataProperty = DataProperty::default();
     assert_eq!(p, DataProperty { value: ECMAScriptValue::Undefined, writable: false });
 }
 
@@ -69,7 +69,7 @@ fn accessor_property_clone() {
 }
 #[test]
 fn accessor_property_default() {
-    let p: AccessorProperty = Default::default();
+    let p = AccessorProperty::default();
     assert_eq!(p, AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined });
 }
 
@@ -105,8 +105,8 @@ fn property_kind_clone() {
 }
 #[test]
 fn property_kind_default() {
-    let def: PropertyKind = Default::default();
-    let expected = PropertyKind::Data(Default::default());
+    let def = PropertyKind::default();
+    let expected = PropertyKind::Data(DataProperty::default());
     assert_eq!(def, expected);
 }
 
@@ -184,9 +184,9 @@ mod property_descriptor {
     }
     #[test]
     fn default() {
-        let pd: PropertyDescriptor = Default::default();
+        let pd = PropertyDescriptor::default();
         let expected =
-            PropertyDescriptor { property: Default::default(), enumerable: false, configurable: false, spot: 0 };
+            PropertyDescriptor { property: PropertyKind::default(), enumerable: false, configurable: false, spot: 0 };
         assert_eq!(pd, expected);
     }
     #[test]
@@ -402,12 +402,12 @@ mod potential_property_descriptor {
 
     #[test]
     fn debug() {
-        let ppd: PotentialPropertyDescriptor = Default::default();
+        let ppd = PotentialPropertyDescriptor::default();
         assert_ne!(format!("{ppd:?}"), "");
     }
     #[test]
     fn default() {
-        let ppd: PotentialPropertyDescriptor = Default::default();
+        let ppd = PotentialPropertyDescriptor::default();
         assert_eq!(
             ppd,
             PotentialPropertyDescriptor {
@@ -697,8 +697,9 @@ mod potential_property_descriptor {
 fn is_accessor_descriptor_01() {
     let ppd_no = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_yes = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let desc_no = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let desc_yes = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let desc_no = PropertyDescriptor { property: PropertyKind::Data(DataProperty::default()), ..Default::default() };
+    let desc_yes =
+        PropertyDescriptor { property: PropertyKind::Accessor(AccessorProperty::default()), ..Default::default() };
 
     assert!(is_accessor_descriptor(&ppd_yes));
     assert!(is_accessor_descriptor(&desc_yes));
@@ -710,8 +711,9 @@ fn is_accessor_descriptor_01() {
 fn is_data_descriptor_01() {
     let ppd_yes = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_no = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let desc_yes = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let desc_no = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let desc_yes = PropertyDescriptor { property: PropertyKind::Data(DataProperty::default()), ..Default::default() };
+    let desc_no =
+        PropertyDescriptor { property: PropertyKind::Accessor(AccessorProperty::default()), ..Default::default() };
 
     assert!(is_data_descriptor(&ppd_yes));
     assert!(is_data_descriptor(&desc_yes));
@@ -723,10 +725,11 @@ fn is_data_descriptor_01() {
 fn is_generic_descriptor_01() {
     let ppd_data = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd_acc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
-    let desc_data = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
-    let desc_acc = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
-    let desc_def: PropertyDescriptor = Default::default();
-    let ppd_def: PotentialPropertyDescriptor = Default::default();
+    let desc_data = PropertyDescriptor { property: PropertyKind::Data(DataProperty::default()), ..Default::default() };
+    let desc_acc =
+        PropertyDescriptor { property: PropertyKind::Accessor(AccessorProperty::default()), ..Default::default() };
+    let desc_def = PropertyDescriptor::default();
+    let ppd_def = PotentialPropertyDescriptor::default();
 
     assert!(!is_generic_descriptor(&ppd_data));
     assert!(!is_generic_descriptor(&desc_data));

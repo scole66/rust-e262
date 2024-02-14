@@ -26,7 +26,7 @@ pub enum PropertyKind {
 
 impl Default for PropertyKind {
     fn default() -> Self {
-        Self::Data(Default::default())
+        Self::Data(DataProperty::default())
     }
 }
 
@@ -1200,7 +1200,7 @@ pub struct CommonObjectData {
 impl CommonObjectData {
     pub fn new(prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
         Self {
-            properties: Default::default(),
+            properties: AHashMap::default(),
             prototype,
             extensible,
             next_spot: 0,

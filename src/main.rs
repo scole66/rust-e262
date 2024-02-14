@@ -30,6 +30,7 @@
 #![deny(clippy::from_iter_instead_of_collect)]
 #![deny(clippy::struct_excessive_bools)]
 #![deny(clippy::cast_lossless)]
+#![deny(clippy::default_trait_access)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

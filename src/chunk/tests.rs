@@ -8,7 +8,7 @@ mod chunk {
 
     #[test]
     fn default() {
-        let c: Chunk = Default::default();
+        let c: Chunk = Chunk::default();
 
         assert_eq!(c.name, "");
         assert!(c.strings.is_empty());

@@ -436,7 +436,7 @@ impl DeclarativeEnvironmentRecord {
     //  2. Set env.[[OuterEnv]] to E.
     //  3. Return env.
     pub fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
-        DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: env, name: name.into() }
+        DeclarativeEnvironmentRecord { bindings: RefCell::default(), outer_env: env, name: name.into() }
     }
 }
 
@@ -961,7 +961,7 @@ impl FunctionEnvironmentRecord {
 
         FunctionEnvironmentRecord {
             base: DeclarativeEnvironmentRecord {
-                bindings: Default::default(),
+                bindings: RefCell::default(),
                 outer_env: outer,
                 name: format!("{name}-inner"),
             },
@@ -1515,7 +1515,7 @@ impl GlobalEnvironmentRecord {
             object_record: obj_rec,
             global_this_value: this_value,
             declarative_record: dcl_rec,
-            var_names: Default::default(),
+            var_names: RefCell::default(),
             name,
         }
     }
