@@ -1076,10 +1076,10 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     keys.sort_by_cached_key(array_index_key);
     norm_keys.sort_by_key(|x| x.1);
     symb_keys.sort_by_key(|x| x.1);
-    for item in norm_keys.into_iter() {
+    for item in norm_keys {
         keys.push(item.0);
     }
-    for item in symb_keys.into_iter() {
+    for item in symb_keys {
         keys.push(item.0);
     }
     keys
@@ -2288,7 +2288,7 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
 pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion<Vec<ECMAScriptValue>> {
     let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
-    for key in own_keys.into_iter() {
+    for key in own_keys {
         if matches!(key, PropertyKey::String(_)) {
             if let Some(desc) = obj.o.get_own_property(&key)? {
                 if desc.enumerable {
