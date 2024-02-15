@@ -166,7 +166,7 @@ impl MultiplicativeExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.as_string_literal(),
-            _ => None,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => None,
         }
     }
 
@@ -217,7 +217,7 @@ impl MultiplicativeExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => true,
         }
     }
 
@@ -234,7 +234,7 @@ impl MultiplicativeExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_named_function(),
-            _ => false,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
         }
     }
 }

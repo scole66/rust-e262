@@ -112,7 +112,7 @@ impl ConditionalExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ConditionalExpression::FallThru(node) => node.as_string_literal(),
-            _ => None,
+            ConditionalExpression::Conditional(..) => None,
         }
     }
 
@@ -166,7 +166,7 @@ impl ConditionalExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             ConditionalExpression::FallThru(node) => node.is_strictly_deletable(),
-            _ => true,
+            ConditionalExpression::Conditional(..) => true,
         }
     }
 

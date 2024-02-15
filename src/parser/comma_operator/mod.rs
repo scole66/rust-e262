@@ -176,7 +176,7 @@ impl Expression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             Expression::FallThru(node) => node.is_strictly_deletable(),
-            _ => true,
+            Expression::Comma(..) => true,
         }
     }
 
@@ -193,7 +193,7 @@ impl Expression {
     pub fn is_named_function(&self) -> bool {
         match self {
             Expression::FallThru(node) => node.is_named_function(),
-            _ => false,
+            Expression::Comma(..) => false,
         }
     }
 }

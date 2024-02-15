@@ -102,7 +102,7 @@ impl ExponentiationExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.as_string_literal(),
-            _ => None,
+            ExponentiationExpression::Exponentiation(..) => None,
         }
     }
 
@@ -151,7 +151,7 @@ impl ExponentiationExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            ExponentiationExpression::Exponentiation(..) => true,
         }
     }
 
@@ -168,7 +168,7 @@ impl ExponentiationExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
-            _ => false,
+            ExponentiationExpression::Exponentiation(..) => false,
         }
     }
 }

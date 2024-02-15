@@ -2209,7 +2209,7 @@ mod get_identifier_reference {
                         panic!("Strange environment came back")
                     }
                 }
-                _ => panic!("Variable base came back"),
+                Base::Value(_) => panic!("Variable base came back"),
             },
             result.referenced_name,
             result.strict,

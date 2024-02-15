@@ -107,7 +107,7 @@ impl LogicalANDExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
-            _ => None,
+            LogicalANDExpression::LogicalAND(..) => None,
         }
     }
 
@@ -156,7 +156,7 @@ impl LogicalANDExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalANDExpression::BitwiseORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            LogicalANDExpression::LogicalAND(..) => true,
         }
     }
 
@@ -283,7 +283,7 @@ impl LogicalORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
-            _ => None,
+            LogicalORExpression::LogicalOR(..) => None,
         }
     }
 
@@ -332,7 +332,7 @@ impl LogicalORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalORExpression::LogicalANDExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            LogicalORExpression::LogicalOR(..) => true,
         }
     }
 
@@ -673,7 +673,7 @@ impl ShortCircuitExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
-            _ => None,
+            ShortCircuitExpression::CoalesceExpression(_) => None,
         }
     }
 
@@ -717,7 +717,7 @@ impl ShortCircuitExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             ShortCircuitExpression::LogicalORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            ShortCircuitExpression::CoalesceExpression(_) => true,
         }
     }
 

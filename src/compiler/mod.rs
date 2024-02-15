@@ -975,7 +975,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
             chunk.bigints.resize(65536, Rc::new(BigInt::from(97_687_897_890_734_187_890_106_587_314_876_543_219_u128)));
             chunk.op(Insn::False);
         }
-        _ => (),
+        DebugKind::Char(_) => (),
     }
 }
 #[cfg(not(test))]

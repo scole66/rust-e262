@@ -668,7 +668,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
                 }
             }
         }
-        _ => todo!(),
+        ParseGoal::Module => todo!(),
     }
 }
 

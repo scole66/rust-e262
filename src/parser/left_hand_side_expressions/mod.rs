@@ -1224,7 +1224,7 @@ impl NewExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             NewExpression::MemberExpression(n) => n.as_string_literal(),
-            _ => None,
+            NewExpression::NewExpression(..) => None,
         }
     }
 
@@ -1308,7 +1308,7 @@ impl NewExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             NewExpression::MemberExpression(node) => node.is_named_function(),
-            _ => false,
+            NewExpression::NewExpression(..) => false,
         }
     }
 

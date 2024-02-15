@@ -57,7 +57,7 @@ impl IsFunctionDefinition for BitwiseANDExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.is_function_definition(),
-            _ => false,
+            BitwiseANDExpression::BitwiseAND(..) => false,
         }
     }
 }
@@ -103,7 +103,7 @@ impl BitwiseANDExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseANDExpression::BitwiseAND(..) => None,
         }
     }
 
@@ -152,7 +152,7 @@ impl BitwiseANDExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseANDExpression::BitwiseAND(..) => true,
         }
     }
 
@@ -232,7 +232,7 @@ impl IsFunctionDefinition for BitwiseXORExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.is_function_definition(),
-            _ => false,
+            BitwiseXORExpression::BitwiseXOR(..) => false,
         }
     }
 }
@@ -278,7 +278,7 @@ impl BitwiseXORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseXORExpression::BitwiseXOR(..) => None,
         }
     }
 
@@ -327,7 +327,7 @@ impl BitwiseXORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseXORExpression::BitwiseXOR(..) => true,
         }
     }
 
@@ -407,7 +407,7 @@ impl IsFunctionDefinition for BitwiseORExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.is_function_definition(),
-            _ => false,
+            BitwiseORExpression::BitwiseOR(..) => false,
         }
     }
 }
@@ -470,7 +470,7 @@ impl BitwiseORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseORExpression::BitwiseOR(..) => None,
         }
     }
 
@@ -519,7 +519,7 @@ impl BitwiseORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseORExpression::BitwiseOR(..) => true,
         }
     }
 
@@ -529,7 +529,7 @@ impl BitwiseORExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
-            _ => ATTKind::Invalid,
+            BitwiseORExpression::BitwiseOR(..) => ATTKind::Invalid,
         }
     }
 
