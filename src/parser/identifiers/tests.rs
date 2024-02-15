@@ -4,6 +4,22 @@ use crate::prettyprint::pp_testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Strictness {
+    Strict,
+    NonStrict,
+}
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum CodeType {
+    Script,
+    Module,
+}
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Perm {
+    Allowed,
+    Denied,
+}
+
 mod identifier {
     use super::*;
     use test_case::test_case;
@@ -462,88 +478,88 @@ mod identifier_reference {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("yield", true, true, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
-    #[test_case("yield", true, true, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
-    #[test_case("yield", true, false, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
-    #[test_case("yield", true, false, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
-    #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
-    #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
-    #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
-    #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-    #[test_case("await", true, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
-    #[test_case("await", true, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
-    #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
-    #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-    #[test_case("await", false, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
-    #[test_case("await", false, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; module")]
-    #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
-    #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-    #[test_case("\\u{79}ield", true, true, true, true => sset(&[
+    #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+    #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+    #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+    #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
+    #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; module/await")]
+    #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; module")]
+    #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; await")]
+    #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; ")]
+    #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+    #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
+    #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; strict/yield")]
+    #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; strict")]
+    #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
+    #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module")]
+    #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; yield")]
+    #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; ")]
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-    #[test_case("\\u{79}ield", true, true, true, false => sset(&[
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-    #[test_case("\\u{79}ield", true, true, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
-    #[test_case("\\u{79}ield", true, true, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
-    #[test_case("\\u{79}ield", true, false, true, true => sset(&[
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-    #[test_case("\\u{79}ield", true, false, true, false => sset(&[
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-    #[test_case("\\u{79}ield", true, false, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
-    #[test_case("\\u{79}ield", true, false, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
-    #[test_case("\\u{79}ield", false, true, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
-    #[test_case("\\u{79}ield", false, true, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
-    #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
-    #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-    #[test_case("\\u{79}ield", false, false, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
-    #[test_case("\\u{79}ield", false, false, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
-    #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
-    #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-    #[test_case("\\u{61}wait", true, true, true, true => sset(&[
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+    #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; module/await")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; module")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; await")]
+    #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; ")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-    #[test_case("\\u{61}wait", true, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
-    #[test_case("\\u{61}wait", true, true, false, true => sset(&[
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-    #[test_case("\\u{61}wait", true, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
-    #[test_case("\\u{61}wait", true, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
-    #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-    #[test_case("\\u{61}wait", true, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
-    #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-    #[test_case("\\u{61}wait", false, true, true, true => sset(&[
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; strict/yield")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
+    #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; strict")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-    #[test_case("\\u{61}wait", false, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
-    #[test_case("\\u{61}wait", false, true, false, true => sset(&[
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-    #[test_case("\\u{61}wait", false, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
-    #[test_case("\\u{61}wait", false, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
-    #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-    #[test_case("\\u{61}wait", false, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
-    #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; yield")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
+    #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; ")]
     fn early_errors(
         src: &str,
-        strict: bool,
-        in_module: bool,
-        yield_expr_allowed: bool,
-        await_expr_allowed: bool,
+        strict: Strictness,
+        code_sytle: CodeType,
+        yield_expr: Perm,
+        await_expr: Perm,
     ) -> AHashSet<String> {
         setup_test_agent();
-        let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
+        let goal = if code_sytle == CodeType::Module { ParseGoal::Module } else { ParseGoal::Script };
         let (item, _) = IdentifierReference::parse(
             &mut Parser::new(src, false, goal),
             Scanner::new(),
-            yield_expr_allowed,
-            await_expr_allowed,
+            yield_expr == Perm::Allowed,
+            await_expr == Perm::Allowed,
         )
         .unwrap();
         let mut errs = vec![];
-        item.early_errors(&mut errs, strict);
+        item.early_errors(&mut errs, strict == Strictness::Strict);
         errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
@@ -697,152 +713,152 @@ mod binding_identifier {
 
         // This is arguably too many test cases. But with 4 booleans and 6 effective names, that's 2*2*2*2*6 = 96 combinations.
         // Which to cut? Meh. Just do them all.
-        #[test_case("arguments", true, true, true, true => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield/await")]
-        #[test_case("arguments", true, true, true, false => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield")]
-        #[test_case("arguments", true, true, false, true => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/await")]
-        #[test_case("arguments", true, true, false, false => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module")]
-        #[test_case("arguments", true, false, true, true => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield/await")]
-        #[test_case("arguments", true, false, true, false => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield")]
-        #[test_case("arguments", true, false, false, true => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/await")]
-        #[test_case("arguments", true, false, false, false => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict")]
-        #[test_case("arguments", false, true, true, true => AHashSet::<String>::new(); "arguments; module/yield/await")]
-        #[test_case("arguments", false, true, true, false => AHashSet::<String>::new(); "arguments; module/yield")]
-        #[test_case("arguments", false, true, false, true => AHashSet::<String>::new(); "arguments; module/await")]
-        #[test_case("arguments", false, true, false, false => AHashSet::<String>::new(); "arguments; module")]
-        #[test_case("arguments", false, false, true, true => AHashSet::<String>::new(); "arguments; yield/await")]
-        #[test_case("arguments", false, false, true, false => AHashSet::<String>::new(); "arguments; yield")]
-        #[test_case("arguments", false, false, false, true => AHashSet::<String>::new(); "arguments; await")]
-        #[test_case("arguments", false, false, false, false => AHashSet::<String>::new(); "arguments; ")]
-        #[test_case("eval", true, true, true, true => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield/await")]
-        #[test_case("eval", true, true, true, false => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield")]
-        #[test_case("eval", true, true, false, true => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/await")]
-        #[test_case("eval", true, true, false, false => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module")]
-        #[test_case("eval", true, false, true, true => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield/await")]
-        #[test_case("eval", true, false, true, false => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield")]
-        #[test_case("eval", true, false, false, true => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/await")]
-        #[test_case("eval", true, false, false, false => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict")]
-        #[test_case("eval", false, true, true, true => AHashSet::<String>::new(); "eval; module/yield/await")]
-        #[test_case("eval", false, true, true, false => AHashSet::<String>::new(); "eval; module/yield")]
-        #[test_case("eval", false, true, false, true => AHashSet::<String>::new(); "eval; module/await")]
-        #[test_case("eval", false, true, false, false => AHashSet::<String>::new(); "eval; module")]
-        #[test_case("eval", false, false, true, true => AHashSet::<String>::new(); "eval; yield/await")]
-        #[test_case("eval", false, false, true, false => AHashSet::<String>::new(); "eval; yield")]
-        #[test_case("eval", false, false, false, true => AHashSet::<String>::new(); "eval; await")]
-        #[test_case("eval", false, false, false, false => AHashSet::<String>::new(); "eval; ")]
-        #[test_case("yield", true, true, true, true => sset(&[
+        #[test_case("arguments", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield/await")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/await")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield/await")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/await")]
+        #[test_case("arguments", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: arguments"]); "arguments; strict")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => AHashSet::<String>::new(); "arguments; module/yield/await")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "arguments; module/yield")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "arguments; module/await")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "arguments; module")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => AHashSet::<String>::new(); "arguments; yield/await")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "arguments; yield")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "arguments; await")]
+        #[test_case("arguments", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "arguments; ")]
+        #[test_case("eval", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield/await")]
+        #[test_case("eval", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield")]
+        #[test_case("eval", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/await")]
+        #[test_case("eval", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/module")]
+        #[test_case("eval", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield/await")]
+        #[test_case("eval", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield")]
+        #[test_case("eval", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict/await")]
+        #[test_case("eval", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: eval"]); "eval; strict")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => AHashSet::<String>::new(); "eval; module/yield/await")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "eval; module/yield")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "eval; module/await")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "eval; module")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => AHashSet::<String>::new(); "eval; yield/await")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "eval; yield")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "eval; await")]
+        #[test_case("eval", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "eval; ")]
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/module/yield/await")]
-        #[test_case("yield", true, true, true, false => sset(&[
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&[
             "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/module/yield")]
-        #[test_case("yield", true, true, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
-        #[test_case("yield", true, false, true, true => sset(&[
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/yield/await")]
-        #[test_case("yield", true, false, true, false => sset(&[
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&[
             "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/yield")]
-        #[test_case("yield", true, false, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
-        #[test_case("yield", false, true, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield/await")]
-        #[test_case("yield", false, true, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield")]
-        #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
-        #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
-        #[test_case("yield", false, false, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield/await")]
-        #[test_case("yield", false, false, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield")]
-        #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
-        #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, true => sset(&[
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield/await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; module/await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; module")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield/await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; ")]
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; strict/module/yield/await")]
-        #[test_case("await", true, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, true => sset(&[
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; strict/module/await")]
-        #[test_case("await", true, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
-        #[test_case("await", true, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/yield/await")]
-        #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
-        #[test_case("await", true, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/await")]
-        #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, true => sset(&[
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/yield/await")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; strict/yield")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/await")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; strict")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; module/yield/await")]
-        #[test_case("await", false, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
-        #[test_case("await", false, true, false, true => sset(&[
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; module/await")]
-        #[test_case("await", false, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; module")]
-        #[test_case("await", false, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; yield/await")]
-        #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
-        #[test_case("await", false, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; await")]
-        #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => sset(&[
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; yield/await")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; yield")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "await; await")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; ")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
-        #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
-        #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
-        #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
-        #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; module/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; module")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; ")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
-        #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
-        #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; strict/yield")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; strict")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
-        #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
-        #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; yield")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; ")]
         fn f(
             src: &str,
-            strict: bool,
-            in_module: bool,
-            yield_expr_allowed: bool,
-            await_expr_allowed: bool,
+            strict: Strictness,
+            code_style: CodeType,
+            yield_expr: Perm,
+            await_expr: Perm,
         ) -> AHashSet<String> {
             setup_test_agent();
-            let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
+            let goal = if code_style == CodeType::Module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = BindingIdentifier::parse(
                 &mut Parser::new(src, false, goal),
                 Scanner::new(),
-                yield_expr_allowed,
-                await_expr_allowed,
+                yield_expr == Perm::Allowed,
+                await_expr == Perm::Allowed,
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&mut errs, strict);
+            item.early_errors(&mut errs, strict == Strictness::Strict);
             errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
         }
     }
@@ -1029,88 +1045,88 @@ mod label_identifier {
         use super::*;
         use test_case::test_case;
 
-        #[test_case("yield", true, true, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
-        #[test_case("yield", true, false, false, true => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
-        #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
-        #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
-        #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
-        #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
-        #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
-        #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, false => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
-        #[test_case("await", false, true, false, false => sset(&["identifier not allowed in modules: await"]); "await; module")]
-        #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
-        #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => sset(&[
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+        #[test_case("yield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+        #[test_case("yield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; module/await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; module")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "yield; await")]
+        #[test_case("yield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "yield; ")]
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+        #[test_case("await", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; strict/module")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; strict/yield")]
+        #[test_case("await", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; strict")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module/yield")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["identifier not allowed in modules: await"]); "await; module")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "await; yield")]
+        #[test_case("await", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "await; ")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
-        #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
-        #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
-        #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
-        #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => sset(&[
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+        #[test_case("\\u{79}ield", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => sset(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; module/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; module")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => sset(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => AHashSet::<String>::new(); "id-yield; await")]
+        #[test_case("\\u{79}ield", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-yield; ")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
-        #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
-        #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; strict/yield")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
+        #[test_case("\\u{61}wait", Strictness::Strict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; strict")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => sset(&[
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Allowed, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Allowed => sset(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
-        #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
-        #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Module, Perm::Denied, Perm::Denied => sset(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Allowed, Perm::Denied => AHashSet::<String>::new(); "id-await; yield")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Allowed => sset(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
+        #[test_case("\\u{61}wait", Strictness::NonStrict, CodeType::Script, Perm::Denied, Perm::Denied => AHashSet::<String>::new(); "id-await; ")]
         fn f(
             src: &str,
-            strict: bool,
-            in_module: bool,
-            yield_expr_allowed: bool,
-            await_expr_allowed: bool,
+            strict: Strictness,
+            code_style: CodeType,
+            yield_expr: Perm,
+            await_expr: Perm,
         ) -> AHashSet<String> {
             setup_test_agent();
-            let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
+            let goal = if code_style == CodeType::Module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = LabelIdentifier::parse(
                 &mut Parser::new(src, false, goal),
                 Scanner::new(),
-                yield_expr_allowed,
-                await_expr_allowed,
+                yield_expr == Perm::Allowed,
+                await_expr == Perm::Allowed,
             )
             .unwrap();
             let mut errs = vec![];
-            item.early_errors(&mut errs, strict);
+            item.early_errors(&mut errs, strict == Strictness::Strict);
             errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
         }
     }
