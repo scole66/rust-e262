@@ -402,11 +402,11 @@ impl From<AlwaysAbruptResult> for AbruptResult {
 }
 
 impl AbruptResult {
-    fn maybe_abrupt(&self) -> bool {
-        *self == AbruptResult::Maybe
+    fn maybe_abrupt(self) -> bool {
+        self == AbruptResult::Maybe
     }
     #[allow(clippy::unused_self)]
-    fn maybe_ref(&self) -> bool {
+    fn maybe_ref(self) -> bool {
         false
     }
 }
@@ -448,7 +448,7 @@ impl From<RefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysAbruptResult;
 impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptResult) -> Self {
@@ -457,16 +457,16 @@ impl From<AlwaysAbruptResult> for CompilerStatusFlags {
 }
 impl AlwaysAbruptResult {
     #[allow(clippy::unused_self)]
-    fn maybe_abrupt(&self) -> bool {
+    fn maybe_abrupt(self) -> bool {
         true
     }
     #[allow(clippy::unused_self)]
-    fn maybe_ref(&self) -> bool {
+    fn maybe_ref(self) -> bool {
         false
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysRefResult;
 impl From<AlwaysRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysRefResult) -> Self {
@@ -474,7 +474,7 @@ impl From<AlwaysRefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysAbruptRefResult;
 impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptRefResult) -> Self {
@@ -482,7 +482,7 @@ impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NeverAbruptRefResult;
 impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     fn from(_: NeverAbruptRefResult) -> Self {
@@ -491,11 +491,11 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
 }
 impl NeverAbruptRefResult {
     #[allow(clippy::unused_self)]
-    fn maybe_abrupt(&self) -> bool {
+    fn maybe_abrupt(self) -> bool {
         false
     }
     #[allow(clippy::unused_self)]
-    fn maybe_ref(&self) -> bool {
+    fn maybe_ref(self) -> bool {
         false
     }
 }
@@ -7269,7 +7269,7 @@ impl FunctionExpression {
         }
     }
 
-    /// Generate the code to evaluate a ['FunctionExpression'].
+    /// Generate the code to evaluate a [`FunctionExpression`].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
     pub fn compile(
@@ -9626,7 +9626,7 @@ impl MethodDefinition {
                 self.define_method(chunk, strict, text, self_as_rc)?;
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SetFunctionName);
-                chunk.op_plus_arg(Insn::DefineMethodProperty, if enumerable { 1 } else { 0 });
+                chunk.op_plus_arg(Insn::DefineMethodProperty, u16::from(enumerable));
                 chunk.fixup(unwind).expect("Short jumps should work");
                 chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
 

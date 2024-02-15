@@ -48,6 +48,10 @@
 #![deny(clippy::explicit_into_iter_loop)]
 #![deny(clippy::fn_params_excessive_bools)]
 #![deny(clippy::should_panic_without_expect)]
+#![deny(clippy::match_wild_err_arm)]
+#![deny(clippy::bool_to_int_with_if)]
+#![deny(clippy::doc_link_with_quotes)]
+#![deny(clippy::trivially_copy_pass_by_ref)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

@@ -4077,7 +4077,7 @@ mod object {
             move |actual: Result<(bool, String), String>| {
                 let re = Regex::new(regex).unwrap();
                 match &actual {
-                    Err(_) => panic!("Saw an Err when Ok was expected"),
+                    Err(s) => panic!("Saw an Err({s}) when Ok was expected"),
                     Ok((flag, msg)) => {
                         assert!(*flag == expected_flag, "Expected success flag to be {expected_flag:?}");
                         assert!(re.is_match(msg));
