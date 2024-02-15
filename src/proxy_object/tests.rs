@@ -25,7 +25,7 @@ mod proxy_object {
         proxy_handler.set("marker", "testcase proxy handler", true).unwrap();
         ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-            proxy_items: RefCell::new(Some(ProxyItems{proxy_target, proxy_handler}))
+            proxy_items: RefCell::new(Some(ProxyItems { proxy_handler, proxy_target }))
         }
     } => Ok(("marker:testcase proxy target".to_string(), "marker:testcase proxy handler".to_string())); "valid")]
     fn validate_non_revoked(make_po: impl FnOnce() -> ProxyObject) -> Result<(String, String), String> {

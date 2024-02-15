@@ -406,7 +406,7 @@ pub fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialProp
                     return Err(create_type_error("Setter must be callable (or undefined)"));
                 }
             }
-            Ok(PotentialPropertyDescriptor { enumerable, configurable, value, writable, get, set })
+            Ok(PotentialPropertyDescriptor { value, writable, get, set, enumerable, configurable })
         }
         _ => Err(create_type_error("Must be an object")),
     }

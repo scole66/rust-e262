@@ -42,6 +42,7 @@
 #![deny(clippy::match_bool)]
 #![deny(clippy::cloned_instead_of_copied)]
 #![deny(clippy::items_after_statements)]
+#![deny(clippy::inconsistent_struct_constructor)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 
