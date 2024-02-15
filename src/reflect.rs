@@ -219,7 +219,7 @@ fn reflect_get_own_property_descriptor(
     if let ECMAScriptValue::Object(target) = args.next_arg() {
         let key = to_property_key(args.next_arg())?;
         let desc = target.o.get_own_property(&key)?;
-        Ok(ECMAScriptValue::from(from_property_descriptor(desc)))
+        Ok(ECMAScriptValue::to_obj_or_undefined(from_property_descriptor(desc)))
     } else {
         Err(create_type_error("Reflect.getOwnPropertyDescriptor: target must be an object"))
     }
@@ -237,7 +237,7 @@ fn reflect_get_prototype_of(
     // 2. Return ? target.[[GetPrototypeOf]]().
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        Ok(ECMAScriptValue::from(target.o.get_prototype_of()?))
+        Ok(ECMAScriptValue::to_obj_or_null(target.o.get_prototype_of()?))
     } else {
         Err(create_type_error("Reflect.getPrototypeOf: target must be an object"))
     }

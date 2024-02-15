@@ -98,6 +98,22 @@ impl ECMAScriptValue {
             ECMAScriptValue::Object(o) => o.concise(f),
         }
     }
+
+    pub fn to_obj_or_undefined(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Undefined
+        }
+    }
+
+    pub fn to_obj_or_null(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Null
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {
@@ -110,16 +126,6 @@ impl From<Object> for ECMAScriptValue {
     fn from(source: Object) -> Self {
         // Consumes the input object, transforming it into a value.
         Self::Object(source)
-    }
-}
-
-impl From<Option<Object>> for ECMAScriptValue {
-    fn from(source: Option<Object>) -> Self {
-        if let Some(obj) = source {
-            Self::Object(obj)
-        } else {
-            Self::Null
-        }
     }
 }
 
