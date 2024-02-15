@@ -630,6 +630,7 @@ pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
     });
 }
 
+#[allow(clippy::cast_possible_wrap)]
 pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
     AGENT.with(|agent| {
         // If our ec index drops below this, we exit.
@@ -715,18 +716,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     agent.execution_context_stack.borrow_mut()[index].stack.push(this_resolved);
                 }
                 Insn::Resolve => {
-                    let name = match agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
-                        NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
-                        _ => unreachable!(),
-                    };
+                    //let name = match agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
+                    //    NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
+                    //    _ => unreachable!(),
+                    //};
+                    let NormalCompletion::Value(ECMAScriptValue::String(name)) =
+                        agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap()
+                        else { unreachable!() };
                     let resolved = resolve_binding(&name, None, false);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(resolved);
                 }
                 Insn::StrictResolve => {
-                    let name = match agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
-                        NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
-                        _ => unreachable!(),
-                    };
+                    let NormalCompletion::Value(ECMAScriptValue::String(name)) =
+                        agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap()
+                        else { unreachable!() };
                     let resolved = resolve_binding(&name, None, true);
                     agent.execution_context_stack.borrow_mut()[index].stack.push(resolved);
                 }
@@ -3134,10 +3137,7 @@ fn define_method(
     //  9. Return closure.
     let to_compile: Rc<MethodDefinition> =
         info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-    let fb = match to_compile.as_ref() {
-        MethodDefinition::NamedFunction(_, _, fb, _) => fb,
-        _ => unreachable!(),
-    };
+    let MethodDefinition::NamedFunction(_, _, fb, _) = to_compile.as_ref() else { unreachable!() };
     let prod_text_loc = to_compile.location().span;
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);

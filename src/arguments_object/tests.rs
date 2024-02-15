@@ -347,7 +347,7 @@ mod arguments_object {
     ) -> AHashMap<String, (ECMAScriptValue, ECMAScriptValue)> {
         input
             .iter()
-            .map(|(name, obj_value, env_value)| (name.to_string(), (obj_value.clone(), env_value.clone())))
+            .map(|(name, obj_value, env_value)| ((*name).to_string(), (obj_value.clone(), env_value.clone())))
             .collect()
     }
     fn test_v(input: &[Option<&str>]) -> Vec<Option<String>> {
@@ -462,7 +462,7 @@ mod arguments_object {
     type DefineOwnPropertyTestResult =
         Result<(bool, AHashMap<String, ECMAScriptValue>, AHashMap<String, ECMAScriptValue>), String>;
     fn hm(data: &[(&str, ECMAScriptValue)]) -> AHashMap<String, ECMAScriptValue> {
-        data.iter().map(|(s, v)| (s.to_string(), v.clone())).collect()
+        data.iter().map(|(s, v)| ((*s).to_string(), v.clone())).collect()
     }
     #[test_case(test_ao, "10", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
         ("0", "value of 'from'".into()),

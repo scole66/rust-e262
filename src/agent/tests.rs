@@ -1912,11 +1912,7 @@ mod define_method {
     fn std_data() -> (StashedFunctionData, String) {
         let source = String::from("bob() {}");
         let md = Maker::new(&source).method_definition();
-        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
-            (name, params, body)
-        } else {
-            panic!()
-        };
+        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
         let data = StashedFunctionData {
             source_text: source.clone(),
             params: ParamSource::from(params.clone()),
@@ -1930,11 +1926,7 @@ mod define_method {
     fn fcn_too_big() -> (StashedFunctionData, String) {
         let source = String::from("bob() {while (true) {@@@;}}");
         let md = Maker::new(&source).method_definition();
-        let (_name, params, body) = if let MethodDefinition::NamedFunction(name, params, body, _) = md.as_ref() {
-            (name, params, body)
-        } else {
-            panic!()
-        };
+        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
         let data = StashedFunctionData {
             source_text: source.clone(),
             params: ParamSource::from(params.clone()),
@@ -1948,8 +1940,7 @@ mod define_method {
     fn not_named_method() -> (StashedFunctionData, String) {
         let source = String::from("get bob() {}");
         let md = Maker::new(&source).method_definition();
-        let (_name, body) =
-            if let MethodDefinition::Getter(name, body, _) = md.as_ref() { (name, body) } else { panic!() };
+        let MethodDefinition::Getter(_name, body, _) = md.as_ref() else { panic!() };
         let data = StashedFunctionData {
             source_text: source.clone(),
             params: ParamSource::from(Maker::new("").unique_formal_parameters()),
