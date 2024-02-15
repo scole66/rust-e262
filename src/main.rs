@@ -47,6 +47,7 @@
 #![deny(clippy::unused_self)]
 #![deny(clippy::explicit_into_iter_loop)]
 #![deny(clippy::fn_params_excessive_bools)]
+#![deny(clippy::should_panic_without_expect)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 

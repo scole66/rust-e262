@@ -5230,7 +5230,7 @@ mod dead_object {
         assert_ne!(format!("{:?}", make()), "");
     }
 
-    #[should_panic]
+    #[should_panic = "entered unreachable code"]
     #[test]
     fn common_object_data() {
         setup_test_agent();
