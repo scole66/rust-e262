@@ -694,7 +694,6 @@ fn defaults() {
 #[test_case(super::array_prototype_index_of => panics "not yet implemented"; "array_prototype_index_of")]
 #[test_case(super::array_prototype_keys => panics "not yet implemented"; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics "not yet implemented"; "array_prototype_last_index_of")]
-#[test_case(super::array_prototype_map => panics "not yet implemented"; "array_prototype_map")]
 #[test_case(super::array_prototype_reduce => panics "not yet implemented"; "array_prototype_reduce")]
 #[test_case(super::array_prototype_reduce_right => panics "not yet implemented"; "array_prototype_reduce_right")]
 #[test_case(super::array_prototype_reverse => panics "not yet implemented"; "array_prototype_reverse")]
@@ -1311,5 +1310,181 @@ mod array_constructor_function {
         }
 
         Ok(result)
+    }
+}
+
+mod array_prototype_map {
+    use super::*;
+    use test_case::test_case;
+
+    fn behavior(
+        this_value: &ECMAScriptValue,
+        _: Option<&Object>,
+        arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        let obj = to_object(this_value.clone())?;
+        let mut args = FuncArgs::from(arguments);
+        let value = args.next_arg();
+        let index = args.next_arg();
+        let traversed = args.next_arg();
+
+        let this_marker = to_string(obj.get(&"this_marker".into())?)?;
+        let value_str = to_string(value)?;
+        let index_str = to_string(index)?;
+        let traversed_str = to_string(to_object(traversed)?.get(&"traversed_marker".into())?)?;
+
+        Ok(this_marker.concat(value_str).concat(index_str).concat(traversed_str).into())
+    }
+
+    fn identity() -> Object {
+        fn behavior(
+            _: &ECMAScriptValue,
+            _: Option<&Object>,
+            arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            let mut args = FuncArgs::from(arguments);
+            let item = args.next_arg();
+            Ok(item)
+        }
+        create_builtin_function(
+            behavior,
+            false,
+            1.0,
+            "clbk".into(),
+            BUILTIN_FUNCTION_SLOTS,
+            current_realm_record(),
+            Some(intrinsic(IntrinsicId::FunctionPrototype)),
+            None,
+        )
+    }
+
+    fn dead_constructor() -> Object {
+        fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            Ok(DeadObject::object().into())
+        }
+        create_builtin_function(
+            behavior,
+            true,
+            0.0,
+            "Dead".into(),
+            BUILTIN_FUNCTION_SLOTS,
+            current_realm_record(),
+            Some(intrinsic(IntrinsicId::FunctionPrototype)),
+            None,
+        )
+    }
+
+    #[test_case(
+        || {
+            let this = create_array_from_list(&[1.into()]);
+            let cstr = dead_constructor();
+            let ppd = PotentialPropertyDescriptor::new().value(cstr.clone());
+            define_property_or_throw(&cstr, wks(WksId::Species), ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new().value(cstr);
+            define_property_or_throw(&this, "constructor", ppd).unwrap();
+            vec![this.into(), identity().into()]
+        }
+        => serr("TypeError: define_own_property called on DeadObject");
+        "a.create_data_property_or_throw throws"
+    )]
+    #[test_case(
+        || {
+            let this_obj = create_array_from_list(
+                &[10.into(), 8.into(), 6.into(), 4.into(), 2.into(), 0.into()]
+            );
+            let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+            let callback_this = ordinary_object_create(Some(obj_proto), &[]);
+            let ppd = PotentialPropertyDescriptor::new()
+                .value("callback this ")
+                .writable(true)
+                .enumerable(true)
+                .configurable(true);
+            define_property_or_throw(&callback_this, "this_marker", ppd).unwrap();
+            let ppd = PotentialPropertyDescriptor::new()
+                .value("this obj")
+                .writable(true)
+                .enumerable(true)
+                .configurable(true);
+            define_property_or_throw(&this_obj, "traversed_marker", ppd).unwrap();
+            let callback = create_builtin_function(
+                behavior,
+                false,
+                3.0,
+                "clbk".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                current_realm_record(),
+                Some(intrinsic(IntrinsicId::FunctionPrototype)),
+                None,
+            );
+            vec![this_obj.into(), callback.into(), callback_this.into()]
+        }
+        => sok("0:callback this 100this obj,1:callback this 81this obj,2:callback this 62this obj,3:callback this 43this obj,4:callback this 24this obj,5:callback this 05this obj,length:6");
+        "complex, but successful"
+    )]
+    #[test_case(
+        || vec![ECMAScriptValue::Undefined]
+        => serr("TypeError: Undefined and null cannot be converted to objects");
+        "to_object fails"
+    )]
+    #[test_case(
+        || vec![DeadObject::object().into()]
+        => serr("TypeError: get called on DeadObject");
+        "length_of_array_like fails"
+    )]
+    #[test_case(
+        || vec![create_array_from_list(&[]).into(), 10.into()]
+        => serr("TypeError: Array.prototype.map: callback function was not callable");
+        "uncallable callback"
+    )]
+    #[test_case(
+        || {
+            let this_obj = create_array_from_list(&[]);
+            let ppd = PotentialPropertyDescriptor::new().value(DeadObject::object());
+            define_property_or_throw(&this_obj, "constructor", ppd).unwrap();
+            vec![this_obj.into(), identity().into()]
+        }
+        => serr("TypeError: get called on DeadObject");
+        "array_species_create fails"
+    )]
+    #[test_case(
+        || vec![create_array_from_list(&[1.into()]).into(), intrinsic(IntrinsicId::ThrowTypeError).into()]
+        => serr("TypeError: Generic TypeError");
+        "callback fcn throws"
+    )]
+    #[test_case(
+        || {
+            let this = TestObject::object(&[FunctionId::HasProperty(Some(0.into()))]);
+            this.create_data_property_or_throw("length", 1).unwrap();
+            vec![this.into(), identity().into()]
+        }
+        => serr("TypeError: [[HasProperty]] called on TestObject");
+        "o.has_property fails"
+    )]
+    #[test_case(
+        || {
+            let this = TestObject::object(&[FunctionId::Get(Some(0.into()))]);
+            this.create_data_property_or_throw("length", 1).unwrap();
+            this.create_data_property_or_throw(0, 1).unwrap();
+            vec![this.into(), identity().into()]
+        }
+        => serr("TypeError: [[Get]] called on TestObject");
+        "o.get fails"
+    )]
+    #[test_case(
+        || {
+            let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            o.create_data_property_or_throw("length", 6).unwrap();
+            o.create_data_property_or_throw(0, 10).unwrap();
+            vec![o.into(), identity().into()]
+        }
+        => sok("0:10,length:6");
+        "length lies"
+    )]
+    fn f(make_this_and_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+        setup_test_agent();
+        let items = make_this_and_args();
+        let this_value = items[0].clone();
+        let args = &items[1..];
+        array_prototype_map(&this_value, None, args).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 }

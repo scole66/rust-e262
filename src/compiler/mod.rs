@@ -170,6 +170,7 @@ pub enum Insn {
     DefineMethod,
     SetFunctionName,
     DefineMethodProperty,
+    DefineGetter,
 }
 
 impl fmt::Display for Insn {
@@ -329,6 +330,7 @@ impl fmt::Display for Insn {
             Insn::DefineMethod => "DEFINE_METHOD",
             Insn::SetFunctionName => "SET_FUNC_NAME",
             Insn::DefineMethodProperty => "DEF_METH_PROP",
+            Insn::DefineGetter => "DEF_GETTER",
         })
     }
 }
@@ -9585,6 +9587,7 @@ impl MethodDefinition {
         }
     }
 
+    #[allow(unused_variables)]
     fn method_definition_evaluation(
         &self,
         enumerable: bool,
@@ -9635,7 +9638,55 @@ impl MethodDefinition {
             MethodDefinition::Generator(_) => todo!(),
             MethodDefinition::Async(_) => todo!(),
             MethodDefinition::AsyncGenerator(_) => todo!(),
-            MethodDefinition::Getter(_, _, _) => todo!(),
+            MethodDefinition::Getter(name, body, location) => {
+                // MethodDefinition : get ClassElementName ( ) { FunctionBody }
+                //  1. Let propKey be ? Evaluation of ClassElementName.
+                //  2. Let env be the running execution context's LexicalEnvironment.
+                //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  4. Let sourceText be the source text matched by MethodDefinition.
+                //  5. Let formalParameterList be an instance of the production FormalParameters : [empty] .
+                //  6. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+                //  7. Perform MakeMethod(closure, object).
+                //  8. Perform SetFunctionName(closure, propKey, "get").
+                //  9. If propKey is a Private Name, then
+                //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: closure, [[Set]]: undefined }.
+                //  10. Else,
+                //      a. Let desc be the PropertyDescriptor { [[Get]]: closure, [[Enumerable]]: enumerable, [[Configurable]]: true }.
+                //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+                //      c. Return UNUSED.
+
+                // start:                                        object
+                //   <name.evaluate>                             err/propKey object
+                //   JUMP_IF_ABRUPT unwind_1                     propKey object
+                //   DEFINE_GETTER                               err/empty/PrivateElement
+                //   JUMP exit
+                // unwind_1:                                     err object
+                //   UNWIND 1                                    err
+                // exit:                                         err/empty/PrivateElement
+                let status = name.compile(chunk, strict, text)?;
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_text =
+                    text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: ParamSource::from(Rc::new(FormalParameters::Empty(Location::default()))),
+                    body: body.clone().into(),
+                    to_compile: self_as_rc.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_two_args(Insn::DefineGetter, idx, if enumerable { 1 } else { 0 });
+
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("short jumps should be ok");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit).expect("short jumps should be ok");
+                }
+
+                Ok(AlwaysAbruptResult)
+            }
             MethodDefinition::Setter(_, _, _, _) => todo!(),
         }
     }
