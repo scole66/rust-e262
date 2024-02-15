@@ -118,7 +118,7 @@ impl From<Option<Object>> for ECMAScriptValue {
         if let Some(obj) = source {
             Self::Object(obj)
         } else {
-            Self::Undefined
+            Self::Null
         }
     }
 }

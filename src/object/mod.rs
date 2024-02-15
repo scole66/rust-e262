@@ -1993,9 +1993,7 @@ pub fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
 // NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
 pub fn construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
     initiate_construct(func, args, new_target);
-    ec_pop()
-        .expect("Construct must return a completion")
-        .map(|nc| ECMAScriptValue::try_from(nc).expect("Construct must return a language value"))
+    complete_call(&ECMAScriptValue::from(func))
 }
 
 pub fn initiate_construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) {
