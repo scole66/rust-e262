@@ -536,6 +536,7 @@ pub fn set_default_global_bindings() {
     // Math
     global_data!("Math", intrinsic(IntrinsicId::Math), true, false, true);
     // Reflect
+    global_data!("Reflect", intrinsic(IntrinsicId::Reflect), true, false, true);
 }
 
 // InitializeHostDefinedRealm ( )

@@ -113,6 +113,16 @@ impl From<Object> for ECMAScriptValue {
     }
 }
 
+impl From<Option<Object>> for ECMAScriptValue {
+    fn from(source: Option<Object>) -> Self {
+        if let Some(obj) = source {
+            Self::Object(obj)
+        } else {
+            Self::Undefined
+        }
+    }
+}
+
 impl From<&JSString> for ECMAScriptValue {
     fn from(source: &JSString) -> Self {
         Self::String(source.clone())

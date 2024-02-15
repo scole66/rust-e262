@@ -46,6 +46,7 @@ pub enum IntrinsicId {
     RangeErrorPrototype,
     ReferenceError,
     ReferenceErrorPrototype,
+    Reflect,
     String,
     StringPrototype,
     Symbol,
@@ -286,6 +287,7 @@ impl Intrinsics {
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
+            IntrinsicId::Reflect => &self.reflect,
             IntrinsicId::String => &self.string,
             IntrinsicId::StringPrototype => &self.string_prototype,
             IntrinsicId::Symbol => &self.symbol,
@@ -345,6 +347,7 @@ impl Intrinsics {
             o if o == &self.range_error_prototype => Some(IntrinsicId::RangeErrorPrototype),
             o if o == &self.reference_error => Some(IntrinsicId::ReferenceError),
             o if o == &self.reference_error_prototype => Some(IntrinsicId::ReferenceErrorPrototype),
+            o if o == &self.reflect => Some(IntrinsicId::Reflect),
             o if o == &self.string => Some(IntrinsicId::String),
             o if o == &self.string_prototype => Some(IntrinsicId::StringPrototype),
             o if o == &self.symbol => Some(IntrinsicId::Symbol),
@@ -481,6 +484,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_proxy_intrinsic(&realm_rec);
     provision_math_intrinsic(&realm_rec);
+    provision_reflect_intrinsic(&realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {

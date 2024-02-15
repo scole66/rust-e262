@@ -1581,6 +1581,10 @@ impl Object {
         let receiver = ECMAScriptValue::Object(self.clone());
         self.o.get(key, &receiver)
     }
+
+    pub fn is_constructor(&self) -> bool {
+        self.o.to_constructable().is_some()
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
