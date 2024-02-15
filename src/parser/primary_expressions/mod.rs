@@ -2295,6 +2295,7 @@ impl fmt::Display for Numeric {
 }
 
 impl Numeric {
+    #[allow(clippy::unused_self)]
     fn has_legacy_octal_syntax(&self) -> bool {
         // Need to actually implement legacy octal before this makes any sense at all
         false

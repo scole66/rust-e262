@@ -3995,12 +3995,11 @@ mod empty_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";", None => (svec(&["EMPTY"]), false, false); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
-        let node = Maker::new(src).empty_statement();
+    #[test_case(None => (svec(&["EMPTY"]), false, false); "typical")]
+    fn compile(spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let status = node.compile(&mut c);
+        let status = EmptyStatement::compile(&mut c);
         (
             c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
             status.maybe_abrupt(),
@@ -4862,12 +4861,11 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", None => svec(&["EMPTY"]); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> Vec<String> {
-        let node = Maker::new(src).function_declaration();
+    #[test_case(None => svec(&["EMPTY"]); "typical")]
+    fn compile(spots_avail: Option<usize>) -> Vec<String> {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c);
+        FunctionDeclaration::compile(&mut c);
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 

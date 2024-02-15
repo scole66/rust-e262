@@ -405,6 +405,7 @@ impl AbruptResult {
     fn maybe_abrupt(&self) -> bool {
         *self == AbruptResult::Maybe
     }
+    #[allow(clippy::unused_self)]
     fn maybe_ref(&self) -> bool {
         false
     }
@@ -455,9 +456,11 @@ impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     }
 }
 impl AlwaysAbruptResult {
+    #[allow(clippy::unused_self)]
     fn maybe_abrupt(&self) -> bool {
         true
     }
+    #[allow(clippy::unused_self)]
     fn maybe_ref(&self) -> bool {
         false
     }
@@ -487,9 +490,11 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     }
 }
 impl NeverAbruptRefResult {
+    #[allow(clippy::unused_self)]
     fn maybe_abrupt(&self) -> bool {
         false
     }
+    #[allow(clippy::unused_self)]
     fn maybe_ref(&self) -> bool {
         false
     }
@@ -4869,7 +4874,7 @@ impl Statement {
             Statement::Expression(exp) => exp.compile(chunk, strict, text),
             Statement::Block(bs) => bs.compile(chunk, strict, text),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
-            Statement::Empty(empty) => Ok(empty.compile(chunk).into()),
+            Statement::Empty(_) => Ok(EmptyStatement::compile(chunk).into()),
             Statement::If(if_stmt) => if_stmt.compile(chunk, strict, text),
             Statement::Breakable(breakable_statement) => breakable_statement.compile(chunk, strict, text),
             Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
@@ -5228,7 +5233,7 @@ impl VariableDeclaration {
 }
 
 impl EmptyStatement {
-    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
         NeverAbruptRefResult
     }
@@ -6899,7 +6904,7 @@ impl LabelledItem {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            LabelledItem::Function(f) => Ok(AbruptResult::from(f.compile(chunk))),
+            LabelledItem::Function(_) => Ok(AbruptResult::from(FunctionDeclaration::compile(chunk))),
             LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, text, label_set),
         }
     }
@@ -7107,7 +7112,7 @@ impl CatchParameter {
 }
 
 impl FunctionDeclaration {
-    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
         NeverAbruptRefResult
     }

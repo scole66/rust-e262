@@ -44,6 +44,7 @@
 #![deny(clippy::items_after_statements)]
 #![deny(clippy::inconsistent_struct_constructor)]
 #![deny(clippy::match_wildcard_for_single_variants)]
+#![deny(clippy::unused_self)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 
