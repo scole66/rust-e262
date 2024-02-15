@@ -961,6 +961,8 @@ fn double_exponent(dbl: f64) -> i32 {
 #[allow(unused_assignments)] // Remove this when the Condition B panic is removed
 #[allow(unreachable_code)] // Remove this when the Condition B panic is removed
 pub fn double_to_radix_string(val: f64, radix: u32) -> String {
+    const KBUFFERSIZE: usize = 2200;
+
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
     // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
 
@@ -972,7 +974,6 @@ pub fn double_to_radix_string(val: f64, radix: u32) -> String {
     // fractional part. 1024 characters for the exponent and 52 for the mantissa
     // either way, with additional space for sign, decimal point and string
     // termination should be sufficient.
-    const KBUFFERSIZE: usize = 2200;
     let mut buffer: [u8; KBUFFERSIZE] = [0; KBUFFERSIZE];
     let mut integer_cursor = KBUFFERSIZE / 2;
     let mut fraction_cursor = integer_cursor;

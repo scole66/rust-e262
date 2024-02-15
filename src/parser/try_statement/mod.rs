@@ -85,14 +85,15 @@ impl TryStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (try_loc, after_try) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
-        let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
             Catch(Rc<Catch>),
             Finally(Rc<Finally>),
             Full(Rc<Catch>, Rc<Finally>),
         }
+
+        let (try_loc, after_try) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         Err(ParseError::new(PECode::TryBlockError, after_block))
             .otherwise(|| {
                 let (fin, after_fin) = Finally::parse(parser, after_block, yield_flag, await_flag, return_flag)?;

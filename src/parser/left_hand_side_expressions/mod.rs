@@ -1053,15 +1053,16 @@ impl PrettyPrint for ArgumentList {
 impl ArgumentList {
     // ArgumentList's only direct parent is Arguments; it doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        enum Dots {
+            Dots,
+            NoDots,
+        }
+
         ArgumentList::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
             .otherwise(|| ArgumentList::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
             .map(|(kind, after)| {
                 let mut top_scanner = after;
                 let mut top_box = Rc::new(kind);
-                enum Dots {
-                    Dots,
-                    NoDots,
-                }
                 while let Ok((ae, scan, dotstate)) =
                     ArgumentList::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
                         .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
@@ -2444,6 +2445,14 @@ impl PrettyPrint for OptionalChain {
 
 impl OptionalChain {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        enum Follow {
+            Args(Rc<Arguments>),
+            TLit(Rc<TemplateLiteral>),
+            Exp(Rc<Expression>, Location),
+            Id(IdentifierData, Location),
+            Pid(IdentifierData, Location),
+        }
+
         let (opt_loc, after_opt) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
         let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
@@ -2480,13 +2489,6 @@ impl OptionalChain {
                 )
             })?;
 
-        enum Follow {
-            Args(Rc<Arguments>),
-            TLit(Rc<TemplateLiteral>),
-            Exp(Rc<Expression>, Location),
-            Id(IdentifierData, Location),
-            Pid(IdentifierData, Location),
-        }
         while let Ok((follow, scan)) = Err(ParseError::new(PECode::Generic, current_scan))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, current_scan, yield_flag, await_flag)?;

@@ -776,8 +776,6 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
             _this_value: &ECMAScriptValue,
             _: Option<&Object>,
@@ -793,6 +791,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             let rval = target.o.get(&key.try_into().unwrap(), &receiver).unwrap();
             Ok(rval)
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let get_replacement =
             create_builtin_function(
                 behavior,
@@ -823,8 +823,6 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
             _this_value: &ECMAScriptValue,
             _: Option<&Object>,
@@ -841,6 +839,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
             Ok(rval.into())
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let set_replacement =
             create_builtin_function(
                 behavior,
@@ -902,8 +902,6 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
             _this_value: &ECMAScriptValue,
             _: Option<&Object>,
@@ -920,6 +918,8 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
             let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
             Ok(rval.into())
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let set_replacement =
             create_builtin_function(
                 behavior,

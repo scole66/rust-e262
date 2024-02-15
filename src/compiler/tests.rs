@@ -601,8 +601,8 @@ fn full_chunk(n: &str) -> Chunk {
 }
 
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
-    let mut c = Chunk::new(n);
     const LIMIT: usize = 65536;
+    let mut c = Chunk::new(n);
     c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
@@ -620,8 +620,8 @@ enum Fillable {
     FunctionStash,
 }
 fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
-    let mut c = Chunk::new(name);
     const LIMIT: usize = 65536;
+    let mut c = Chunk::new(name);
     for &(section, slots_left) in what {
         match section {
             Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0),

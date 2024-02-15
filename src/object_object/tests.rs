@@ -69,7 +69,6 @@ mod prototype {
     #[test_case(
         || ECMAScriptValue::Undefined,
         || {
-            let obj = ordinary_object_create(None, &[]);
             fn behavior(
                 _: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -77,6 +76,7 @@ mod prototype {
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
+            let obj = ordinary_object_create(None, &[]);
             let to_primitive_method =
                 create_builtin_function(
                     behavior,
@@ -182,7 +182,6 @@ mod prototype {
     #[test_case(
         || ECMAScriptValue::Undefined,
         || {
-            let obj = ordinary_object_create(None, &[]);
             fn behavior(
                 _: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -190,6 +189,7 @@ mod prototype {
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
+            let obj = ordinary_object_create(None, &[]);
             let to_primitive_method =
                 create_builtin_function(
                     behavior,

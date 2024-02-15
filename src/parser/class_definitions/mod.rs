@@ -633,6 +633,14 @@ impl ClassBody {
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        enum HowSeen {
+            Completely,   // Any further use triggers "duplicate" error
+            Getter,       // Saw as a non-static getter
+            Setter,       // Saw as a non-static setter
+            StaticGetter, // Saw as a static getter
+            StaticSetter, // Saw as a static setter
+        }
+
         // ClassBody : ClassElementList
         //  * It is a Syntax Error if PrototypePropertyNameList of ClassElementList contains more than one occurrence
         //    of "constructor".
@@ -641,13 +649,6 @@ impl ClassBody {
         //    and setter are either both static or both non-static.
         if self.0.prototype_property_name_list().into_iter().filter(|x| x == &"constructor").count() > 1 {
             errs.push(create_syntax_error_object("Classes may have only one constructor", Some(self.0.location())));
-        }
-        enum HowSeen {
-            Completely,   // Any further use triggers "duplicate" error
-            Getter,       // Saw as a non-static getter
-            Setter,       // Saw as a non-static setter
-            StaticGetter, // Saw as a static getter
-            StaticSetter, // Saw as a static setter
         }
         let mut private_ids = AHashMap::<JSString, HowSeen>::new();
         for pid in self.0.private_bound_identifiers() {
