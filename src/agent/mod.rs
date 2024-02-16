@@ -1995,9 +1995,10 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     )
                     .expect("arg should be a value");
 
-                    match get_iterator(&spread_obj, IteratorKind::Sync).and_then(|iterator_record| {
+                    let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
+                    let steps_result = if let Ok(iterator_record) = iterator_result {
                         let mut count = 0;
-                        match loop {
+                        let res = loop {
                             match iterator_step(&iterator_record) {
                                 Ok(next_opt_obj) => match next_opt_obj {
                                     None => {
@@ -2018,19 +2019,20 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     break Err(e);
                                 }
                             }
-                        } {
-                            Ok(()) => Ok(()),
-                            Err(e) => {
-                                // unwind
-                                for _ in 0..count {
-                                    ec_pop();
-                                }
-                                Err(e)
+                        };
+                        if res.is_err() {
+                            // unwind
+                            for _ in 0..count {
+                                ec_pop();
                             }
                         }
-                    }) {
-                        Ok(()) => (),
-                        Err(e) => ec_push(Err(e)),
+                        res
+                    } else {
+                        Err(iterator_result.unwrap_err())
+                    };
+                    if let Err(e) = steps_result
+                    {
+                        ec_push(Err(e));
                     }
                 }
                 Insn::IteratorDAEElision => {

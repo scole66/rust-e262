@@ -481,6 +481,7 @@ impl ObjectInterface for AdaptableObject {
 }
 
 #[derive(Default)]
+#[allow(clippy::struct_field_names)]
 pub struct AdaptableMethods {
     pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
     pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
