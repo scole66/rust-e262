@@ -943,13 +943,13 @@ fn array_prototype_map(
     let this_arg = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)? as u64;
+    let len = u64::try_from(length_of_array_like(&o)?).expect("length should be >= 0");
     if !is_callable(&callbackfn) {
         return Err(create_type_error("Array.prototype.map: callback function was not callable"));
     }
     let a = to_object(array_species_create(&o, len)?).expect("array creation should make object");
     for k in 0..len {
-        let pk = PropertyKey::from(k as usize);
+        let pk = PropertyKey::from(k);
         let k_present = has_property(&o, &pk)?;
         if k_present {
             let k_value = o.get(&pk)?;

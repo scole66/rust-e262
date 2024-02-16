@@ -2537,10 +2537,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     //      c. Return UNUSED.
                     let to_compile: Rc<MethodDefinition> =
                         info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-                    let fb = match to_compile.as_ref() {
-                        MethodDefinition::Getter(_, fb, _) => fb,
-                        _ => unreachable!(),
-                    };
+                    let MethodDefinition::Getter(_, fb, _) = to_compile.as_ref() else { unreachable!() };
                     let prod_text_loc = to_compile.location().span;
                     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
                     let chunk_name = nameify(prod_text, 50);
@@ -2590,14 +2587,14 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                     PropertyKey::try_from(prop_key).unwrap(),
                                     desc
                                 );
-                            result.map(|_| None)
+                            result.map(|()| None)
                         },
                         FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
                             key: pn,
                             kind: PrivateElementKind::Accessor{ get: Some(closure), set: None },
                         })),
                     };
-                    ec_push(result.map(NormalCompletion::from))
+                    ec_push(result.map(NormalCompletion::from));
                 }
             }
         }

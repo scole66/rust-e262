@@ -1337,6 +1337,7 @@ mod array_prototype_map {
     }
 
     fn identity() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
             _: &ECMAScriptValue,
             _: Option<&Object>,
@@ -1359,6 +1360,7 @@ mod array_prototype_map {
     }
 
     fn dead_constructor() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Ok(DeadObject::object().into())
         }

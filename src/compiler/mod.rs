@@ -9676,7 +9676,7 @@ impl MethodDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let idx = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_two_args(Insn::DefineGetter, idx, if enumerable { 1 } else { 0 });
+                chunk.op_plus_two_args(Insn::DefineGetter, idx, u16::from(enumerable));
 
                 if let Some(unwind) = unwind {
                     let exit = chunk.op_jump(Insn::Jump);
