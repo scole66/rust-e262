@@ -16,7 +16,7 @@ impl fmt::Display for BreakStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BreakStatement::Bare { .. } => write!(f, "break ;"),
-            BreakStatement::Labelled { label, .. } => write!(f, "break {} ;", label),
+            BreakStatement::Labelled { label, .. } => write!(f, "break {label} ;"),
         }
     }
 }
@@ -27,7 +27,7 @@ impl PrettyPrint for BreakStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BreakStatement: {}", first, self)?;
+        writeln!(writer, "{first}BreakStatement: {self}")?;
         match self {
             BreakStatement::Bare { .. } => Ok(()),
             BreakStatement::Labelled { label, .. } => label.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -39,7 +39,7 @@ impl PrettyPrint for BreakStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BreakStatement: {}", first, self)?;
+        writeln!(writer, "{first}BreakStatement: {self}")?;
         pprint_token(writer, "break", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let BreakStatement::Labelled { label: node, .. } = self {
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

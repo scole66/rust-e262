@@ -11,9 +11,9 @@ mod empty_statement {
     fn parse_01() {
         let (se, scanner) = check(EmptyStatement::parse(&mut newparser(";"), Scanner::new()));
         chk_scan(&scanner, 1);
-        pretty_check(&*se, "EmptyStatement: ;", vec![]);
-        concise_check(&*se, "Punctuator: ;", vec![]);
-        format!("{:?}", se);
+        pretty_check(&*se, "EmptyStatement: ;", &[]);
+        concise_check(&*se, "Punctuator: ;", &[]);
+        format!("{se:?}");
     }
     #[test]
     fn parse_02() {

@@ -15,8 +15,8 @@ pub enum BitwiseANDExpression {
 impl fmt::Display for BitwiseANDExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            BitwiseANDExpression::EqualityExpression(ee) => write!(f, "{}", ee),
-            BitwiseANDExpression::BitwiseAND(be, ee) => write!(f, "{} & {}", be, ee),
+            BitwiseANDExpression::EqualityExpression(ee) => write!(f, "{ee}"),
+            BitwiseANDExpression::BitwiseAND(be, ee) => write!(f, "{be} & {ee}"),
         }
     }
 }
@@ -27,7 +27,7 @@ impl PrettyPrint for BitwiseANDExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
+        writeln!(writer, "{first}BitwiseANDExpression: {self}")?;
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.pprint_with_leftpad(writer, &successive, Spot::Final),
             BitwiseANDExpression::BitwiseAND(be, ee) => {
@@ -44,7 +44,7 @@ impl PrettyPrint for BitwiseANDExpression {
             BitwiseANDExpression::EqualityExpression(node) => node.concise_with_leftpad(writer, pad, state),
             BitwiseANDExpression::BitwiseAND(be, ee) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
+                writeln!(writer, "{first}BitwiseANDExpression: {self}")?;
                 be.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "&", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ee.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -57,7 +57,7 @@ impl IsFunctionDefinition for BitwiseANDExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.is_function_definition(),
-            _ => false,
+            BitwiseANDExpression::BitwiseAND(..) => false,
         }
     }
 }
@@ -103,7 +103,7 @@ impl BitwiseANDExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseANDExpression::BitwiseAND(..) => None,
         }
     }
 
@@ -152,7 +152,7 @@ impl BitwiseANDExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseANDExpression::BitwiseAND(..) => true,
         }
     }
 
@@ -186,9 +186,9 @@ pub enum BitwiseXORExpression {
 impl fmt::Display for BitwiseXORExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            BitwiseXORExpression::BitwiseANDExpression(band) => write!(f, "{}", band),
+            BitwiseXORExpression::BitwiseANDExpression(band) => write!(f, "{band}"),
             BitwiseXORExpression::BitwiseXOR(bxor, band) => {
-                write!(f, "{} ^ {}", bxor, band)
+                write!(f, "{bxor} ^ {band}")
             }
         }
     }
@@ -200,7 +200,7 @@ impl PrettyPrint for BitwiseXORExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BitwiseXORExpression: {}", first, self)?;
+        writeln!(writer, "{first}BitwiseXORExpression: {self}")?;
         match &self {
             BitwiseXORExpression::BitwiseANDExpression(band) => {
                 band.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -219,7 +219,7 @@ impl PrettyPrint for BitwiseXORExpression {
             BitwiseXORExpression::BitwiseANDExpression(node) => node.concise_with_leftpad(writer, pad, state),
             BitwiseXORExpression::BitwiseXOR(bxor, band) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BitwiseXORExpression: {}", first, self)?;
+                writeln!(writer, "{first}BitwiseXORExpression: {self}")?;
                 bxor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "^", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 band.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -232,7 +232,7 @@ impl IsFunctionDefinition for BitwiseXORExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.is_function_definition(),
-            _ => false,
+            BitwiseXORExpression::BitwiseXOR(..) => false,
         }
     }
 }
@@ -278,7 +278,7 @@ impl BitwiseXORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseXORExpression::BitwiseXOR(..) => None,
         }
     }
 
@@ -327,7 +327,7 @@ impl BitwiseXORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseXORExpression::BitwiseXOR(..) => true,
         }
     }
 
@@ -361,9 +361,9 @@ pub enum BitwiseORExpression {
 impl fmt::Display for BitwiseORExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            BitwiseORExpression::BitwiseXORExpression(bxor) => write!(f, "{}", bxor),
+            BitwiseORExpression::BitwiseXORExpression(bxor) => write!(f, "{bxor}"),
             BitwiseORExpression::BitwiseOR(bor, bxor) => {
-                write!(f, "{} | {}", bor, bxor)
+                write!(f, "{bor} | {bxor}")
             }
         }
     }
@@ -375,7 +375,7 @@ impl PrettyPrint for BitwiseORExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BitwiseORExpression: {}", first, self)?;
+        writeln!(writer, "{first}BitwiseORExpression: {self}")?;
         match &self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => {
                 bxor.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -394,7 +394,7 @@ impl PrettyPrint for BitwiseORExpression {
             BitwiseORExpression::BitwiseXORExpression(node) => node.concise_with_leftpad(writer, pad, state),
             BitwiseORExpression::BitwiseOR(bor, bxor) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BitwiseORExpression: {}", first, self)?;
+                writeln!(writer, "{first}BitwiseORExpression: {self}")?;
                 bor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "|", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 bxor.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -407,7 +407,7 @@ impl IsFunctionDefinition for BitwiseORExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.is_function_definition(),
-            _ => false,
+            BitwiseORExpression::BitwiseOR(..) => false,
         }
     }
 }
@@ -470,7 +470,7 @@ impl BitwiseORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
-            _ => None,
+            BitwiseORExpression::BitwiseOR(..) => None,
         }
     }
 
@@ -519,7 +519,7 @@ impl BitwiseORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            BitwiseORExpression::BitwiseOR(..) => true,
         }
     }
 
@@ -529,7 +529,7 @@ impl BitwiseORExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
-            _ => ATTKind::Invalid,
+            BitwiseORExpression::BitwiseOR(..) => ATTKind::Invalid,
         }
     }
 

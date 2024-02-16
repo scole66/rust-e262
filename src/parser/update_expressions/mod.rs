@@ -22,10 +22,10 @@ impl fmt::Display for UpdateExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             UpdateExpression::LeftHandSideExpression(boxed) => boxed.fmt(f),
-            UpdateExpression::PostIncrement { lhs: boxed, .. } => write!(f, "{} ++", boxed),
-            UpdateExpression::PostDecrement { lhs: boxed, .. } => write!(f, "{} --", boxed),
-            UpdateExpression::PreIncrement { ue: boxed, .. } => write!(f, "++ {}", boxed),
-            UpdateExpression::PreDecrement { ue: boxed, .. } => write!(f, "-- {}", boxed),
+            UpdateExpression::PostIncrement { lhs: boxed, .. } => write!(f, "{boxed} ++"),
+            UpdateExpression::PostDecrement { lhs: boxed, .. } => write!(f, "{boxed} --"),
+            UpdateExpression::PreIncrement { ue: boxed, .. } => write!(f, "++ {boxed}"),
+            UpdateExpression::PreDecrement { ue: boxed, .. } => write!(f, "-- {boxed}"),
         }
     }
 }
@@ -36,7 +36,7 @@ impl PrettyPrint for UpdateExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}UpdateExpression: {}", first, self)?;
+        writeln!(writer, "{first}UpdateExpression: {self}")?;
         match &self {
             UpdateExpression::LeftHandSideExpression(boxed)
             | UpdateExpression::PostIncrement { lhs: boxed, .. }
@@ -54,18 +54,18 @@ impl PrettyPrint for UpdateExpression {
     {
         let head = |writer: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}UpdateExpression: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}UpdateExpression: {self}").and(Ok(successive))
         };
         let workafter = |writer: &mut T, node: &LeftHandSideExpression, op: &str| {
             head(writer).and_then(|successive| {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)
-                    .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final))
+                    .and_then(|()| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final))
             })
         };
         let workbefore = |writer: &mut T, node: &UnaryExpression, op: &str| {
             head(writer).and_then(|successive| {
                 pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal)
-                    .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
+                    .and_then(|()| node.concise_with_leftpad(writer, &successive, Spot::Final))
             })
         };
         match self {

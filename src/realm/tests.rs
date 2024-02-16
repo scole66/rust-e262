@@ -56,7 +56,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
 #[test]
 fn intrinsic_id_debug() {
     for id in ALL_INTRINSIC_IDS {
-        assert_ne!(format!("{:?}", id), "");
+        assert_ne!(format!("{id:?}"), "");
     }
 }
 #[test]
@@ -94,7 +94,7 @@ mod intrinsics {
     #[test]
     fn debug() {
         setup_test_agent();
-        assert_ne!(format!("{:?}", Intrinsics::new()), "")
+        assert_ne!(format!("{:?}", Intrinsics::new()), "");
     }
 
     #[test]
@@ -220,13 +220,13 @@ fn realm_debug() {
     setup_test_agent();
     let realm_ptr = current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
-    assert_ne!(format!("{:?}", realm), "");
+    assert_ne!(format!("{realm:?}"), "");
 }
 
 #[test]
 fn throw_type_error_test() {
     setup_test_agent();
-    let err = throw_type_error(ECMAScriptValue::Undefined, None, &[]).unwrap_err();
+    let err = throw_type_error(&ECMAScriptValue::Undefined, None, &[]).unwrap_err();
     let msg = unwind_type_error(err);
     assert_eq!(msg, "Generic TypeError");
 }
@@ -237,9 +237,9 @@ fn throw_type_error_test() {
 #[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
 #[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
 #[test_case(super::parse_int => panics "not yet implemented"; "parse_int")]
-fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
-    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
 #[test_case(
@@ -255,7 +255,7 @@ where
 {
     setup_test_agent();
     let val = make_val().into();
-    super::is_nan(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::is_nan(&ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
 #[test_case(
@@ -273,5 +273,7 @@ where
 {
     setup_test_agent();
     let val = make_val().into();
-    super::is_finite(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::is_finite(&ECMAScriptValue::Undefined, None, &[val])
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
 }

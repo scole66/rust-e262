@@ -404,10 +404,11 @@ impl From<AlwaysAbruptResult> for AbruptResult {
 }
 
 impl AbruptResult {
-    fn maybe_abrupt(&self) -> bool {
-        *self == AbruptResult::Maybe
+    fn maybe_abrupt(self) -> bool {
+        self == AbruptResult::Maybe
     }
-    fn maybe_ref(&self) -> bool {
+    #[allow(clippy::unused_self)]
+    fn maybe_ref(self) -> bool {
         false
     }
 }
@@ -421,9 +422,11 @@ impl CompilerStatusFlags {
     pub fn new() -> Self {
         Self::default()
     }
+    #[must_use]
     pub fn abrupt(self, potentially_abrupt: bool) -> Self {
         Self { can_be_abrupt: potentially_abrupt.into(), ..self }
     }
+    #[must_use]
     pub fn reference(self, potentially_reference: bool) -> Self {
         Self { can_be_reference: potentially_reference.into(), ..self }
     }
@@ -447,7 +450,7 @@ impl From<RefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysAbruptResult;
 impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptResult) -> Self {
@@ -455,15 +458,17 @@ impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     }
 }
 impl AlwaysAbruptResult {
-    fn maybe_abrupt(&self) -> bool {
+    #[allow(clippy::unused_self)]
+    fn maybe_abrupt(self) -> bool {
         true
     }
-    fn maybe_ref(&self) -> bool {
+    #[allow(clippy::unused_self)]
+    fn maybe_ref(self) -> bool {
         false
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysRefResult;
 impl From<AlwaysRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysRefResult) -> Self {
@@ -471,7 +476,7 @@ impl From<AlwaysRefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct AlwaysAbruptRefResult;
 impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptRefResult) -> Self {
@@ -479,7 +484,7 @@ impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NeverAbruptRefResult;
 impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     fn from(_: NeverAbruptRefResult) -> Self {
@@ -487,10 +492,12 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     }
 }
 impl NeverAbruptRefResult {
-    fn maybe_abrupt(&self) -> bool {
+    #[allow(clippy::unused_self)]
+    fn maybe_abrupt(self) -> bool {
         false
     }
-    fn maybe_ref(&self) -> bool {
+    #[allow(clippy::unused_self)]
+    fn maybe_ref(self) -> bool {
         false
     }
 }
@@ -801,8 +808,7 @@ impl NameableProduction {
             NameableProduction::AsyncFunction(node) => node.is_named_function(),
             NameableProduction::AsyncGenerator(node) => node.is_named_function(),
             NameableProduction::Class(node) => node.is_named_function(),
-            NameableProduction::Arrow(_) => false,
-            NameableProduction::AsyncArrow(_) => false,
+            NameableProduction::Arrow(_) | NameableProduction::AsyncArrow(_) => false,
         }
     }
 
@@ -973,10 +979,10 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
         }
         DebugKind::Char('$') => {
             // Fill the bigint table.
-            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+            chunk.bigints.resize(65536, Rc::new(BigInt::from(97_687_897_890_734_187_890_106_587_314_876_543_219_u128)));
             chunk.op(Insn::False);
         }
-        _ => (),
+        DebugKind::Char(_) => (),
     }
 }
 #[cfg(not(test))]
@@ -1062,6 +1068,8 @@ impl Elisions {
         // POP                  next_index array
         // exit:
 
+        assert!(self.count < 1 << 53);
+        #[allow(clippy::cast_precision_loss)]
         let count = self.count as f64; // loss of accuracy for large values.
         let count_index = chunk.add_to_float_pool(count)?;
         let length_index = chunk.add_to_string_pool(JSString::from("length"))?;
@@ -1129,6 +1137,8 @@ impl Elisions {
         //   FLOAT count               count ir
         //   IDAE_ELISION              ir/err
 
+        assert!(self.count < 1 << 53);
+        #[allow(clippy::cast_precision_loss)]
         let count_val = self.count as f64; // loss of accuracy for large values.
         let count = chunk.add_to_float_pool(count_val)?;
         // have to store count on the stack, as it can easily overflow the u16 that is an instruction parameter
@@ -2043,7 +2053,7 @@ impl MemberExpression {
             MemberExpression::SuperProperty(_) => todo!(),
             MemberExpression::MetaProperty(_) => todo!(),
             MemberExpression::NewArguments(me, args, ..) => {
-                compile_new_evaluator(chunk, strict, text, ConstructExpr::Member(me.clone()), Some(args.clone()))
+                compile_new_evaluator(chunk, strict, text, &ConstructExpr::Member(me.clone()), Some(args.clone()))
             }
             MemberExpression::PrivateId(..) => todo!(),
         }
@@ -2055,7 +2065,7 @@ impl NewExpression {
         match self {
             NewExpression::MemberExpression(me) => me.compile(chunk, strict, text),
             NewExpression::NewExpression(ne, ..) => {
-                compile_new_evaluator(chunk, strict, text, ConstructExpr::New(ne.clone()), None)
+                compile_new_evaluator(chunk, strict, text, &ConstructExpr::New(ne.clone()), None)
             }
         }
     }
@@ -2080,7 +2090,7 @@ fn compile_new_evaluator(
     chunk: &mut Chunk,
     strict: bool,
     text: &str,
-    expr: ConstructExpr,
+    expr: &ConstructExpr,
     args: Option<Rc<Arguments>>,
 ) -> anyhow::Result<CompilerStatusFlags> {
     // EvaluateNew ( constructExpr, arguments )
@@ -2607,19 +2617,7 @@ impl Arguments {
 
                 let (ArgListSizeHint { fixed_len, has_variable }, status) =
                     al.argument_list_evaluation(chunk, strict, text)?;
-                if !has_variable {
-                    // size known at compile time:
-                    //   <argument_list>       (err) or (arg(n-1) arg(n-2) ... arg0)
-                    //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
-                    //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
-                    // exit:
-                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                    let index = chunk.add_to_float_pool(fixed_len as f64)?;
-                    chunk.op_plus_arg(Insn::Float, index);
-                    if let Some(mark) = exit {
-                        chunk.fixup(mark).expect("Jump is too short to overflow.");
-                    }
-                } else {
+                if has_variable {
                     // size variable at compile time
                     //   <argument_list>       (err) or (arg(m+n-1) ... arg(m+0) M arg(m-1) ... arg0)
                     //   --- if N > 0 ---
@@ -2635,10 +2633,22 @@ impl Arguments {
                         assert!(status.maybe_abrupt());
                         let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                         chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
-                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
                         chunk.fixup(exit).expect("Jump too short to fail");
+                    }
+                } else {
+                    // size known at compile time:
+                    //   <argument_list>       (err) or (arg(n-1) arg(n-2) ... arg0)
+                    //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
+                    //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
+                    // exit:
+                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    let index = chunk.add_to_float_pool(f64::from(fixed_len))?;
+                    chunk.op_plus_arg(Insn::Float, index);
+                    if let Some(mark) = exit {
+                        chunk.fixup(mark).expect("Jump is too short to overflow.");
                     }
                 }
                 Ok(status)
@@ -2796,12 +2806,12 @@ impl ArgumentList {
                 if has_variable {
                     if fixed_len > 0 {
                         chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
-                        let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                        let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                         chunk.op_plus_arg(Insn::Float, idx);
                         chunk.op(Insn::Add);
                     }
                 } else {
-                    let idx = chunk.add_to_float_pool(fixed_len as f64)?;
+                    let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
                     chunk.op_plus_arg(Insn::Float, idx);
                 }
 
@@ -3805,10 +3815,7 @@ impl AssignmentProperty {
                 let p_value = ident.string_value();
                 let p = chunk.add_to_string_pool(p_value)?;
                 chunk.op_plus_arg(Insn::String, p);
-                chunk.op(match strict {
-                    true => Insn::StrictResolve,
-                    false => Insn::Resolve,
-                });
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                 let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Swap);
                 chunk.op(Insn::Pop2Push3);
@@ -4839,7 +4846,7 @@ impl StatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         let mut status = self.list[0].compile(chunk, strict, text)?;
         let mut exits = vec![];
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             if status.maybe_abrupt() {
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
             }
@@ -4869,7 +4876,7 @@ impl Statement {
             Statement::Expression(exp) => exp.compile(chunk, strict, text),
             Statement::Block(bs) => bs.compile(chunk, strict, text),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, text),
-            Statement::Empty(empty) => Ok(empty.compile(chunk).into()),
+            Statement::Empty(_) => Ok(EmptyStatement::compile(chunk).into()),
             Statement::If(if_stmt) => if_stmt.compile(chunk, strict, text),
             Statement::Breakable(breakable_statement) => breakable_statement.compile(chunk, strict, text),
             Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
@@ -5123,7 +5130,7 @@ impl VariableDeclarationList {
         let mut status = self.list[0].compile(chunk, strict, text)?;
         // Stack: empty/err ...
         let mut exits = vec![];
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             // Stack: empty/err ...
             if status.maybe_abrupt() {
                 exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
@@ -5228,7 +5235,7 @@ impl VariableDeclaration {
 }
 
 impl EmptyStatement {
-    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
         NeverAbruptRefResult
     }
@@ -5242,7 +5249,7 @@ impl IfStatement {
         let expr_status = self.expression().compile(chunk, strict, text)?;
         // Stack: exprRef/exprValue/err
         if expr_status.maybe_ref() {
-            chunk.op(Insn::GetValue)
+            chunk.op(Insn::GetValue);
         }
         // Stack: exprValue/err
         if expr_status.maybe_abrupt() {
@@ -5451,10 +5458,10 @@ impl ForStatement {
     fn compile_for_body(
         chunk: &mut Chunk,
         strict: bool,
-        text: &str,
+        src_text: &str,
         test: Option<Rc<Expression>>,
         increment: Option<Rc<Expression>>,
-        stmt: Rc<Statement>,
+        stmt: &Rc<Statement>,
         per_iteration_bindings: &[JSString],
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
@@ -5535,7 +5542,7 @@ impl ForStatement {
         }
         let loop_top = chunk.pos();
         if let Some(test) = test {
-            let status = test.compile(chunk, strict, text)?;
+            let status = test.compile(chunk, strict, src_text)?;
             if status.maybe_ref() {
                 chunk.op(Insn::GetValue);
             }
@@ -5546,7 +5553,7 @@ impl ForStatement {
             exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
         }
         let mut update_exit = None;
-        let status = stmt.compile(chunk, strict, text)?;
+        let status = stmt.compile(chunk, strict, src_text)?;
         if status.maybe_abrupt() {
             maybe_abrupt = AbruptResult::Maybe;
             let label_set_id = chunk.add_to_string_set_pool(label_set)?;
@@ -5560,7 +5567,7 @@ impl ForStatement {
             chunk.op(Insn::Pop);
         }
         if let Some(increment) = increment {
-            let status = increment.compile(chunk, strict, text)?;
+            let status = increment.compile(chunk, strict, src_text)?;
             if status.maybe_ref() {
                 chunk.op(Insn::GetValue);
             }
@@ -5595,7 +5602,7 @@ impl ForStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        text: &str,
+        src_text: &str,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -5622,7 +5629,7 @@ impl ForStatement {
                 let mut exit = None;
 
                 if let Some(init) = init {
-                    let status = init.compile(chunk, strict, text)?;
+                    let status = init.compile(chunk, strict, src_text)?;
                     if status.maybe_ref() {
                         chunk.op(Insn::GetValue);
                     }
@@ -5632,16 +5639,8 @@ impl ForStatement {
                     }
                     chunk.op(Insn::Pop);
                 }
-                let body_status = Self::compile_for_body(
-                    chunk,
-                    strict,
-                    text,
-                    test.clone(),
-                    incr.clone(),
-                    stmt.clone(),
-                    &[],
-                    label_set,
-                )?;
+                let body_status =
+                    Self::compile_for_body(chunk, strict, src_text, test.clone(), incr.clone(), stmt, &[], label_set)?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -5661,22 +5660,14 @@ impl ForStatement {
                 //  4. Return ? ForBodyEvaluation(test, increment, Statement, « », labelSet).
                 let mut maybe_abrupt = AbruptResult::Never;
                 let mut exit = None;
-                let vdl_status = vdl.compile(chunk, strict, text)?;
+                let vdl_status = vdl.compile(chunk, strict, src_text)?;
                 if vdl_status.maybe_abrupt() {
                     exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                     maybe_abrupt = AbruptResult::Maybe;
                 }
                 chunk.op(Insn::Pop);
-                let body_status = Self::compile_for_body(
-                    chunk,
-                    strict,
-                    text,
-                    test.clone(),
-                    incr.clone(),
-                    stmt.clone(),
-                    &[],
-                    label_set,
-                )?;
+                let body_status =
+                    Self::compile_for_body(chunk, strict, src_text, test.clone(), incr.clone(), stmt, &[], label_set)?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -5730,7 +5721,7 @@ impl ForStatement {
                 chunk.op(Insn::PushNewLexEnv);
                 let bound_names = lexdecl.bound_names();
                 let is_const = lexdecl.is_constant_declaration();
-                for bn in bound_names.iter() {
+                for bn in &bound_names {
                     let idx = chunk.add_to_string_pool(bn.clone())?;
                     chunk.op_plus_arg(
                         if is_const {
@@ -5742,16 +5733,16 @@ impl ForStatement {
                     );
                 }
                 let per_iteration_lets = if is_const { &[] } else { bound_names.as_slice() };
-                lexdecl.compile(chunk, strict, text)?;
+                lexdecl.compile(chunk, strict, src_text)?;
                 let popenv = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Pop);
                 Self::compile_for_body(
                     chunk,
                     strict,
-                    text,
+                    src_text,
                     test.clone(),
                     incr.clone(),
-                    stmt.clone(),
+                    stmt,
                     per_iteration_lets,
                     label_set,
                 )?;
@@ -5771,6 +5762,7 @@ enum IterationKind {
     AsyncIterate,
 }
 
+#[derive(Copy, Clone)]
 enum ForInOfExpr<'a> {
     Expression(&'a Rc<Expression>),
     AssignmentExpression(&'a Rc<AssignmentExpression>),
@@ -5797,6 +5789,7 @@ impl<'a> ForInOfExpr<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 enum ForInOfLHSExpr<'a> {
     LeftHandSideExpression(&'a Rc<LeftHandSideExpression>),
     AssignmentPattern(&'a Rc<AssignmentPattern>),
@@ -5907,7 +5900,9 @@ impl ForInOfStatement {
         //   GET_ASYNC_ITERATOR        ir/err
         // exit:
 
-        let exp_status = if !uninitialized_bound_names.is_empty() {
+        let exp_status = if uninitialized_bound_names.is_empty() {
+            exp.compile(chunk, strict, text)?
+        } else {
             chunk.op(Insn::PushNewLexEnv);
             for name in uninitialized_bound_names.iter().cloned() {
                 let idx = chunk.add_to_string_pool(name)?;
@@ -5916,8 +5911,6 @@ impl ForInOfStatement {
             let exp_status = exp.compile(chunk, strict, text)?;
             chunk.op(Insn::PopLexEnv);
             exp_status
-        } else {
-            exp.compile(chunk, strict, text)?
         };
         if exp_status.maybe_ref() {
             chunk.op(Insn::GetValue);
@@ -6184,10 +6177,7 @@ impl ForInOfStatement {
                         .add_to_string_pool(bn.pop().expect("should be exactly one name"))
                         .expect("names should have already been added to string pool in instantiation");
                     chunk.op_plus_arg(Insn::String, name);
-                    chunk.op(match strict {
-                        true => Insn::StrictResolve,
-                        false => Insn::Resolve,
-                    });
+                    chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                     chunk.op(Insn::Swap);
                     chunk.op(Insn::InitializeReferencedBinding);
                 }
@@ -6402,9 +6392,10 @@ impl ForDeclaration {
         //      b. Else,
         //          i. Perform ! environment.CreateMutableBinding(name, false).
         //  2. Return unused.
-        let insn = match self.loc.is_constant_declaration() {
-            true => Insn::CreateStrictImmutableLexBinding,
-            false => Insn::CreatePermanentMutableLexBinding,
+        let insn = if self.loc.is_constant_declaration() {
+            Insn::CreateStrictImmutableLexBinding
+        } else {
+            Insn::CreatePermanentMutableLexBinding
         };
         for name_val in self.binding.bound_names() {
             let name = chunk.add_to_string_pool(name_val)?;
@@ -6915,7 +6906,7 @@ impl LabelledItem {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            LabelledItem::Function(f) => f.compile(chunk).map(AbruptResult::from),
+            LabelledItem::Function(_) => Ok(AbruptResult::from(FunctionDeclaration::compile(chunk))),
             LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, text, label_set),
         }
     }
@@ -7123,9 +7114,9 @@ impl CatchParameter {
 }
 
 impl FunctionDeclaration {
-    fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
         chunk.op(Insn::Empty);
-        Ok(NeverAbruptRefResult)
+        NeverAbruptRefResult
     }
 
     fn compile_fo_instantiation(
@@ -7199,6 +7190,7 @@ impl ScriptBody {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum NameLoc {
     None,
     OnStack,
@@ -7279,7 +7271,7 @@ impl FunctionExpression {
         }
     }
 
-    /// Generate the code to evaluate a ['FunctionExpression'].
+    /// Generate the code to evaluate a [`FunctionExpression`].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
     pub fn compile(
@@ -7490,7 +7482,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         chunk.op(Insn::PushNewLexEnv);
     }
 
-    for param_name in parameter_names.iter() {
+    for param_name in &parameter_names {
         let sidx = chunk.add_to_string_pool(param_name.clone())?;
         chunk.op_plus_arg(
             if has_duplicates {
@@ -7534,19 +7526,7 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
     // Stack: func ...
 
     // 27-28.
-    if !has_parameter_expressions {
-        let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
-        for n in var_names {
-            if !instantiated_var_names.contains(&n) {
-                let idx = chunk.add_to_string_pool(n.clone())?;
-                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
-                chunk.op(Insn::Undefined);
-                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
-                instantiated_var_names.insert(n);
-            }
-        }
-        // let varEnv be env == current lexical environment
-    } else {
+    if has_parameter_expressions {
         // b. Let varEnv be NewDeclarativeEnvironment(env).
         // c. Set the VariableEnvironment of calleeContext to varEnv.
         chunk.op(Insn::PushNewVarEnvFromLex);
@@ -7565,6 +7545,18 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
             }
         }
         // now varEnv == current variable environment
+    } else {
+        let mut instantiated_var_names = parameter_names.iter().cloned().collect::<AHashSet<_>>();
+        for n in var_names {
+            if !instantiated_var_names.contains(&n) {
+                let idx = chunk.add_to_string_pool(n.clone())?;
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                chunk.op(Insn::Undefined);
+                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
+                instantiated_var_names.insert(n);
+            }
+        }
+        // let varEnv be env == current lexical environment
     }
 
     // 30-32.
@@ -7879,10 +7871,7 @@ impl BindingIdentifier {
             BindingIdentifier::Await { .. } => "await".into(),
         })?;
         chunk.op_plus_arg(Insn::String, binding_id);
-        chunk.op(match strict {
-            true => Insn::StrictResolve,
-            false => Insn::Resolve,
-        });
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
         Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
     }
 }
@@ -9007,7 +8996,7 @@ impl BindingElementList {
                 //     environment.
                 bee.iterator_binding_initialization(chunk, strict, text, env)
             }
-            BindingElementList::List(bel, bee) => {
+            BindingElementList::List(list, element) => {
                 // BindingElementList : BindingElementList , BindingElisionElement
                 //  1. Perform ? IteratorBindingInitialization of BindingElementList with arguments iteratorRecord and
                 //     environment.
@@ -9020,10 +9009,10 @@ impl BindingElementList {
                 //   <bee.ibi(env)>           ir/err
                 // exit:
 
-                let status = bel.iterator_binding_initialization(chunk, strict, text, env)?;
+                let status = list.iterator_binding_initialization(chunk, strict, text, env)?;
                 assert!(status.maybe_abrupt());
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                let status = bee.iterator_binding_initialization(chunk, strict, text, env)?;
+                let status = element.iterator_binding_initialization(chunk, strict, text, env)?;
                 assert!(status.maybe_abrupt());
                 chunk.fixup(exit)?;
                 Ok(AlwaysAbruptResult)
@@ -9640,7 +9629,7 @@ impl MethodDefinition {
                 self.define_method(chunk, strict, text, self_as_rc)?;
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SetFunctionName);
-                chunk.op_plus_arg(Insn::DefineMethodProperty, if enumerable { 1 } else { 0 });
+                chunk.op_plus_arg(Insn::DefineMethodProperty, u16::from(enumerable));
                 chunk.fixup(unwind).expect("Short jumps should work");
                 chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
 
@@ -9687,7 +9676,7 @@ impl MethodDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let idx = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_two_args(Insn::DefineGetter, idx, if enumerable { 1 } else { 0 });
+                chunk.op_plus_two_args(Insn::DefineGetter, idx, u16::from(enumerable));
 
                 if let Some(unwind) = unwind {
                     let exit = chunk.op_jump(Insn::Jump);

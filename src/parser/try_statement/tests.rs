@@ -11,26 +11,26 @@ fn try_statement_test_01() {
     let (node, scanner) =
         check(TryStatement::parse(&mut newparser("try { a; } catch {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 19);
-    pretty_check(&*node, "TryStatement: try { a ; } catch { }", vec!["Block: { a ; }", "Catch: catch { }"]);
+    pretty_check(&*node, "TryStatement: try { a ; } catch { }", &["Block: { a ; }", "Catch: catch { }"]);
     concise_check(
         &*node,
         "TryStatement: try { a ; } catch { }",
-        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
+        &["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_02() {
     let (node, scanner) =
         check(TryStatement::parse(&mut newparser("try { a; } finally {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 21);
-    pretty_check(&*node, "TryStatement: try { a ; } finally { }", vec!["Block: { a ; }", "Finally: finally { }"]);
+    pretty_check(&*node, "TryStatement: try { a ; } finally { }", &["Block: { a ; }", "Finally: finally { }"]);
     concise_check(
         &*node,
         "TryStatement: try { a ; } finally { }",
-        vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
+        &["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_03() {
@@ -45,14 +45,14 @@ fn try_statement_test_03() {
     pretty_check(
         &*node,
         "TryStatement: try { a ; } catch { b ; } finally { c ; }",
-        vec!["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+        &["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
     );
     concise_check(
         &*node,
         "TryStatement: try { a ; } catch { b ; } finally { c ; }",
-        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+        &["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn try_statement_test_err_01() {
@@ -233,7 +233,7 @@ mod try_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).try_statement().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("try { arguments; } catch {}" => true; "try-catch (left)")]
@@ -270,21 +270,21 @@ mod try_statement {
 fn catch_test_01() {
     let (node, scanner) = check(Catch::parse(&mut newparser("catch {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "Catch: catch { }", vec!["Block: { }"]);
-    concise_check(&*node, "Catch: catch { }", vec!["Keyword: catch", "Block: { }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Catch: catch { }", &["Block: { }"]);
+    concise_check(&*node, "Catch: catch { }", &["Keyword: catch", "Block: { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn catch_test_02() {
     let (node, scanner) = check(Catch::parse(&mut newparser("catch (e) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "Catch: catch ( e ) { }", vec!["CatchParameter: e", "Block: { }"]);
+    pretty_check(&*node, "Catch: catch ( e ) { }", &["CatchParameter: e", "Block: { }"]);
     concise_check(
         &*node,
         "Catch: catch ( e ) { }",
-        vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
+        &["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn catch_test_err_01() {
@@ -399,7 +399,7 @@ mod catch {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("catch({a=arguments}){}" => true; "param (left)")]
@@ -428,9 +428,9 @@ mod catch {
 fn finally_test_01() {
     let (node, scanner) = check(Finally::parse(&mut newparser("finally {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "Finally: finally { }", vec!["Block: { }"]);
-    concise_check(&*node, "Finally: finally { }", vec!["Keyword: finally", "Block: { }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Finally: finally { }", &["Block: { }"]);
+    concise_check(&*node, "Finally: finally { }", &["Keyword: finally", "Block: { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn finally_test_err_01() {
@@ -499,7 +499,7 @@ mod finally {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).finally().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("finally{arguments;}" => true; "yes")]
@@ -524,17 +524,17 @@ mod finally {
 fn catch_parameter_test_01() {
     let (node, scanner) = check(CatchParameter::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "CatchParameter: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "CatchParameter: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn catch_parameter_test_02() {
     let (node, scanner) = check(CatchParameter::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    pretty_check(&*node, "CatchParameter: [ a ]", vec!["BindingPattern: [ a ]"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "CatchParameter: [ a ]", &["BindingPattern: [ a ]"]);
+    concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    format!("{node:?}");
 }
 #[test]
 fn catch_parameter_test_err_01() {
@@ -601,7 +601,7 @@ mod catch_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).catch_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "id")]

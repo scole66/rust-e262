@@ -63,11 +63,11 @@ where
 pub fn is_integral_number(argument: &ECMAScriptValue) -> bool {
     match argument {
         ECMAScriptValue::Number(n) => {
-            if !n.is_finite() {
-                false
-            } else {
+            if n.is_finite() {
                 let magnitude = n.abs();
                 magnitude.floor() == magnitude
+            } else {
+                false
             }
         }
         _ => false,

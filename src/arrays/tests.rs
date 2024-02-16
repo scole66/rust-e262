@@ -15,7 +15,7 @@ mod array_object {
         #[test_case(100 => Ok(vec![
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(100.0), writable: true}}
         ]); "hundred length")]
-        #[test_case(7294967295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
+        #[test_case(7_294_967_295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
         fn normal(length: u64) -> Result<Vec<PropertyInfo>, String> {
             setup_test_agent();
 
@@ -45,7 +45,7 @@ mod array_object {
     fn debug() {
         setup_test_agent();
         let a = ArrayObject::create(0, None).unwrap();
-        assert_ne!(format!("{:?}", a), "");
+        assert_ne!(format!("{a:?}"), "");
     }
 
     fn make() -> Object {
@@ -234,7 +234,7 @@ mod array_object {
         use test_case::test_case;
 
         fn value_just_once(
-            this_value: ECMAScriptValue,
+            this_value: &ECMAScriptValue,
             _: Option<&Object>,
             _: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -508,7 +508,7 @@ fn array_create() {
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
     assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
-    assert!(aobj.is_array().unwrap())
+    assert!(aobj.is_array().unwrap());
 }
 
 fn make_ordinary_object() -> ECMAScriptValue {
@@ -615,7 +615,7 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(10.0), writable: true },
         },
     ]); "not array")]
-    #[test_case(make_ordinary, 42949672950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
+    #[test_case(make_ordinary, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
     #[test_case(make_throwing_constructor_prop, 200 => Err("TypeError: Test Sentinel".to_string()); "get(constructor) throws")]
     #[test_case(make_undefined_constructor_prop, 0 => Ok(vec![
         PropertyInfo {
@@ -625,7 +625,7 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0.0), writable: true },
         },
     ]); "undefined constructor")]
-    #[test_case(make_undefined_constructor_prop, 42949672950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
+    #[test_case(make_undefined_constructor_prop, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
     #[test_case(make_plain_array, 542 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
@@ -674,43 +674,43 @@ fn defaults() {
     assert_eq!(a.o.is_error_object(), false);
 }
 
-#[test_case(super::array_from => panics; "array_from")]
-#[test_case(super::array_of => panics; "array_of")]
-#[test_case(super::array_prototype_at => panics; "array_prototype_at")]
-#[test_case(super::array_prototype_concat => panics; "array_prototype_concat")]
-#[test_case(super::array_prototype_copy_within => panics; "array_prototype_copy_within")]
-#[test_case(super::array_prototype_entries => panics; "array_prototype_entries")]
-#[test_case(super::array_prototype_every => panics; "array_prototype_every")]
-#[test_case(super::array_prototype_fill => panics; "array_prototype_fill")]
-#[test_case(super::array_prototype_filter => panics; "array_prototype_filter")]
-#[test_case(super::array_prototype_find => panics; "array_prototype_find")]
-#[test_case(super::array_prototype_find_index => panics; "array_prototype_find_index")]
-#[test_case(super::array_prototype_find_last => panics; "array_prototype_find_last")]
-#[test_case(super::array_prototype_find_last_index => panics; "array_prototype_find_last_index")]
-#[test_case(super::array_prototype_flat => panics; "array_prototype_flat")]
-#[test_case(super::array_prototype_flat_map => panics; "array_prototype_flat_map")]
-#[test_case(super::array_prototype_for_each => panics; "array_prototype_for_each")]
-#[test_case(super::array_prototype_includes => panics; "array_prototype_includes")]
-#[test_case(super::array_prototype_index_of => panics; "array_prototype_index_of")]
-#[test_case(super::array_prototype_keys => panics; "array_prototype_keys")]
-#[test_case(super::array_prototype_last_index_of => panics; "array_prototype_last_index_of")]
-#[test_case(super::array_prototype_reduce => panics; "array_prototype_reduce")]
-#[test_case(super::array_prototype_reduce_right => panics; "array_prototype_reduce_right")]
-#[test_case(super::array_prototype_reverse => panics; "array_prototype_reverse")]
-#[test_case(super::array_prototype_shift => panics; "array_prototype_shift")]
-#[test_case(super::array_prototype_slice => panics; "array_prototype_slice")]
-#[test_case(super::array_prototype_some => panics; "array_prototype_some")]
-#[test_case(super::array_prototype_sort => panics; "array_prototype_sort")]
-#[test_case(super::array_prototype_splice => panics; "array_prototype_splice")]
-#[test_case(super::array_prototype_to_locale_string => panics; "array_prototype_to_locale_string")]
-#[test_case(super::array_prototype_to_reversed => panics; "array_prototype_to_reversed")]
-#[test_case(super::array_prototype_to_sorted => panics; "array_prototype_to_sorted")]
-#[test_case(super::array_prototype_to_spliced => panics; "array_prototype_to_spliced")]
-#[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
-#[test_case(super::array_prototype_with => panics; "array_prototype_with")]
-fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+#[test_case(super::array_from => panics "not yet implemented"; "array_from")]
+#[test_case(super::array_of => panics "not yet implemented"; "array_of")]
+#[test_case(super::array_prototype_at => panics "not yet implemented"; "array_prototype_at")]
+#[test_case(super::array_prototype_concat => panics "not yet implemented"; "array_prototype_concat")]
+#[test_case(super::array_prototype_copy_within => panics "not yet implemented"; "array_prototype_copy_within")]
+#[test_case(super::array_prototype_entries => panics "not yet implemented"; "array_prototype_entries")]
+#[test_case(super::array_prototype_every => panics "not yet implemented"; "array_prototype_every")]
+#[test_case(super::array_prototype_fill => panics "not yet implemented"; "array_prototype_fill")]
+#[test_case(super::array_prototype_filter => panics "not yet implemented"; "array_prototype_filter")]
+#[test_case(super::array_prototype_find => panics "not yet implemented"; "array_prototype_find")]
+#[test_case(super::array_prototype_find_index => panics "not yet implemented"; "array_prototype_find_index")]
+#[test_case(super::array_prototype_find_last => panics "not yet implemented"; "array_prototype_find_last")]
+#[test_case(super::array_prototype_find_last_index => panics "not yet implemented"; "array_prototype_find_last_index")]
+#[test_case(super::array_prototype_flat => panics "not yet implemented"; "array_prototype_flat")]
+#[test_case(super::array_prototype_flat_map => panics "not yet implemented"; "array_prototype_flat_map")]
+#[test_case(super::array_prototype_for_each => panics "not yet implemented"; "array_prototype_for_each")]
+#[test_case(super::array_prototype_includes => panics "not yet implemented"; "array_prototype_includes")]
+#[test_case(super::array_prototype_index_of => panics "not yet implemented"; "array_prototype_index_of")]
+#[test_case(super::array_prototype_keys => panics "not yet implemented"; "array_prototype_keys")]
+#[test_case(super::array_prototype_last_index_of => panics "not yet implemented"; "array_prototype_last_index_of")]
+#[test_case(super::array_prototype_reduce => panics "not yet implemented"; "array_prototype_reduce")]
+#[test_case(super::array_prototype_reduce_right => panics "not yet implemented"; "array_prototype_reduce_right")]
+#[test_case(super::array_prototype_reverse => panics "not yet implemented"; "array_prototype_reverse")]
+#[test_case(super::array_prototype_shift => panics "not yet implemented"; "array_prototype_shift")]
+#[test_case(super::array_prototype_slice => panics "not yet implemented"; "array_prototype_slice")]
+#[test_case(super::array_prototype_some => panics "not yet implemented"; "array_prototype_some")]
+#[test_case(super::array_prototype_sort => panics "not yet implemented"; "array_prototype_sort")]
+#[test_case(super::array_prototype_splice => panics "not yet implemented"; "array_prototype_splice")]
+#[test_case(super::array_prototype_to_locale_string => panics "not yet implemented"; "array_prototype_to_locale_string")]
+#[test_case(super::array_prototype_to_reversed => panics "not yet implemented"; "array_prototype_to_reversed")]
+#[test_case(super::array_prototype_to_sorted => panics "not yet implemented"; "array_prototype_to_sorted")]
+#[test_case(super::array_prototype_to_spliced => panics "not yet implemented"; "array_prototype_to_spliced")]
+#[test_case(super::array_prototype_unshift => panics "not yet implemented"; "array_prototype_unshift")]
+#[test_case(super::array_prototype_with => panics "not yet implemented"; "array_prototype_with")]
+fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
-    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
 #[test_case(|| ECMAScriptValue::Undefined => vok(false); "not an array")]
@@ -722,7 +722,7 @@ fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completio
 fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let arg = make_arg();
-    super::array_is_array(ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
+    super::array_is_array(&ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
 }
 
 #[test_case(
@@ -737,7 +737,7 @@ fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScri
 fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this = make_this();
-    super::array_species(this, None, &[]).map_err(unwind_any_error).map(|val| val.test_result_string())
+    super::array_species(&this, None, &[]).map_err(unwind_any_error).map(|val| val.test_result_string())
 }
 
 #[test_case(
@@ -775,10 +775,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -792,6 +790,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             let rval = target.o.get(&key.try_into().unwrap(), &receiver).unwrap();
             Ok(rval)
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let get_replacement =
             create_builtin_function(
                 behavior,
@@ -822,10 +822,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -840,6 +838,8 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
             Ok(rval.into())
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let set_replacement =
             create_builtin_function(
                 behavior,
@@ -862,7 +862,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(String, String), String> {
     setup_test_agent();
     let this = make_this();
-    super::array_prototype_pop(this.clone(), None, &[])
+    super::array_prototype_pop(&this, None, &[])
         .map_err(unwind_any_error)
         .map(|v| (v.test_result_string(), this.test_result_string()))
 }
@@ -884,7 +884,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 #[test_case(
     || {
         let obj = ordinary_object_create(None, &[]);
-        obj.create_data_property_or_throw("length", 9007199254740991_i64).unwrap();
+        obj.create_data_property_or_throw("length", 9_007_199_254_740_991_i64).unwrap();
         (obj.into(), vec![10.into()])
     }
     => serr("TypeError: Array too large");
@@ -901,10 +901,8 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 )]
 #[test_case(
     || {
-        let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -919,6 +917,8 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
             let rval = target.o.set(key.try_into().unwrap(), value, &receiver).unwrap();
             Ok(rval.into())
         }
+        let array = create_array_from_list(&[1.into(), 2.into()]);
+        let handler = ordinary_object_create(None, &[]);
         let set_replacement =
             create_builtin_function(
                 behavior,
@@ -948,7 +948,7 @@ fn array_prototype_push(
 ) -> Result<(String, String), String> {
     setup_test_agent();
     let (this, args) = make_inputs();
-    super::array_prototype_push(this.clone(), None, &args)
+    super::array_prototype_push(&this, None, &args)
         .map(|v| (v.test_result_string(), this.test_result_string()))
         .map_err(unwind_any_error)
 }
@@ -1145,7 +1145,7 @@ fn array_prototype_join(
     setup_test_agent();
     let this_value = make_this();
     let sep = make_sep();
-    super::array_prototype_join(this_value, None, &[sep]).map_err(unwind_any_error)
+    super::array_prototype_join(&this_value, None, &[sep]).map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::Undefined
@@ -1163,7 +1163,7 @@ fn array_prototype_join(
 fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let this_value = make_this();
-    super::array_prototype_to_string(this_value, None, &[]).map_err(unwind_any_error)
+    super::array_prototype_to_string(&this_value, None, &[]).map_err(unwind_any_error)
 }
 
 mod array_iterator {
@@ -1207,14 +1207,14 @@ mod array_iterator {
             let item = ir.step().map_err(unwind_any_error)?;
             match item {
                 Some(iter_result) => {
-                    if kind != KeyValueKind::KeyValue {
-                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
-                    } else {
+                    if kind == KeyValueKind::KeyValue {
                         let pair = iterator_value(&iter_result).map_err(unwind_any_error)?;
                         let left = pair.get(&"0".into()).map_err(unwind_any_error)?;
                         let right = pair.get(&"1".into()).map_err(unwind_any_error)?;
                         result.push(left);
                         result.push(right);
+                    } else {
+                        result.push(iterator_value(&iter_result).map_err(unwind_any_error)?);
                     }
                 }
                 None => break,
@@ -1224,7 +1224,7 @@ mod array_iterator {
     }
 
     fn throwing_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1247,7 +1247,7 @@ mod array_iterator {
 fn array_prototype_values(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
     setup_test_agent();
     let this_value = make_this();
-    let iter = super::array_prototype_values(this_value, None, &[]).map_err(unwind_any_error)?;
+    let iter = super::array_prototype_values(&this_value, None, &[]).map_err(unwind_any_error)?;
     let ir = get_iterator(&iter, IteratorKind::Sync).map_err(unwind_any_error)?;
     let mut result = vec![];
     loop {
@@ -1298,15 +1298,14 @@ mod array_constructor_function {
         let nt = make_nt();
         let args = make_arguments();
 
-        let array = super::array_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args)
+        let array = super::array_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), &args)
             .map_err(unwind_any_error)?;
         let array = Object::try_from(array).unwrap();
         let mut result = vec![];
-        let length = f64::try_from(array.get(&"length".into()).unwrap()).unwrap();
+        let length = to_usize(f64::try_from(array.get(&"length".into()).unwrap()).unwrap()).unwrap();
 
-        for x in 0..(length as usize) {
-            let pk = format!("{x}");
-            let item = array.get(&pk.into()).unwrap();
+        for x in 0..length {
+            let item = array.get(&x.into()).unwrap();
             result.push(item);
         }
 
@@ -1319,11 +1318,11 @@ mod array_prototype_map {
     use test_case::test_case;
 
     fn behavior(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
-        let obj = to_object(this_value)?;
+        let obj = to_object(this_value.clone())?;
         let mut args = FuncArgs::from(arguments);
         let value = args.next_arg();
         let index = args.next_arg();
@@ -1338,8 +1337,9 @@ mod array_prototype_map {
     }
 
     fn identity() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
-            _: ECMAScriptValue,
+            _: &ECMAScriptValue,
             _: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -1360,7 +1360,8 @@ mod array_prototype_map {
     }
 
     fn dead_constructor() -> Object {
-        fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        #[allow(clippy::unnecessary_wraps)]
+        fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Ok(DeadObject::object().into())
         }
         create_builtin_function(
@@ -1486,6 +1487,6 @@ mod array_prototype_map {
         let items = make_this_and_args();
         let this_value = items[0].clone();
         let args = &items[1..];
-        array_prototype_map(this_value, None, args).map_err(unwind_any_error).map(|v| v.test_result_string())
+        array_prototype_map(&this_value, None, args).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 }

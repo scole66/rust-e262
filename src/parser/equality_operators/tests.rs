@@ -14,9 +14,9 @@ mod equality_expression {
         let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
-        pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        pretty_check(&*se, "EqualityExpression: a", &["RelationalExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -25,13 +25,13 @@ mod equality_expression {
             check(EqualityExpression::parse(&mut newparser("a==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::Equal(_, _)));
-        pretty_check(&*se, "EqualityExpression: a == b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
+        pretty_check(&*se, "EqualityExpression: a == b", &["EqualityExpression: a", "RelationalExpression: b"]);
         concise_check(
             &*se,
             "EqualityExpression: a == b",
-            vec!["IdentifierName: a", "Punctuator: ==", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: ==", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -40,13 +40,13 @@ mod equality_expression {
             check(EqualityExpression::parse(&mut newparser("a!=b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::NotEqual(_, _)));
-        pretty_check(&*se, "EqualityExpression: a != b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
+        pretty_check(&*se, "EqualityExpression: a != b", &["EqualityExpression: a", "RelationalExpression: b"]);
         concise_check(
             &*se,
             "EqualityExpression: a != b",
-            vec!["IdentifierName: a", "Punctuator: !=", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: !=", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -55,13 +55,13 @@ mod equality_expression {
             check(EqualityExpression::parse(&mut newparser("a===b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::StrictEqual(_, _)));
-        pretty_check(&*se, "EqualityExpression: a === b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
+        pretty_check(&*se, "EqualityExpression: a === b", &["EqualityExpression: a", "RelationalExpression: b"]);
         concise_check(
             &*se,
             "EqualityExpression: a === b",
-            vec!["IdentifierName: a", "Punctuator: ===", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: ===", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -70,13 +70,13 @@ mod equality_expression {
             check(EqualityExpression::parse(&mut newparser("a!==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::NotStrictEqual(_, _)));
-        pretty_check(&*se, "EqualityExpression: a !== b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
+        pretty_check(&*se, "EqualityExpression: a !== b", &["EqualityExpression: a", "RelationalExpression: b"]);
         concise_check(
             &*se,
             "EqualityExpression: a !== b",
-            vec!["IdentifierName: a", "Punctuator: !==", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: !==", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -94,9 +94,9 @@ mod equality_expression {
             check(EqualityExpression::parse(&mut newparser("a != @"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
-        pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        pretty_check(&*se, "EqualityExpression: a", &["RelationalExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -266,7 +266,7 @@ mod equality_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

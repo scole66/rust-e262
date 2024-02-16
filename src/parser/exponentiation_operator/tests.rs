@@ -14,9 +14,9 @@ mod exponentiation_expression {
         let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
-        pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        pretty_check(&*se, "ExponentiationExpression: a", &["UnaryExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -25,17 +25,13 @@ mod exponentiation_expression {
             check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ExponentiationExpression::Exponentiation(..)));
-        pretty_check(
-            &*se,
-            "ExponentiationExpression: a ** b",
-            vec!["UpdateExpression: a", "ExponentiationExpression: b"],
-        );
+        pretty_check(&*se, "ExponentiationExpression: a ** b", &["UpdateExpression: a", "ExponentiationExpression: b"]);
         concise_check(
             &*se,
             "ExponentiationExpression: a ** b",
-            vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: **", "IdentifierName: b"],
         );
-        format!("{:?}", se);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -53,9 +49,9 @@ mod exponentiation_expression {
             check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
-        pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
-        concise_check(&*se, "IdentifierName: a", vec![]);
-        format!("{:?}", se);
+        pretty_check(&*se, "ExponentiationExpression: a", &["UnaryExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", &[]);
+        format!("{se:?}");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -133,7 +129,7 @@ mod exponentiation_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

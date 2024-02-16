@@ -15,9 +15,9 @@ pub enum LogicalANDExpression {
 impl fmt::Display for LogicalANDExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            LogicalANDExpression::BitwiseORExpression(pn) => write!(f, "{}", pn),
+            LogicalANDExpression::BitwiseORExpression(pn) => write!(f, "{pn}"),
             LogicalANDExpression::LogicalAND(left, right) => {
-                write!(f, "{} && {}", left, right)
+                write!(f, "{left} && {right}")
             }
         }
     }
@@ -29,7 +29,7 @@ impl PrettyPrint for LogicalANDExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LogicalANDExpression: {}", first, self)?;
+        writeln!(writer, "{first}LogicalANDExpression: {self}")?;
         match &self {
             LogicalANDExpression::BitwiseORExpression(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -48,7 +48,7 @@ impl PrettyPrint for LogicalANDExpression {
             LogicalANDExpression::BitwiseORExpression(node) => node.concise_with_leftpad(writer, pad, state),
             LogicalANDExpression::LogicalAND(left, right) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}LogicalANDExpression: {}", first, self)?;
+                writeln!(writer, "{first}LogicalANDExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "&&", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -107,7 +107,7 @@ impl LogicalANDExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
-            _ => None,
+            LogicalANDExpression::LogicalAND(..) => None,
         }
     }
 
@@ -156,7 +156,7 @@ impl LogicalANDExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalANDExpression::BitwiseORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            LogicalANDExpression::LogicalAND(..) => true,
         }
     }
 
@@ -192,7 +192,7 @@ impl fmt::Display for LogicalORExpression {
         match &self {
             LogicalORExpression::LogicalANDExpression(node) => node.fmt(f),
             LogicalORExpression::LogicalOR(left, right) => {
-                write!(f, "{} || {}", left, right)
+                write!(f, "{left} || {right}")
             }
         }
     }
@@ -204,7 +204,7 @@ impl PrettyPrint for LogicalORExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LogicalORExpression: {}", first, self)?;
+        writeln!(writer, "{first}LogicalORExpression: {self}")?;
         match &self {
             LogicalORExpression::LogicalANDExpression(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -223,7 +223,7 @@ impl PrettyPrint for LogicalORExpression {
             LogicalORExpression::LogicalANDExpression(node) => node.concise_with_leftpad(writer, pad, state),
             LogicalORExpression::LogicalOR(left, right) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}LogicalORExpression: {}", first, self)?;
+                writeln!(writer, "{first}LogicalORExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "||", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -283,7 +283,7 @@ impl LogicalORExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
-            _ => None,
+            LogicalORExpression::LogicalOR(..) => None,
         }
     }
 
@@ -332,7 +332,7 @@ impl LogicalORExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalORExpression::LogicalANDExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            LogicalORExpression::LogicalOR(..) => true,
         }
     }
 
@@ -374,7 +374,7 @@ impl PrettyPrint for CoalesceExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoalesceExpression: {}", first, self)?;
+        writeln!(writer, "{first}CoalesceExpression: {self}")?;
         self.head.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.tail.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -383,7 +383,7 @@ impl PrettyPrint for CoalesceExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoalesceExpression: {}", first, self)?;
+        writeln!(writer, "{first}CoalesceExpression: {self}")?;
         self.head.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "??", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.tail.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -503,7 +503,7 @@ impl PrettyPrint for CoalesceExpressionHead {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoalesceExpressionHead: {}", first, self)?;
+        writeln!(writer, "{first}CoalesceExpressionHead: {self}")?;
         match &self {
             CoalesceExpressionHead::CoalesceExpression(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -606,7 +606,7 @@ impl PrettyPrint for ShortCircuitExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ShortCircuitExpression: {}", first, self)?;
+        writeln!(writer, "{first}ShortCircuitExpression: {self}")?;
         match &self {
             ShortCircuitExpression::LogicalORExpression(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -673,7 +673,7 @@ impl ShortCircuitExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
-            _ => None,
+            ShortCircuitExpression::CoalesceExpression(_) => None,
         }
     }
 
@@ -717,7 +717,7 @@ impl ShortCircuitExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             ShortCircuitExpression::LogicalORExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            ShortCircuitExpression::CoalesceExpression(_) => true,
         }
     }
 

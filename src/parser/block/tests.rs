@@ -10,9 +10,9 @@ use test_case::test_case;
 fn block_statement_test_01() {
     let (node, scanner) = check(BlockStatement::parse(&mut newparser("{q;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "BlockStatement: { q ; }", vec!["Block: { q ; }"]);
-    concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "BlockStatement: { q ; }", &["Block: { q ; }"]);
+    concise_check(&*node, "Block: { q ; }", &["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn block_statement_test_err_01() {
@@ -95,7 +95,7 @@ mod block_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{arguments;}" => true; "yes")]
@@ -120,17 +120,17 @@ mod block_statement {
 fn block_test_01() {
     let (node, scanner) = check(Block::parse(&mut newparser("{q;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "Block: { q ; }", vec!["StatementList: q ;"]);
-    concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Block: { q ; }", &["StatementList: q ;"]);
+    concise_check(&*node, "Block: { q ; }", &["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn block_test_02() {
     let (node, scanner) = check(Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "Block: { }", vec![]);
-    concise_check(&*node, "Block: { }", vec!["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Block: { }", &[]);
+    concise_check(&*node, "Block: { }", &["Punctuator: {", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn block_test_cache_01() {
@@ -266,7 +266,7 @@ mod block {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{arguments;}" => true; "yes")]
@@ -293,17 +293,17 @@ mod block {
 fn statement_list_test_01() {
     let (node, scanner) = check(StatementList::parse(&mut newparser("a;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "StatementList: a ;", vec!["StatementListItem: a ;"]);
-    concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "StatementList: a ;", &["StatementListItem: a ;"]);
+    concise_check(&*node, "ExpressionStatement: a ;", &["IdentifierName: a", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_test_02() {
     let (node, scanner) = check(StatementList::parse(&mut newparser("a; b;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementListItem: a ;", "StatementListItem: b ;"]);
-    concise_check(&*node, "StatementList: a ; b ;", vec!["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "StatementList: a ; b ;", &["StatementListItem: a ;", "StatementListItem: b ;"]);
+    concise_check(&*node, "StatementList: a ; b ;", &["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_test_cache_01() {
@@ -525,7 +525,7 @@ mod statement_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
     #[test_case("arguments;" => true; "Item (yes)")]
     #[test_case("no;" => false; "Item (no)")]
@@ -582,17 +582,17 @@ mod statement_list {
 fn statement_list_item_test_01() {
     let (node, scanner) = check(StatementListItem::parse(&mut newparser("a;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "StatementListItem: a ;", vec!["Statement: a ;"]);
-    concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "StatementListItem: a ;", &["Statement: a ;"]);
+    concise_check(&*node, "ExpressionStatement: a ;", &["IdentifierName: a", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_item_test_02() {
     let (node, scanner) = check(StatementListItem::parse(&mut newparser("let a;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "StatementListItem: let a ;", vec!["Declaration: let a ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "StatementListItem: let a ;", &["Declaration: let a ;"]);
+    concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_list_item_test_err_01() {
@@ -784,7 +784,7 @@ mod statement_list_item {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "Stmt (yes)")]

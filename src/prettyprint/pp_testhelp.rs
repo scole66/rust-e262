@@ -14,7 +14,7 @@ fn split_message(msg: &str) -> Vec<String> {
             for _ in 0..4 {
                 ch_iter.next().unwrap();
             }
-            lines.push(String::from_iter(ch_iter));
+            lines.push(ch_iter.collect());
         }
     }
     lines
@@ -34,7 +34,7 @@ pub fn concise_data(item: &impl PrettyPrint) -> Vec<String> {
     split_message(whole_message)
 }
 
-fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
+fn check_message(msg: &str, selfstring: &str, childstrings: &[&str]) {
     let mut line_iter = msg.split('\n');
     let first = line_iter.next().unwrap();
     assert_eq!(first, selfstring);
@@ -42,9 +42,9 @@ fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
     let mut expected_iter = childstrings.iter();
     for line in line_iter {
         if let Some(0) = line.find(|c| c == '└' || c == '├') {
-            println!("Checking child line {:?}", line);
+            println!("Checking child line {line:?}");
             let expected = expected_iter.next().expect("Too many child strings");
-            println!("Against the expected line {:?}", expected);
+            println!("Against the expected line {expected:?}");
             // swallow the first 4 chars:
             let mut ch_iter = line.chars();
             for _ in 0..4 {
@@ -58,7 +58,7 @@ fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
     assert!(expected_iter.next().is_none());
 }
 
-pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {
@@ -68,7 +68,7 @@ where
     pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
-pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {
@@ -82,11 +82,11 @@ pub fn pretty_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {
-    printer_validate(|w| item.pprint(w))
+    printer_validate(|w| item.pprint(w));
 }
 pub fn concise_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {
-    printer_validate(|w| item.pprint_concise(w))
+    printer_validate(|w| item.pprint_concise(w));
 }

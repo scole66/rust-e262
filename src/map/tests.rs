@@ -6,14 +6,14 @@ mod add_entries_from_iterable {
     use test_case::test_case;
 
     fn good_adder(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _new_target: Option<&Object>,
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let mut args = FuncArgs::from(arguments);
         let key = to_string(args.next_arg())?;
         let value = args.next_arg();
-        let this = to_object(this_value)?;
+        let this = to_object(this_value.clone())?;
         this.set(key, value, true)?;
         Ok(ECMAScriptValue::Undefined)
     }
@@ -63,7 +63,7 @@ mod add_entries_from_iterable {
         let target = ordinary_object_create(Some(object_proto), &[]);
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iterator_proto), &[]);
-        let next_behavior = |_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
+        let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(object_proto), &[]);
             let thrower = intrinsic(IntrinsicId::ThrowTypeError);
@@ -82,7 +82,7 @@ mod add_entries_from_iterable {
         let target = ordinary_object_create(Some(object_proto), &[]);
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iterator_proto), &[]);
-        let next_behavior = |_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
+        let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(object_proto), &[]);
             obj.create_data_property_or_throw("value", "oopsie").unwrap();
@@ -99,7 +99,7 @@ mod add_entries_from_iterable {
         let target = ordinary_object_create(Some(object_proto), &[]);
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iterator_proto), &[]);
-        let next_behavior = |_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
+        let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
             let items = ordinary_object_create(Some(object_proto), &[]);
@@ -119,7 +119,7 @@ mod add_entries_from_iterable {
         let target = ordinary_object_create(Some(object_proto), &[]);
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iterator_proto), &[]);
-        let next_behavior = |_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
+        let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
             let items = ordinary_object_create(Some(object_proto), &[]);
@@ -167,10 +167,10 @@ mod add_entries_from_iterable {
                 let mut first = true;
                 for key in keys {
                     let value = o.get(&key).map_err(unwind_any_error)?;
-                    if !first {
-                        r.push(',');
-                    } else {
+                    if first {
                         first = false;
+                    } else {
+                        r.push(',');
                     }
                     r.push_str(&format!("{key}:{value}"));
                 }
