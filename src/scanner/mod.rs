@@ -238,7 +238,7 @@ impl fmt::Display for StringToken {
         };
         match &self.raw {
             None => write!(f, "{}{}{}", delim, self.value, delim),
-            Some(s) => write!(f, "{}{}{}", delim, s, delim),
+            Some(s) => write!(f, "{delim}{s}{delim}"),
         }
     }
 }
@@ -346,10 +346,10 @@ impl fmt::Display for Token {
             }
             Token::BigInt(val) => val.fmt(f), // This needs a better "render as source" algorithm.
             Token::String(val) => val.fmt(f),
-            Token::NoSubstitutionTemplate(val) => val.fmt(f), // This needs a better "render as source" algorithm.
-            Token::TemplateHead(val) => val.fmt(f),
-            Token::TemplateMiddle(val) => val.fmt(f),
-            Token::TemplateTail(val) => val.fmt(f),
+            Token::NoSubstitutionTemplate(val)  // This needs a better "render as source" algorithm.
+            | Token::TemplateHead(val)
+            | Token::TemplateMiddle(val)
+            | Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
             Token::Debug(c) => write!(f, "@@{c}"),
@@ -542,8 +542,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         // If None comes back, this is actually a syntax error.
                         None => {
                             return Err(format!(
-                                "Unterminated /*-style comment. Started on line {}, column {}.",
-                                comment_start_line, comment_start_column
+                                "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                             ))
                         }
                         Some(c) => {
@@ -560,8 +559,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 // If None comes back, this is actually a syntax error.
                                 None => {
                                     return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
+                                        "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                     ))
                                 }
                                 Some(c) => {
@@ -591,8 +589,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             match iter.next() {
                                 None => {
                                     return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
+                                        "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                     ))
                                 }
                                 Some(c) => {
@@ -605,8 +602,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 match iter.next() {
                                     None => {
                                         return Err(format!(
-                                            "Unterminated /*-style comment. Started on line {}, column {}.",
-                                            comment_start_line, comment_start_column
+                                            "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                         ))
                                     }
                                     Some(c) => {
@@ -623,8 +619,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         match iter.next() {
                             None => {
                                 return Err(format!(
-                                    "Unterminated /*-style comment. Started on line {}, column {}.",
-                                    comment_start_line, comment_start_column
+                                    "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
                                 ))
                             }
                             Some(c) => {
@@ -685,10 +680,10 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
     if count > 0 {
         let parse_result = u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
         if let Ok(mv) = parse_result {
-            if mv <= 0x10FFFF {
+            if mv <= 0x0010_FFFF {
                 return Some(Scanner {
                     line: scanner.line,
-                    column: scanner.column + count as u32,
+                    column: u32::try_from(scanner.column as usize + count).expect("column should fit in 32 bits"),
                     start_idx: scanner.start_idx + count,
                 });
             }
@@ -858,9 +853,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             None => break,
             Some(c) => c,
         };
-        if ch != '\\' {
-            result.append(&mut code_point_to_utf16_code_units(ch));
-        } else {
+        if ch == '\\' {
             // We know the strings are valid constructions, so we don't need to
             // check error conditions here. We'll rely on the panics from unwrap
             // to detect coding errors.
@@ -889,7 +882,9 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 )
                 .unwrap();
             }
-            result.append(&mut code_point_to_utf16_code_units(cp))
+            result.append(&mut code_point_to_utf16_code_units(cp));
+        } else {
+            result.append(&mut code_point_to_utf16_code_units(ch));
         }
     }
     JSString::from(result)
@@ -1462,7 +1457,15 @@ fn bigify(style: NumberStyle) -> NumberStyle {
 
 fn int_to_number(src: &str, radix: u32) -> f64 {
     match u64::from_str_radix(src, radix) {
-        Ok(x) => x as f64,
+        Ok(x) =>
+        {
+            #[allow(clippy::cast_precision_loss)]
+            if x < 1 << 53 {
+                x as f64
+            } else {
+                f64::INFINITY
+            }
+        }
         Err(_) => f64::INFINITY,
     }
 }
@@ -1658,8 +1661,10 @@ fn literal_string_value(source: &str) -> (JSString, bool) {
                     '\'' => result.push(0x27),
                     '\\' => result.push(0x5c),
                     'x' => {
-                        let digit_1 = chars.next().unwrap().to_digit(16).unwrap() as u16;
-                        let digit_2 = chars.next().unwrap().to_digit(16).unwrap() as u16;
+                        let digit_1 = u16::try_from(chars.next().unwrap().to_digit(16).unwrap())
+                            .expect("digit should fit in a u16");
+                        let digit_2 = u16::try_from(chars.next().unwrap().to_digit(16).unwrap())
+                            .expect("digit should fit in a u16");
                         let value = digit_1 * 16 + digit_2;
                         result.push(value);
                     }
@@ -1683,7 +1688,7 @@ fn literal_string_value(source: &str) -> (JSString, bool) {
                                 let digit_3 = chars.next().unwrap().to_digit(16).unwrap();
                                 let digit_4 = chars.next().unwrap().to_digit(16).unwrap();
                                 let value = (digit_1 << 12) | (digit_2 << 8) | (digit_3 << 4) | digit_4;
-                                result.push(value as u16);
+                                result.push(u16::try_from(value).expect("4 digits should fit in 16 bits"));
                             }
                         }
                     }
@@ -1795,24 +1800,28 @@ fn template_hex_digits(
         raw_chars[i + 1] = pot_digit.unwrap() as u16;
     }
     (
-        if successful { Some(vec![accumulator as u16]) } else { None },
+        if successful {
+            Some(vec![u16::try_from(accumulator).expect("accumulator should be small enough")])
+        } else {
+            None
+        },
         raw_chars[..consumed].to_vec(),
         Scanner {
             line: scanner.line,
-            column: scanner.column + consumed as u32,
+            column: u32::try_from(scanner.column as usize + consumed).expect("column should fit in 32 bits"),
             start_idx: scanner.start_idx + consumed,
         },
         consumed,
     )
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct CharVal(u32);
 impl TryFrom<u32> for CharVal {
     type Error = &'static str;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value <= 0x10ffff {
+        if value <= 0x0010_ffff {
             Ok(CharVal(value))
         } else {
             Err("CharVal can only be used with values <= 0x10ffff")
@@ -1842,9 +1851,12 @@ impl From<char> for CharVal {
 fn utf16_encode_code_point(cv: CharVal) -> Vec<u16> {
     let CharVal(value) = cv;
     if value <= 0xffff {
-        vec![value as u16]
+        vec![u16::try_from(value).expect("value should fit in 16 bits")]
     } else {
-        vec![(((value - 0x10000) >> 10) + 0xD800) as u16, (((value - 0x10000) & 0x3ff) + 0xDC00) as u16]
+        vec![
+            u16::try_from(((value - 0x10000) >> 10) + 0xD800).expect("first half should be <= 16 bits"),
+            u16::try_from(((value - 0x10000) & 0x3ff) + 0xDC00).expect("second half should fit in 16 bits"),
+        ]
     }
 }
 
@@ -1875,27 +1887,26 @@ fn template_hex_digits_by_value(
                 raw_chars,
                 Scanner {
                     line: scanner.line,
-                    column: scanner.column + consumed as u32,
+                    column: u32::try_from(scanner.column as usize + consumed).expect("column should be less than 64k"),
                     start_idx: scanner.start_idx + consumed,
                 },
                 consumed,
             );
-        } else {
-            consumed += 1;
-            let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
-            let value = digit.to_digit(16).unwrap(); // This is also ok, because we've already validated as a hex digit char.
-
-            // If the _current_ accumulator fits in a CharVal, add the new value to the accumulator. (This may produce
-            // an invalid char; we're only checking to prevent overflow, which takes many additional digits.)
-            match CharVal::try_from(accumulator) {
-                Err(_) => {} // Value already not-a-character. Don't add any more.
-                Ok(_) => {
-                    // There's still room to build up a value. Add 4 more bits!
-                    accumulator = (accumulator << 4) + value;
-                }
-            }
-            raw_chars.push(digit as u16);
         }
+        consumed += 1;
+        let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
+        let value = digit.to_digit(16).unwrap(); // This is also ok, because we've already validated as a hex digit char.
+
+        // If the _current_ accumulator fits in a CharVal, add the new value to the accumulator. (This may produce an
+        // invalid char; we're only checking to prevent overflow, which takes many additional digits.)
+        match CharVal::try_from(accumulator) {
+            Err(_) => {} // Value already not-a-character. Don't add any more.
+            Ok(_) => {
+                // There's still room to build up a value. Add 4 more bits!
+                accumulator = (accumulator << 4) + value;
+            }
+        }
+        raw_chars.push(digit as u16);
     }
 }
 
@@ -1925,7 +1936,7 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('"') => single_char('"', 0x22, &scanner),
         Some('\'') => single_char('\'', 0x27, &scanner),
         Some('\\') => single_char('\\', 0x5c, &scanner),
-        Some('0') if !chars.peek().map_or(false, |c| c.is_ascii_digit()) => single_char('0', 0, &scanner),
+        Some('0') if !chars.peek().map_or(false, char::is_ascii_digit) => single_char('0', 0, &scanner),
         Some(c) if c.is_ascii_digit() => (
             None,
             utf16_encode_code_point(CharVal::from(c)),
@@ -2014,6 +2025,7 @@ fn template_characters(scanner: &Scanner, source: &str) -> (Option<JSString>, JS
     }
 }
 
+#[derive(Copy, Clone)]
 enum TemplateStyle {
     NoSubOrHead,
     MiddleOrTail,
@@ -2077,35 +2089,35 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
         match_char(scanner, source, '@').and_then(|s| match_char(&s, source, '@')).and_then(|s| {
             let c = source[s.start_idx..].chars().next();
             if let Some(c) = c {
-                if !is_whitespace(c) {
-                    if c == '(' {
-                        let closing_idx = source[s.start_idx + 1..].find(')');
-                        if let Some(idx) = closing_idx {
-                            let value = source[s.start_idx + 1..s.start_idx + 1 + idx].parse::<i64>();
-                            if let Ok(num) = value {
-                                Some((
-                                    Token::Debug(DebugKind::Number(num)),
-                                    Scanner {
-                                        line: s.line,
-                                        column: s.column
-                                            + source[s.start_idx..=s.start_idx + 1 + idx].chars().count() as u32,
-                                        start_idx: s.start_idx + 1 + idx + 1,
-                                    },
-                                ))
-                            } else {
-                                None
-                            }
+                if is_whitespace(c) {
+                    None
+                } else if c == '(' {
+                    let closing_idx = source[s.start_idx + 1..].find(')');
+                    if let Some(idx) = closing_idx {
+                        let value = source[s.start_idx + 1..s.start_idx + 1 + idx].parse::<i64>();
+                        if let Ok(num) = value {
+                            Some((
+                                Token::Debug(DebugKind::Number(num)),
+                                Scanner {
+                                    line: s.line,
+                                    column: u32::try_from(
+                                        s.column as usize + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
+                                    )
+                                    .expect("column should be less than 64k"),
+                                    start_idx: s.start_idx + 1 + idx + 1,
+                                },
+                            ))
                         } else {
                             None
                         }
                     } else {
-                        Some((
-                            Token::Debug(DebugKind::Char(c)),
-                            Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
-                        ))
+                        None
                     }
                 } else {
-                    None
+                    Some((
+                        Token::Debug(DebugKind::Char(c)),
+                        Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() },
+                    ))
                 }
             } else {
                 None
@@ -2173,24 +2185,21 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let regular_expression_flags =
                     r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
                 let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
-                let regular_expression_backslash_sequence = format!(r"(?:\\{})", regular_expression_non_terminator);
+                let regular_expression_backslash_sequence = format!(r"(?:\\{regular_expression_non_terminator})");
                 let regular_expression_class_char =
-                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{})", regular_expression_backslash_sequence);
-                let regular_expression_class_chars = format!("(?:{}*)", regular_expression_class_char);
-                let regular_expression_class = format!(r"(?:\[{}\])", regular_expression_class_chars);
+                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{regular_expression_backslash_sequence})");
+                let regular_expression_class_chars = format!("(?:{regular_expression_class_char}*)");
+                let regular_expression_class = format!(r"(?:\[{regular_expression_class_chars}\])");
                 let regular_expression_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})",
-                    regular_expression_backslash_sequence, regular_expression_class
+                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
                 );
                 let regular_expression_first_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{}|{})",
-                    regular_expression_backslash_sequence, regular_expression_class
+                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
                 );
-                let regular_expression_chars = format!("(?:{}*)", regular_expression_char);
-                let regular_expression_body =
-                    format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
+                let regular_expression_chars = format!("(?:{regular_expression_char}*)");
+                let regular_expression_body = format!("(?:{regular_expression_first_char}{regular_expression_chars})");
                 let regular_expression_literal =
-                    format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
+                    format!("(?:^/(?P<body>{regular_expression_body})/(?P<flags>{regular_expression_flags}))");
                 Regex::new(&regular_expression_literal).unwrap()
             };
         }
@@ -2204,7 +2213,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let chars_in_match = source[scanner.start_idx..scanner.start_idx + flag_end].chars().count();
                 let after_scanner = Scanner {
                     line: scanner.line,
-                    column: scanner.column + chars_in_match as u32,
+                    column: u32::try_from(scanner.column as usize + chars_in_match).expect("column should fit"),
                     start_idx: scanner.start_idx + flag_end,
                 };
                 let token = Token::RegularExpression(RegularExpressionData { body, flags });
@@ -2304,14 +2313,16 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Lo
                     .or_else(|| right_brace_punctuator(&after_skippable, source, goal))
                     .or_else(|| regular_expression_literal(&after_skippable, source, goal))
                     .or_else(|| template_substitution_tail(&after_skippable, source, goal))
-                    .map(|(token, after)| (token, Location::from((&after_skippable, &after)), after))
-                    .unwrap_or_else(|| {
-                        (
-                            Token::Error(String::from("Unrecognized Token")),
-                            Location::from(&after_skippable),
-                            after_skippable,
-                        )
-                    })
+                    .map_or_else(
+                        || {
+                            (
+                                Token::Error(String::from("Unrecognized Token")),
+                                Location::from(&after_skippable),
+                                after_skippable,
+                            )
+                        },
+                        |(token, after)| (token, Location::from((&after_skippable, &after)), after),
+                    )
             }
         }
     }

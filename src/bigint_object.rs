@@ -132,7 +132,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn bigint_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -157,7 +157,7 @@ fn bigint_constructor_function(
 }
 
 fn bigint_as_int_n(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -182,7 +182,7 @@ fn bigint_as_int_n(
 }
 
 fn bigint_as_uint_n(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -201,7 +201,7 @@ fn bigint_as_uint_n(
 }
 
 fn bigint_to_locale_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -220,7 +220,7 @@ fn bigint_to_locale_string(
 }
 
 fn bigint_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -239,23 +239,24 @@ fn bigint_to_string(
     // Therefore, it cannot be transferred to other kinds of objects for use as a method.
     let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
-    let x = this_bigint_value(this_value)?;
+    let x = this_bigint_value(this_value.clone())?;
     let radix_mv = if radix == ECMAScriptValue::Undefined { 10.0 } else { to_integer_or_infinity(radix)? };
-    if !(2.0..=36.0).contains(&radix_mv) {
-        Err(create_range_error("A radix must be an interger between 2 and 36, inclusive"))
+    if (2.0..=36.0).contains(&radix_mv) {
+        let radix_mv = to_uint32(radix_mv).expect("radix_mv should be in [2..36]");
+        Ok(bigint_to_string_radix(&x, radix_mv).into())
     } else {
-        Ok(bigint_to_string_radix(x, radix_mv as u32).into())
+        Err(create_range_error("A radix must be an interger between 2 and 36, inclusive"))
     }
 }
 
 fn bigint_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     // BigInt.prototype.valueOf ( )
     //  1. Return ? ThisBigIntValue(this value).
-    this_bigint_value(this_value).map(ECMAScriptValue::from)
+    this_bigint_value(this_value.clone()).map(ECMAScriptValue::from)
 }
 
 #[derive(Debug)]
@@ -403,6 +404,10 @@ impl BigIntObject {
     pub fn object(prototype: Option<Object>, value: Rc<BigInt>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
+
+    pub fn value(&self) -> Rc<BigInt> {
+        Rc::clone(&self.bigint_data)
+    }
 }
 
 pub fn create_bigint_object(b: Rc<BigInt>) -> Object {
@@ -447,11 +452,11 @@ fn number_to_big_int(number: ECMAScriptValue) -> Completion<Rc<BigInt>> {
     //  1. If IsIntegralNumber(number) is false, throw a RangeError exception.
     //  2. Return ℤ(ℝ(number)).
     const ERRMSG: &str = "Non-integral number used in bigint creation";
-    if !is_integral_number(&number) {
-        Err(create_range_error(ERRMSG))
-    } else {
+    if is_integral_number(&number) {
         let num = to_number(number).unwrap();
         Ok(Rc::new(BigInt::from_f64(num).ok_or_else(|| create_range_error(ERRMSG))?))
+    } else {
+        Err(create_range_error(ERRMSG))
     }
 }
 
@@ -492,7 +497,7 @@ fn to_big_int(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
         | ECMAScriptValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
         ECMAScriptValue::Boolean(b) => Ok(Rc::new(BigInt::from(b))),
         ECMAScriptValue::String(s) => {
-            let n = string_to_bigint(s);
+            let n = string_to_bigint(&s);
             n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
         }
         ECMAScriptValue::BigInt(bi) => Ok(bi),

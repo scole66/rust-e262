@@ -35,22 +35,22 @@ impl fmt::Display for AssignmentExpression {
             AssignmentExpression::Arrow(node) => node.fmt(f),
             AssignmentExpression::AsyncArrow(node) => node.fmt(f),
             AssignmentExpression::Assignment(left, right) => {
-                write!(f, "{} = {}", left, right)
+                write!(f, "{left} = {right}")
             }
             AssignmentExpression::OpAssignment(left, op, right) => {
-                write!(f, "{} {} {}", left, op, right)
+                write!(f, "{left} {op} {right}")
             }
             AssignmentExpression::LandAssignment(left, right) => {
-                write!(f, "{} &&= {}", left, right)
+                write!(f, "{left} &&= {right}")
             }
             AssignmentExpression::LorAssignment(left, right) => {
-                write!(f, "{} ||= {}", left, right)
+                write!(f, "{left} ||= {right}")
             }
             AssignmentExpression::CoalAssignment(left, right) => {
-                write!(f, "{} ??= {}", left, right)
+                write!(f, "{left} ??= {right}")
             }
             AssignmentExpression::Destructuring(left, right) => {
-                write!(f, "{} = {}", left, right)
+                write!(f, "{left} = {right}")
             }
         }
     }
@@ -62,7 +62,7 @@ impl PrettyPrint for AssignmentExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentExpression: {self}")?;
         match self {
             AssignmentExpression::FallThru(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentExpression::Yield(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -97,37 +97,37 @@ impl PrettyPrint for AssignmentExpression {
             AssignmentExpression::Arrow(node) => node.concise_with_leftpad(writer, pad, state),
             AssignmentExpression::AsyncArrow(node) => node.concise_with_leftpad(writer, pad, state),
             AssignmentExpression::Assignment(left, right) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::OpAssignment(left, op, right) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 op.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::LandAssignment(left, right) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "&&=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::LorAssignment(left, right) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "||=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::CoalAssignment(left, right) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "??=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
-                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentExpression: {self}")?;
                 pat.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -309,7 +309,10 @@ impl AssignmentExpression {
             AssignmentExpression::Yield(node) => kind == ParseNodeKind::YieldExpression || node.contains(kind),
             AssignmentExpression::Arrow(node) => kind == ParseNodeKind::ArrowFunction || node.contains(kind),
             AssignmentExpression::AsyncArrow(node) => kind == ParseNodeKind::AsyncArrowFunction || node.contains(kind),
-            AssignmentExpression::Assignment(left, right) => {
+            AssignmentExpression::Assignment(left, right)
+            | AssignmentExpression::LandAssignment(left, right)
+            | AssignmentExpression::LorAssignment(left, right)
+            | AssignmentExpression::CoalAssignment(left, right) => {
                 [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
                     || left.contains(kind)
                     || right.contains(kind)
@@ -323,21 +326,6 @@ impl AssignmentExpression {
                 .contains(&kind)
                     || left.contains(kind)
                     || op.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::LandAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::LorAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
-                    || right.contains(kind)
-            }
-            AssignmentExpression::CoalAssignment(left, right) => {
-                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind)
-                    || left.contains(kind)
                     || right.contains(kind)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
@@ -367,19 +355,11 @@ impl AssignmentExpression {
             AssignmentExpression::Yield(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
-            AssignmentExpression::Assignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::OpAssignment(left, _, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::LandAssignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::LorAssignment(left, right) => {
-                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
-            AssignmentExpression::CoalAssignment(left, right) => {
+            AssignmentExpression::Assignment(left, right)
+            | AssignmentExpression::OpAssignment(left, _, right)
+            | AssignmentExpression::LandAssignment(left, right)
+            | AssignmentExpression::LorAssignment(left, right)
+            | AssignmentExpression::CoalAssignment(left, right) => {
                 left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
@@ -527,7 +507,7 @@ impl AssignmentExpression {
 
 // AssignmentOperator : one of
 //      *= /= %= += -= <<= >>= >>>= &= ^= |= **=
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum AssignmentOperator {
     Multiply,
     Divide,
@@ -568,7 +548,7 @@ impl PrettyPrint for AssignmentOperator {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentOperator: {}", first, self)
+        writeln!(writer, "{first}AssignmentOperator: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -608,7 +588,7 @@ impl PrettyPrint for AssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentPattern: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentPattern: {self}")?;
         match self {
             AssignmentPattern::Object(obj) => obj.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentPattern::Array(ary) => ary.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -718,13 +698,13 @@ impl fmt::Display for ObjectAssignmentPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ObjectAssignmentPattern::Empty { .. } => write!(f, "{{ }}"),
-            ObjectAssignmentPattern::RestOnly { arp, .. } => write!(f, "{{ {} }}", arp),
-            ObjectAssignmentPattern::ListOnly { apl, .. } => write!(f, "{{ {} }}", apl),
+            ObjectAssignmentPattern::RestOnly { arp, .. } => write!(f, "{{ {arp} }}"),
+            ObjectAssignmentPattern::ListOnly { apl, .. } => write!(f, "{{ {apl} }}"),
             ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => {
-                write!(f, "{{ {} , }}", apl)
+                write!(f, "{{ {apl} , }}")
             }
             ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
-                write!(f, "{{ {} , {} }}", apl, arp)
+                write!(f, "{{ {apl} , {arp} }}")
             }
         }
     }
@@ -736,7 +716,7 @@ impl PrettyPrint for ObjectAssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
+        writeln!(writer, "{first}ObjectAssignmentPattern: {self}")?;
         match self {
             ObjectAssignmentPattern::Empty { .. } => Ok(()),
             ObjectAssignmentPattern::RestOnly { arp, .. } => arp.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -755,7 +735,7 @@ impl PrettyPrint for ObjectAssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
+        writeln!(writer, "{first}ObjectAssignmentPattern: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let ObjectAssignmentPattern::ListOnly { apl, .. } | ObjectAssignmentPattern::ListRest { apl, .. } = self {
             apl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -923,24 +903,24 @@ impl fmt::Display for ArrayAssignmentPattern {
         match self {
             ArrayAssignmentPattern::RestOnly { elision: None, are: None, .. } => write!(f, "[ ]"),
             ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: None, .. } => {
-                write!(f, "[ {} ]", elisions)
+                write!(f, "[ {elisions} ]")
             }
             ArrayAssignmentPattern::RestOnly { elision: None, are: Some(are), .. } => {
-                write!(f, "[ {} ]", are)
+                write!(f, "[ {are} ]")
             }
             ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: Some(are), .. } => {
-                write!(f, "[ {} {} ]", elisions, are)
+                write!(f, "[ {elisions} {are} ]")
             }
-            ArrayAssignmentPattern::ListOnly { ael, .. } => write!(f, "[ {} ]", ael),
-            ArrayAssignmentPattern::ListRest { ael, elision: None, are: None, .. } => write!(f, "[ {} , ]", ael),
+            ArrayAssignmentPattern::ListOnly { ael, .. } => write!(f, "[ {ael} ]"),
+            ArrayAssignmentPattern::ListRest { ael, elision: None, are: None, .. } => write!(f, "[ {ael} , ]"),
             ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: None, .. } => {
-                write!(f, "[ {} , {} ]", ael, elisions)
+                write!(f, "[ {ael} , {elisions} ]")
             }
             ArrayAssignmentPattern::ListRest { ael, elision: None, are: Some(are), .. } => {
-                write!(f, "[ {} , {} ]", ael, are)
+                write!(f, "[ {ael} , {are} ]")
             }
             ArrayAssignmentPattern::ListRest { ael, elision: Some(elisions), are: Some(are), .. } => {
-                write!(f, "[ {} , {} {} ]", ael, elisions, are)
+                write!(f, "[ {ael} , {elisions} {are} ]")
             }
         }
     }
@@ -952,7 +932,7 @@ impl PrettyPrint for ArrayAssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
+        writeln!(writer, "{first}ArrayAssignmentPattern: {self}")?;
         match self {
             ArrayAssignmentPattern::RestOnly { elision: None, are: None, .. } => Ok(()),
             ArrayAssignmentPattern::RestOnly { elision: Some(elisions), are: None, .. } => {
@@ -989,7 +969,7 @@ impl PrettyPrint for ArrayAssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
+        writeln!(writer, "{first}ArrayAssignmentPattern: {self}")?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, .. } = self {
             ael.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1136,7 +1116,7 @@ impl ArrayAssignmentPattern {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
             ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(errs, strict),
             ArrayAssignmentPattern::ListOnly { ael, .. } | ArrayAssignmentPattern::ListRest { ael, are: None, .. } => {
-                ael.early_errors(errs, strict)
+                ael.early_errors(errs, strict);
             }
             ArrayAssignmentPattern::ListRest { ael, are: Some(are), .. } => {
                 ael.early_errors(errs, strict);
@@ -1163,7 +1143,7 @@ impl PrettyPrint for AssignmentRestProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentRestProperty: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentRestProperty: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1171,7 +1151,7 @@ impl PrettyPrint for AssignmentRestProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentRestProperty: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentRestProperty: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.0.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1241,7 +1221,7 @@ impl fmt::Display for AssignmentPropertyList {
         match self {
             AssignmentPropertyList::Item(item) => item.fmt(f),
             AssignmentPropertyList::List(lst, item) => {
-                write!(f, "{} , {}", lst, item)
+                write!(f, "{lst} , {item}")
             }
         }
     }
@@ -1253,7 +1233,7 @@ impl PrettyPrint for AssignmentPropertyList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentPropertyList: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentPropertyList: {self}")?;
         match self {
             AssignmentPropertyList::Item(item) => item.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentPropertyList::List(lst, item) => {
@@ -1270,7 +1250,7 @@ impl PrettyPrint for AssignmentPropertyList {
             AssignmentPropertyList::Item(item) => item.concise_with_leftpad(writer, pad, state),
             AssignmentPropertyList::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}AssignmentPropertyList: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentPropertyList: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1358,7 +1338,7 @@ impl fmt::Display for AssignmentElementList {
         match self {
             AssignmentElementList::Item(item) => item.fmt(f),
             AssignmentElementList::List(list, item) => {
-                write!(f, "{} , {}", list, item)
+                write!(f, "{list} , {item}")
             }
         }
     }
@@ -1370,7 +1350,7 @@ impl PrettyPrint for AssignmentElementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentElementList: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentElementList: {self}")?;
         match self {
             AssignmentElementList::Item(item) => item.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentElementList::List(list, item) => {
@@ -1387,7 +1367,7 @@ impl PrettyPrint for AssignmentElementList {
             AssignmentElementList::Item(item) => item.concise_with_leftpad(writer, pad, state),
             AssignmentElementList::List(list, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}AssignmentElementList: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentElementList: {self}")?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1485,7 +1465,7 @@ impl PrettyPrint for AssignmentElisionElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentElisionElement: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentElisionElement: {self}")?;
         if let Some(elisions) = &self.elisions {
             elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -1498,7 +1478,7 @@ impl PrettyPrint for AssignmentElisionElement {
         match &self.elisions {
             Some(elisions) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}AssignmentElisionElement: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentElisionElement: {self}")?;
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 self.element.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1563,8 +1543,8 @@ impl fmt::Display for AssignmentProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AssignmentProperty::Ident(id, None) => id.fmt(f),
-            AssignmentProperty::Ident(id, Some(init)) => write!(f, "{} {}", id, init),
-            AssignmentProperty::Property(name, ae) => write!(f, "{} : {}", name, ae),
+            AssignmentProperty::Ident(id, Some(init)) => write!(f, "{id} {init}"),
+            AssignmentProperty::Property(name, ae) => write!(f, "{name} : {ae}"),
         }
     }
 }
@@ -1575,7 +1555,7 @@ impl PrettyPrint for AssignmentProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentProperty: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentProperty: {self}")?;
         match self {
             AssignmentProperty::Ident(id, None) => id.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentProperty::Ident(id, Some(init)) => {
@@ -1594,7 +1574,7 @@ impl PrettyPrint for AssignmentProperty {
     {
         let write_head = |writer: &mut T, pad, state| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}AssignmentProperty: {}", first, self)?;
+            writeln!(writer, "{first}AssignmentProperty: {self}")?;
             IoResult::<String>::Ok(successive)
         };
 
@@ -1731,7 +1711,7 @@ impl PrettyPrint for AssignmentElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentElement: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentElement: {self}")?;
         match &self.initializer {
             None => self.target.pprint_with_leftpad(writer, &successive, Spot::Final),
             Some(init) => {
@@ -1748,7 +1728,7 @@ impl PrettyPrint for AssignmentElement {
             None => self.target.concise_with_leftpad(writer, pad, state),
             Some(init) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}AssignmentElement: {}", first, self)?;
+                writeln!(writer, "{first}AssignmentElement: {self}")?;
                 self.target.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 init.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1825,7 +1805,7 @@ impl PrettyPrint for AssignmentRestElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentRestElement: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentRestElement: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1833,7 +1813,7 @@ impl PrettyPrint for AssignmentRestElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentRestElement: {}", first, self)?;
+        writeln!(writer, "{first}AssignmentRestElement: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.0.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1903,7 +1883,7 @@ impl PrettyPrint for DestructuringAssignmentTarget {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}DestructuringAssignmentTarget: {}", first, self)?;
+        writeln!(writer, "{first}DestructuringAssignmentTarget: {self}")?;
         match self {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
                 lhs.pprint_with_leftpad(writer, &successive, Spot::Final)

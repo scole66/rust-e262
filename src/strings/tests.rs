@@ -13,7 +13,7 @@ mod from {
     fn from_u16_test_02() {
         let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
         let res = JSString::from(src);
-        let display = format!("{}", res);
+        let display = format!("{res}");
         assert!(display == "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
         assert!(res.len() == 5);
         assert!(res[0] == 0x101);
@@ -44,7 +44,7 @@ mod from {
 #[test]
 fn debug_repr_test_01() {
     let jsstr = JSString::from("hello");
-    let debug_str = format!("{:?}", jsstr);
+    let debug_str = format!("{jsstr:?}");
     assert!(debug_str == "\"hello\"");
 }
 #[test]
@@ -169,10 +169,10 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-#[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
-#[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
-fn hash_ahash(a: JSString, b: JSString) -> bool {
-    calculate_hash(&a) == calculate_hash(&b)
+#[test_case(&JSString::from("a"), &JSString::from("b") => false; "not equal")]
+#[test_case(&JSString::from("a"), &JSString::from("a") => true; "equal")]
+fn hash_ahash(a: &JSString, b: &JSString) -> bool {
+    calculate_hash(a) == calculate_hash(b)
 }
 
 fn calculate_def_hash<T: Hash>(t: &T) -> u64 {
@@ -180,15 +180,15 @@ fn calculate_def_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-#[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
-#[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
-fn hash_defhash(a: JSString, b: JSString) -> bool {
-    calculate_def_hash(&a) == calculate_def_hash(&b)
+#[test_case(&JSString::from("a"), &JSString::from("b") => false; "not equal")]
+#[test_case(&JSString::from("a"), &JSString::from("a") => true; "equal")]
+fn hash_defhash(a: &JSString, b: &JSString) -> bool {
+    calculate_def_hash(a) == calculate_def_hash(b)
 }
 
-#[test_case(JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
-#[test_case(JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
-fn concat(s1: JSString, s2: impl Into<JSString>) -> String {
+#[test_case(&JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
+#[test_case(&JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
+fn concat(s1: &JSString, s2: impl Into<JSString>) -> String {
     s1.concat(s2).to_string()
 }
 
@@ -227,7 +227,7 @@ mod jsstring {
     #[test_case("12345", "45", 0 => 3; "match at end")]
     #[test_case("12345", "", 10000 => -1; "empty search, large start")]
     #[test_case("12345", "g", 3 => -1; "not found")]
-    fn index_of(src: impl Into<JSString>, needle: impl Into<JSString>, start: u64) -> i64 {
+    fn index_of(src: impl Into<JSString>, needle: impl Into<JSString>, start: usize) -> i64 {
         let src = src.into();
         let needle = needle.into();
         src.index_of(&needle, start)
@@ -246,7 +246,7 @@ mod is_str_whitespace {
             .intervals()
             .expect("query should work");
         for (start, end) in white_space {
-            assert!((start..=end).all(|ch| is_str_whitespace(ch as u16)));
+            assert!((start..=end).all(|ch| u16::try_from(ch).is_ok_and(is_str_whitespace)));
         }
         let not_white_space = unicode_intervals::query()
             .exclude_categories(UnicodeCategory::Zs)
@@ -255,7 +255,7 @@ mod is_str_whitespace {
             .intervals()
             .unwrap();
         for (start, end) in not_white_space {
-            assert!((start..=end).all(|ch| !is_str_whitespace(ch as u16)));
+            assert!((start..=end).all(|ch| u16::try_from(ch).is_ok_and(|ch| !is_str_whitespace(ch))));
         }
     }
 }

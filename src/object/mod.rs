@@ -26,7 +26,7 @@ pub enum PropertyKind {
 
 impl Default for PropertyKind {
     fn default() -> Self {
-        Self::Data(Default::default())
+        Self::Data(DataProperty::default())
     }
 }
 
@@ -133,31 +133,37 @@ impl PotentialPropertyDescriptor {
         PotentialPropertyDescriptor::default()
     }
 
+    #[must_use]
     pub fn value(mut self, value: impl Into<ECMAScriptValue>) -> Self {
         self.value = Some(value.into());
         self
     }
 
+    #[must_use]
     pub fn writable(mut self, writable: bool) -> Self {
         self.writable = Some(writable);
         self
     }
 
+    #[must_use]
     pub fn enumerable(mut self, enumerable: bool) -> Self {
         self.enumerable = Some(enumerable);
         self
     }
 
+    #[must_use]
     pub fn configurable(mut self, configurable: bool) -> Self {
         self.configurable = Some(configurable);
         self
     }
 
+    #[must_use]
     pub fn get(mut self, get: impl Into<ECMAScriptValue>) -> Self {
         self.get = Some(get.into());
         self
     }
 
+    #[must_use]
     pub fn set(mut self, set: impl Into<ECMAScriptValue>) -> Self {
         self.set = Some(set.into());
         self
@@ -400,7 +406,7 @@ pub fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialProp
                     return Err(create_type_error("Setter must be callable (or undefined)"));
                 }
             }
-            Ok(PotentialPropertyDescriptor { enumerable, configurable, value, writable, get, set })
+            Ok(PotentialPropertyDescriptor { value, writable, get, set, enumerable, configurable })
         }
         _ => Err(create_type_error("Must be an object")),
     }
@@ -623,7 +629,7 @@ fn validate_and_apply_property_descriptor<'a, T>(
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    let converted = oo.map(|x| x.into());
+    let converted = oo.map(Into::into);
     internal_validate_and_apply_property_descriptor(converted, p, extensible, desc, current)
 }
 fn internal_validate_and_apply_property_descriptor(
@@ -635,9 +641,7 @@ fn internal_validate_and_apply_property_descriptor(
 ) -> bool {
     match current {
         None => {
-            if !extensible {
-                false
-            } else {
+            if extensible {
                 if let Some(o) = oo {
                     let mut data = o.common_object_data().borrow_mut();
                     let property_descriptor = PropertyDescriptor {
@@ -660,6 +664,8 @@ fn internal_validate_and_apply_property_descriptor(
                     data.next_spot += 1;
                 }
                 true
+            } else {
+                false
             }
         }
         Some(cur) => {
@@ -959,28 +965,32 @@ fn ordinary_set_with_own_descriptor_internal(
         Some(x) => x,
     };
     match &own_desc.property {
-        PropertyKind::Data(data_fields) => match data_fields.writable {
-            false => Ok(false),
-            true => match receiver {
-                ECMAScriptValue::Object(receiver) => {
-                    let maybe_existing_descriptor = receiver.o.get_own_property(&p)?;
-                    match maybe_existing_descriptor {
-                        Some(existing_descriptor) => match &existing_descriptor.property {
-                            PropertyKind::Accessor(_) => Ok(false),
-                            PropertyKind::Data(existing_data_fields) => match existing_data_fields.writable {
-                                false => Ok(false),
-                                true => {
-                                    let value_desc = PotentialPropertyDescriptor::new().value(v);
-                                    receiver.o.define_own_property(p, value_desc)
+        PropertyKind::Data(data_fields) => {
+            if data_fields.writable {
+                match receiver {
+                    ECMAScriptValue::Object(receiver) => {
+                        let maybe_existing_descriptor = receiver.o.get_own_property(&p)?;
+                        match maybe_existing_descriptor {
+                            Some(existing_descriptor) => match &existing_descriptor.property {
+                                PropertyKind::Accessor(_) => Ok(false),
+                                PropertyKind::Data(existing_data_fields) => {
+                                    if existing_data_fields.writable {
+                                        let value_desc = PotentialPropertyDescriptor::new().value(v);
+                                        receiver.o.define_own_property(p, value_desc)
+                                    } else {
+                                        Ok(false)
+                                    }
                                 }
                             },
-                        },
-                        None => receiver.create_data_property(p, v),
+                            None => receiver.create_data_property(p, v),
+                        }
                     }
+                    _ => Ok(false),
                 }
-                _ => Ok(false),
-            },
-        },
+            } else {
+                Ok(false)
+            }
+        }
         PropertyKind::Accessor(acc_methods) => {
             let setter = &acc_methods.set;
             match setter {
@@ -1049,9 +1059,9 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     let mut keys: Vec<PropertyKey> = Vec::with_capacity(data.properties.len());
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
-    for (key, desc) in data.properties.iter() {
+    for (key, desc) in &data.properties {
         if key.is_array_index() {
-            keys.push(key.clone())
+            keys.push(key.clone());
         } else {
             match key {
                 PropertyKey::String(_) => {
@@ -1066,10 +1076,10 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     keys.sort_by_cached_key(array_index_key);
     norm_keys.sort_by_key(|x| x.1);
     symb_keys.sort_by_key(|x| x.1);
-    for item in norm_keys.into_iter() {
+    for item in norm_keys {
         keys.push(item.0);
     }
-    for item in symb_keys.into_iter() {
+    for item in symb_keys {
         keys.push(item.0);
     }
     keys
@@ -1206,7 +1216,7 @@ pub struct CommonObjectData {
 impl CommonObjectData {
     pub fn new(prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
         Self {
-            properties: Default::default(),
+            properties: AHashMap::default(),
             prototype,
             extensible,
             next_spot: 0,
@@ -1226,6 +1236,7 @@ impl fmt::Debug for CommonObjectData {
             .field("next_spot", &self.next_spot)
             .field("objid", &self.objid)
             .field("slots", &self.slots)
+            .field("private_elements", &self.private_elements)
             .finish()
     }
 }
@@ -1260,8 +1271,8 @@ struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
 impl<'a> fmt::Debug for ConciseProperties<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut work = f.debug_struct("AHashMap");
-        for (key, value) in self.0.iter() {
-            work.field(format!("{}", key).as_str(), &ConcisePropertyDescriptor::from(value));
+        for (key, value) in self.0 {
+            work.field(format!("{key}").as_str(), &ConcisePropertyDescriptor::from(value));
         }
         work.finish()
     }
@@ -1563,10 +1574,10 @@ impl Object {
         //          already exist. If it does exist and is not configurable or if O is not extensible,
         //          [[DefineOwnProperty]] will return false causing this operation to throw a TypeError exception.
         let success = self.create_data_property(p, v)?;
-        if !success {
-            Err(create_type_error("Unable to create data property"))
-        } else {
+        if success {
             Ok(())
+        } else {
+            Err(create_type_error("Unable to create data property"))
         }
     }
 
@@ -1711,7 +1722,7 @@ pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalS
     if slot_list.len() != slot_set.len() {
         return false;
     }
-    for slot_id in slot_list.iter() {
+    for slot_id in slot_list {
         if !slot_set.contains(slot_id) {
             return false;
         }
@@ -1721,7 +1732,7 @@ pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalS
 
 pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
     let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
-    for slot in internal_slots_list.iter() {
+    for slot in internal_slots_list {
         slot_set.insert(slot);
     }
 
@@ -1747,7 +1758,7 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
         panic!("Additional info needed for generator object; use direct constructor");
     } else {
         // Unknown combination of slots
-        panic!("Unknown object for slots {:?}", slot_set);
+        panic!("Unknown object for slots {slot_set:?}");
     }
 }
 
@@ -1846,10 +1857,10 @@ fn internal_define_property_or_throw(
     //  4. If success is false, throw a TypeError exception.
     //  5. Return success.
     let success = obj.o.define_own_property(p, desc)?;
-    if !success {
-        Err(create_type_error("Property cannot be assigned to"))
-    } else {
+    if success {
         Ok(())
+    } else {
+        Err(create_type_error("Property cannot be assigned to"))
     }
 }
 
@@ -1865,10 +1876,10 @@ impl Object {
         //  2. If success is false, throw a TypeError exception.
         //  3. Return unused.
         let success = self.o.delete(p)?;
-        if !success {
-            Err(create_type_error("Property could not be deleted"))
-        } else {
+        if success {
             Ok(())
+        } else {
+            Err(create_type_error("Property could not be deleted"))
         }
     }
 }
@@ -2040,7 +2051,7 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
 //  6. Return true.
 //
 // https://tc39.es/ecma262/#sec-setintegritylevel
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum IntegrityLevel {
     Sealed,
     Frozen,
@@ -2180,9 +2191,9 @@ pub fn create_list_from_array_like(
         ValueKind::Object,
     ]);
     let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
-    let len = length_of_array_like(&obj)?;
+    let len = usize::try_from(length_of_array_like(&obj)?).expect("array lengths should fit");
     let mut list = Vec::new();
-    for index in 0..len as usize {
+    for index in 0..len {
         let index_name = to_string(index).expect("number to string works");
         let next = obj.get(&index_name.into())?;
         if !element_types.contains(&next.kind()) {
@@ -2286,7 +2297,7 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
 pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion<Vec<ECMAScriptValue>> {
     let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
-    for key in own_keys.into_iter() {
+    for key in own_keys {
         if matches!(key, PropertyKey::String(_)) {
             if let Some(desc) = obj.o.get_own_property(&key)? {
                 if desc.enumerable {
@@ -2454,15 +2465,15 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: Option<Object>) -> Completion<bool>
+pub fn set_immutable_prototype<'a, T>(o: T, val: &Option<Object>) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     set_immutable_prototype_internal(o.into(), val)
 }
-fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> Completion<bool> {
+fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: &Option<Object>) -> Completion<bool> {
     let current = obj.get_prototype_of()?;
-    Ok(current == val)
+    Ok(current == *val)
 }
 
 #[derive(Debug)]
@@ -2504,7 +2515,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? SetImmutablePrototype(O, V).
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        set_immutable_prototype(self, obj)
+        set_immutable_prototype(self, &obj)
     }
 
     // [[IsExtensible]] ( )

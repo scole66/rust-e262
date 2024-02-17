@@ -38,18 +38,18 @@ pub enum MemberExpression {
 impl fmt::Display for MemberExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MemberExpression::PrimaryExpression(boxed) => write!(f, "{}", boxed),
+            MemberExpression::PrimaryExpression(boxed) => write!(f, "{boxed}"),
             MemberExpression::Expression(me, exp, _) => {
-                write!(f, "{} [ {} ]", me, exp)
+                write!(f, "{me} [ {exp} ]")
             }
             MemberExpression::IdentifierName(me, id, _) | MemberExpression::PrivateId(me, id, _) => {
-                write!(f, "{} . {}", me, id)
+                write!(f, "{me} . {id}")
             }
-            MemberExpression::TemplateLiteral(me, tl) => write!(f, "{} {}", me, tl),
-            MemberExpression::SuperProperty(boxed) => write!(f, "{}", boxed),
-            MemberExpression::MetaProperty(boxed) => write!(f, "{}", boxed),
+            MemberExpression::TemplateLiteral(me, tl) => write!(f, "{me} {tl}"),
+            MemberExpression::SuperProperty(boxed) => write!(f, "{boxed}"),
+            MemberExpression::MetaProperty(boxed) => write!(f, "{boxed}"),
             MemberExpression::NewArguments(me, args, _) => {
-                write!(f, "new {} {}", me, args)
+                write!(f, "new {me} {args}")
             }
         }
     }
@@ -61,7 +61,7 @@ impl PrettyPrint for MemberExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}MemberExpression: {}", first, self)?;
+        writeln!(writer, "{first}MemberExpression: {self}")?;
         match self {
             MemberExpression::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             MemberExpression::Expression(me, exp, _) => {
@@ -90,7 +90,7 @@ impl PrettyPrint for MemberExpression {
     {
         let mut head = |pad, state| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}MemberExpression: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}MemberExpression: {self}").and(Ok(successive))
         };
         match self {
             MemberExpression::PrimaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
@@ -163,12 +163,12 @@ impl From<Rc<MetaProperty>> for MemberExpression {
     }
 }
 
-fn me_boxer<T>(pair: (T, Scanner)) -> ParseResult<MemberExpression>
+fn me_boxer<T>(pair: (T, Scanner)) -> (Rc<MemberExpression>, Scanner)
 where
     T: Into<MemberExpression>,
 {
     let (node, scanner) = pair;
-    Ok((Rc::new(node.into()), scanner))
+    (Rc::new(node.into()), scanner)
 }
 
 fn member_expression_head_recursive(
@@ -177,7 +177,7 @@ fn member_expression_head_recursive(
     await_flag: bool,
     me: Rc<MemberExpression>,
     scan: Scanner,
-) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
+) -> (Rc<MemberExpression>, Scanner) {
     enum After {
         Exp(Rc<Expression>, Location),
         Id(IdentifierData, Location),
@@ -228,7 +228,7 @@ fn member_expression_head_recursive(
         };
         after_scan = after_production;
     }
-    Ok((current_me, after_scan))
+    (current_me, after_scan)
 }
 
 impl MemberExpression {
@@ -247,9 +247,9 @@ impl MemberExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MemberExpression), scanner))
             // First: All the non-head-recursive productions
-            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
-            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
-            .otherwise(|| MetaProperty::parse(parser, scanner).and_then(me_boxer))
+            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
+            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
+            .otherwise(|| MetaProperty::parse(parser, scanner).map(me_boxer))
             .otherwise(|| {
                 Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag).map(
                     |(me, args, new_loc, after)| {
@@ -259,7 +259,7 @@ impl MemberExpression {
                 )
             })
             // And then all the head-recursive productions.
-            .and_then(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
+            .map(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
     }
     fn new_memberexpression_arguments(
         parser: &mut Parser,
@@ -380,7 +380,9 @@ impl MemberExpression {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict);
             }
-            MemberExpression::IdentifierName(n, ..) => n.early_errors(errs, strict),
+            MemberExpression::IdentifierName(n, ..) | MemberExpression::PrivateId(n, ..) => {
+                n.early_errors(errs, strict);
+            }
             MemberExpression::TemplateLiteral(l, r) => {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict, 0xffff_ffff);
@@ -391,7 +393,6 @@ impl MemberExpression {
                 l.early_errors(errs, strict);
                 r.early_errors(errs, strict);
             }
-            MemberExpression::PrivateId(n, ..) => n.early_errors(errs, strict),
         }
     }
 
@@ -414,12 +415,13 @@ impl MemberExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             MemberExpression::PrimaryExpression(boxed) => boxed.assignment_target_type(strict),
-            MemberExpression::Expression(..) => ATTKind::Simple,
-            MemberExpression::IdentifierName(..) | MemberExpression::PrivateId(..) => ATTKind::Simple,
-            MemberExpression::TemplateLiteral(..) => ATTKind::Invalid,
-            MemberExpression::SuperProperty(..) => ATTKind::Simple,
-            MemberExpression::MetaProperty(..) => ATTKind::Invalid,
-            MemberExpression::NewArguments(..) => ATTKind::Invalid,
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::PrivateId(..)
+            | MemberExpression::SuperProperty(..) => ATTKind::Simple,
+            MemberExpression::TemplateLiteral(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..) => ATTKind::Invalid,
         }
     }
 
@@ -503,8 +505,8 @@ pub enum SuperProperty {
 impl fmt::Display for SuperProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SuperProperty::Expression { exp: boxed, .. } => write!(f, "super [ {} ]", boxed),
-            SuperProperty::IdentifierName { id: boxed, .. } => write!(f, "super . {}", boxed),
+            SuperProperty::Expression { exp: boxed, .. } => write!(f, "super [ {boxed} ]"),
+            SuperProperty::IdentifierName { id: boxed, .. } => write!(f, "super . {boxed}"),
         }
     }
 }
@@ -515,7 +517,7 @@ impl PrettyPrint for SuperProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SuperProperty: {}", first, self)?;
+        writeln!(writer, "{first}SuperProperty: {self}")?;
         match self {
             SuperProperty::Expression { exp: boxed, .. } => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             SuperProperty::IdentifierName { .. } => Ok(()),
@@ -527,7 +529,7 @@ impl PrettyPrint for SuperProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SuperProperty: {}", first, self)?;
+        writeln!(writer, "{first}SuperProperty: {self}")?;
         match self {
             SuperProperty::Expression { exp: node, .. } => {
                 pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
@@ -649,14 +651,14 @@ impl PrettyPrint for MetaProperty {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}MetaProperty: {}", first, self)
+        writeln!(writer, "{first}MetaProperty: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}MetaProperty: {}", first, self)?;
+        writeln!(writer, "{first}MetaProperty: {self}")?;
         match self {
             MetaProperty::NewTarget { .. } => {
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
@@ -672,6 +674,7 @@ impl PrettyPrint for MetaProperty {
     }
 }
 
+#[derive(Copy, Clone)]
 enum MetaHelper {
     NewTarget,
     ImportMeta(ParseGoal),
@@ -750,8 +753,8 @@ impl fmt::Display for Arguments {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Arguments::Empty { .. } => write!(f, "( )"),
-            Arguments::ArgumentList(boxed, _) => write!(f, "( {} )", boxed),
-            Arguments::ArgumentListComma(boxed, _) => write!(f, "( {} , )", boxed),
+            Arguments::ArgumentList(boxed, _) => write!(f, "( {boxed} )"),
+            Arguments::ArgumentListComma(boxed, _) => write!(f, "( {boxed} , )"),
         }
     }
 }
@@ -762,7 +765,7 @@ impl PrettyPrint for Arguments {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Arguments: {}", first, self)?;
+        writeln!(writer, "{first}Arguments: {self}")?;
         match self {
             Arguments::Empty { .. } => Ok(()),
             Arguments::ArgumentList(boxed, _) | Arguments::ArgumentListComma(boxed, _) => {
@@ -775,7 +778,7 @@ impl PrettyPrint for Arguments {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Arguments: {}", first, self)?;
+        writeln!(writer, "{first}Arguments: {self}")?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             Arguments::Empty { .. } => {}
@@ -848,8 +851,7 @@ impl Arguments {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Arguments::Empty { .. } => false,
-            Arguments::ArgumentList(n, _) => n.contains(kind),
-            Arguments::ArgumentListComma(n, _) => n.contains(kind),
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.contains(kind),
         }
     }
 
@@ -862,8 +864,9 @@ impl Arguments {
         //  2. Return true.
         match self {
             Arguments::Empty { .. } => true,
-            Arguments::ArgumentList(n, _) => n.all_private_identifiers_valid(names),
-            Arguments::ArgumentListComma(n, _) => n.all_private_identifiers_valid(names),
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => {
+                n.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -908,9 +911,9 @@ pub enum ArgumentList {
 
 impl ArgumentList {
     // Package the results of a successful assignment_expression into an ArgumentList::FallThru.
-    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError> {
+    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> (Self, Scanner) {
         let (ae_boxed, scanner) = pair;
-        Ok((Self::FallThru(ae_boxed), scanner))
+        (Self::FallThru(ae_boxed), scanner)
     }
 
     // Package the results of assignment_expression into an ArgumentList (or pass along a None)
@@ -929,7 +932,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Self, Scanner), ParseError> {
-        AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).and_then(Self::ae_bundle)
+        AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).map(Self::ae_bundle)
     }
 
     // Parse the production
@@ -988,11 +991,11 @@ impl ArgumentList {
 impl fmt::Display for ArgumentList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArgumentList::FallThru(boxed) => write!(f, "{}", boxed),
-            ArgumentList::Dots(boxed) => write!(f, "... {}", boxed),
-            ArgumentList::ArgumentList(list, exp) => write!(f, "{} , {}", list, exp),
+            ArgumentList::FallThru(boxed) => write!(f, "{boxed}"),
+            ArgumentList::Dots(boxed) => write!(f, "... {boxed}"),
+            ArgumentList::ArgumentList(list, exp) => write!(f, "{list} , {exp}"),
             ArgumentList::ArgumentListDots(list, exp) => {
-                write!(f, "{} , ... {}", list, exp)
+                write!(f, "{list} , ... {exp}")
             }
         }
     }
@@ -1004,7 +1007,7 @@ impl PrettyPrint for ArgumentList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArgumentList: {}", first, self)?;
+        writeln!(writer, "{first}ArgumentList: {self}")?;
         match self {
             ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1021,7 +1024,7 @@ impl PrettyPrint for ArgumentList {
     {
         let mut head = |pad, state| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}ArgumentList: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}ArgumentList: {self}").and(Ok(successive))
         };
         match self {
             ArgumentList::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
@@ -1050,15 +1053,16 @@ impl PrettyPrint for ArgumentList {
 impl ArgumentList {
     // ArgumentList's only direct parent is Arguments; it doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        enum Dots {
+            Dots,
+            NoDots,
+        }
+
         ArgumentList::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
             .otherwise(|| ArgumentList::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
             .map(|(kind, after)| {
                 let mut top_scanner = after;
                 let mut top_box = Rc::new(kind);
-                enum Dots {
-                    Dots,
-                    NoDots,
-                }
                 while let Ok((ae, scan, dotstate)) =
                     ArgumentList::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
                         .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
@@ -1079,10 +1083,10 @@ impl ArgumentList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArgumentList::FallThru(boxed) => boxed.contains(kind),
-            ArgumentList::Dots(boxed) => boxed.contains(kind),
-            ArgumentList::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
-            ArgumentList::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.contains(kind),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
+                list.contains(kind) || exp.contains(kind)
+            }
         }
     }
 
@@ -1094,12 +1098,8 @@ impl ArgumentList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArgumentList::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentList::ArgumentList(list, exp) => {
-                list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
-            }
-            ArgumentList::ArgumentListDots(list, exp) => {
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
         }
@@ -1148,8 +1148,8 @@ pub enum NewExpression {
 impl fmt::Display for NewExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            NewExpression::MemberExpression(boxed) => write!(f, "{}", boxed),
-            NewExpression::NewExpression(boxed, _) => write!(f, "new {}", boxed),
+            NewExpression::MemberExpression(boxed) => write!(f, "{boxed}"),
+            NewExpression::NewExpression(boxed, _) => write!(f, "new {boxed}"),
         }
     }
 }
@@ -1160,7 +1160,7 @@ impl PrettyPrint for NewExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}NewExpression: {}", first, self)?;
+        writeln!(writer, "{first}NewExpression: {self}")?;
         match self {
             NewExpression::MemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             NewExpression::NewExpression(boxed, _) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1174,7 +1174,7 @@ impl PrettyPrint for NewExpression {
             NewExpression::MemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
             NewExpression::NewExpression(node, _) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}NewExpression: {}", first, self)?;
+                writeln!(writer, "{first}NewExpression: {self}")?;
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1224,7 +1224,7 @@ impl NewExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             NewExpression::MemberExpression(n) => n.as_string_literal(),
-            _ => None,
+            NewExpression::NewExpression(..) => None,
         }
     }
 
@@ -1308,7 +1308,7 @@ impl NewExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             NewExpression::MemberExpression(node) => node.is_named_function(),
-            _ => false,
+            NewExpression::NewExpression(..) => false,
         }
     }
 
@@ -1351,7 +1351,7 @@ impl PrettyPrint for CallMemberExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CallMemberExpression: {}", first, self)?;
+        writeln!(writer, "{first}CallMemberExpression: {self}")?;
         self.member_expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1360,7 +1360,7 @@ impl PrettyPrint for CallMemberExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CallMemberExpression: {}", first, self)?;
+        writeln!(writer, "{first}CallMemberExpression: {self}")?;
         self.member_expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1432,7 +1432,7 @@ impl PrettyPrint for SuperCall {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SuperCall: {}", first, self)?;
+        writeln!(writer, "{first}SuperCall: {self}")?;
         self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1440,7 +1440,7 @@ impl PrettyPrint for SuperCall {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SuperCall: {}", first, self)?;
+        writeln!(writer, "{first}SuperCall: {self}")?;
         pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1512,7 +1512,7 @@ impl PrettyPrint for ImportCall {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ImportCall: {}", first, self)?;
+        writeln!(writer, "{first}ImportCall: {self}")?;
         self.assignment_expression.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1520,7 +1520,7 @@ impl PrettyPrint for ImportCall {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ImportCall: {}", first, self)?;
+        writeln!(writer, "{first}ImportCall: {self}")?;
         pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.assignment_expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1602,16 +1602,16 @@ pub enum CallExpression {
 impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CallExpression::CallMemberExpression(boxed) => write!(f, "{}", boxed),
-            CallExpression::SuperCall(boxed) => write!(f, "{}", boxed),
-            CallExpression::ImportCall(boxed) => write!(f, "{}", boxed),
-            CallExpression::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
-            CallExpression::CallExpressionExpression(ce, exp, _) => write!(f, "{} [ {} ]", ce, exp),
+            CallExpression::CallMemberExpression(boxed) => write!(f, "{boxed}"),
+            CallExpression::SuperCall(boxed) => write!(f, "{boxed}"),
+            CallExpression::ImportCall(boxed) => write!(f, "{boxed}"),
+            CallExpression::CallExpressionArguments(ce, args) => write!(f, "{ce} {args}"),
+            CallExpression::CallExpressionExpression(ce, exp, _) => write!(f, "{ce} [ {exp} ]"),
             CallExpression::CallExpressionIdentifierName(ce, id, _)
             | CallExpression::CallExpressionPrivateId(ce, id, _) => {
-                write!(f, "{} . {}", ce, id)
+                write!(f, "{ce} . {id}")
             }
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{ce} {tl}"),
         }
     }
 }
@@ -1622,7 +1622,7 @@ impl PrettyPrint for CallExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CallExpression: {}", first, self)?;
+        writeln!(writer, "{first}CallExpression: {self}")?;
         match self {
             CallExpression::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             CallExpression::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1635,15 +1635,13 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _, _) => {
+            CallExpression::CallExpressionIdentifierName(ce, _, _)
+            | CallExpression::CallExpressionPrivateId(ce, _, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
-            CallExpression::CallExpressionPrivateId(ce, _, _) => {
-                ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -1654,7 +1652,7 @@ impl PrettyPrint for CallExpression {
     {
         let head = |writer: &mut T, node: &CallExpression| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}CallExpression: {}", first, self)?;
+            writeln!(writer, "{first}CallExpression: {self}")?;
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and(Ok(successive))
         };
         match self {
@@ -1882,12 +1880,12 @@ impl CallExpression {
                 node.early_errors(errs, strict);
                 exp.early_errors(errs, strict);
             }
-            CallExpression::CallExpressionIdentifierName(node, _, _) => node.early_errors(errs, strict),
+            CallExpression::CallExpressionIdentifierName(node, _, _)
+            | CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
             CallExpression::CallExpressionTemplateLiteral(node, tl) => {
                 node.early_errors(errs, strict);
                 tl.early_errors(errs, strict, 0xffff_ffff);
             }
-            CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
         }
     }
 
@@ -1926,9 +1924,9 @@ pub enum LeftHandSideExpression {
 impl fmt::Display for LeftHandSideExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LeftHandSideExpression::New(boxed) => write!(f, "{}", boxed),
-            LeftHandSideExpression::Call(boxed) => write!(f, "{}", boxed),
-            LeftHandSideExpression::Optional(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::New(boxed) => write!(f, "{boxed}"),
+            LeftHandSideExpression::Call(boxed) => write!(f, "{boxed}"),
+            LeftHandSideExpression::Optional(boxed) => write!(f, "{boxed}"),
         }
     }
 }
@@ -1939,7 +1937,7 @@ impl PrettyPrint for LeftHandSideExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LeftHandSideExpression: {}", first, self)?;
+        writeln!(writer, "{first}LeftHandSideExpression: {self}")?;
         match &self {
             LeftHandSideExpression::New(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             LeftHandSideExpression::Call(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2144,10 +2142,10 @@ impl fmt::Display for OptionalExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             OptionalExpression::Member(left, right) => {
-                write!(f, "{} {}", left, right)
+                write!(f, "{left} {right}")
             }
-            OptionalExpression::Call(left, right) => write!(f, "{} {}", left, right),
-            OptionalExpression::Opt(left, right) => write!(f, "{} {}", left, right),
+            OptionalExpression::Call(left, right) => write!(f, "{left} {right}"),
+            OptionalExpression::Opt(left, right) => write!(f, "{left} {right}"),
         }
     }
 }
@@ -2158,7 +2156,7 @@ impl PrettyPrint for OptionalExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}OptionalExpression: {}", first, self)?;
+        writeln!(writer, "{first}OptionalExpression: {self}")?;
         match self {
             OptionalExpression::Member(left, right) => {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -2180,7 +2178,7 @@ impl PrettyPrint for OptionalExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}OptionalExpression: {}", first, self)?;
+        writeln!(writer, "{first}OptionalExpression: {self}")?;
         match self {
             OptionalExpression::Member(left, right) => {
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -2332,18 +2330,18 @@ pub enum OptionalChain {
 impl fmt::Display for OptionalChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OptionalChain::Args(node, _) => write!(f, "?. {}", node),
-            OptionalChain::Exp(node, _) => write!(f, "?. [ {} ]", node),
+            OptionalChain::Args(node, _) => write!(f, "?. {node}"),
+            OptionalChain::Exp(node, _) => write!(f, "?. [ {node} ]"),
             OptionalChain::Ident(node, _) | OptionalChain::PrivateId(node, _) => {
-                write!(f, "?. {}", node)
+                write!(f, "?. {node}")
             }
-            OptionalChain::Template(node, _) => write!(f, "?. {}", node),
-            OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
-            OptionalChain::PlusExp(lst, item, _) => write!(f, "{} [ {} ]", lst, item),
+            OptionalChain::Template(node, _) => write!(f, "?. {node}"),
+            OptionalChain::PlusArgs(lst, item) => write!(f, "{lst} {item}"),
+            OptionalChain::PlusExp(lst, item, _) => write!(f, "{lst} [ {item} ]"),
             OptionalChain::PlusIdent(lst, item, _) | OptionalChain::PlusPrivateId(lst, item, _) => {
-                write!(f, "{} . {}", lst, item)
+                write!(f, "{lst} . {item}")
             }
-            OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
+            OptionalChain::PlusTemplate(lst, item) => write!(f, "{lst} {item}"),
         }
     }
 }
@@ -2354,7 +2352,7 @@ impl PrettyPrint for OptionalChain {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}OptionalChain: {}", first, self)?;
+        writeln!(writer, "{first}OptionalChain: {self}")?;
         match self {
             OptionalChain::Args(node, _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Exp(node, _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2393,7 +2391,7 @@ impl PrettyPrint for OptionalChain {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}OptionalChain: {}", first, self)?;
+        writeln!(writer, "{first}OptionalChain: {self}")?;
         match self {
             OptionalChain::Args(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -2447,6 +2445,14 @@ impl PrettyPrint for OptionalChain {
 
 impl OptionalChain {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        enum Follow {
+            Args(Rc<Arguments>),
+            TLit(Rc<TemplateLiteral>),
+            Exp(Rc<Expression>, Location),
+            Id(IdentifierData, Location),
+            Pid(IdentifierData, Location),
+        }
+
         let (opt_loc, after_opt) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
         let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
@@ -2483,13 +2489,6 @@ impl OptionalChain {
                 )
             })?;
 
-        enum Follow {
-            Args(Rc<Arguments>),
-            TLit(Rc<TemplateLiteral>),
-            Exp(Rc<Expression>, Location),
-            Id(IdentifierData, Location),
-            Pid(IdentifierData, Location),
-        }
         while let Ok((follow, scan)) = Err(ParseError::new(PECode::Generic, current_scan))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, current_scan, yield_flag, await_flag)?;
@@ -2566,14 +2565,12 @@ impl OptionalChain {
         match self {
             OptionalChain::Args(node, _) => node.contains(kind),
             OptionalChain::Exp(node, _) => node.contains(kind),
-            OptionalChain::Ident(_, _) => false,
+            OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => false,
             OptionalChain::Template(node, _) => node.contains(kind),
-            OptionalChain::PrivateId(_, _) => false,
             OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
             OptionalChain::PlusExp(lst, item, _) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusIdent(lst, _, _) => lst.contains(kind),
+            OptionalChain::PlusIdent(lst, _, _) | OptionalChain::PlusPrivateId(lst, _, _) => lst.contains(kind),
             OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusPrivateId(lst, _, _) => lst.contains(kind),
         }
     }
 
@@ -2675,7 +2672,7 @@ impl OptionalChain {
                 exp.early_errors(errs, strict);
             }
             OptionalChain::PlusIdent(node, _, _) | OptionalChain::PlusPrivateId(node, _, _) => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
         }
     }

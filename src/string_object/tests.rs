@@ -23,7 +23,7 @@ mod string_object {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, STRING_OBJECT_SLOTS)),
             string_data: RefCell::new(JSString::from("baloney")),
         };
-        assert_ne!(format!("{:?}", so), "");
+        assert_ne!(format!("{so:?}"), "");
     }
 
     #[test]
@@ -666,7 +666,7 @@ fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<Strin
     super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
 }
 
-#[test_case(|| (None, vec![]) => Ok((false, "".to_string())); "AsFunc / no args")]
+#[test_case(|| (None, vec![]) => Ok((false, String::new())); "AsFunc / no args")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(true)]) => Ok((false, "true".to_string())); "AsFunc / stringable")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))]) => Ok((false, "Symbol(Symbol.toPrimitive)".to_string())); "AsFunc / Symbol")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(DeadObject::object())]) => serr("TypeError: get called on DeadObject"); "to_string failure")]
@@ -677,13 +677,13 @@ fn string_constructor_function(
 ) -> Result<(bool, String), String> {
     setup_test_agent();
     let (new_target, arguments) = make_params();
-    super::string_constructor_function(ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
+    super::string_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
             ECMAScriptValue::Object(o) => {
                 (true, String::from(o.o.to_string_obj().unwrap().string_data.borrow().clone()))
             }
-            _ => panic!("Bad value from string_constructor_function: {:?}", val),
+            _ => panic!("Bad value from string_constructor_function: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -694,10 +694,10 @@ fn string_constructor_function(
 fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
     setup_test_agent();
     let args = make_params();
-    super::string_from_char_code(ECMAScriptValue::Undefined, None, &args)
+    super::string_from_char_code(&ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected String value from String.fromCharCode: {:?}", val),
+            _ => panic!("Expected String value from String.fromCharCode: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -713,10 +713,10 @@ fn string_prototype_index_of(
 ) -> Result<f64, String> {
     setup_test_agent();
     let (this_value, arguments) = make_params();
-    super::string_prototype_index_of(this_value, None, &arguments)
+    super::string_prototype_index_of(&this_value, None, &arguments)
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
-            _ => panic!("Expected number value from String.prototype.indexOf: {:?}", val),
+            _ => panic!("Expected number value from String.prototype.indexOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -726,10 +726,10 @@ fn string_prototype_index_of(
 fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_to_string(this_value, None, &[])
+    super::string_prototype_to_string(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.toString: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.toString: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -739,10 +739,10 @@ fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> 
 fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_value_of(this_value, None, &[])
+    super::string_prototype_value_of(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.valueOf: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.valueOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }

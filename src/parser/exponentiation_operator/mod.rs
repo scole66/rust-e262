@@ -16,10 +16,10 @@ impl fmt::Display for ExponentiationExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             ExponentiationExpression::UnaryExpression(boxed) => {
-                write!(f, "{}", boxed)
+                write!(f, "{boxed}")
             }
             ExponentiationExpression::Exponentiation(ue, ee) => {
-                write!(f, "{} ** {}", ue, ee)
+                write!(f, "{ue} ** {ee}")
             }
         }
     }
@@ -31,7 +31,7 @@ impl PrettyPrint for ExponentiationExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
+        writeln!(writer, "{first}ExponentiationExpression: {self}")?;
         match &self {
             ExponentiationExpression::UnaryExpression(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -51,7 +51,7 @@ impl PrettyPrint for ExponentiationExpression {
             ExponentiationExpression::UnaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
             ExponentiationExpression::Exponentiation(left, right) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
+                writeln!(writer, "{first}ExponentiationExpression: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "**", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -102,7 +102,7 @@ impl ExponentiationExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.as_string_literal(),
-            _ => None,
+            ExponentiationExpression::Exponentiation(..) => None,
         }
     }
 
@@ -151,7 +151,7 @@ impl ExponentiationExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            ExponentiationExpression::Exponentiation(..) => true,
         }
     }
 
@@ -168,7 +168,7 @@ impl ExponentiationExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
-            _ => false,
+            ExponentiationExpression::Exponentiation(..) => false,
         }
     }
 }

@@ -19,13 +19,13 @@ pub enum ShiftExpression {
 impl fmt::Display for ShiftExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ShiftExpression::AdditiveExpression(ae) => write!(f, "{}", ae),
-            ShiftExpression::LeftShift(se, ae) => write!(f, "{} << {}", se, ae),
+            ShiftExpression::AdditiveExpression(ae) => write!(f, "{ae}"),
+            ShiftExpression::LeftShift(se, ae) => write!(f, "{se} << {ae}"),
             ShiftExpression::SignedRightShift(se, ae) => {
-                write!(f, "{} >> {}", se, ae)
+                write!(f, "{se} >> {ae}")
             }
             ShiftExpression::UnsignedRightShift(se, ae) => {
-                write!(f, "{} >>> {}", se, ae)
+                write!(f, "{se} >>> {ae}")
             }
         }
     }
@@ -37,7 +37,7 @@ impl PrettyPrint for ShiftExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ShiftExpression: {}", first, self)?;
+        writeln!(writer, "{first}ShiftExpression: {self}")?;
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
             ShiftExpression::LeftShift(se, ae)
@@ -55,10 +55,10 @@ impl PrettyPrint for ShiftExpression {
     {
         let mut work = |left: &ShiftExpression, right: &AdditiveExpression, op| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}ShiftExpression: {}", first, self)
-                .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
-                .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))
+            writeln!(writer, "{first}ShiftExpression: {self}")
+                .and_then(|()| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|()| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
+                .and_then(|()| right.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {
@@ -119,9 +119,9 @@ impl ShiftExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.contains(kind),
-            ShiftExpression::LeftShift(l, r) => l.contains(kind) || r.contains(kind),
-            ShiftExpression::SignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
-            ShiftExpression::UnsignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
+            ShiftExpression::LeftShift(l, r)
+            | ShiftExpression::SignedRightShift(l, r)
+            | ShiftExpression::UnsignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
@@ -141,13 +141,9 @@ impl ShiftExpression {
         //  2. Return true.
         match self {
             ShiftExpression::AdditiveExpression(n) => n.all_private_identifiers_valid(names),
-            ShiftExpression::LeftShift(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            ShiftExpression::SignedRightShift(l, r) => {
-                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
-            }
-            ShiftExpression::UnsignedRightShift(l, r) => {
+            ShiftExpression::LeftShift(l, r)
+            | ShiftExpression::SignedRightShift(l, r)
+            | ShiftExpression::UnsignedRightShift(l, r) => {
                 l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
             }
         }

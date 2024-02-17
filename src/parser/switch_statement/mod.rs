@@ -24,7 +24,7 @@ impl PrettyPrint for SwitchStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SwitchStatement: {}", first, self)?;
+        writeln!(writer, "{first}SwitchStatement: {self}")?;
         self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.case_block.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -34,7 +34,7 @@ impl PrettyPrint for SwitchStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SwitchStatement: {}", first, self)?;
+        writeln!(writer, "{first}SwitchStatement: {self}")?;
         pprint_token(writer, "switch", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -121,13 +121,13 @@ impl SwitchStatement {
         let vdn = self.case_block.var_declared_names();
         for name in duplicates(&ldn) {
             errs.push(create_syntax_error_object(
-                format!("‘{}’ already defined", name),
+                format!("‘{name}’ already defined"),
                 Some(self.case_block.location()),
             ));
         }
         for name in ldn.iter().filter(|&s| vdn.contains(s)) {
             errs.push(create_syntax_error_object(
-                format!("‘{}’ may not be declared both lexically and var-style", name),
+                format!("‘{name}’ may not be declared both lexically and var-style"),
                 Some(self.case_block.location()),
             ));
         }
@@ -157,16 +157,16 @@ impl fmt::Display for CaseBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CaseBlock::NoDefault(None, _) => write!(f, "{{ }}"),
-            CaseBlock::NoDefault(Some(node), _) => write!(f, "{{ {} }}", node),
-            CaseBlock::HasDefault(None, def, None, _) => write!(f, "{{ {} }}", def),
+            CaseBlock::NoDefault(Some(node), _) => write!(f, "{{ {node} }}"),
+            CaseBlock::HasDefault(None, def, None, _) => write!(f, "{{ {def} }}"),
             CaseBlock::HasDefault(Some(pre), def, None, _) => {
-                write!(f, "{{ {} {} }}", pre, def)
+                write!(f, "{{ {pre} {def} }}")
             }
             CaseBlock::HasDefault(None, def, Some(post), _) => {
-                write!(f, "{{ {} {} }}", def, post)
+                write!(f, "{{ {def} {post} }}")
             }
             CaseBlock::HasDefault(Some(pre), def, Some(post), _) => {
-                write!(f, "{{ {} {} {} }}", pre, def, post)
+                write!(f, "{{ {pre} {def} {post} }}")
             }
         }
     }
@@ -178,7 +178,7 @@ impl PrettyPrint for CaseBlock {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CaseBlock: {}", first, self)?;
+        writeln!(writer, "{first}CaseBlock: {self}")?;
         match self {
             CaseBlock::NoDefault(None, _) => Ok(()),
             CaseBlock::NoDefault(Some(node), _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -204,7 +204,7 @@ impl PrettyPrint for CaseBlock {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CaseBlock: {}", first, self)?;
+        writeln!(writer, "{first}CaseBlock: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             CaseBlock::NoDefault(None, _) => Ok(()),
@@ -478,7 +478,7 @@ impl fmt::Display for CaseClauses {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CaseClauses::Item(node) => node.fmt(f),
-            CaseClauses::List(lst, item) => write!(f, "{} {}", lst, item),
+            CaseClauses::List(lst, item) => write!(f, "{lst} {item}"),
         }
     }
 }
@@ -489,7 +489,7 @@ impl PrettyPrint for CaseClauses {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CaseClauses: {}", first, self)?;
+        writeln!(writer, "{first}CaseClauses: {self}")?;
         match self {
             CaseClauses::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             CaseClauses::List(lst, item) => {
@@ -507,7 +507,7 @@ impl PrettyPrint for CaseClauses {
             CaseClauses::Item(node) => node.concise_with_leftpad(writer, pad, state),
             CaseClauses::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}CaseClauses: {}", first, self)?;
+                writeln!(writer, "{first}CaseClauses: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -694,7 +694,7 @@ impl PrettyPrint for CaseClause {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CaseClause: {}", first, self)?;
+        writeln!(writer, "{first}CaseClause: {self}")?;
         match &self.statements {
             None => self.expression.pprint_with_leftpad(writer, &successive, Spot::Final),
             Some(s) => {
@@ -709,7 +709,7 @@ impl PrettyPrint for CaseClause {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CaseClause: {}", first, self)?;
+        writeln!(writer, "{first}CaseClause: {self}")?;
         pprint_token(writer, "case", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         match &self.statements {
@@ -843,7 +843,7 @@ impl fmt::Display for DefaultClause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             DefaultClause(None) => write!(f, "default :"),
-            DefaultClause(Some(sl)) => write!(f, "default : {}", sl),
+            DefaultClause(Some(sl)) => write!(f, "default : {sl}"),
         }
     }
 }
@@ -854,7 +854,7 @@ impl PrettyPrint for DefaultClause {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}DefaultClause: {}", first, self)?;
+        writeln!(writer, "{first}DefaultClause: {self}")?;
         match self {
             DefaultClause(None) => Ok(()),
             DefaultClause(Some(sl)) => sl.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -866,7 +866,7 @@ impl PrettyPrint for DefaultClause {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}DefaultClause: {}", first, self)?;
+        writeln!(writer, "{first}DefaultClause: {self}")?;
         pprint_token(writer, "default", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
             DefaultClause(None) => pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::Final),

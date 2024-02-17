@@ -11,17 +11,17 @@ mod debugger_statement {
     fn parse() {
         let (se, scanner) = check(DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()));
         chk_scan(&scanner, 9);
-        pretty_check(&*se, "DebuggerStatement: debugger ;", vec![]);
-        concise_check(&*se, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
-        format!("{:?}", se);
+        pretty_check(&*se, "DebuggerStatement: debugger ;", &[]);
+        concise_check(&*se, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
+        format!("{se:?}");
     }
     #[test]
     fn asi_01() {
         let (se, scanner) = check(DebuggerStatement::parse(&mut newparser("debugger"), Scanner::new()));
         chk_scan(&scanner, 8);
-        pretty_check(&*se, "DebuggerStatement: debugger ;", vec![]);
-        concise_check(&*se, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
-        format!("{:?}", se);
+        pretty_check(&*se, "DebuggerStatement: debugger ;", &[]);
+        concise_check(&*se, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
+        format!("{se:?}");
     }
     #[test]
     fn err_01() {

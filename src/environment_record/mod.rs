@@ -160,9 +160,10 @@ enum Removability {
 
 impl From<bool> for Removability {
     fn from(source: bool) -> Self {
-        match source {
-            true => Removability::Deletable,
-            false => Removability::Permanent,
+        if source {
+            Removability::Deletable
+        } else {
+            Removability::Permanent
         }
     }
 }
@@ -175,9 +176,10 @@ enum Strictness {
 
 impl From<bool> for Strictness {
     fn from(source: bool) -> Self {
-        match source {
-            true => Strictness::Strict,
-            false => Strictness::Sloppy,
+        if source {
+            Strictness::Strict
+        } else {
+            Strictness::Sloppy
         }
     }
 }
@@ -366,11 +368,11 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn delete_binding(&self, name: &JSString) -> Completion<bool> {
         let mut bindings = self.bindings.borrow_mut();
         let item = bindings.get(name).unwrap();
-        if item.mutability != Mutability::Mutable(Removability::Deletable) {
-            Ok(false)
-        } else {
+        if item.mutability == Mutability::Mutable(Removability::Deletable) {
             bindings.remove(name);
             Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -436,7 +438,7 @@ impl DeclarativeEnvironmentRecord {
     //  2. Set env.[[OuterEnv]] to E.
     //  3. Return env.
     pub fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
-        DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: env, name: name.into() }
+        DeclarativeEnvironmentRecord { bindings: RefCell::default(), outer_env: env, name: name.into() }
     }
 }
 
@@ -613,14 +615,12 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let has_prop = has_property(binding_object, &name_key)?;
-        if !has_prop {
-            if !strict {
-                Ok(ECMAScriptValue::Undefined)
-            } else {
-                Err(create_reference_error("Unresolvable reference"))
-            }
-        } else {
+        if has_prop {
             binding_object.get(&name_key)
+        } else if strict {
+            Err(create_reference_error("Unresolvable reference"))
+        } else {
+            Ok(ECMAScriptValue::Undefined)
         }
     }
 
@@ -669,9 +669,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //  1. If envRec.[[IsWithEnvironment]] is true, return envRec.[[BindingObject]].
     //  2. Otherwise, return undefined.
     fn with_base_object(&self) -> Option<Object> {
-        match self.is_with_environment {
-            true => Some(self.binding_object.clone()),
-            false => None,
+        if self.is_with_environment {
+            Some(self.binding_object.clone())
+        } else {
+            None
         }
     }
 
@@ -963,7 +964,7 @@ impl FunctionEnvironmentRecord {
 
         FunctionEnvironmentRecord {
             base: DeclarativeEnvironmentRecord {
-                bindings: Default::default(),
+                bindings: RefCell::default(),
                 outer_env: outer,
                 name: format!("{name}-inner"),
             },
@@ -1517,7 +1518,7 @@ impl GlobalEnvironmentRecord {
             object_record: obj_rec,
             global_this_value: this_value,
             declarative_record: dcl_rec,
-            var_names: Default::default(),
+            var_names: RefCell::default(),
             name,
         }
     }

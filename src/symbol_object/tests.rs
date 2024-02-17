@@ -13,7 +13,7 @@ mod symbol_object {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
             symbol_data: RefCell::new(None),
         };
-        assert_ne!(format!("{:?}", so), "");
+        assert_ne!(format!("{so:?}"), "");
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod symbol_object {
         let sym = wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(sym);
         let res = sym_obj.o.own_property_keys().unwrap();
-        assert!(res.is_empty())
+        assert!(res.is_empty());
     }
 
     #[test]
@@ -376,7 +376,7 @@ fn symbol_constructor_function(
     setup_test_agent();
     let nt = tgt_maker();
     let args = arg_maker();
-    super::symbol_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(unwind_any_error)
+    super::symbol_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(unwind_any_error)
 }
 
 mod symbol_for {
@@ -387,7 +387,7 @@ mod symbol_for {
         setup_test_agent();
         let gsr = global_symbol_registry();
         let count_prior = gsr.borrow().len();
-        let result = symbol_for(ECMAScriptValue::Undefined, None, &["key".into()]);
+        let result = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
         if let Ok(ECMAScriptValue::Symbol(sym)) = result {
             assert_eq!(sym.descriptive_string(), "Symbol(key)");
             let count_after = gsr.borrow().len();
@@ -402,8 +402,8 @@ mod symbol_for {
         setup_test_agent();
         let gsr = global_symbol_registry();
         let count_prior = gsr.borrow().len();
-        let first = symbol_for(ECMAScriptValue::Undefined, None, &["key".into()]);
-        let second = symbol_for(ECMAScriptValue::Undefined, None, &["key".into()]);
+        let first = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
+        let second = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
         if let (Ok(ECMAScriptValue::Symbol(first)), Ok(ECMAScriptValue::Symbol(second))) = (first, second) {
             assert_eq!(first, second);
             assert_eq!(first.descriptive_string(), "Symbol(key)");
@@ -418,7 +418,7 @@ mod symbol_for {
     fn bad_key() {
         setup_test_agent();
         let to_primitive = wks(WksId::ToPrimitive);
-        let result = symbol_for(ECMAScriptValue::Undefined, None, &[to_primitive.into()]).unwrap_err();
+        let result = symbol_for(&ECMAScriptValue::Undefined, None, &[to_primitive.into()]).unwrap_err();
         assert_eq!(unwind_any_error(result), "TypeError: Symbols may not be converted to strings");
     }
 }
@@ -433,7 +433,7 @@ mod symbol_key_for {
         let new_target = None;
         let arguments = &[];
 
-        let result = symbol_key_for(this_value, new_target, arguments);
+        let result = symbol_key_for(&this_value, new_target, arguments);
 
         assert_eq!(unwind_any_error(result.unwrap_err()), "TypeError: value is not a symbol");
     }
@@ -446,7 +446,7 @@ mod symbol_key_for {
         let sym = wks(WksId::ToPrimitive);
         let arguments = &[ECMAScriptValue::from(sym)];
 
-        let result = symbol_key_for(this_value, new_target, arguments);
+        let result = symbol_key_for(&this_value, new_target, arguments);
 
         assert_eq!(result.unwrap(), ECMAScriptValue::Undefined);
     }
@@ -456,10 +456,10 @@ mod symbol_key_for {
         setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let new_target = None;
-        let registry_sym = symbol_for(ECMAScriptValue::Undefined, new_target, &["test_sentinel".into()]).unwrap();
+        let registry_sym = symbol_for(&ECMAScriptValue::Undefined, new_target, &["test_sentinel".into()]).unwrap();
         let arguments = &[registry_sym];
 
-        let results = symbol_key_for(this_value, new_target, arguments);
+        let results = symbol_key_for(&this_value, new_target, arguments);
 
         assert_eq!(results.unwrap().to_string(), "test_sentinel");
     }
@@ -510,7 +510,7 @@ mod symbol_registry {
     #[test]
     fn debug() {
         let sr = SymbolRegistry::new();
-        assert_ne!(format!("{:?}", sr), "");
+        assert_ne!(format!("{sr:?}"), "");
     }
 
     #[test]
@@ -634,7 +634,7 @@ mod symbol_to_string {
     fn normal(maker: fn() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let this_value = maker();
-        symbol_to_string(this_value, None, &[]).map(|val| format!("{val}")).map_err(unwind_any_error)
+        symbol_to_string(&this_value, None, &[]).map(|val| format!("{val}")).map_err(unwind_any_error)
     }
 }
 
@@ -646,7 +646,7 @@ mod symbol_value_of {
         setup_test_agent();
         let s = Symbol::new(Some("test sentinel".into()));
         let this_value = ECMAScriptValue::from(s.clone());
-        let result = symbol_value_of(this_value, None, &[]).unwrap();
+        let result = symbol_value_of(&this_value, None, &[]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(s));
     }
 
@@ -654,7 +654,7 @@ mod symbol_value_of {
     fn error() {
         setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
-        let result = symbol_value_of(this_value, None, &[]).unwrap_err();
+        let result = symbol_value_of(&this_value, None, &[]).unwrap_err();
         assert_eq!(unwind_any_error(result), "TypeError: Not a symbol");
     }
 }
@@ -669,14 +669,14 @@ mod symbol_description {
         setup_test_agent();
         let sym = Symbol::new(src.map(JSString::from));
         let this_value = ECMAScriptValue::from(sym);
-        symbol_description(this_value, None, &[]).unwrap()
+        symbol_description(&this_value, None, &[]).unwrap()
     }
 
     #[test]
     fn bad_this() {
         setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
-        let result = symbol_description(this_value, None, &[]).unwrap_err();
+        let result = symbol_description(&this_value, None, &[]).unwrap_err();
         assert_eq!(unwind_any_error(result), "TypeError: Not a symbol");
     }
 }

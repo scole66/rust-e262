@@ -10,34 +10,34 @@ use test_case::test_case;
 fn primary_expression_test_debug() {
     let pe = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false);
     let (exp, _) = check(pe);
-    assert_ne!(format!("{:?}", exp), "");
+    assert_ne!(format!("{exp:?}"), "");
 }
 #[test]
 fn primary_expression_test_pprint() {
     let (pe1, _) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
-    pretty_check(&*pe1, "PrimaryExpression: this", vec![]);
-    concise_check(&*pe1, "Keyword: this", vec![]);
+    pretty_check(&*pe1, "PrimaryExpression: this", &[]);
+    concise_check(&*pe1, "Keyword: this", &[]);
     let (pe2, _) = check(PrimaryExpression::parse(&mut newparser("1"), Scanner::new(), false, false));
-    pretty_check(&*pe2, "PrimaryExpression: 1", vec!["Literal: 1"]);
-    concise_check(&*pe2, "Numeric: 1", vec![]);
+    pretty_check(&*pe2, "PrimaryExpression: 1", &["Literal: 1"]);
+    concise_check(&*pe2, "Numeric: 1", &[]);
     let (pe3, _) = check(PrimaryExpression::parse(&mut newparser("i"), Scanner::new(), false, false));
-    pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
-    concise_check(&*pe3, "IdentifierName: i", vec![]);
+    pretty_check(&*pe3, "PrimaryExpression: i", &["IdentifierReference: i"]);
+    concise_check(&*pe3, "IdentifierName: i", &[]);
     let (pe4, _) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
-    pretty_check(&*pe4, "PrimaryExpression: [ ]", vec!["ArrayLiteral: [ ]"]);
-    concise_check(&*pe4, "ArrayLiteral: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
+    pretty_check(&*pe4, "PrimaryExpression: [ ]", &["ArrayLiteral: [ ]"]);
+    concise_check(&*pe4, "ArrayLiteral: [ ]", &["Punctuator: [", "Punctuator: ]"]);
     let (pe5, _) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
-    pretty_check(&*pe5, "PrimaryExpression: { }", vec!["ObjectLiteral: { }"]);
-    concise_check(&*pe5, "ObjectLiteral: { }", vec!["Punctuator: {", "Punctuator: }"]);
+    pretty_check(&*pe5, "PrimaryExpression: { }", &["ObjectLiteral: { }"]);
+    concise_check(&*pe5, "ObjectLiteral: { }", &["Punctuator: {", "Punctuator: }"]);
     let (pe6, _) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
-    pretty_check(&*pe6, "PrimaryExpression: ( a )", vec!["ParenthesizedExpression: ( a )"]);
-    concise_check(&*pe6, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
+    pretty_check(&*pe6, "PrimaryExpression: ( a )", &["ParenthesizedExpression: ( a )"]);
+    concise_check(&*pe6, "ParenthesizedExpression: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     let (pe7, _) = check(PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false));
-    pretty_check(&*pe7, "PrimaryExpression: `rust`", vec!["TemplateLiteral: `rust`"]);
-    concise_check(&*pe7, "NoSubTemplate: `rust`", vec![]);
+    pretty_check(&*pe7, "PrimaryExpression: `rust`", &["TemplateLiteral: `rust`"]);
+    concise_check(&*pe7, "NoSubTemplate: `rust`", &[]);
     let (pe8, _) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
-    pretty_check(&*pe8, "PrimaryExpression: /rust/", vec![]);
-    concise_check(&*pe8, "RegularExpressionLiteral: /rust/", vec![]);
+    pretty_check(&*pe8, "PrimaryExpression: /rust/", &[]);
+    concise_check(&*pe8, "RegularExpressionLiteral: /rust/", &[]);
 }
 #[test]
 fn primary_expression_test_idref() {
@@ -89,18 +89,11 @@ fn primary_expression_test_func() {
     chk_scan(&scanner, 14);
     assert!(matches!(*node, PrimaryExpression::Function { .. }));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
+    pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", &["FunctionExpression: function a (  ) {  }"]);
     concise_check(
         &*node,
         "FunctionExpression: function a (  ) {  }",
-        vec![
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
 }
 #[test]
@@ -113,12 +106,12 @@ fn primary_expression_test_generator() {
     pretty_check(
         &*node,
         "PrimaryExpression: function * a ( b ) { c ; }",
-        vec!["GeneratorExpression: function * a ( b ) { c ; }"],
+        &["GeneratorExpression: function * a ( b ) { c ; }"],
     );
     concise_check(
         &*node,
         "GeneratorExpression: function * a ( b ) { c ; }",
-        vec![
+        &[
             "Keyword: function",
             "Punctuator: *",
             "IdentifierName: a",
@@ -141,12 +134,12 @@ fn primary_expression_test_async_generator() {
     pretty_check(
         &*node,
         "PrimaryExpression: async function * a ( b ) { c ; }",
-        vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"],
+        &["AsyncGeneratorExpression: async function * a ( b ) { c ; }"],
     );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * a ( b ) { c ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -170,12 +163,12 @@ fn primary_expression_test_async_function() {
     pretty_check(
         &*node,
         "PrimaryExpression: async function a ( b ) { c ; }",
-        vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"],
+        &["AsyncFunctionExpression: async function a ( b ) { c ; }"],
     );
     concise_check(
         &*node,
         "AsyncFunctionExpression: async function a ( b ) { c ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "IdentifierName: a",
@@ -201,8 +194,8 @@ fn primary_expression_test_class_expression() {
     chk_scan(&scanner, 7);
     assert!(matches!(*node, PrimaryExpression::Class { .. }));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
-    concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
+    pretty_check(&*node, "PrimaryExpression: class { }", &["ClassExpression: class { }"]);
+    concise_check(&*node, "ClassExpression: class { }", &["Keyword: class", "ClassTail: { }"]);
 }
 #[test]
 fn primary_expression_test_prettyerrors_1() {
@@ -521,7 +514,7 @@ mod primary_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("this" => true; "this")]
@@ -666,7 +659,7 @@ mod primary_expression {
 #[test]
 fn literal_test_debug() {
     let literal = Maker::new("null").literal();
-    assert_ne!(format!("{:?}", literal), "");
+    assert_ne!(format!("{literal:?}"), "");
 }
 #[test]
 fn literal_test_null() {
@@ -678,8 +671,8 @@ fn literal_test_null() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
         }
     ));
-    pretty_check(&*lit, "Literal: null", vec![]);
-    concise_check(&*lit, "Keyword: null", vec![]);
+    pretty_check(&*lit, "Literal: null", &[]);
+    concise_check(&*lit, "Keyword: null", &[]);
 }
 #[test]
 fn literal_test_boolean_01() {
@@ -692,8 +685,8 @@ fn literal_test_boolean_01() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
         }
     ));
-    pretty_check(&*lit, "Literal: true", vec![]);
-    concise_check(&*lit, "Keyword: true", vec![]);
+    pretty_check(&*lit, "Literal: true", &[]);
+    concise_check(&*lit, "Keyword: true", &[]);
 }
 #[test]
 fn literal_test_boolean_02() {
@@ -706,8 +699,8 @@ fn literal_test_boolean_02() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
         }
     ));
-    pretty_check(&*lit, "Literal: false", vec![]);
-    concise_check(&*lit, "Keyword: false", vec![]);
+    pretty_check(&*lit, "Literal: false", &[]);
+    concise_check(&*lit, "Keyword: false", &[]);
 }
 #[test]
 fn literal_test_leading_dot() {
@@ -720,8 +713,8 @@ fn literal_test_leading_dot() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
     );
-    pretty_check(&*lit, "Literal: 0.25", vec![]);
-    concise_check(&*lit, "Numeric: 0.25", vec![]);
+    pretty_check(&*lit, "Literal: 0.25", &[]);
+    concise_check(&*lit, "Numeric: 0.25", &[]);
 }
 #[test]
 fn literal_test_bigint() {
@@ -734,9 +727,9 @@ fn literal_test_bigint() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
         }
     ));
-    pretty_check(&*lit, "Literal: 7173", vec![]);
-    concise_check(&*lit, "Numeric: 7173", vec![]);
-    format!("{:?}", lit);
+    pretty_check(&*lit, "Literal: 7173", &[]);
+    concise_check(&*lit, "Numeric: 7173", &[]);
+    format!("{lit:?}");
 }
 #[test]
 fn literal_test_string() {
@@ -749,8 +742,8 @@ fn literal_test_string() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 8 } }
         }
     ));
-    pretty_check(&*lit, "Literal: 'string'", vec![]);
-    concise_check(&*lit, "String: 'string'", vec![]);
+    pretty_check(&*lit, "Literal: 'string'", &[]);
+    concise_check(&*lit, "String: 'string'", &[]);
 }
 #[test]
 fn literal_test_debugmark() {
@@ -763,8 +756,8 @@ fn literal_test_debugmark() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
     ));
-    pretty_check(&*lit, "Literal: @@H", vec![]);
-    concise_check(&*lit, "Punctuator: @@H", vec![]);
+    pretty_check(&*lit, "Literal: @@H", &[]);
+    concise_check(&*lit, "Punctuator: @@H", &[]);
 }
 #[test]
 fn literal_test_keyword() {
@@ -893,12 +886,12 @@ fn elision_test_03() {
 #[test]
 fn elision_test_pprint() {
     let (e1, _) = check(Elisions::parse(&mut newparser(","), Scanner::new()));
-    pretty_check(&*e1, "Elisions: ,", vec![]);
-    concise_check(&*e1, "Elisions: ,", vec![]);
+    pretty_check(&*e1, "Elisions: ,", &[]);
+    concise_check(&*e1, "Elisions: ,", &[]);
     let (e2, _) = check(Elisions::parse(&mut newparser(",,,,,,"), Scanner::new()));
-    pretty_check(&*e2, "Elisions: , , , , , ,", vec![]);
-    concise_check(&*e2, "Elisions: , , , , , ,", vec![]);
-    format!("{:?}", e1);
+    pretty_check(&*e2, "Elisions: , , , , , ,", &[]);
+    concise_check(&*e2, "Elisions: , , , , , ,", &[]);
+    format!("{e1:?}");
 }
 #[test]
 fn elision_test_prettyerrors_1() {
@@ -953,9 +946,9 @@ fn spread_element_test_assignment_expression() {
 #[test]
 fn spread_element_test_pretty() {
     let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
-    pretty_check(&*se, "SpreadElement: ... 1", vec!["AssignmentExpression: 1"]);
-    concise_check(&*se, "SpreadElement: ... 1", vec!["Punctuator: ...", "Numeric: 1"]);
-    format!("{:?}", se);
+    pretty_check(&*se, "SpreadElement: ... 1", &["AssignmentExpression: 1"]);
+    concise_check(&*se, "SpreadElement: ... 1", &["Punctuator: ...", "Numeric: 1"]);
+    format!("{se:?}");
 }
 #[test]
 fn spread_element_test_prettyerrors_1() {
@@ -997,7 +990,7 @@ mod spread_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("...xyzzy" => false; "no")]
@@ -1027,8 +1020,8 @@ fn element_list_test_02() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("3"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
-    pretty_check(&*el, "ElementList: 3", vec!["AssignmentExpression: 3"]);
-    concise_check(&*el, "Numeric: 3", vec![]);
+    pretty_check(&*el, "ElementList: 3", &["AssignmentExpression: 3"]);
+    concise_check(&*el, "Numeric: 3", &[]);
     format!("{:?}", *el);
 }
 #[test]
@@ -1036,43 +1029,43 @@ fn element_list_test_03() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*el, ElementList::AssignmentExpression{elision: Some(be), ..} if be.count == 2));
-    pretty_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "AssignmentExpression: 3"]);
-    concise_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "Numeric: 3"]);
+    pretty_check(&*el, "ElementList: , , 3", &["Elisions: , ,", "AssignmentExpression: 3"]);
+    concise_check(&*el, "ElementList: , , 3", &["Elisions: , ,", "Numeric: 3"]);
 }
 #[test]
 fn element_list_test_05() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(*el, ElementList::SpreadElement { elision: None, .. }));
-    pretty_check(&*el, "ElementList: ... a", vec!["SpreadElement: ... a"]);
-    concise_check(&*el, "SpreadElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
+    pretty_check(&*el, "ElementList: ... a", &["SpreadElement: ... a"]);
+    concise_check(&*el, "SpreadElement: ... a", &["Punctuator: ...", "IdentifierName: a"]);
 }
 #[test]
 fn element_list_test_06() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*el, ElementList::SpreadElement{elision:Some(be), ..} if be.count == 2));
-    pretty_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
-    concise_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
+    pretty_check(&*el, "ElementList: , , ... a", &["Elisions: , ,", "SpreadElement: ... a"]);
+    concise_check(&*el, "ElementList: , , ... a", &["Elisions: , ,", "SpreadElement: ... a"]);
 }
 #[test]
 fn element_list_test_07() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*el, ElementList::ElementListAssignmentExpression { elision: None, .. }));
-    pretty_check(&*el, "ElementList: a , b", vec!["ElementList: a", "AssignmentExpression: b"]);
-    concise_check(&*el, "ElementList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    pretty_check(&*el, "ElementList: a , b", &["ElementList: a", "AssignmentExpression: b"]);
+    concise_check(&*el, "ElementList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
 }
 #[test]
 fn element_list_test_08() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*el, ElementList::ElementListAssignmentExpression{elision: Some(be), ..} if be.count == 1));
-    pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
+    pretty_check(&*el, "ElementList: a , , b", &["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
     concise_check(
         &*el,
         "ElementList: a , , b",
-        vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "IdentifierName: b"],
+        &["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "IdentifierName: b"],
     );
 }
 #[test]
@@ -1080,19 +1073,19 @@ fn element_list_test_09() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*el, ElementList::ElementListSpreadElement { elision: None, .. }));
-    pretty_check(&*el, "ElementList: a , ... b", vec!["ElementList: a", "SpreadElement: ... b"]);
-    concise_check(&*el, "ElementList: a , ... b", vec!["IdentifierName: a", "Punctuator: ,", "SpreadElement: ... b"]);
+    pretty_check(&*el, "ElementList: a , ... b", &["ElementList: a", "SpreadElement: ... b"]);
+    concise_check(&*el, "ElementList: a , ... b", &["IdentifierName: a", "Punctuator: ,", "SpreadElement: ... b"]);
 }
 #[test]
 fn element_list_test_10() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
     assert!(matches!(&*el, ElementList::ElementListSpreadElement{elision: Some(be), ..} if be.count == 1));
-    pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
+    pretty_check(&*el, "ElementList: a , , ... b", &["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
     concise_check(
         &*el,
         "ElementList: a , , ... b",
-        vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "SpreadElement: ... b"],
+        &["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "SpreadElement: ... b"],
     );
 }
 #[test]
@@ -1357,7 +1350,7 @@ mod element_list {
         setup_test_agent();
         let mut errs = vec![];
         ElementList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("xyzzy" => false; "AssignmentExpression (no)")]
@@ -1409,8 +1402,8 @@ fn array_literal_test_01() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
         }
     ));
-    pretty_check(&*al, "ArrayLiteral: [ ]", vec![]);
-    concise_check(&*al, "ArrayLiteral: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
+    pretty_check(&*al, "ArrayLiteral: [ ]", &[]);
+    concise_check(&*al, "ArrayLiteral: [ ]", &["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", &*al);
 }
 #[test]
@@ -1420,8 +1413,8 @@ fn array_literal_test_02() {
     assert!(
         matches!(&*al, ArrayLiteral::Empty{elision: Some(be), location: Location{ starting_line:1, starting_column:1, span:Span{ starting_index:0, length:3 } }} if be.count == 1)
     );
-    pretty_check(&*al, "ArrayLiteral: [ , ]", vec!["Elisions: ,"]);
-    concise_check(&*al, "ArrayLiteral: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
+    pretty_check(&*al, "ArrayLiteral: [ , ]", &["Elisions: ,"]);
+    concise_check(&*al, "ArrayLiteral: [ , ]", &["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
 }
 #[test]
 fn array_literal_test_03() {
@@ -1434,8 +1427,8 @@ fn array_literal_test_03() {
             ..
         }
     ));
-    pretty_check(&*al, "ArrayLiteral: [ a ]", vec!["ElementList: a"]);
-    concise_check(&*al, "ArrayLiteral: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    pretty_check(&*al, "ArrayLiteral: [ a ]", &["ElementList: a"]);
+    concise_check(&*al, "ArrayLiteral: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
 }
 #[test]
 fn array_literal_test_04() {
@@ -1449,12 +1442,12 @@ fn array_literal_test_04() {
             ..
         }
     ));
-    pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
+    pretty_check(&*al, "ArrayLiteral: [ a , ]", &["ElementList: a"]);
     concise_check(
         &*al,
         "ArrayLiteral: [ a , ]",
-        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
-    )
+        &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
+    );
 }
 #[test]
 fn array_literal_test_05() {
@@ -1468,11 +1461,11 @@ fn array_literal_test_05() {
             ..
         } if be.count == 1
     ));
-    pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
+    pretty_check(&*al, "ArrayLiteral: [ a , , ]", &["ElementList: a", "Elisions: ,"]);
     concise_check(
         &*al,
         "ArrayLiteral: [ a , , ]",
-        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
+        &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
     );
 }
 #[test]
@@ -1630,7 +1623,7 @@ mod array_literal {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[]" => false; "empty")]
@@ -1677,8 +1670,8 @@ fn initializer_test_01() {
             ..
         }
     ));
-    pretty_check(&*izer, "Initializer: = a", vec!["AssignmentExpression: a"]);
-    concise_check(&*izer, "Initializer: = a", vec!["Punctuator: =", "IdentifierName: a"]);
+    pretty_check(&*izer, "Initializer: = a", &["AssignmentExpression: a"]);
+    concise_check(&*izer, "Initializer: = a", &["Punctuator: =", "IdentifierName: a"]);
     format!("{:?}", *izer);
 }
 #[test]
@@ -1727,7 +1720,7 @@ mod initializer {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("=xyzzy" => false; "no")]
@@ -1769,8 +1762,8 @@ fn cover_initialized_name_test_01() {
     let (cin, scanner) = check(CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*cin, CoverInitializedName::InitializedName(_, _)));
-    pretty_check(&*cin, "CoverInitializedName: a = b", vec!["IdentifierReference: a", "Initializer: = b"]);
-    concise_check(&*cin, "CoverInitializedName: a = b", vec!["IdentifierName: a", "Initializer: = b"]);
+    pretty_check(&*cin, "CoverInitializedName: a = b", &["IdentifierReference: a", "Initializer: = b"]);
+    concise_check(&*cin, "CoverInitializedName: a = b", &["IdentifierName: a", "Initializer: = b"]);
     format!("{:?}", *cin);
 }
 #[test]
@@ -1812,7 +1805,7 @@ mod cover_initialized_name {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test]
@@ -1856,8 +1849,8 @@ fn computed_property_name_test_01() {
             ..
         }
     ));
-    pretty_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["AssignmentExpression: a"]);
-    concise_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    pretty_check(&*cpn, "ComputedPropertyName: [ a ]", &["AssignmentExpression: a"]);
+    concise_check(&*cpn, "ComputedPropertyName: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", &*cpn);
 }
 #[test]
@@ -1898,7 +1891,7 @@ mod computed_property_name {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
     #[test_case("[xyzzy]" => false; "no")]
     #[test_case("[arguments]" => true; "yes")]
@@ -1938,8 +1931,8 @@ fn literal_property_name_test_01() {
             ..
         }
     ));
-    pretty_check(&*lpn, "LiteralPropertyName: b", vec![]);
-    concise_check(&*lpn, "IdentifierName: b", vec![]);
+    pretty_check(&*lpn, "LiteralPropertyName: b", &[]);
+    concise_check(&*lpn, "IdentifierName: b", &[]);
     format!("{:?}", *lpn);
 }
 #[test]
@@ -1953,8 +1946,8 @@ fn literal_property_name_test_02() {
             ..
         }
     ));
-    pretty_check(&*lpn, "LiteralPropertyName: 'b'", vec![]);
-    concise_check(&*lpn, "String: 'b'", vec![]);
+    pretty_check(&*lpn, "LiteralPropertyName: 'b'", &[]);
+    concise_check(&*lpn, "String: 'b'", &[]);
 }
 #[test]
 fn literal_property_name_test_03() {
@@ -1967,8 +1960,8 @@ fn literal_property_name_test_03() {
             ..
         }
     ));
-    pretty_check(&*lpn, "LiteralPropertyName: 0", vec![]);
-    concise_check(&*lpn, "Numeric: 0", vec![]);
+    pretty_check(&*lpn, "LiteralPropertyName: 0", &[]);
+    concise_check(&*lpn, "Numeric: 0", &[]);
 }
 #[test]
 fn literal_property_name_test_04() {
@@ -1981,8 +1974,8 @@ fn literal_property_name_test_04() {
             ..
         }
     ));
-    pretty_check(&*lpn, "LiteralPropertyName: 1", vec![]);
-    concise_check(&*lpn, "Numeric: 1", vec![]);
+    pretty_check(&*lpn, "LiteralPropertyName: 1", &[]);
+    concise_check(&*lpn, "Numeric: 1", &[]);
 }
 #[test]
 fn literal_property_name_test_prettyerrors_1() {
@@ -2055,8 +2048,8 @@ fn property_name_test_01() {
     let (pn, scanner) = check(PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, PropertyName::LiteralPropertyName(_)));
-    pretty_check(&*pn, "PropertyName: a", vec!["LiteralPropertyName: a"]);
-    concise_check(&*pn, "IdentifierName: a", vec![]);
+    pretty_check(&*pn, "PropertyName: a", &["LiteralPropertyName: a"]);
+    concise_check(&*pn, "IdentifierName: a", &[]);
     format!("{:?}", *pn);
 }
 #[test]
@@ -2064,8 +2057,8 @@ fn property_name_test_02() {
     let (pn, scanner) = check(PropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pn, PropertyName::ComputedPropertyName(_)));
-    pretty_check(&*pn, "PropertyName: [ a ]", vec!["ComputedPropertyName: [ a ]"]);
-    concise_check(&*pn, "ComputedPropertyName: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    pretty_check(&*pn, "PropertyName: [ a ]", &["ComputedPropertyName: [ a ]"]);
+    concise_check(&*pn, "ComputedPropertyName: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", *pn);
 }
 #[test]
@@ -2140,7 +2133,7 @@ mod property_name {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => Some(JSString::from("a")); "normal")]
@@ -2185,8 +2178,8 @@ fn property_definition_test_01() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pd, PropertyDefinition::IdentifierReference(_)));
-    pretty_check(&*pd, "PropertyDefinition: a", vec!["IdentifierReference: a"]);
-    concise_check(&*pd, "IdentifierName: a", vec![]);
+    pretty_check(&*pd, "PropertyDefinition: a", &["IdentifierReference: a"]);
+    concise_check(&*pd, "IdentifierName: a", &[]);
     format!("{:?}", *pd);
 }
 #[test]
@@ -2194,16 +2187,16 @@ fn property_definition_test_02() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a=b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pd, PropertyDefinition::CoverInitializedName(_)));
-    pretty_check(&*pd, "PropertyDefinition: a = b", vec!["CoverInitializedName: a = b"]);
-    concise_check(&*pd, "CoverInitializedName: a = b", vec!["IdentifierName: a", "Initializer: = b"]);
+    pretty_check(&*pd, "PropertyDefinition: a = b", &["CoverInitializedName: a = b"]);
+    concise_check(&*pd, "CoverInitializedName: a = b", &["IdentifierName: a", "Initializer: = b"]);
 }
 #[test]
 fn property_definition_test_03() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a:b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pd, PropertyDefinition::PropertyNameAssignmentExpression(_, _)));
-    pretty_check(&*pd, "PropertyDefinition: a : b", vec!["PropertyName: a", "AssignmentExpression: b"]);
-    concise_check(&*pd, "PropertyDefinition: a : b", vec!["IdentifierName: a", "Punctuator: :", "IdentifierName: b"]);
+    pretty_check(&*pd, "PropertyDefinition: a : b", &["PropertyName: a", "AssignmentExpression: b"]);
+    concise_check(&*pd, "PropertyDefinition: a : b", &["IdentifierName: a", "Punctuator: :", "IdentifierName: b"]);
 }
 #[test]
 fn property_definition_test_04() {
@@ -2216,19 +2209,19 @@ fn property_definition_test_04() {
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
         )
     ));
-    pretty_check(&*pd, "PropertyDefinition: ... a", vec!["AssignmentExpression: a"]);
-    concise_check(&*pd, "PropertyDefinition: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
+    pretty_check(&*pd, "PropertyDefinition: ... a", &["AssignmentExpression: a"]);
+    concise_check(&*pd, "PropertyDefinition: ... a", &["Punctuator: ...", "IdentifierName: a"]);
 }
 #[test]
 fn property_definition_test_05() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pd, PropertyDefinition::MethodDefinition(..)));
-    pretty_check(&*pd, "PropertyDefinition: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
+    pretty_check(&*pd, "PropertyDefinition: a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
     concise_check(
         &*pd,
         "MethodDefinition: a (  ) {  }",
-        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
 }
 #[test]
@@ -2399,7 +2392,7 @@ mod property_definition {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => Some(JSString::from("a")); "identifier")]
@@ -2453,8 +2446,8 @@ fn property_definition_list_test_01() {
     let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
-    pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
-    concise_check(&*pdl, "IdentifierName: a", vec![]);
+    pretty_check(&*pdl, "PropertyDefinitionList: a", &["PropertyDefinition: a"]);
+    concise_check(&*pdl, "IdentifierName: a", &[]);
     format!("{:?}", *pdl);
 }
 #[test]
@@ -2462,20 +2455,16 @@ fn property_definition_list_test_02() {
     let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
-    pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
-    concise_check(&*pdl, "IdentifierName: a", vec![]);
+    pretty_check(&*pdl, "PropertyDefinitionList: a", &["PropertyDefinition: a"]);
+    concise_check(&*pdl, "IdentifierName: a", &[]);
 }
 #[test]
 fn property_definition_list_test_03() {
     let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*pdl, PropertyDefinitionList::ManyDefs(_, _)));
-    pretty_check(&*pdl, "PropertyDefinitionList: a , b", vec!["PropertyDefinitionList: a", "PropertyDefinition: b"]);
-    concise_check(
-        &*pdl,
-        "PropertyDefinitionList: a , b",
-        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
-    );
+    pretty_check(&*pdl, "PropertyDefinitionList: a , b", &["PropertyDefinitionList: a", "PropertyDefinition: b"]);
+    concise_check(&*pdl, "PropertyDefinitionList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
 }
 #[test]
 fn property_definition_list_test_04() {
@@ -2557,7 +2546,7 @@ mod property_definition_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a:x" => 0; "one item, not proto")]
@@ -2598,8 +2587,8 @@ fn object_literal_test_01() {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
         }
     ));
-    pretty_check(&*ol, "ObjectLiteral: { }", vec![]);
-    concise_check(&*ol, "ObjectLiteral: { }", vec!["Punctuator: {", "Punctuator: }"]);
+    pretty_check(&*ol, "ObjectLiteral: { }", &[]);
+    concise_check(&*ol, "ObjectLiteral: { }", &["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", *ol);
 }
 #[test]
@@ -2613,12 +2602,8 @@ fn object_literal_test_02() {
             ..
         }
     ));
-    pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
-    concise_check(
-        &*ol,
-        "ObjectLiteral: { a : b }",
-        vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: }"],
-    );
+    pretty_check(&*ol, "ObjectLiteral: { a : b }", &["PropertyDefinitionList: a : b"]);
+    concise_check(&*ol, "ObjectLiteral: { a : b }", &["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: }"]);
 }
 #[test]
 fn object_literal_test_03() {
@@ -2631,11 +2616,11 @@ fn object_literal_test_03() {
             ..
         }
     ));
-    pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
+    pretty_check(&*ol, "ObjectLiteral: { a : b , }", &["PropertyDefinitionList: a : b"]);
     concise_check(
         &*ol,
         "ObjectLiteral: { a : b , }",
-        vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: ,", "Punctuator: }"],
+        &["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: ,", "Punctuator: }"],
     );
 }
 #[test]
@@ -2743,7 +2728,7 @@ mod object_literal {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{}" => false; "{} (empty)")]
@@ -2772,9 +2757,9 @@ fn parenthesized_expression_test_01() {
         pe.location,
         Location { starting_column: 1, starting_line: 1, span: Span { starting_index: 0, length: 3 } }
     );
-    pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
-    concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
-    format!("{:?}", pe);
+    pretty_check(&*pe, "ParenthesizedExpression: ( a )", &["Expression: a"]);
+    concise_check(&*pe, "ParenthesizedExpression: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
+    format!("{pe:?}");
     assert_eq!(pe.is_function_definition(), false);
 }
 #[test]
@@ -2834,7 +2819,7 @@ mod parenthesized_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("(a)" => false; "parenthesized idref")]
@@ -2884,24 +2869,24 @@ fn template_middle_list_test_01() {
             ..
         }
     ));
-    pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
-    concise_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["TemplateMiddle: }a${", "Numeric: 0"]);
-    format!("{:?}", tml);
+    pretty_check(&*tml, "TemplateMiddleList: }a${ 0", &["Expression: 0"]);
+    concise_check(&*tml, "TemplateMiddleList: }a${ 0", &["TemplateMiddle: }a${", "Numeric: 0"]);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_02() {
     let (tml, scanner) =
         check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 8);
-    println!("{:?}", tml);
+    println!("{tml:?}");
     assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
-    pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "Expression: b"]);
+    pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", &["TemplateMiddleList: }${ a", "Expression: b"]);
     concise_check(
         &*tml,
         "TemplateMiddleList: }${ a }${ b",
-        vec!["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"],
+        &["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"],
     );
-    format!("{:?}", tml);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_03() {
@@ -2924,9 +2909,9 @@ fn template_middle_list_test_04() {
         check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*tml, TemplateMiddleList::ListHead { .. }));
-    pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
-    concise_check(&*tml, "TemplateMiddleList: }${ a", vec!["TemplateMiddle: }${", "IdentifierName: a"]);
-    format!("{:?}", tml);
+    pretty_check(&*tml, "TemplateMiddleList: }${ a", &["Expression: a"]);
+    concise_check(&*tml, "TemplateMiddleList: }${ a", &["TemplateMiddle: }${", "IdentifierName: a"]);
+    format!("{tml:?}");
 }
 #[test]
 fn template_middle_list_test_prettyerrors_1() {
@@ -3006,7 +2991,7 @@ mod template_middle_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("}\\u{66}${0", true => vec![Some(JSString::from("\\u{66}"))]; "item-raw")]
@@ -3037,18 +3022,18 @@ fn template_spans_test_01() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*ts, TemplateSpans::Tail { .. }));
-    pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
-    concise_check(&*ts, "TemplateTail: }done`", vec![]);
-    format!("{:?}", ts);
+    pretty_check(&*ts, "TemplateSpans: }done`", &[]);
+    concise_check(&*ts, "TemplateTail: }done`", &[]);
+    format!("{ts:?}");
 }
 #[test]
 fn template_spans_test_02() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}${a}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 10);
     assert!(matches!(&*ts, TemplateSpans::List { .. }));
-    pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
-    concise_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
-    format!("{:?}", ts);
+    pretty_check(&*ts, "TemplateSpans: }${ a }done`", &["TemplateMiddleList: }${ a"]);
+    concise_check(&*ts, "TemplateSpans: }${ a }done`", &["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
+    format!("{ts:?}");
 }
 #[test]
 fn template_spans_test_03() {
@@ -3127,7 +3112,7 @@ mod template_spans {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("}\\u{66}`", true => vec![Some(JSString::from("\\u{66}"))]; "tail-raw")]
@@ -3160,13 +3145,13 @@ fn substitution_template_test_01() {
         check(SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
     assert_eq!(st.tagged, false);
-    pretty_check(&*st, "SubstitutionTemplate: `${ a }`", vec!["Expression: a", "TemplateSpans: }`"]);
+    pretty_check(&*st, "SubstitutionTemplate: `${ a }`", &["Expression: a", "TemplateSpans: }`"]);
     concise_check(
         &*st,
         "SubstitutionTemplate: `${ a }`",
-        vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
+        &["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{:?}", st);
+    format!("{st:?}");
 }
 #[test]
 fn substitution_template_test_02() {
@@ -3247,7 +3232,7 @@ mod substitution_template {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).tagged_ok(tagged).substitution_template().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("`a${0}\\u{66}`", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "raw")]
@@ -3282,22 +3267,22 @@ fn template_literal_test_01() {
     if let TemplateLiteral::NoSubstitutionTemplate { tagged, .. } = &*tl {
         assert!(!*tagged);
     }
-    pretty_check(&*tl, "TemplateLiteral: `rust`", vec![]);
-    concise_check(&*tl, "NoSubTemplate: `rust`", vec![]);
-    format!("{:?}", tl);
+    pretty_check(&*tl, "TemplateLiteral: `rust`", &[]);
+    concise_check(&*tl, "NoSubTemplate: `rust`", &[]);
+    format!("{tl:?}");
 }
 #[test]
 fn template_literal_test_02() {
     let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate(_)));
-    pretty_check(&*tl, "TemplateLiteral: `${ a }`", vec!["SubstitutionTemplate: `${ a }`"]);
+    pretty_check(&*tl, "TemplateLiteral: `${ a }`", &["SubstitutionTemplate: `${ a }`"]);
     concise_check(
         &*tl,
         "SubstitutionTemplate: `${ a }`",
-        vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
+        &["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{:?}", tl);
+    format!("{tl:?}");
 }
 #[test]
 fn template_literal_test_03() {
@@ -3383,11 +3368,12 @@ mod template_literal {
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
             setup_test_agent();
             let mut errs = vec![];
-            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
-                .unwrap()
-                .0
-                .early_errors(&mut errs, strict, 4294967295);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(
+                &mut errs,
+                strict,
+                4_294_967_295,
+            );
+            errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
         }
 
         #[test]
@@ -3406,7 +3392,7 @@ mod template_literal {
                 false,
                 limit - 1,
             );
-            let err_set = AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())));
+            let err_set: AHashSet<String> = errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect();
             assert_eq!(err_set, sset(&["Template literal too complex"]));
         }
     }
@@ -3449,13 +3435,13 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         ));
         chk_scan(&scanner, 2);
         assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty { .. }));
-        pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec![]);
+        pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", &[]);
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( )",
-            vec!["Punctuator: (", "Punctuator: )"],
+            &["Punctuator: (", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_02() {
@@ -3470,14 +3456,14 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         pretty_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
-            vec!["Expression: 8 in [ 1 , 2 , 3 ]"],
+            &["Expression: 8 in [ 1 , 2 , 3 ]"],
         );
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
-            vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
+            &["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_03() {
@@ -3492,14 +3478,14 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         pretty_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
-            vec!["Expression: 8 in a"],
+            &["Expression: 8 in a"],
         );
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
-            vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
+            &["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_04() {
@@ -3511,17 +3497,13 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident { .. }));
-        pretty_check(
-            &*node,
-            "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
-            vec!["BindingIdentifier: a"],
-        );
+        pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )", &["BindingIdentifier: a"]);
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
-            vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
+            &["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_05() {
@@ -3536,14 +3518,14 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         pretty_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
-            vec!["BindingPattern: { }"],
+            &["BindingPattern: { }"],
         );
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
-            vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
+            &["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_06() {
@@ -3558,12 +3540,12 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         pretty_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
-            vec!["Expression: a", "BindingIdentifier: b"],
+            &["Expression: a", "BindingIdentifier: b"],
         );
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
-            vec![
+            &[
                 "Punctuator: (",
                 "IdentifierName: a",
                 "Punctuator: ,",
@@ -3572,7 +3554,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_07() {
@@ -3587,12 +3569,12 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
         pretty_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
-            vec!["Expression: a", "BindingPattern: [ ]"],
+            &["Expression: a", "BindingPattern: [ ]"],
         );
         concise_check(
             &*node,
             "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
-            vec![
+            &[
                 "Punctuator: (",
                 "IdentifierName: a",
                 "Punctuator: ,",
@@ -3601,7 +3583,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{:?}", node);
+        format!("{node:?}");
     }
     #[test]
     fn test_08() {
@@ -3993,7 +3975,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]

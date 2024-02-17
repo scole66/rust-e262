@@ -17,7 +17,7 @@ mod script_record {
     fn debug() {
         setup_test_agent();
         let sr = ScriptRecord::new_empty(current_realm_record().unwrap());
-        assert_ne!(format!("{:?}", sr), "");
+        assert_ne!(format!("{sr:?}"), "");
     }
 
     #[test]
@@ -39,7 +39,7 @@ mod module_record {
     #[test]
     fn debug() {
         let mr = ModuleRecord {};
-        assert_ne!(format!("{:?}", mr), "");
+        assert_ne!(format!("{mr:?}"), "");
     }
 }
 
@@ -50,7 +50,7 @@ mod script_or_module {
     #[test]
     fn debug() {
         let som = ScriptOrModule::Module(Rc::new(ModuleRecord {}));
-        assert_ne!(format!("{:?}", som), "");
+        assert_ne!(format!("{som:?}"), "");
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod execution_context {
         setup_test_agent();
         let ec = ExecutionContext::new(None, current_realm_record().unwrap(), None);
 
-        assert_ne!(format!("{:?}", ec), "");
+        assert_ne!(format!("{ec:?}"), "");
     }
 
     #[test_case(|| None; "SOM is None")]
@@ -120,7 +120,7 @@ mod execution_context {
 fn get_global_object(reset: bool) -> Option<String> {
     setup_test_agent();
     if reset {
-        AGENT.with(|agent| agent.reset())
+        AGENT.with(Agent::reset);
     }
     let maybe_obj = super::get_global_object();
 

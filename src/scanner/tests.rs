@@ -246,7 +246,7 @@ fn identifier_start_01() {
 #[test]
 fn identifier_start_02() {
     for s in &["$name", "_name", "Gname"] {
-        assert_eq!(identifier_start(&Scanner::new(), s), Ok(Some(Scanner { line: 1, column: 2, start_idx: 1 })))
+        assert_eq!(identifier_start(&Scanner::new(), s), Ok(Some(Scanner { line: 1, column: 2, start_idx: 1 })));
     }
     assert_eq!(identifier_start(&Scanner::new(), "ꘐblue"), Ok(Some(Scanner { line: 1, column: 2, start_idx: 3 })));
 }
@@ -371,62 +371,62 @@ fn radix_digits_11() {
 }
 #[test]
 fn decimal_integer_empty() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), ""), None)
+    assert_eq!(decimal_integer_literal(&Scanner::new(), ""), None);
 }
 #[test]
 fn decimal_integer_0() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "0"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "0"), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
 }
 #[test]
 fn decimal_integer_4() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "4"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "4"), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
 }
 #[test]
 fn decimal_integer_4_3() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "4_3"), Some(Scanner { line: 1, column: 4, start_idx: 3 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "4_3"), Some(Scanner { line: 1, column: 4, start_idx: 3 }));
 }
 #[test]
 fn decimal_integer_43() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "43"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "43"), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
 }
 #[test]
 fn decimal_integer_56_() {
-    assert_eq!(decimal_integer_literal(&Scanner::new(), "56_"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
+    assert_eq!(decimal_integer_literal(&Scanner::new(), "56_"), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
 }
 #[test]
 fn non_decimal_integer_literal_01() {
     assert_eq!(
         non_decimal_integer_literal(&Scanner::new(), "0x10", true),
         Some((NumberStyle::Hex, Scanner { line: 1, column: 5, start_idx: 4 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_01() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0x10..."),
         Some((Token::Number(16.0), Scanner { line: 1, column: 5, start_idx: 4 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_02() {
     assert_eq!(
         numeric_literal(&Scanner::new(), ".25"),
         Some((Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 }))
-    )
+    );
 }
 #[test]
 fn numeric_literal_03() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xabcdef"),
-        Some((Token::Number(11259375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
-    )
+        Some((Token::Number(11_259_375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
+    );
 }
 #[test]
 fn numeric_literal_04() {
     assert_eq!(
         numeric_literal(&Scanner::new(), "0xFEDCBA"),
-        Some((Token::Number(16702650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
-    )
+        Some((Token::Number(16_702_650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
+    );
 }
 #[test]
 fn numeric_literal_05() {
@@ -450,7 +450,7 @@ fn numeric_literal_08() {
     let result = numeric_literal(&Scanner::new(), "0o3_4576_1000n");
     assert_eq!(
         result,
-        Some((Token::BigInt(BigInt::zero() + 0x0397e200), Scanner { line: 1, column: 15, start_idx: 14 }))
+        Some((Token::BigInt(BigInt::zero() + 0x0397_e200), Scanner { line: 1, column: 15, start_idx: 14 }))
     );
 }
 #[test]
@@ -458,7 +458,7 @@ fn numeric_literal_09() {
     let result = numeric_literal(&Scanner::new(), "0x4576_1000n");
     assert_eq!(
         result,
-        Some((Token::BigInt(BigInt::zero() + 0x45761000), Scanner { line: 1, column: 13, start_idx: 12 }))
+        Some((Token::BigInt(BigInt::zero() + 0x4576_1000), Scanner { line: 1, column: 13, start_idx: 12 }))
     );
 }
 #[test]
@@ -469,7 +469,7 @@ fn numeric_literal_10() {
 #[test]
 fn numeric_literal_11() {
     let result = numeric_literal(&Scanner::new(), "0o7773153152");
-    assert_eq!(result, Some((Token::Number(1072485994.0), Scanner { line: 1, column: 13, start_idx: 12 })));
+    assert_eq!(result, Some((Token::Number(1_072_485_994.0), Scanner { line: 1, column: 13, start_idx: 12 })));
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn bad_hex_char() {
 #[test]
 fn hex_char_debug_fmt() {
     let hc = HexChar('F');
-    let result = format!("{:?}", hc);
+    let result = format!("{hc:?}");
     assert_eq!(result, "HexChar('F')");
 }
 #[test]
@@ -555,7 +555,7 @@ fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
         (
             Token::Identifier(IdentifierData { string_value: JSString::from(inp), keyword_id: expected }),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-            Scanner { line: 1, column: inp.len() as u32 + 1, start_idx: inp.len() }
+            Scanner { line: 1, column: u32::try_from(inp.len() + 1).unwrap(), start_idx: inp.len() }
         )
     );
 }
@@ -700,7 +700,7 @@ mod punctuator {
             (
                 tok,
                 Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-                Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }
+                Scanner { line: 1, column: u32::try_from(inp.chars().count() + 1).unwrap(), start_idx: inp.len() }
             )
         );
     }
@@ -854,7 +854,7 @@ mod punctuator {
             (Punctuator::QQEq, "??="),
         ];
         for (p, display) in pairs {
-            assert_eq!(format!("{}", p), display);
+            assert_eq!(format!("{p}"), display);
         }
     }
     #[test]
@@ -976,7 +976,7 @@ fn non_zero_digit_empty() {
 fn dbil_helper(text: &str) {
     assert_eq!(
         decimal_big_integer_literal(&Scanner::new(), text),
-        Some(Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() })
+        Some(Scanner { line: 1, column: u32::try_from(text.len() + 1).unwrap(), start_idx: text.len() })
     );
 }
 #[test]
@@ -1043,7 +1043,7 @@ fn int_to_number_test() {
 #[test]
 fn escape_sequence_test() {
     let singles = ['\'', '"', '\\', 'b', 'f', 'n', 'r', 't', 'v', 'a', 'Q', '😊'];
-    for ch in singles.iter() {
+    for ch in &singles {
         assert_eq!(
             escape_sequence(&Scanner::new(), &String::from(*ch)),
             Some(Scanner { line: 1, column: 2, start_idx: ch.len_utf8() })
@@ -1061,7 +1061,7 @@ fn escape_sequence_test() {
 #[test]
 fn line_terminator_sequence_test() {
     let valid = ["\r", "\r\n", "\n", "\u{2028}", "\u{2029}"];
-    for lt in valid.iter() {
+    for lt in &valid {
         let result = line_terminator_sequence(&Scanner::new(), lt);
         assert_eq!(result, Some(Scanner { line: 2, column: 1, start_idx: lt.len() }));
     }
@@ -1224,7 +1224,7 @@ fn common_token_test_nstemp() {
             Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }),
             Scanner { line: 1, column: 3, start_idx: 2 }
         ))
-    )
+    );
 }
 
 #[test]
@@ -1242,7 +1242,7 @@ fn regular_expression_literal_test_02() {
     assert_eq!(
         result,
         Some((
-            Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::from("") }),
+            Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::new() }),
             Scanner { line: 1, column: 7, start_idx: 6 }
         ))
     );
@@ -1253,7 +1253,7 @@ fn regular_expression_literal_test_03() {
     assert_eq!(
         result,
         Some((
-            Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::from("") }),
+            Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::new() }),
             Scanner { line: 1, column: 7, start_idx: 6 }
         ))
     );
@@ -1264,7 +1264,7 @@ fn regular_expression_literal_test_04() {
     assert_eq!(
         result,
         Some((
-            Token::RegularExpression(RegularExpressionData { body: String::from("\\/"), flags: String::from("") }),
+            Token::RegularExpression(RegularExpressionData { body: String::from("\\/"), flags: String::new() }),
             Scanner { line: 1, column: 5, start_idx: 4 }
         ))
     );
@@ -1328,7 +1328,7 @@ fn scan_token_panic_01() {
 
 #[test]
 fn thd_count_test_01() {
-    assert!(THDCount::try_from(5).is_err())
+    assert!(THDCount::try_from(5).is_err());
 }
 #[test]
 fn thd_count_test_02() {
@@ -1568,9 +1568,9 @@ fn template_test_15() {
 
 #[test]
 fn charval_test() {
-    assert_eq!(CharVal::try_from(0x10fffe), Ok(CharVal(0x10fffe)));
-    assert!(CharVal::try_from(0x200000).is_err());
-    assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x10ab32));
+    assert_eq!(CharVal::try_from(0x0010_fffe), Ok(CharVal(0x0010_fffe)));
+    assert!(CharVal::try_from(0x0020_0000).is_err());
+    assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x0010_ab32));
 }
 #[test]
 fn charval_debug() {
@@ -1828,22 +1828,22 @@ mod string_token {
         assert_eq!(s1, s2);
     }
 
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => true; "equal")]
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => false; "unequal")]
-    fn eq(left: StringToken, right: StringToken) -> bool {
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => true; "equal")]
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => false; "unequal")]
+    fn eq(left: &StringToken, right: &StringToken) -> bool {
         left == right
     }
 
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => false; "equal")]
-    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => true; "unequal")]
-    fn ne(left: StringToken, right: StringToken) -> bool {
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => false; "equal")]
+    #[test_case(&StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, &StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => true; "unequal")]
+    fn ne(left: &StringToken, right: &StringToken) -> bool {
         left != right
     }
 
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Double, raw: None} => "\"blue\""; "double quotes")]
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: None} => "'blue'"; "single quotes")]
-    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: Some("\\x62lue".into())} => "'\\x62lue'"; "single quotes; raw")]
-    fn display(st: StringToken) -> String {
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Double, raw: None} => "\"blue\""; "double quotes")]
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: None} => "'blue'"; "single quotes")]
+    #[test_case(&StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: Some("\\x62lue".into())} => "'\\x62lue'"; "single quotes; raw")]
+    fn display(st: &StringToken) -> String {
         format!("{st}")
     }
 }
@@ -2033,7 +2033,7 @@ mod keyword {
             (Keyword::Meta, "meta"),
         ];
         for (kwd, display) in pairs {
-            assert_eq!(format!("{}", kwd), display);
+            assert_eq!(format!("{kwd}"), display);
         }
     }
 
@@ -2084,35 +2084,35 @@ mod regular_expression_data {
         assert_ne!(format!("{:?}", RegularExpressionData { body: String::from("abcd"), flags: String::from("g") }), "");
     }
 
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => true; "equal")]
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => false; "unequal")]
-    fn eq(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::new() }, &RegularExpressionData { body: String::from("rust"), flags: String::new() } => true; "equal")]
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::new() }, &RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => false; "unequal")]
+    fn eq(left: &RegularExpressionData, right: &RegularExpressionData) -> bool {
         left == right
     }
 
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => false; "equal")]
-    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => true; "unequal")]
-    fn ne(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::new() }, &RegularExpressionData { body: String::from("rust"), flags: String::new() } => false; "equal")]
+    #[test_case(&RegularExpressionData { body: String::from("rust"), flags: String::new() }, &RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => true; "unequal")]
+    fn ne(left: &RegularExpressionData, right: &RegularExpressionData) -> bool {
         left != right
     }
 
-    #[test_case(RegularExpressionData { body: "rust".into(), flags: "g".into() } => "/rust/g"; "with flags")]
-    #[test_case(RegularExpressionData { body: "rust".into(), flags: "".into() } => "/rust/"; "empty flags")]
-    #[test_case(RegularExpressionData { body: "".into(), flags: "g".into() } => "//g"; "empty expr")]
-    #[test_case(RegularExpressionData { body: "".into(), flags: "".into() } => "//"; "empty everything")]
-    fn display(red: RegularExpressionData) -> String {
+    #[test_case(&RegularExpressionData { body: "rust".into(), flags: "g".into() } => "/rust/g"; "with flags")]
+    #[test_case(&RegularExpressionData { body: "rust".into(), flags: String::new() } => "/rust/"; "empty flags")]
+    #[test_case(&RegularExpressionData { body: String::new(), flags: "g".into() } => "//g"; "empty expr")]
+    #[test_case(&RegularExpressionData { body: String::new(), flags: String::new() } => "//"; "empty everything")]
+    fn display(red: &RegularExpressionData) -> String {
         format!("{red}")
     }
 
-    #[test_case(RegularExpressionData{body:"anything".into(), flags:"gg".into()} => serr("Duplicate ‘g’ flag found in regex flags ‘gg’"); "duplicate g")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuy".into()} => Ok(()); "all opts, otherwise good")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"giimsuy".into()} => serr("Duplicate ‘i’ flag found in regex flags ‘giimsuy’"); "duplicate i")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimmsuy".into()} => serr("Duplicate ‘m’ flag found in regex flags ‘gimmsuy’"); "duplicate m")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimssuy".into()} => serr("Duplicate ‘s’ flag found in regex flags ‘gimssuy’"); "duplicate s")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuuy".into()} => serr("Duplicate ‘u’ flag found in regex flags ‘gimsuuy’"); "duplicate u")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyy".into()} => serr("Duplicate ‘y’ flag found in regex flags ‘gimsuyy’"); "duplicate y")]
-    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyq".into()} => serr("Unknown regex flag ‘q’ in flags ‘gimsuyq’"); "unknown flag")]
-    fn validate_regular_expression_literal(red: RegularExpressionData) -> Result<(), String> {
+    #[test_case(&RegularExpressionData{body:"anything".into(), flags:"gg".into()} => serr("Duplicate ‘g’ flag found in regex flags ‘gg’"); "duplicate g")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimsuy".into()} => Ok(()); "all opts, otherwise good")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"giimsuy".into()} => serr("Duplicate ‘i’ flag found in regex flags ‘giimsuy’"); "duplicate i")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimmsuy".into()} => serr("Duplicate ‘m’ flag found in regex flags ‘gimmsuy’"); "duplicate m")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimssuy".into()} => serr("Duplicate ‘s’ flag found in regex flags ‘gimssuy’"); "duplicate s")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimsuuy".into()} => serr("Duplicate ‘u’ flag found in regex flags ‘gimsuuy’"); "duplicate u")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimsuyy".into()} => serr("Duplicate ‘y’ flag found in regex flags ‘gimsuyy’"); "duplicate y")]
+    #[test_case(&RegularExpressionData{body:String::new(), flags:"gimsuyq".into()} => serr("Unknown regex flag ‘q’ in flags ‘gimsuyq’"); "unknown flag")]
+    fn validate_regular_expression_literal(red: &RegularExpressionData) -> Result<(), String> {
         red.validate_regular_expression_literal()
     }
 }
@@ -2138,18 +2138,24 @@ fn private_identifier_01() {
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.string_value, JSString::from("#bobo"));
     }
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+    );
 }
 #[test]
 fn private_identifier_02() {
     let (tok, location, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
     assert_eq!(scan, Scanner { line: 1, column: 1, start_idx: 0 });
-    println!("{:?}", tok);
+    println!("{tok:?}");
     assert!(matches!(tok, Token::Error(_)));
     if let Token::Error(msg) = tok {
         assert_eq!(msg, "Unrecognized Token");
     }
-    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn private_identifier_03() {

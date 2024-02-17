@@ -610,6 +610,7 @@ test_defs[array_is_array]="array_is_array array_is_array arrays"
 test_defs[array_species]="array_species array_species:: arrays"
 test_defs[array_prototype_pop]="array_prototype_pop array_prototype_pop arrays"
 test_defs[array_prototype_push]="array_prototype_push array_prototype_push arrays"
+test_defs[array_prototype_map]="array_prototype_map array_prototype_map arrays"
 test_defs[ArrayObject]="ArrayObject array_object arrays"
 
 test_defs[provision_big_int_intrinsic]="provision_big_int_intrinsic provision_big_int_intrinsic bigint_object"

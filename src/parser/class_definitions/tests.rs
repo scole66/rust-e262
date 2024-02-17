@@ -8,9 +8,11 @@ use test_case::test_case;
 fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
     items.iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
 }
+#[allow(clippy::unnecessary_wraps)]
 fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
     Some((String::from(s), u))
 }
+#[allow(clippy::unnecessary_wraps)]
 fn ss(s: &str) -> Option<String> {
     Some(s.to_string())
 }
@@ -21,22 +23,18 @@ fn class_declaration_test_01() {
     let (node, scanner) =
         check(ClassDeclaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassDeclaration: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(
-        &*node,
-        "ClassDeclaration: class a { }",
-        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassDeclaration: class a { }", &["BindingIdentifier: a", "ClassTail: { }"]);
+    concise_check(&*node, "ClassDeclaration: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_declaration_test_02() {
     let (node, scanner) =
         check(ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ClassDeclaration: class { }", vec!["ClassTail: { }"]);
-    concise_check(&*node, "ClassDeclaration: class { }", vec!["Keyword: class", "ClassTail: { }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassDeclaration: class { }", &["ClassTail: { }"]);
+    concise_check(&*node, "ClassDeclaration: class { }", &["Keyword: class", "ClassTail: { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_declaration_test_err_01() {
@@ -139,7 +137,7 @@ mod class_declaration {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_declaration().early_errors(&mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -173,22 +171,18 @@ mod class_declaration {
 fn class_expression_test_01() {
     let (node, scanner) = check(ClassExpression::parse(&mut newparser("class a{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassExpression: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(
-        &*node,
-        "ClassExpression: class a { }",
-        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassExpression: class a { }", &["BindingIdentifier: a", "ClassTail: { }"]);
+    concise_check(&*node, "ClassExpression: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
 fn class_expression_test_02() {
     let (node, scanner) = check(ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ClassExpression: class { }", vec!["ClassTail: { }"]);
-    concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassExpression: class { }", &["ClassTail: { }"]);
+    concise_check(&*node, "ClassExpression: class { }", &["Keyword: class", "ClassTail: { }"]);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -255,7 +249,7 @@ mod class_expression {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_expression().early_errors(&mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -283,41 +277,37 @@ mod class_expression {
 fn class_tail_test_01() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "ClassTail: { }", vec![]);
-    concise_check(&*node, "ClassTail: { }", vec!["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassTail: { }", &[]);
+    concise_check(&*node, "ClassTail: { }", &["Punctuator: {", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_tail_test_02() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("{;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    pretty_check(&*node, "ClassTail: { ; }", vec!["ClassBody: ;"]);
-    concise_check(&*node, "ClassTail: { ; }", vec!["Punctuator: {", "Punctuator: ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassTail: { ; }", &["ClassBody: ;"]);
+    concise_check(&*node, "ClassTail: { ; }", &["Punctuator: {", "Punctuator: ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_tail_test_03() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a { }"), Scanner::new(), false, false));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "ClassTail: extends a { }", vec!["ClassHeritage: extends a"]);
-    concise_check(
-        &*node,
-        "ClassTail: extends a { }",
-        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassTail: extends a { }", &["ClassHeritage: extends a"]);
+    concise_check(&*node, "ClassTail: extends a { }", &["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_tail_test_04() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a{;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "ClassTail: extends a { ; }", vec!["ClassHeritage: extends a", "ClassBody: ;"]);
+    pretty_check(&*node, "ClassTail: extends a { ; }", &["ClassHeritage: extends a", "ClassBody: ;"]);
     concise_check(
         &*node,
         "ClassTail: extends a { ; }",
-        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"],
+        &["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn class_tail_test_err_01() {
@@ -447,7 +437,7 @@ mod class_tail {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_tail().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{}" => false; "empty")]
@@ -473,9 +463,9 @@ mod class_tail {
 fn class_heritage_test_01() {
     let (node, scanner) = check(ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassHeritage: extends a", vec!["LeftHandSideExpression: a"]);
-    concise_check(&*node, "ClassHeritage: extends a", vec!["Keyword: extends", "IdentifierName: a"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassHeritage: extends a", &["LeftHandSideExpression: a"]);
+    concise_check(&*node, "ClassHeritage: extends a", &["Keyword: extends", "IdentifierName: a"]);
+    format!("{node:?}");
 }
 #[test]
 fn class_heritage_test_err_01() {
@@ -526,7 +516,7 @@ mod class_heritage {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_heritage().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("extends arguments" => true; "yes")]
@@ -546,9 +536,9 @@ mod class_heritage {
 fn class_body_test_01() {
     let (node, scanner) = check(ClassBody::parse(&mut newparser(";"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ClassBody: ;", vec!["ClassElementList: ;"]);
-    concise_check(&*node, "Punctuator: ;", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ClassBody: ;", &["ClassElementList: ;"]);
+    concise_check(&*node, "Punctuator: ;", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn class_body_test_err_01() {
@@ -615,7 +605,7 @@ mod class_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_body().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[arguments];" => true; "yes")]
@@ -637,7 +627,7 @@ mod class_body {
     #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) {  }"); "constructor present")]
     #[test_case("boring;" => None; "no constructor present")]
     fn constructor_method(src: &str) -> Option<String> {
-        Maker::new(src).class_body().constructor_method().map(|cstr| format!("{}", cstr))
+        Maker::new(src).class_body().constructor_method().map(|cstr| format!("{cstr}"))
     }
 }
 
@@ -647,7 +637,7 @@ mod id_usage {
 
     #[test_case(IdUsage::Getter => with |s| assert_ne!(s, ""); "getter")]
     fn debug(item: IdUsage) -> String {
-        format!("{:?}", item)
+        format!("{item:?}")
     }
 
     #[test_case(IdUsage::Public, IdUsage::Setter => false; "ne")]
@@ -667,13 +657,13 @@ mod private_id_info {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => with |s| assert_ne!(s, ""); "normal")]
-    fn debug(item: PrivateIdInfo) -> String {
-        format!("{:?}", item)
+    #[test_case(&PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => with |s| assert_ne!(s, ""); "normal")]
+    fn debug(item: &PrivateIdInfo) -> String {
+        format!("{item:?}")
     }
 
-    #[test_case(PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => ("travis".to_string(), IdUsage::Setter); "clone")]
-    fn clone(item: PrivateIdInfo) -> (String, IdUsage) {
+    #[test_case(&PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => ("travis".to_string(), IdUsage::Setter); "clone")]
+    fn clone(item: &PrivateIdInfo) -> (String, IdUsage) {
         #[allow(clippy::redundant_clone)]
         let c = item.clone();
         (String::from(c.name), c.usage)
@@ -685,13 +675,13 @@ mod private_id_info {
 fn class_element_list_test_01() {
     let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ClassElementList: a (  ) {  }", vec!["ClassElement: a (  ) {  }"]);
+    pretty_check(&*node, "ClassElementList: a (  ) {  }", &["ClassElement: a (  ) {  }"]);
     concise_check(
         &*node,
         "MethodDefinition: a (  ) {  }",
-        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn class_element_list_test_02() {
@@ -701,14 +691,14 @@ fn class_element_list_test_02() {
     pretty_check(
         &*node,
         "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
-        vec!["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"],
+        &["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"],
     );
     concise_check(
         &*node,
         "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
-        vec!["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"],
+        &["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn class_element_list_test_err_01() {
@@ -796,7 +786,7 @@ mod class_element_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element_list().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[arguments];" => true; "item (yes)")]
@@ -839,7 +829,7 @@ mod class_element_list {
     #[test_case("worker(a) { return this.helper(a); } constructor(...args) { super(...args); } " => ss("constructor ( ... args ) { super ( ... args ) ; }"); "List: (right)")]
     #[test_case("a; b;" => None; "List: none")]
     fn constructor_method(src: &str) -> Option<String> {
-        Maker::new(src).class_element_list().constructor_method().map(|cstr| format!("{}", cstr))
+        Maker::new(src).class_element_list().constructor_method().map(|cstr| format!("{cstr}"))
     }
 
     #[test_case("   a;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "item")]
@@ -854,61 +844,61 @@ mod class_element_list {
 fn class_element_test_01() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ClassElement: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
+    pretty_check(&*node, "ClassElement: a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
     concise_check(
         &*node,
         "MethodDefinition: a (  ) {  }",
-        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    assert_ne!(format!("{:?}", node), "");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_02() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "ClassElement: static a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
-    concise_check(&*node, "ClassElement: static a (  ) {  }", vec!["Keyword: static", "MethodDefinition: a (  ) {  }"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: static a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
+    concise_check(&*node, "ClassElement: static a (  ) {  }", &["Keyword: static", "MethodDefinition: a (  ) {  }"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_03() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser(";"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ClassElement: ;", vec![]);
-    concise_check(&*node, "Punctuator: ;", vec![]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: ;", &[]);
+    concise_check(&*node, "Punctuator: ;", &[]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_04() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "ClassElement: a ;", vec!["FieldDefinition: a"]);
-    concise_check(&*node, "ClassElement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: a ;", &["FieldDefinition: a"]);
+    concise_check(&*node, "ClassElement: a ;", &["IdentifierName: a", "Punctuator: ;"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_05() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassElement: static a ;", vec!["FieldDefinition: a"]);
-    concise_check(&*node, "ClassElement: static a ;", vec!["Keyword: static", "IdentifierName: a", "Punctuator: ;"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: static a ;", &["FieldDefinition: a"]);
+    concise_check(&*node, "ClassElement: static a ;", &["Keyword: static", "IdentifierName: a", "Punctuator: ;"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_06() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static;"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "ClassElement: static ;", vec!["FieldDefinition: static"]);
-    concise_check(&*node, "ClassElement: static ;", vec!["IdentifierName: static", "Punctuator: ;"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: static ;", &["FieldDefinition: static"]);
+    concise_check(&*node, "ClassElement: static ;", &["IdentifierName: static", "Punctuator: ;"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_07() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static {}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassElement: static {  }", vec!["ClassStaticBlock: static {  }"]);
-    concise_check(&*node, "ClassStaticBlock: static {  }", vec!["Keyword: static", "Punctuator: {", "Punctuator: }"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElement: static {  }", &["ClassStaticBlock: static {  }"]);
+    concise_check(&*node, "ClassStaticBlock: static {  }", &["Keyword: static", "Punctuator: {", "Punctuator: }"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_test_err_01() {
@@ -1111,7 +1101,7 @@ mod class_element {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[arguments](){}" => true; "Method (yes)")]
@@ -1211,7 +1201,7 @@ mod ce_kind {
     #[test_case(CEKind::ConstructorMethod => with |s| assert_ne!(s, ""); "ConstructorMethod")]
     #[test_case(CEKind::NonConstructorMethod => with |s| assert_ne!(s, ""); "NonConstructorMethod")]
     fn debug(item: CEKind) -> String {
-        format!("{:?}", item)
+        format!("{item:?}")
     }
 
     #[test_case(CEKind::ConstructorMethod, CEKind::ConstructorMethod => true; "cm eq")]
@@ -1228,17 +1218,17 @@ mod ce_kind {
 fn field_definition_test_01() {
     let (node, scanner) = check(FieldDefinition::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "FieldDefinition: a", vec!["ClassElementName: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "FieldDefinition: a", &["ClassElementName: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn field_definition_test_02() {
     let (node, scanner) = check(FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    pretty_check(&*node, "FieldDefinition: a = 0", vec!["ClassElementName: a", "Initializer: = 0"]);
-    concise_check(&*node, "FieldDefinition: a = 0", vec!["IdentifierName: a", "Initializer: = 0"]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "FieldDefinition: a = 0", &["ClassElementName: a", "Initializer: = 0"]);
+    concise_check(&*node, "FieldDefinition: a = 0", &["IdentifierName: a", "Initializer: = 0"]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn field_definition_test_err_01() {
@@ -1331,7 +1321,7 @@ mod field_definition {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).field_definition().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[arguments]" => true; "name (yes)")]
@@ -1366,17 +1356,17 @@ mod field_definition {
 fn class_element_name_test_01() {
     let (node, scanner) = check(ClassElementName::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ClassElementName: a", vec!["PropertyName: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElementName: a", &["PropertyName: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_name_test_02() {
     let (node, scanner) = check(ClassElementName::parse(&mut newparser("#a"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "ClassElementName: #a", vec!["PrivateIdentifier: #a"]);
-    concise_check(&*node, "PrivateIdentifier: #a", vec![]);
-    assert_ne!(format!("{:?}", node), "");
+    pretty_check(&*node, "ClassElementName: #a", &["PrivateIdentifier: #a"]);
+    concise_check(&*node, "PrivateIdentifier: #a", &[]);
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_name_test_err_01() {
@@ -1457,7 +1447,7 @@ mod class_element_name {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_element_name().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => Some(JSString::from("a")); "normal")]
@@ -1495,13 +1485,13 @@ mod class_static_block {
     fn parse() {
         let (node, scanner) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
         chk_scan(&scanner, 13);
-        pretty_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["ClassStaticBlockBody: 0 ;"]);
+        pretty_check(&*node, "ClassStaticBlock: static { 0 ; }", &["ClassStaticBlockBody: 0 ;"]);
         concise_check(
             &*node,
             "ClassStaticBlock: static { 0 ; }",
-            vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"],
+            &["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"],
         );
-        assert_ne!(format!("{:?}", node), "");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test_case("", "‘static’ expected", 1; "Empty Source")]
     #[test_case("static", "‘{’ expected", 7; "Missing Leading Brace")]
@@ -1537,7 +1527,7 @@ mod class_static_block {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("static { arguments; }" => true; "yes")]
@@ -1560,9 +1550,9 @@ mod class_static_block_body {
     fn parse() {
         let (node, scanner) = ClassStaticBlockBody::parse(&mut newparser("0;"), Scanner::new());
         chk_scan(&scanner, 2);
-        pretty_check(&*node, "ClassStaticBlockBody: 0 ;", vec!["ClassStaticBlockStatementList: 0 ;"]);
-        concise_check(&*node, "ExpressionStatement: 0 ;", vec!["Numeric: 0", "Punctuator: ;"]);
-        assert_ne!(format!("{:?}", node), "");
+        pretty_check(&*node, "ClassStaticBlockBody: 0 ;", &["ClassStaticBlockStatementList: 0 ;"]);
+        concise_check(&*node, "ExpressionStatement: 0 ;", &["Numeric: 0", "Punctuator: ;"]);
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn prettyerrors() {
@@ -1595,7 +1585,7 @@ mod class_static_block_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block_body().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -1613,17 +1603,17 @@ mod class_static_block_statement_list {
     fn parse_01() {
         let (node, scanner) = ClassStaticBlockStatementList::parse(&mut newparser("0;"), Scanner::new());
         chk_scan(&scanner, 2);
-        pretty_check(&*node, "ClassStaticBlockStatementList: 0 ;", vec!["StatementList: 0 ;"]);
-        concise_check(&*node, "ExpressionStatement: 0 ;", vec!["Numeric: 0", "Punctuator: ;"]);
-        assert_ne!(format!("{:?}", node), "");
+        pretty_check(&*node, "ClassStaticBlockStatementList: 0 ;", &["StatementList: 0 ;"]);
+        concise_check(&*node, "ExpressionStatement: 0 ;", &["Numeric: 0", "Punctuator: ;"]);
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn parse_02() {
         let (node, scanner) = ClassStaticBlockStatementList::parse(&mut newparser(""), Scanner::new());
         chk_scan(&scanner, 0);
-        pretty_check(&*node, "ClassStaticBlockStatementList: ", vec![]);
-        concise_check(&*node, "", vec![]);
-        assert_ne!(format!("{:?}", node), "");
+        pretty_check(&*node, "ClassStaticBlockStatementList: ", &[]);
+        concise_check(&*node, "", &[]);
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test_case("0;"; "Has statements")]
     #[test_case(""; "Empty")]
@@ -1652,7 +1642,7 @@ mod class_static_block_statement_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).class_static_block_statement_list().early_errors(&mut errs, true);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("", &[] => false; "empty")]

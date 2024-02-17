@@ -148,7 +148,7 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn math_abs(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -168,7 +168,7 @@ fn math_abs(
 }
 
 fn math_acos(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -187,7 +187,7 @@ fn math_acos(
 }
 
 fn math_acosh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -207,7 +207,7 @@ fn math_acosh(
 }
 
 fn math_asin(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -226,7 +226,7 @@ fn math_asin(
 }
 
 fn math_asinh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -244,7 +244,7 @@ fn math_asinh(
 }
 
 fn math_atan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -264,7 +264,7 @@ fn math_atan(
 }
 
 fn math_atanh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -285,7 +285,7 @@ fn math_atanh(
 }
 
 fn math_atan2(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -333,7 +333,7 @@ fn math_atan2(
 }
 
 fn math_cbrt(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -350,7 +350,7 @@ fn math_cbrt(
 }
 
 fn math_ceil(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -372,7 +372,7 @@ fn math_ceil(
 }
 
 fn math_clz32(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -389,7 +389,7 @@ fn math_clz32(
 }
 
 fn math_cos(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -407,7 +407,7 @@ fn math_cos(
 }
 
 fn math_cosh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -428,7 +428,7 @@ fn math_cosh(
 }
 
 fn math_exp(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -449,7 +449,7 @@ fn math_exp(
 }
 
 fn math_expm1(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -470,7 +470,7 @@ fn math_expm1(
 }
 
 fn math_floor(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -490,8 +490,9 @@ fn math_floor(
     Ok(to_number(args.next_arg())?.floor().into())
 }
 
+#[allow(clippy::cast_possible_truncation)]
 fn math_fround(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -507,11 +508,11 @@ fn math_fround(
     let mut args = FuncArgs::from(arguments);
     let n = to_number(args.next_arg())?;
     let n32 = n as f32;
-    Ok((n32 as f64).into())
+    Ok(f64::from(n32).into())
 }
 
 fn math_hypot(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -541,7 +542,7 @@ fn math_hypot(
     let coerced = arguments.iter().map(|val| to_number(val.clone())).collect::<Completion<Vec<_>>>()?;
     let mut saw_nan = false;
     let mut only_zero = true;
-    for item in coerced.iter() {
+    for item in &coerced {
         if item.is_infinite() {
             return Ok(f64::INFINITY.into());
         }
@@ -562,7 +563,7 @@ fn math_hypot(
 }
 
 fn math_imul(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -577,12 +578,12 @@ fn math_imul(
     let a = to_uint32(args.next_arg())?;
     let b = to_uint32(args.next_arg())?;
     let product = a * b;
-    let result = if product >= 2147483648 { product as i64 - 4294967296 } else { product as i64 };
+    let result = if product >= 2_147_483_648 { i64::from(product) - 4_294_967_296 } else { i64::from(product) };
     Ok(result.into())
 }
 
 fn math_log(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -602,7 +603,7 @@ fn math_log(
 }
 
 fn math_log1p(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -623,7 +624,7 @@ fn math_log1p(
 }
 
 fn math_log10(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -643,7 +644,7 @@ fn math_log10(
 }
 
 fn math_log2(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -663,7 +664,7 @@ fn math_log2(
 }
 
 fn math_max(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -699,7 +700,7 @@ fn math_max(
 }
 
 fn math_min(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -735,7 +736,7 @@ fn math_min(
 }
 
 fn math_pow(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -751,8 +752,9 @@ fn math_pow(
     Ok(exponentiate(base, exponent).into())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn math_random(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -767,7 +769,7 @@ fn math_random(
 }
 
 fn math_round(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -797,13 +799,13 @@ fn math_round(
     }
     let mut rounded = n.round();
     if rounded < n && n - rounded == (rounded + 1.0) - n {
-        rounded += 1.0
+        rounded += 1.0;
     }
     Ok(rounded.into())
 }
 
 fn math_sign(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -825,7 +827,7 @@ fn math_sign(
 }
 
 fn math_sin(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -843,7 +845,7 @@ fn math_sin(
 }
 
 fn math_sinh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -862,7 +864,7 @@ fn math_sinh(
 }
 
 fn math_sqrt(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -880,7 +882,7 @@ fn math_sqrt(
 }
 
 fn math_tan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -898,7 +900,7 @@ fn math_tan(
 }
 
 fn math_tanh(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -919,7 +921,7 @@ fn math_tanh(
 }
 
 fn math_trunc(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
