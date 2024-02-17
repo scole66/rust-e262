@@ -1630,6 +1630,7 @@ mod for_in_iterator_object {
     default_id_test!();
     false_function!(is_arguments_object);
     false_function!(is_array_object);
+    false_function!(is_bigint_object);
     false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
@@ -1643,6 +1644,7 @@ mod for_in_iterator_object {
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_array_object);
+    none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
@@ -1651,6 +1653,7 @@ mod for_in_iterator_object {
     none_function!(to_function_obj);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
+    none_function!(to_proxy_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 }
@@ -2087,7 +2090,7 @@ fn set_default_global_bindings() {
     //validate_intrinsic_constructor!("AggregateError", AggregateError, 2);
     validate_intrinsic_constructor!("Array", Array, 1);
     //validate_intrinsic_constructor!("ArrayBuffer", ArrayBuffer, 1);
-    //validate_intrinsic_constructor!("BigInt", BigInt, 1);
+    validate_intrinsic_constructor!("BigInt", BigInt, 1);
     //validate_intrinsic_constructor!("BigInt64Array", BigInt64Array, 3);
     //validate_intrinsic_constructor!("BigUint64Array", BigUint64Array, 3);
     validate_intrinsic_constructor!("Boolean", Boolean, 1);

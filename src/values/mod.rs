@@ -1190,11 +1190,15 @@ impl TryFrom<ECMAScriptValue> for JSString {
                 number_to_string(&mut s, n).unwrap();
                 Ok(JSString::from(s))
             }
-            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{bi}"))),
+            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(bi)),
             ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
             ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
         }
     }
+}
+
+pub fn bigint_to_string_radix(bi: &Rc<BigInt>, radix: u32) -> JSString {
+    bi.to_str_radix(radix).into()
 }
 
 // ToObject ( argument )

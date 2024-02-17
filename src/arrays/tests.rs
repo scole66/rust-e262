@@ -221,14 +221,33 @@ mod array_object {
         let a = ArrayObject::create(0, None).unwrap();
         assert!(a.o.is_array_object());
     }
-    none_function!(to_symbol_obj);
-    false_function!(is_plain_object);
-    none_function!(to_string_obj);
-    none_function!(to_generator_object);
+    false_function!(is_arguments_object);
+    false_function!(is_bigint_object);
+    false_function!(is_boolean_object);
+    false_function!(is_callable_obj);
+    false_function!(is_date_object);
+    false_function!(is_error_object);
     false_function!(is_generator_object);
-    none_function!(to_arguments_object);
+    false_function!(is_number_object);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
+    false_function!(is_regexp_object);
+    false_function!(is_string_object);
     false_function!(is_symbol_object);
-
+    none_function!(to_arguments_object);
+    none_function!(to_bigint_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_builtin_function_obj);
+    none_function!(to_callable_obj);
+    none_function!(to_constructable);
+    none_function!(to_error_obj);
+    none_function!(to_for_in_iterator);
+    none_function!(to_function_obj);
+    none_function!(to_generator_object);
+    none_function!(to_number_obj);
+    none_function!(to_proxy_object);
+    none_function!(to_string_obj);
+    none_function!(to_symbol_obj);
     mod set_length {
         use super::*;
         use test_case::test_case;

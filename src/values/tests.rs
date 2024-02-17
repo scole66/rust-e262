@@ -1272,11 +1272,12 @@ fn to_object_06() {
     assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]
-#[should_panic(expected = "not yet implemented")] // An XFAIL. BigInt objects not yet implemented.
 fn to_object_07() {
     setup_test_agent();
     let test_value = BigInt::from(10);
-    let _result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(ECMAScriptValue::from(test_value.clone())).unwrap();
+    let bi_obj = result.o.to_bigint_object().unwrap();
+    assert_eq!(*bi_obj.value(), test_value);
 }
 #[test]
 fn to_object_08() {
@@ -2227,4 +2228,11 @@ mod value_kind {
     fn eq(v1: ValueKind, v2: ValueKind) -> bool {
         v1 == v2
     }
+}
+
+#[test_case(BigInt::from(100), 10 => "100"; "base 10")]
+#[test_case(BigInt::from(-2020), 10 => "-2020"; "negative base 10")]
+#[test_case(BigInt::from(65536), 16 => "10000"; "base 16")]
+fn bigint_to_string_radix(bi: BigInt, radix: u32) -> String {
+    String::from(super::bigint_to_string_radix(&Rc::new(bi), radix))
 }

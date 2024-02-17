@@ -1179,6 +1179,12 @@ pub trait ObjectInterface: Debug {
     fn to_generator_object(&self) -> Option<&GeneratorObject> {
         None
     }
+    fn to_bigint_object(&self) -> Option<&BigIntObject> {
+        None
+    }
+    fn is_bigint_object(&self) -> bool {
+        false
+    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>>;
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool>;
@@ -1622,6 +1628,7 @@ pub enum InternalSlotName {
     InitialName,
     Realm,
     NumberData,
+    BigIntData,
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     ParameterMap,
     StringData,
@@ -1686,6 +1693,8 @@ pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
 ];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
+pub const BIGINT_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BigIntData];
 pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =

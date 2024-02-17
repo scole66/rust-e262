@@ -12,6 +12,8 @@ pub enum IntrinsicId {
     ArrayPrototype,
     ArrayPrototypeValues,
     ArrayIteratorPrototype,
+    BigInt,
+    BigIntPrototype,
     Boolean,
     BooleanPrototype,
     DecodeURI,
@@ -72,6 +74,7 @@ pub struct Intrinsics {
     pub async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
     pub atomics: Object,                  // Atomics	The Atomics object (25.4)
     pub big_int: Object,                  // BigInt	The BigInt constructor (21.2.1)
+    pub big_int_prototype: Object,        //
     pub big_int64_array: Object,          // BigInt64Array	The BigInt64Array constructor (23.2)
     pub big_uint64_array: Object,         // BigUint64Array	The BigUint64Array constructor (23.2)
     pub boolean: Object,                  // Boolean	The Boolean constructor (20.3.1)
@@ -170,6 +173,7 @@ impl Intrinsics {
             async_iterator_prototype: dead.clone(),
             atomics: dead.clone(),
             big_int: dead.clone(),
+            big_int_prototype: dead.clone(),
             big_int64_array: dead.clone(),
             big_uint64_array: dead.clone(),
             boolean: dead.clone(),
@@ -252,6 +256,8 @@ impl Intrinsics {
             IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
+            IntrinsicId::BigInt => &self.big_int,
+            IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
             IntrinsicId::DecodeURI => &self.decode_uri,
@@ -307,6 +313,8 @@ impl Intrinsics {
             o if o == &self.array_prototype => Some(IntrinsicId::ArrayPrototype),
             o if o == &self.array_prototype_values => Some(IntrinsicId::ArrayPrototypeValues),
             o if o == &self.array_iterator_prototype => Some(IntrinsicId::ArrayIteratorPrototype),
+            o if o == &self.big_int => Some(IntrinsicId::BigInt),
+            o if o == &self.big_int_prototype => Some(IntrinsicId::BigIntPrototype),
             o if o == &self.boolean => Some(IntrinsicId::Boolean),
             o if o == &self.boolean_prototype => Some(IntrinsicId::BooleanPrototype),
             o if o == &self.decode_uri => Some(IntrinsicId::DecodeURI),
@@ -463,7 +471,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
     provision_number_intrinsic(realm_rec);
-
+    provision_big_int_intrinsic(realm_rec);
     provision_error_intrinsic(realm_rec);
     provision_eval_error_intrinsic(realm_rec);
     provision_range_error_intrinsic(realm_rec);
