@@ -294,7 +294,7 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn boolean_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -322,7 +322,7 @@ fn boolean_constructor_function(
 }
 
 fn boolean_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -331,11 +331,11 @@ fn boolean_prototype_to_string(
     //
     //  1. Let b be ? ThisBooleanValue(this value).
     //  2. If b is true, return "true"; else return "false".
-    Ok(if this_boolean_value(&this_value)? { "true" } else { "false" }.into())
+    Ok(if this_boolean_value(this_value)? { "true" } else { "false" }.into())
 }
 
 fn boolean_prototype_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -343,7 +343,7 @@ fn boolean_prototype_value_of(
     // This method performs the following steps when called:
     //
     //  1. Return ? ThisBooleanValue(this value).
-    Ok(this_boolean_value(&this_value)?.into())
+    Ok(this_boolean_value(this_value)?.into())
 }
 
 #[cfg(test)]

@@ -281,15 +281,18 @@ impl PartialEq for ParamSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::FormalParameters(l0), Self::FormalParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::FormalParameters(_), _) => false,
             (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::ArrowParameters(_), _) => false,
             (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::AsyncArrowBinding(_), _) => false,
             (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::ArrowFormals(_), _) => false,
             (Self::UniqueFormalParameters(l0), Self::UniqueFormalParameters(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::UniqueFormalParameters(_), _) => false,
+            (
+                Self::UniqueFormalParameters(_)
+                | Self::FormalParameters(_)
+                | Self::ArrowParameters(_)
+                | Self::AsyncArrowBinding(_)
+                | Self::ArrowFormals(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -727,7 +730,7 @@ impl CallableObject for FunctionObject {
                 return;
             }
             let this_binding = constructor_env.get_this_binding();
-            ec_push(this_binding.map(NormalCompletion::from))
+            ec_push(this_binding.map(NormalCompletion::from));
         }
     }
 
@@ -810,10 +813,10 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
     //      a. Perform ? DefineField(O, fieldRecord).
     //  5. Return unused.
     let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-    for method in data.private_methods.iter() {
+    for method in &data.private_methods {
         private_method_or_accessor_add(this_argument, method.clone())?;
     }
-    for field_record in data.fields.iter() {
+    for field_record in &data.fields {
         define_field(this_argument, field_record)?;
     }
     Ok(())
@@ -1053,10 +1056,10 @@ fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
     let chunk = Rc::clone(&data.compiled);
     prepare_running_ec_for_execution(chunk);
     ec_push(Ok(func_val));
-    for item in args.iter() {
+    for item in args {
         ec_push(Ok(item.clone().into()));
     }
-    ec_push(Ok((args.len() as u32).into()));
+    ec_push(Ok(args.len().into()));
 }
 
 pub fn nameify(src: &str, limit: usize) -> String {
@@ -1131,7 +1134,7 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
             .enumerable(false)
             .configurable(true),
     )
-    .unwrap()
+    .unwrap();
 }
 
 // SetFunctionLength ( F, length )
@@ -1151,9 +1154,9 @@ pub fn set_function_length(func: &Object, length: f64) {
     .unwrap();
 }
 
-///////////////////////////////////////////////////////////////////
-/// BUILT IN FUNCTIONS
-///////////////////////////////////////////////////////////////////
+//#############################################
+//# BUILT IN FUNCTIONS
+//#############################################
 
 // A small little arguments iterator, useful for built-in functions.
 // When you have
@@ -1258,7 +1261,7 @@ impl TryFrom<NormalCompletion> for FunctionName {
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    pub steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     pub is_constructor: bool,
 }
 
@@ -1267,6 +1270,8 @@ impl fmt::Debug for BuiltInFunctionData {
         f.debug_struct("BuiltInFunctionData")
             .field("realm", &self.realm)
             .field("initial_name", &self.initial_name)
+            .field("steps", &"<steps>")
+            .field("is_constructor", &self.is_constructor)
             .finish()
     }
 }
@@ -1275,7 +1280,7 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self { realm, initial_name, steps, is_constructor }
@@ -1306,7 +1311,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self {
@@ -1320,7 +1325,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
         Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor)) }
@@ -1426,10 +1431,10 @@ impl CallableObject for BuiltInFunctionObject {
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(this_argument.clone(), None, arguments_list);
+        let result = (self.builtin_data.borrow().steps)(this_argument, None, arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     // [[Construct]] ( argumentsList, newTarget )
@@ -1446,10 +1451,10 @@ impl CallableObject for BuiltInFunctionObject {
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        let result = (self.builtin_data.borrow().steps)(&ECMAScriptValue::Undefined, Some(new_target), arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     fn end_evaluation(&self, _: FullCompletion) {
@@ -1495,7 +1500,7 @@ impl CallableObject for BuiltInFunctionObject {
 // operation.
 #[allow(clippy::too_many_arguments)]
 pub fn create_builtin_function(
-    behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     is_constructor: bool,
     length: f64,
     name: PropertyKey,
@@ -1597,7 +1602,7 @@ impl FunctionDeclaration {
 }
 
 impl GeneratorDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
         env: Rc<dyn EnvironmentRecord>,
@@ -1611,7 +1616,7 @@ impl GeneratorDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1626,7 +1631,7 @@ impl AsyncFunctionDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1690,10 +1695,13 @@ pub fn ordinary_function_create(
     //  23. Return F.
     let this_mode = match this_mode {
         ThisLexicality::LexicalThis => ThisMode::Lexical,
-        ThisLexicality::NonLexicalThis => match strict {
-            true => ThisMode::Strict,
-            false => ThisMode::Global,
-        },
+        ThisLexicality::NonLexicalThis => {
+            if strict {
+                ThisMode::Strict
+            } else {
+                ThisMode::Global
+            }
+        }
     };
     let script_or_module = get_active_script_or_module();
     let realm = current_realm_record().unwrap();
@@ -1804,7 +1812,7 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
 }
 
 fn function_prototype_call(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1826,8 +1834,8 @@ fn function_prototype_call(
     let (first_arg, remaining): (_, &[ECMAScriptValue]) =
         if arguments.is_empty() { (&ECMAScriptValue::Undefined, &[]) } else { (&arguments[0], &arguments[1..]) };
     let func = this_value;
-    if is_callable(&func) {
-        call(&func, first_arg, remaining)
+    if is_callable(func) {
+        call(func, first_arg, remaining)
     } else {
         Err(create_type_error("this isn't a function"))
     }
@@ -1938,7 +1946,7 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn function_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1946,7 +1954,7 @@ fn function_constructor_function(
 }
 
 fn function_prototype_apply(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1954,7 +1962,7 @@ fn function_prototype_apply(
 }
 
 fn function_prototype_bind(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1962,7 +1970,7 @@ fn function_prototype_bind(
 }
 
 fn function_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -2023,7 +2031,7 @@ fn function_prototype_to_string(
 }
 
 fn function_prototype_has_instance(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -2034,7 +2042,7 @@ fn function_prototype_has_instance(
     //  2. Return ? OrdinaryHasInstance(F, V).
     let mut args = FuncArgs::from(arguments);
     let v = args.next_arg();
-    ordinary_has_instance(&this_value, &v).map(ECMAScriptValue::from)
+    ordinary_has_instance(this_value, &v).map(ECMAScriptValue::from)
 }
 
 pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {

@@ -16,16 +16,16 @@ fn with_statement_test_01() {
         true,
     ));
     chk_scan(&scanner, 36);
-    format!("{:?}", node);
+    format!("{node:?}");
     pretty_check(
         &*node,
         "WithStatement: with ( x in obj ) { x . used = true ; }",
-        vec!["Expression: x in obj", "Statement: { x . used = true ; }"],
+        &["Expression: x in obj", "Statement: { x . used = true ; }"],
     );
     concise_check(
         &*node,
         "WithStatement: with ( x in obj ) { x . used = true ; }",
-        vec![
+        &[
             "Keyword: with",
             "Punctuator: (",
             "RelationalExpression: x in obj",
@@ -146,7 +146,7 @@ mod with_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).with_statement().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("with(arguments);" => true; "Left")]

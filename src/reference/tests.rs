@@ -6,14 +6,14 @@ mod base {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(Base::Value(ECMAScriptValue::from(33)) => with |s| assert_ne!(s, ""); "value")]
-    fn debug(b: Base) -> String {
-        format!("{:?}", b)
+    #[test_case(&Base::Value(ECMAScriptValue::from(33)) => with |s| assert_ne!(s, ""); "value")]
+    fn debug(b: &Base) -> String {
+        format!("{b:?}")
     }
 
-    #[test_case(Base::Unresolvable => Base::Unresolvable; "unresolvable")]
-    #[test_case(Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
-    fn clone(b: Base) -> Base {
+    #[test_case(&Base::Unresolvable => Base::Unresolvable; "unresolvable")]
+    #[test_case(&Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
+    fn clone(b: &Base) -> Base {
         #[allow(clippy::redundant_clone)]
         b.clone()
     }
@@ -38,18 +38,18 @@ mod base {
         assert!(base != shouldnt_be_equal);
     }
 
-    #[test_case(Base::Unresolvable, Base::Unresolvable => true; "unresolvable match")]
-    #[test_case(Base::Value(10.into()), Base::Value(10.into()) => true; "value match")]
-    #[test_case(Base::Value(10.into()), Base::Value(false.into()) => false; "value mismatch")]
-    #[test_case(Base::Unresolvable, Base::Value("blue".into()) => false; "base type mismatch")]
-    fn eq(left: Base, right: Base) -> bool {
+    #[test_case(&Base::Unresolvable, &Base::Unresolvable => true; "unresolvable match")]
+    #[test_case(&Base::Value(10.into()), &Base::Value(10.into()) => true; "value match")]
+    #[test_case(&Base::Value(10.into()), &Base::Value(false.into()) => false; "value mismatch")]
+    #[test_case(&Base::Unresolvable, &Base::Value("blue".into()) => false; "base type mismatch")]
+    fn eq(left: &Base, right: &Base) -> bool {
         left == right
     }
 
-    #[test_case(Base::Unresolvable => "unresolvable"; "unresolvable")]
-    #[test_case(Base::Value(10.into()) => "10"; "value")]
-    #[test_case(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))) => "DeclarativeEnvironmentRecord(test)"; "environment")]
-    fn display(b: Base) -> String {
+    #[test_case(&Base::Unresolvable => "unresolvable"; "unresolvable")]
+    #[test_case(&Base::Value(10.into()) => "10"; "value")]
+    #[test_case(&Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))) => "DeclarativeEnvironmentRecord(test)"; "environment")]
+    fn display(b: &Base) -> String {
         format!("{b}")
     }
 
@@ -70,7 +70,7 @@ mod base {
         fn envrec(b: Base) -> Result<String, String> {
             let result: Result<Rc<dyn EnvironmentRecord>, String> =
                 b.try_into().map_err(|e: anyhow::Error| e.to_string());
-            result.map(|er| format!("{:?}", er))
+            result.map(|er| format!("{er:?}"))
         }
     }
 }
@@ -82,11 +82,11 @@ mod referenced_name {
     #[test]
     fn debug() {
         let rn = ReferencedName::String(JSString::from("apple"));
-        assert_ne!(format!("{:?}", rn), "");
+        assert_ne!(format!("{rn:?}"), "");
     }
 
-    #[test_case(ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
-    fn clone(rn: ReferencedName) -> ReferencedName {
+    #[test_case(&ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
+    fn clone(rn: &ReferencedName) -> ReferencedName {
         #[allow(clippy::redundant_clone)]
         rn.clone()
     }
@@ -225,9 +225,9 @@ mod referenced_name {
         use super::*;
         use test_case::test_case;
 
-        #[test_case(ReferencedName::from("string") => "string"; "string")]
-        #[test_case(ReferencedName::PrivateName(PrivateName::new("blue")) => "PN[blue]"; "private")]
-        fn not_symbol(rn: ReferencedName) -> String {
+        #[test_case(&ReferencedName::from("string") => "string"; "string")]
+        #[test_case(&ReferencedName::PrivateName(PrivateName::new("blue")) => "PN[blue]"; "private")]
+        fn not_symbol(rn: &ReferencedName) -> String {
             format!("{rn}")
         }
 
@@ -253,7 +253,7 @@ mod reference {
             strict: false,
             this_value: None,
         };
-        assert_ne!(format!("{:?}", r), "");
+        assert_ne!(format!("{r:?}"), "");
     }
 
     #[test]

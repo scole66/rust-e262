@@ -13,7 +13,7 @@ mod assignment_expression {
     #[test]
     fn debug() {
         let node = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), false, true, false).unwrap().0;
-        assert_ne!(format!("{:?}", node), "");
+        assert_ne!(format!("{node:?}"), "");
     }
 
     #[test_case("a" => Ok((
@@ -382,7 +382,7 @@ mod assignment_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -552,7 +552,7 @@ mod assignment_operator {
     #[test_case(AssignmentOperator::BitwiseOr => "|="; "BitwiseOr")]
     #[test_case(AssignmentOperator::Exponentiate => "**="; "Exponentiate")]
     fn display(op: AssignmentOperator) -> String {
-        format!("{}", op)
+        format!("{op}")
     }
 
     #[test_case(AssignmentOperator::Multiply => vec!["AssignmentOperator: *="]; "Multiply")]
@@ -645,7 +645,7 @@ mod assignment_pattern {
     #[test]
     fn debug() {
         let (node, _) = AssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("{}"; "ObjectAssignmentPattern")]
@@ -688,7 +688,7 @@ mod assignment_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[arguments]" => true; "array (yes)")]
@@ -755,7 +755,7 @@ mod object_assignment_pattern {
     #[test]
     fn debug() {
         let (node, _) = ObjectAssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("{}"; "{ } (empty)")]
@@ -821,7 +821,7 @@ mod object_assignment_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{}" => false; "empty")]
@@ -911,7 +911,7 @@ mod array_assignment_pattern {
     #[test]
     fn debug() {
         let (node, _) = ArrayAssignmentPattern::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("[]"; "[ ] (nothing)")]
@@ -1005,7 +1005,7 @@ mod array_assignment_pattern {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("[]" => false; "Empty")]
@@ -1059,7 +1059,7 @@ mod assignment_rest_property {
     #[test]
     fn debug() {
         let (node, _) = AssignmentRestProperty::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("...a"; "... DestructuringAssignmentTarget")]
@@ -1096,7 +1096,7 @@ mod assignment_rest_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("...arguments" => true; "Rest (yes)")]
@@ -1131,7 +1131,7 @@ mod assignment_property_list {
     #[test]
     fn debug() {
         let (node, _) = AssignmentPropertyList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("a"; "AssignmentProperty")]
@@ -1177,7 +1177,7 @@ mod assignment_property_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1215,7 +1215,7 @@ mod assignment_element_list {
     #[test]
     fn debug() {
         let (node, _) = AssignmentElementList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("a"; "AssignmentElisionElement")]
@@ -1261,7 +1261,7 @@ mod assignment_element_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1299,7 +1299,7 @@ mod assignment_elision_element {
     #[test]
     fn debug() {
         let (node, _) = AssignmentElisionElement::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", node));
+        assert_ne!("", format!("{node:?}"));
     }
 
     #[test_case("a"; "AssignmentElement")]
@@ -1342,7 +1342,7 @@ mod assignment_elision_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1386,7 +1386,7 @@ mod assignment_property {
     #[test]
     fn debug() {
         let (item, _) = AssignmentProperty::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        assert_ne!(format!("{:?}", item), "");
+        assert_ne!(format!("{item:?}"), "");
     }
 
     #[test_case("a")]
@@ -1439,7 +1439,7 @@ mod assignment_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "id (yes)")]
@@ -1528,7 +1528,7 @@ mod assignment_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Item (yes)")]
@@ -1561,7 +1561,7 @@ mod assignment_rest_element {
     #[test]
     fn debug() {
         let (item, _) = AssignmentRestElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", item));
+        assert_ne!("", format!("{item:?}"));
     }
     #[test_case("...blue")]
     fn pretty_errors(src: &str) {
@@ -1595,7 +1595,7 @@ mod assignment_rest_element {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("...arguments" => true; "yes")]
@@ -1631,7 +1631,7 @@ mod destructuring_assignment_target {
     fn debug() {
         let (item, _) =
             DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
-        assert_ne!("", format!("{:?}", item));
+        assert_ne!("", format!("{item:?}"));
     }
 
     #[test_case("blue")]
@@ -1677,7 +1677,7 @@ mod destructuring_assignment_target {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]

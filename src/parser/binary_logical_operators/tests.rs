@@ -15,9 +15,9 @@ mod logical_and_expression {
         let (pn, scanner) = check(LogicalANDExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalANDExpression::BitwiseORExpression(_)));
-        pretty_check(&*pn, "LogicalANDExpression: a", vec!["BitwiseORExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        pretty_check(&*pn, "LogicalANDExpression: a", &["BitwiseORExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -26,13 +26,13 @@ mod logical_and_expression {
             check(LogicalANDExpression::parse(&mut newparser("a&&b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*pn, LogicalANDExpression::LogicalAND(..)));
-        pretty_check(&*pn, "LogicalANDExpression: a && b", vec!["LogicalANDExpression: a", "BitwiseORExpression: b"]);
+        pretty_check(&*pn, "LogicalANDExpression: a && b", &["LogicalANDExpression: a", "BitwiseORExpression: b"]);
         concise_check(
             &*pn,
             "LogicalANDExpression: a && b",
-            vec!["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -41,9 +41,9 @@ mod logical_and_expression {
             check(LogicalANDExpression::parse(&mut newparser("a&&"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalANDExpression::BitwiseORExpression(..)));
-        pretty_check(&*pn, "LogicalANDExpression: a", vec!["BitwiseORExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        pretty_check(&*pn, "LogicalANDExpression: a", &["BitwiseORExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -123,7 +123,7 @@ mod logical_and_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -179,9 +179,9 @@ mod logical_or_expression {
         let (pn, scanner) = check(LogicalORExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalORExpression::LogicalANDExpression(_)));
-        pretty_check(&*pn, "LogicalORExpression: a", vec!["LogicalANDExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        pretty_check(&*pn, "LogicalORExpression: a", &["LogicalANDExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -190,13 +190,13 @@ mod logical_or_expression {
             check(LogicalORExpression::parse(&mut newparser("a||b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*pn, LogicalORExpression::LogicalOR(..)));
-        pretty_check(&*pn, "LogicalORExpression: a || b", vec!["LogicalORExpression: a", "LogicalANDExpression: b"]);
+        pretty_check(&*pn, "LogicalORExpression: a || b", &["LogicalORExpression: a", "LogicalANDExpression: b"]);
         concise_check(
             &*pn,
             "LogicalORExpression: a || b",
-            vec!["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -205,9 +205,9 @@ mod logical_or_expression {
             check(LogicalORExpression::parse(&mut newparser("a||"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalORExpression::LogicalANDExpression(..)));
-        pretty_check(&*pn, "LogicalORExpression: a", vec!["LogicalANDExpression: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        pretty_check(&*pn, "LogicalORExpression: a", &["LogicalANDExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
+        format!("{pn:?}");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -284,7 +284,7 @@ mod logical_or_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -339,13 +339,13 @@ mod coalesce_expression {
         let (pn, scanner) =
             check(CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
-        pretty_check(&*pn, "CoalesceExpression: a ?? b", vec!["CoalesceExpressionHead: a", "BitwiseORExpression: b"]);
+        pretty_check(&*pn, "CoalesceExpression: a ?? b", &["CoalesceExpressionHead: a", "BitwiseORExpression: b"]);
         concise_check(
             &*pn,
             "CoalesceExpression: a ?? b",
-            vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"],
+            &["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
     }
     #[test]
     fn parse_02() {
@@ -355,14 +355,14 @@ mod coalesce_expression {
         pretty_check(
             &*pn,
             "CoalesceExpression: z ?? a ?? b",
-            vec!["CoalesceExpressionHead: z ?? a", "BitwiseORExpression: b"],
+            &["CoalesceExpressionHead: z ?? a", "BitwiseORExpression: b"],
         );
         concise_check(
             &*pn,
             "CoalesceExpression: z ?? a ?? b",
-            vec!["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"],
+            &["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"],
         );
-        format!("{:?}", pn);
+        format!("{pn:?}");
     }
     #[test]
     fn cache_01() {
@@ -435,7 +435,7 @@ mod coalesce_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments??bob" => true; "a coal b (left)")]
@@ -457,16 +457,16 @@ fn coalesce_expression_head_test_01() {
     let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 4);
     let head = &*pn.head;
-    pretty_check(head, "CoalesceExpressionHead: a", vec!["BitwiseORExpression: a"]);
-    concise_check(head, "IdentifierName: a", vec![]);
+    pretty_check(head, "CoalesceExpressionHead: a", &["BitwiseORExpression: a"]);
+    concise_check(head, "IdentifierName: a", &[]);
 }
 #[test]
 fn coalesce_expression_head_test_02() {
     let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false));
     let head = &*pn.head;
     chk_scan(&scanner, 7);
-    pretty_check(head, "CoalesceExpressionHead: z ?? a", vec!["CoalesceExpression: z ?? a"]);
-    concise_check(head, "CoalesceExpression: z ?? a", vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"]);
+    pretty_check(head, "CoalesceExpressionHead: z ?? a", &["CoalesceExpression: z ?? a"]);
+    concise_check(head, "CoalesceExpression: z ?? a", &["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"]);
 }
 #[test]
 fn coalesce_expression_head_test_prettyerrors_1() {
@@ -541,7 +541,7 @@ mod coalesce_expression_head {
         let ce = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), false, true, true).unwrap().0;
         let ceh = &ce.head;
         ceh.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments??bob" => true; "Exp (yes)")]
@@ -570,9 +570,9 @@ fn short_circuit_expression_test_01() {
         check(ShortCircuitExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*pn, ShortCircuitExpression::CoalesceExpression(..)));
-    pretty_check(&*pn, "ShortCircuitExpression: a ?? b", vec!["CoalesceExpression: a ?? b"]);
-    concise_check(&*pn, "CoalesceExpression: a ?? b", vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
-    format!("{:?}", pn);
+    pretty_check(&*pn, "ShortCircuitExpression: a ?? b", &["CoalesceExpression: a ?? b"]);
+    concise_check(&*pn, "CoalesceExpression: a ?? b", &["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
+    format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -580,9 +580,9 @@ fn short_circuit_expression_test_02() {
     let (pn, scanner) = check(ShortCircuitExpression::parse(&mut newparser("6"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*pn, ShortCircuitExpression::LogicalORExpression(..)));
-    pretty_check(&*pn, "ShortCircuitExpression: 6", vec!["LogicalORExpression: 6"]);
-    concise_check(&*pn, "Numeric: 6", vec![]);
-    format!("{:?}", pn);
+    pretty_check(&*pn, "ShortCircuitExpression: 6", &["LogicalORExpression: 6"]);
+    concise_check(&*pn, "Numeric: 6", &[]);
+    format!("{pn:?}");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -665,7 +665,7 @@ mod short_circuit_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

@@ -16,7 +16,7 @@ impl fmt::Display for ContinueStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ContinueStatement::Bare { .. } => write!(f, "continue ;"),
-            ContinueStatement::Labelled { label, .. } => write!(f, "continue {} ;", label),
+            ContinueStatement::Labelled { label, .. } => write!(f, "continue {label} ;"),
         }
     }
 }
@@ -27,7 +27,7 @@ impl PrettyPrint for ContinueStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ContinueStatement: {}", first, self)?;
+        writeln!(writer, "{first}ContinueStatement: {self}")?;
         match self {
             ContinueStatement::Bare { .. } => Ok(()),
             ContinueStatement::Labelled { label, .. } => label.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -39,7 +39,7 @@ impl PrettyPrint for ContinueStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ContinueStatement: {}", first, self)?;
+        writeln!(writer, "{first}ContinueStatement: {self}")?;
         pprint_token(writer, "continue", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let ContinueStatement::Labelled { label, .. } = self {
             label.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

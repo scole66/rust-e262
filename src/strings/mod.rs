@@ -1,3 +1,4 @@
+use num::BigInt;
 use std::fmt;
 use std::ops::Index;
 use std::rc::Rc;
@@ -23,19 +24,20 @@ impl JSString {
         self.s.is_empty()
     }
 
+    #[must_use]
     pub fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
         let combined = [self.clone().s, tail.s].concat().into_boxed_slice();
         JSString { s: Rc::from(combined) }
     }
 
-    pub fn index_of(&self, search_value: &JSString, from_index: u64) -> i64 {
+    pub fn index_of(&self, search_value: &JSString, from_index: usize) -> i64 {
         let len = self.len();
-        if search_value.is_empty() && from_index as usize <= len {
+        if search_value.is_empty() && from_index <= len {
             i64::try_from(from_index).unwrap()
         } else {
             let search_len = search_value.len();
-            for i in from_index as usize..=(len - search_len) {
+            for i in from_index..=(len - search_len) {
                 if self.s[i..(i + search_len)] == search_value.s[..] {
                     return i64::try_from(i).unwrap();
                 }
@@ -67,7 +69,7 @@ impl From<&str> for JSString {
 
 impl From<&[u8]> for JSString {
     fn from(source: &[u8]) -> Self {
-        let v: Vec<u16> = source.iter().map(|v| *v as u16).collect();
+        let v: Vec<u16> = source.iter().map(|v| u16::from(*v)).collect();
         Self::from(v)
     }
 }
@@ -153,7 +155,7 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
 fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
-    let cp: u32 = ((lead - 0xD800) as u32) * 0x400 + ((trail - 0xDC00) as u32) + 0x10000;
+    let cp: u32 = u32::from(lead - 0xD800) * 0x400 + u32::from(trail - 0xDC00) + 0x10000;
     cp
 }
 
@@ -185,18 +187,18 @@ struct CodePointAtResult {
 fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
-    let cp: u32 = first as u32;
+    let cp: u32 = u32::from(first);
     if !(0xD800..=0xDFFF).contains(&first) {
         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: false }
     } else if first >= 0xDC00 || position + 1 == size {
         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
     } else {
         let second = string[position + 1];
-        if !(0xDC00..=0xDFFF).contains(&second) {
-            CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
-        } else {
+        if (0xDC00..=0xDFFF).contains(&second) {
             let cp = utf16_surrogate_pair_to_code_point(first, second);
             CodePointAtResult { code_point: cp, code_unit_count: 2, is_unpaired_surrogate: false }
+        } else {
+            CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
         }
     }
 }
@@ -226,6 +228,72 @@ fn string_to_code_points(string: &JSString) -> Vec<u32> {
         position += cp.code_unit_count as usize;
     }
     code_points
+}
+
+fn is_str_whitespace(ch: u16) -> bool {
+    (0x09..=0x0d).contains(&ch)
+        || ch == 0x20
+        || ch == 0x00a0
+        || ch == 0x2028
+        || ch == 0x2029
+        || ch == 0xfeff
+        || ch == 0x1680
+        || (0x2000..=0x200a).contains(&ch)
+        || ch == 0x202f
+        || ch == 0x205f
+        || ch == 0x3000
+}
+
+pub fn string_to_bigint(value: &JSString) -> Option<Rc<BigInt>> {
+    // StringToBigInt ( str )
+    // The abstract operation StringToBigInt takes argument str (a String) and returns a BigInt or undefined. It
+    // performs the following steps when called:
+    //
+    //  1. Let text be StringToCodePoints(str).
+    //  2. Let literal be ParseText(text, StringIntegerLiteral).
+    //  3. If literal is a List of errors, return undefined.
+    //  4. Let mv be the MV of literal.
+    //  5. Assert: mv is an integer.
+    //  6. Return ℤ(mv).
+    let mut code_units = value.s.as_ref();
+    while let [first, rest @ ..] = code_units {
+        if is_str_whitespace(*first) {
+            code_units = rest;
+        } else {
+            break;
+        }
+    }
+    while let [rest @ .., last] = code_units {
+        if is_str_whitespace(*last) {
+            code_units = rest;
+        } else {
+            break;
+        }
+    }
+    if code_units.is_empty() {
+        return Some(Rc::new(BigInt::from(0)));
+    }
+    let radix = if code_units.len() >= 2 && code_units[0] == 0x30 {
+        match code_units[1] {
+            98 | 66 => 2,
+            120 | 88 => 16,
+            79 | 111 => 8,
+            _ => 10,
+        }
+    } else {
+        10
+    };
+    if radix != 10 {
+        code_units = &code_units[2..];
+    }
+    let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
+    BigInt::parse_bytes(&digits, radix).map(Rc::new)
+}
+
+impl From<Rc<BigInt>> for JSString {
+    fn from(value: Rc<BigInt>) -> Self {
+        JSString::from(value.to_str_radix(10))
+    }
 }
 
 #[cfg(test)]

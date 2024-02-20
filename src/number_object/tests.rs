@@ -10,7 +10,7 @@ fn number_object_debug() {
         number_data: RefCell::new(0.0),
     };
 
-    assert_ne!(format!("{:?}", no), "");
+    assert_ne!(format!("{no:?}"), "");
 }
 
 #[test]
@@ -206,13 +206,13 @@ fn number_constructor_data_props() {
     assert_eq!(val, ECMAScriptValue::from(f64::EPSILON));
 
     let val = number_constructor.get(&PropertyKey::from("MAX_SAFE_INTEGER")).unwrap();
-    assert_eq!(val, ECMAScriptValue::from(9007199254740991.0));
+    assert_eq!(val, ECMAScriptValue::from(9_007_199_254_740_991.0));
 
     let val = number_constructor.get(&PropertyKey::from("MAX_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(f64::MAX));
 
     let val = number_constructor.get(&PropertyKey::from("MIN_SAFE_INTEGER")).unwrap();
-    assert_eq!(val, ECMAScriptValue::from(-9007199254740991.0));
+    assert_eq!(val, ECMAScriptValue::from(-9_007_199_254_740_991.0));
 
     let val = number_constructor.get(&PropertyKey::from("MIN_VALUE")).unwrap();
     assert_eq!(val, ECMAScriptValue::from(5e-324));
@@ -316,7 +316,7 @@ fn number_constructor_as_constructor_02() {
     if let ECMAScriptValue::Object(o) = result {
         assert!(o.o.is_number_object());
         let data = *o.o.to_number_obj().unwrap().number_data().borrow();
-        assert_eq!(data, 195951326.0);
+        assert_eq!(data, 195_951_326.0);
     }
 }
 #[test]
@@ -465,6 +465,7 @@ fn number_is_safe_integer_one_arg() {
     let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
+    #[allow(clippy::cast_precision_loss)]
     for (arg, expected) in [
         (f64::INFINITY, false),
         (f64::NAN, false),
@@ -473,13 +474,13 @@ fn number_is_safe_integer_one_arg() {
         (-0.0, true),
         (89.3, false),
         (3.33e200, false),
-        (0x1fffffffffffff_u64 as f64, true),
-        (0x20000000000000_u64 as f64, false),
-        (-0x1fffffffffffff_i64 as f64, true),
-        (-0x20000000000000_i64 as f64, false),
+        (0x1f_ffff_ffff_ffff_u64 as f64, true),
+        (0x20_0000_0000_0000_u64 as f64, false),
+        (-0x1f_ffff_ffff_ffff_i64 as f64, true),
+        (-0x20_0000_0000_0000_i64 as f64, false),
     ] {
         let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
-        assert_eq!(result, ECMAScriptValue::from(expected), "Tried {}, should have been {:?}", arg, expected);
+        assert_eq!(result, ECMAScriptValue::from(expected), "Tried {arg}, should have been {expected:?}");
     }
 
     let result = call(&is_safe_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
@@ -494,7 +495,7 @@ fn this_number_value_01() {
     let number_constructor = intrinsic(IntrinsicId::Number);
     let number = construct(&number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
 
-    let result = this_number_value(number).unwrap();
+    let result = this_number_value(&number).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
@@ -503,7 +504,7 @@ fn this_number_value_02() {
     // called with number value
     setup_test_agent();
 
-    let result = this_number_value(ECMAScriptValue::from(123)).unwrap();
+    let result = this_number_value(&ECMAScriptValue::from(123)).unwrap();
     assert_eq!(result, 123.0);
 }
 #[test]
@@ -512,7 +513,7 @@ fn this_number_value_03() {
     setup_test_agent();
     let obj = ordinary_object_create(None, &[]);
 
-    let result = this_number_value(ECMAScriptValue::from(obj)).unwrap_err();
+    let result = this_number_value(&ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 #[test]
@@ -520,7 +521,7 @@ fn this_number_value_04() {
     // called with non-number, non-object value
     setup_test_agent();
 
-    let result = this_number_value(ECMAScriptValue::from(true)).unwrap_err();
+    let result = this_number_value(&ECMAScriptValue::from(true)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
 }
 
@@ -620,8 +621,8 @@ fn number_proto_to_string_09() {
 #[test]
 fn double_to_radix_string_01() {
     assert_eq!(double_to_radix_string(-2048.0, 16), "-800");
-    assert_eq!(double_to_radix_string(0.99999999, 3), "0.2222222222222222120101012010002");
-    assert_eq!(double_to_radix_string(0.9999999999999, 26), "0.pppppppppbn");
+    assert_eq!(double_to_radix_string(0.999_999_99, 3), "0.2222222222222222120101012010002");
+    assert_eq!(double_to_radix_string(0.999_999_999_999_9, 26), "0.pppppppppbn");
 }
 
 fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
@@ -650,7 +651,7 @@ fn number_proto_to_precision_04() {
 }
 #[test]
 fn number_proto_to_precision_05() {
-    number_proto_to_precision_test(5.960464477539063e-8, 3, "5.96e-8");
+    number_proto_to_precision_test(5.960_464_477_539_063e-8, 3, "5.96e-8");
 }
 #[test]
 fn number_proto_to_precision_06() {
@@ -662,15 +663,15 @@ fn number_proto_to_precision_07() {
 }
 #[test]
 fn number_proto_to_precision_08() {
-    number_proto_to_precision_test(6500000.0, 2, "6.5e6");
+    number_proto_to_precision_test(6_500_000.0, 2, "6.5e6");
 }
 #[test]
 fn number_proto_to_precision_09() {
-    number_proto_to_precision_test(9999999.0, 2, "1.0e7");
+    number_proto_to_precision_test(9_999_999.0, 2, "1.0e7");
 }
 #[test]
 fn number_proto_to_precision_10() {
-    number_proto_to_precision_test(-9999999.0, 1, "-1e7");
+    number_proto_to_precision_test(-9_999_999.0, 1, "-1e7");
 }
 #[test]
 fn number_proto_to_precision_11() {
@@ -855,7 +856,7 @@ fn number_proto_to_fixed_04() {
 #[test]
 fn number_proto_to_fixed_05() {
     // The example from the spec
-    number_proto_to_fixed_test(1000000000000000128.0, 0, "1000000000000000128");
+    number_proto_to_fixed_test(1_000_000_000_000_000_128.0, 0, "1000000000000000128");
 }
 #[test]
 fn number_proto_to_fixed_06() {
@@ -863,7 +864,7 @@ fn number_proto_to_fixed_06() {
 }
 #[test]
 fn number_proto_to_fixed_07() {
-    number_proto_to_fixed_test(-0.0000011, 4, "-0.0000");
+    number_proto_to_fixed_test(-0.000_001_1, 4, "-0.0000");
 }
 #[test]
 fn number_proto_to_fixed_08() {
@@ -942,7 +943,7 @@ fn number_proto_to_fixed_19() {
 fn number_proto_to_fixed_20() {
     // 100 digits
     number_proto_to_fixed_test(
-        0.7483901789587938,
+        0.748_390_178_958_793_8,
         100,
         "0.7483901789587937836145670189580414444208145141601562500000000000000000000000000000000000000000000000",
     );
@@ -963,7 +964,7 @@ fn double_exponent_test() {
     // 1.0 -> 1<52 zeros> x 2^(-52)
     assert_eq!(double_exponent(1.0), -52);
     // 3e-323 -> denormal; just gets -1074...
-    assert_eq!(double_exponent(3e-323), -1074)
+    assert_eq!(double_exponent(3e-323), -1074);
 }
 
 #[test]
@@ -978,8 +979,8 @@ fn next_double_test() {
     assert_eq!(next_double(0.0), 5e-324);
     assert_eq!(next_double(0.0).to_bits(), 1u64);
     // -1.0 -> -0.9999999999999999
-    assert_eq!(next_double(-1.0), -0.9999999999999999);
-    assert_eq!(next_double(-1.0).to_bits(), 0xBFEFFFFFFFFFFFFF);
+    assert_eq!(next_double(-1.0), -0.999_999_999_999_999_9);
+    assert_eq!(next_double(-1.0).to_bits(), 0xBFEF_FFFF_FFFF_FFFF);
 }
 
 #[test]

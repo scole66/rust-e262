@@ -25,7 +25,7 @@ impl PrettyPrint for BlockStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BlockStatement: {}", first, self)?;
+        writeln!(writer, "{first}BlockStatement: {self}")?;
         let BlockStatement::Block(node) = self;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -135,7 +135,7 @@ impl fmt::Display for Block {
         let opt_sl = &self.statements;
         match opt_sl {
             None => write!(f, "{{ }}"),
-            Some(node) => write!(f, "{{ {} }}", node),
+            Some(node) => write!(f, "{{ {node} }}"),
         }
     }
 }
@@ -146,7 +146,7 @@ impl PrettyPrint for Block {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Block: {}", first, self)?;
+        writeln!(writer, "{first}Block: {self}")?;
         let opt_sl = &self.statements;
         match opt_sl {
             None => Ok(()),
@@ -159,7 +159,7 @@ impl PrettyPrint for Block {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Block: {}", first, self)?;
+        writeln!(writer, "{first}Block: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match &self.statements {
             None => {}
@@ -328,8 +328,8 @@ pub struct StatementList {
 impl fmt::Display for StatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.list[0].fmt(f)?;
-        for item in self.list[1..].iter() {
-            write!(f, " {}", item)?;
+        for item in &self.list[1..] {
+            write!(f, " {item}")?;
         }
         Ok(())
     }
@@ -341,9 +341,9 @@ impl PrettyPrint for StatementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}StatementList: {}", first, self)?;
+        writeln!(writer, "{first}StatementList: {self}")?;
         let not_final_length = usize::from(self.list.len()) - 1;
-        for item in self.list[0..not_final_length].iter() {
+        for item in &self.list[0..not_final_length] {
             item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         self.list[not_final_length].pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -356,9 +356,9 @@ impl PrettyPrint for StatementList {
         if usize::from(self.list.len()) == 1 {
             self.list[0].concise_with_leftpad(writer, pad, state)
         } else {
-            writeln!(writer, "{}StatementList: {}", first, self)?;
+            writeln!(writer, "{first}StatementList: {self}")?;
             let not_final_length = usize::from(self.list.len()) - 1;
-            for item in self.list[0..not_final_length].iter() {
+            for item in &self.list[0..not_final_length] {
                 item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             self.list[not_final_length].concise_with_leftpad(writer, &successive, Spot::Final)
@@ -413,7 +413,7 @@ impl StatementList {
 
     pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
         let mut result = vec![];
-        for item in self.list.iter() {
+        for item in &self.list {
             result.extend(item.top_level_lexically_declared_names());
         }
         result
@@ -477,7 +477,7 @@ impl StatementList {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
-        for item in self.list.iter() {
+        for item in &self.list {
             item.early_errors(errs, strict, within_iteration, within_switch);
         }
     }
@@ -549,7 +549,7 @@ impl PrettyPrint for StatementListItem {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}StatementListItem: {}", first, self)?;
+        writeln!(writer, "{first}StatementListItem: {self}")?;
         match self {
             StatementListItem::Declaration(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             StatementListItem::Statement(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),

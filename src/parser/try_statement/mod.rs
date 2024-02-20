@@ -17,12 +17,12 @@ pub enum TryStatement {
 impl fmt::Display for TryStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TryStatement::Catch { block, catch, .. } => write!(f, "try {} {}", block, catch),
+            TryStatement::Catch { block, catch, .. } => write!(f, "try {block} {catch}"),
             TryStatement::Finally { block, finally, .. } => {
-                write!(f, "try {} {}", block, finally)
+                write!(f, "try {block} {finally}")
             }
             TryStatement::Full { block, catch, finally, .. } => {
-                write!(f, "try {} {} {}", block, catch, finally)
+                write!(f, "try {block} {catch} {finally}")
             }
         }
     }
@@ -34,7 +34,7 @@ impl PrettyPrint for TryStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TryStatement: {}", first, self)?;
+        writeln!(writer, "{first}TryStatement: {self}")?;
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 block.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -57,7 +57,7 @@ impl PrettyPrint for TryStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TryStatement: {}", first, self)?;
+        writeln!(writer, "{first}TryStatement: {self}")?;
         pprint_token(writer, "try", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
             TryStatement::Catch { block, catch, .. } => {
@@ -85,14 +85,15 @@ impl TryStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (try_loc, after_try) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
-        let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
             Catch(Rc<Catch>),
             Finally(Rc<Finally>),
             Full(Rc<Catch>, Rc<Finally>),
         }
+
+        let (try_loc, after_try) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         Err(ParseError::new(PECode::TryBlockError, after_block))
             .otherwise(|| {
                 let (fin, after_fin) = Finally::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
@@ -317,7 +318,7 @@ impl PrettyPrint for Catch {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Catch: {}", first, self)?;
+        writeln!(writer, "{first}Catch: {self}")?;
         if let Some(cp) = &self.parameter {
             cp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -329,7 +330,7 @@ impl PrettyPrint for Catch {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Catch: {}", first, self)?;
+        writeln!(writer, "{first}Catch: {self}")?;
         pprint_token(writer, "catch", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(cp) = &self.parameter {
             pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -432,15 +433,12 @@ impl Catch {
             let ldn = self.block.lexically_declared_names();
             let vdn = self.block.var_declared_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(
-                    format!("‘{}’ already defined", name),
-                    Some(self.block.location()),
-                ));
+                errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.block.location())));
             }
-            for name in bn.iter() {
+            for name in &bn {
                 if ldn.contains(name) || vdn.contains(name) {
                     errs.push(create_syntax_error_object(
-                        format!("‘{}’ already defined", name),
+                        format!("‘{name}’ already defined"),
                         Some(self.block.location()),
                     ));
                 }
@@ -478,7 +476,7 @@ impl PrettyPrint for Finally {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Finally: {}", first, self)?;
+        writeln!(writer, "{first}Finally: {self}")?;
         self.block.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -487,7 +485,7 @@ impl PrettyPrint for Finally {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Finally: {}", first, self)?;
+        writeln!(writer, "{first}Finally: {self}")?;
         pprint_token(writer, "finally", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.block.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -592,7 +590,7 @@ impl PrettyPrint for CatchParameter {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CatchParameter: {}", first, self)?;
+        writeln!(writer, "{first}CatchParameter: {self}")?;
         match self {
             CatchParameter::Ident(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             CatchParameter::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),

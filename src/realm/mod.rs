@@ -12,6 +12,8 @@ pub enum IntrinsicId {
     ArrayPrototype,
     ArrayPrototypeValues,
     ArrayIteratorPrototype,
+    BigInt,
+    BigIntPrototype,
     Boolean,
     BooleanPrototype,
     DecodeURI,
@@ -33,6 +35,7 @@ pub enum IntrinsicId {
     GeneratorFunctionPrototype,
     GeneratorFunctionPrototypePrototype,
     GeneratorFunctionPrototypePrototypeNext,
+    Math,
     Number,
     NumberPrototype,
     Object,
@@ -71,6 +74,7 @@ pub struct Intrinsics {
     pub async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
     pub atomics: Object,                  // Atomics	The Atomics object (25.4)
     pub big_int: Object,                  // BigInt	The BigInt constructor (21.2.1)
+    pub big_int_prototype: Object,        //
     pub big_int64_array: Object,          // BigInt64Array	The BigInt64Array constructor (23.2)
     pub big_uint64_array: Object,         // BigUint64Array	The BigUint64Array constructor (23.2)
     pub boolean: Object,                  // Boolean	The Boolean constructor (20.3.1)
@@ -169,6 +173,7 @@ impl Intrinsics {
             async_iterator_prototype: dead.clone(),
             atomics: dead.clone(),
             big_int: dead.clone(),
+            big_int_prototype: dead.clone(),
             big_int64_array: dead.clone(),
             big_uint64_array: dead.clone(),
             boolean: dead.clone(),
@@ -251,6 +256,8 @@ impl Intrinsics {
             IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
+            IntrinsicId::BigInt => &self.big_int,
+            IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
             IntrinsicId::DecodeURI => &self.decode_uri,
@@ -272,6 +279,7 @@ impl Intrinsics {
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
+            IntrinsicId::Math => &self.math,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
@@ -305,6 +313,8 @@ impl Intrinsics {
             o if o == &self.array_prototype => Some(IntrinsicId::ArrayPrototype),
             o if o == &self.array_prototype_values => Some(IntrinsicId::ArrayPrototypeValues),
             o if o == &self.array_iterator_prototype => Some(IntrinsicId::ArrayIteratorPrototype),
+            o if o == &self.big_int => Some(IntrinsicId::BigInt),
+            o if o == &self.big_int_prototype => Some(IntrinsicId::BigIntPrototype),
             o if o == &self.boolean => Some(IntrinsicId::Boolean),
             o if o == &self.boolean_prototype => Some(IntrinsicId::BooleanPrototype),
             o if o == &self.decode_uri => Some(IntrinsicId::DecodeURI),
@@ -330,6 +340,7 @@ impl Intrinsics {
             o if o == &self.generator_function_prototype_prototype_next => {
                 Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
             }
+            o if o == &self.math => Some(IntrinsicId::Math),
             o if o == &self.number => Some(IntrinsicId::Number),
             o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
             o if o == &self.object => Some(IntrinsicId::Object),
@@ -411,7 +422,7 @@ impl Realm {
 //  6. Return realmRec.
 pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
     let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
-    create_intrinsics(r.clone());
+    create_intrinsics(&r);
     r
 }
 
@@ -433,7 +444,7 @@ pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
+pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
@@ -454,29 +465,30 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
     // %ThrowTypeError%
     realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(realm_rec.clone());
 
-    provision_function_intrinsic(&realm_rec);
-    provision_boolean_intrinsic(&realm_rec);
+    provision_function_intrinsic(realm_rec);
+    provision_boolean_intrinsic(realm_rec);
 
     ///////////////////////////////////////////////////////////////////
     // %Number% and %Number.prototype%
-    provision_number_intrinsic(&realm_rec);
-
-    provision_error_intrinsic(&realm_rec);
-    provision_eval_error_intrinsic(&realm_rec);
-    provision_range_error_intrinsic(&realm_rec);
-    provision_reference_error_intrinsic(&realm_rec);
-    provision_syntax_error_intrinsic(&realm_rec);
-    provision_type_error_intrinsic(&realm_rec);
-    provision_uri_error_intrinsic(&realm_rec);
-    provision_object_intrinsic(&realm_rec);
-    provision_array_intrinsic(&realm_rec);
-    provision_symbol_intrinsic(&realm_rec);
-    provision_string_intrinsic(&realm_rec);
-    provision_iterator_prototype(&realm_rec);
-    provision_generator_function_intrinsics(&realm_rec);
-    provision_array_iterator_intrinsic(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
-    provision_for_in_iterator_prototype(&realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
-    provision_proxy_intrinsic(&realm_rec);
+    provision_number_intrinsic(realm_rec);
+    provision_big_int_intrinsic(realm_rec);
+    provision_error_intrinsic(realm_rec);
+    provision_eval_error_intrinsic(realm_rec);
+    provision_range_error_intrinsic(realm_rec);
+    provision_reference_error_intrinsic(realm_rec);
+    provision_syntax_error_intrinsic(realm_rec);
+    provision_type_error_intrinsic(realm_rec);
+    provision_uri_error_intrinsic(realm_rec);
+    provision_object_intrinsic(realm_rec);
+    provision_array_intrinsic(realm_rec);
+    provision_symbol_intrinsic(realm_rec);
+    provision_string_intrinsic(realm_rec);
+    provision_iterator_prototype(realm_rec);
+    provision_generator_function_intrinsics(realm_rec);
+    provision_array_iterator_intrinsic(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_for_in_iterator_prototype(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_proxy_intrinsic(realm_rec);
+    provision_math_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
@@ -518,7 +530,7 @@ pub fn create_intrinsics(realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(f: &Object, realm: Rc<RefCell<Realm>>) {
+pub fn add_restricted_function_properties(f: &Object, realm: &Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
         f,
@@ -553,7 +565,7 @@ pub fn add_restricted_function_properties(f: &Object, realm: Rc<RefCell<Realm>>)
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
 pub fn throw_type_error(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -590,7 +602,7 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
 }
 
 pub fn do_nothing(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -598,28 +610,28 @@ pub fn do_nothing(
 }
 
 fn decode_uri(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn decode_uri_component(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn encode_uri(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn encode_uri_component(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -627,7 +639,7 @@ fn encode_uri_component(
 }
 
 fn eval(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -637,7 +649,7 @@ fn eval(
 }
 
 fn is_finite(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -655,7 +667,7 @@ fn is_finite(
 }
 
 fn is_nan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -673,7 +685,7 @@ fn is_nan(
 }
 
 fn parse_float(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -681,7 +693,7 @@ fn parse_float(
 }
 
 fn parse_int(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -700,7 +712,9 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
         ECMAScriptValue::String(x) => {
             let eval_realm = current_realm_record().unwrap();
             let (in_function, in_method, in_derived_constructor, in_class_field_initializer) =
-                if call_state != EvalCallStatus::NotDirect {
+                if call_state == EvalCallStatus::NotDirect {
+                    (false, false, false, false)
+                } else {
                     let this_env_rec = get_this_environment();
                     if let Some(f) = this_env_rec.get_function_object() {
                         let fo = f.o.to_function_obj().unwrap().function_data().borrow();
@@ -713,8 +727,6 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                     } else {
                         (false, false, false, false)
                     }
-                } else {
-                    (false, false, false, false)
                 };
             let source_text = String::from(x);
             let script = parse_text(
@@ -751,9 +763,10 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                     let lex_env: Rc<dyn EnvironmentRecord> = Rc::new(
                                         DeclarativeEnvironmentRecord::new(current_lexical_environment(), "eval"),
                                     );
-                                    let var_env = match strict_eval {
-                                        true => lex_env.clone(),
-                                        false => current_variable_environment().unwrap(),
+                                    let var_env = if strict_eval {
+                                        lex_env.clone()
+                                    } else {
+                                        current_variable_environment().unwrap()
                                     };
                                     let private_env = current_private_environment();
                                     (lex_env, var_env, private_env)
@@ -763,10 +776,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                         eval_realm.borrow().global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
                                     let lex_env: Rc<dyn EnvironmentRecord> =
                                         Rc::new(DeclarativeEnvironmentRecord::new(global_env.clone(), "eval"));
-                                    let var_env = match strict_eval {
-                                        true => lex_env.clone(),
-                                        false => global_env.unwrap(),
-                                    };
+                                    let var_env = if strict_eval { lex_env.clone() } else { global_env.unwrap() };
                                     (lex_env, var_env, None)
                                 }
                             };
@@ -777,13 +787,13 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                             push_execution_context(eval_context);
                             let result = match eval_declaration_instantiation(
                                 body,
-                                var_env,
-                                lex_env,
-                                private_env,
+                                &var_env,
+                                &lex_env,
+                                &private_env,
                                 strict_eval,
                                 &source_text,
                             ) {
-                                Ok(_) => {
+                                Ok(()) => {
                                     let mut chunk = Chunk::new("eval code");
                                     script.compile(&mut chunk, strict_eval, &source_text).unwrap();
                                     for line in chunk.disassemble() {
@@ -807,9 +817,9 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
 
 fn eval_declaration_instantiation(
     body: &Rc<ScriptBody>,
-    var_env: Rc<dyn EnvironmentRecord>,
-    lex_env: Rc<dyn EnvironmentRecord>,
-    private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    var_env: &Rc<dyn EnvironmentRecord>,
+    lex_env: &Rc<dyn EnvironmentRecord>,
+    private_env: &Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
     source_text: &str,
 ) -> Completion<()> {
@@ -817,7 +827,7 @@ fn eval_declaration_instantiation(
     let var_declarations = body.var_scoped_declarations();
     if !strict {
         if let Some(ger) = var_env.as_global_environment_record() {
-            for name in var_names.iter() {
+            for name in &var_names {
                 if ger.has_lexical_declaration(name) {
                     return Err(create_syntax_error(
                         format!("Cannot create lexical binding {name} as it would shadow a global"),
@@ -827,9 +837,9 @@ fn eval_declaration_instantiation(
             }
         }
         let mut this_env = lex_env.clone();
-        while !Rc::ptr_eq(&this_env, &var_env) {
+        while !Rc::ptr_eq(&this_env, var_env) {
             if this_env.as_object_environment_record().is_none() {
-                for name in var_names.iter() {
+                for name in &var_names {
                     if this_env.has_binding(name).unwrap() {
                         return Err(create_syntax_error(
                             format!("Cannot create binding {name} as it would shadow an existing var name"),
@@ -846,7 +856,7 @@ fn eval_declaration_instantiation(
     while let Some(ref per) = pointer {
         let outer = {
             let penv = per.borrow();
-            for binding in penv.names.iter() {
+            for binding in &penv.names {
                 if !private_identifiers.contains(&binding.description) {
                     private_identifiers.push(binding.description.clone());
                 }
@@ -878,7 +888,7 @@ fn eval_declaration_instantiation(
     // Step 11
     let mut declared_var_names = vec![];
     // Step 12
-    for d in var_declarations.iter() {
+    for d in &var_declarations {
         if matches!(d, VarScopeDecl::ForBinding(_) | VarScopeDecl::VariableDeclaration(_)) {
             for vn in d.bound_names() {
                 if !declared_function_names.contains(&vn) {
@@ -897,7 +907,7 @@ fn eval_declaration_instantiation(
     // Step 15
     let lex_declarations = body.lexically_scoped_declarations();
     // Step 16
-    for d in lex_declarations.iter() {
+    for d in &lex_declarations {
         for dn in d.bound_names() {
             if d.is_constant_declaration() {
                 lex_env.create_immutable_binding(dn, true)?;

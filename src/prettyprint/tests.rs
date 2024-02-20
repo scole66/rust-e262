@@ -26,7 +26,7 @@ fn token_type_display() {
         (TokenType::TemplateTail, "TemplateTail"),
         (TokenType::PrivateIdentifier, "PrivateIdentifier"),
     ] {
-        assert_eq!(format!("{}", tt), disp);
+        assert_eq!(format!("{tt}"), disp);
     }
 }
 
@@ -81,14 +81,14 @@ impl PrettyPrint for TestProduction {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}TestProduction: {}", first, self)
+        writeln!(writer, "{first}TestProduction: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}TestProduction: {}", first, self)
+        writeln!(writer, "{first}TestProduction: {self}")
     }
 }
 

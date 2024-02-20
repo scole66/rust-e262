@@ -65,7 +65,7 @@ where
     U: fmt::Display,
 {
     let (first, _) = prettypad(pad, state);
-    writeln!(writer, "{}{}: {}", first, kind, tokstr)
+    writeln!(writer, "{first}{kind}: {tokstr}")
 }
 
 pub trait PrettyPrint {

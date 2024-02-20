@@ -167,6 +167,7 @@ mod insn {
     #[test_case(Insn::DefineMethod => "DEFINE_METHOD"; "DefineMethod instruction")]
     #[test_case(Insn::SetFunctionName => "SET_FUNC_NAME"; "SetFunctionName instruction")]
     #[test_case(Insn::DefineMethodProperty => "DEF_METH_PROP"; "DefineMethodProperty instruction")]
+    #[test_case(Insn::DefineGetter => "DEF_GETTER"; "DefineGetter instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -437,17 +438,17 @@ mod nameable_production {
     fn debug() {
         let fd = Maker::new("function (){}").function_expression();
         let x = NameableProduction::Function(fd);
-        assert_ne!(format!("{:?}", x), "");
+        assert_ne!(format!("{x:?}"), "");
     }
 
-    #[test_case(NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
-    #[test_case(NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
-    #[test_case(NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
-    #[test_case(NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
-    #[test_case(NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
-    #[test_case(NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
-    #[test_case(NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
-    fn display(node: NameableProduction) -> String {
+    #[test_case(&NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
+    #[test_case(&NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
+    #[test_case(&NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
+    #[test_case(&NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
+    #[test_case(&NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
+    #[test_case(&NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
+    #[test_case(&NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
+    fn display(node: &NameableProduction) -> String {
         node.to_string()
     }
 
@@ -590,7 +591,7 @@ mod nameable_production {
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats = vec![56878142.0; 65536];
+    c.floats = vec![56_878_142.0; 65536];
     c.strings = Vec::with_capacity(65536);
     c.bigints = Vec::with_capacity(65536);
     for nbr in 0..65536 {
@@ -601,9 +602,9 @@ fn full_chunk(n: &str) -> Chunk {
 }
 
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
-    let mut c = Chunk::new(n);
     const LIMIT: usize = 65536;
-    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
+    let mut c = Chunk::new(n);
+    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
@@ -620,11 +621,11 @@ enum Fillable {
     FunctionStash,
 }
 fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
-    let mut c = Chunk::new(name);
     const LIMIT: usize = 65536;
+    let mut c = Chunk::new(name);
     for &(section, slots_left) in what {
         match section {
-            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0),
+            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0),
             Fillable::String => c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler")),
             Fillable::BigInt => c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783))),
             Fillable::StringSet => {
@@ -803,7 +804,7 @@ mod literal {
             node.compile(&mut c).unwrap();
             // The point of this literal is to fill the string table -- such that the call to add a string to the table
             // will fail. So that's what we test.
-            assert!(c.add_to_string_pool("test".into()).is_err())
+            assert!(c.add_to_string_pool("test".into()).is_err());
         }
 
         #[test]
@@ -3275,7 +3276,7 @@ mod statement {
         let node = Maker::new(src).statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -3995,12 +3996,11 @@ mod empty_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";", None => (svec(&["EMPTY"]), false, false); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
-        let node = Maker::new(src).empty_statement();
+    #[test_case(None => (svec(&["EMPTY"]), false, false); "typical")]
+    fn compile(spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let status = node.compile(&mut c);
+        let status = EmptyStatement::compile(&mut c);
         (
             c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
             status.maybe_abrupt(),
@@ -4189,7 +4189,7 @@ mod breakable_statement {
         let node = Maker::new(src).breakable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4298,7 +4298,7 @@ mod iteration_statement {
         let node = Maker::new(src).iteration_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4382,7 +4382,7 @@ mod do_while_statement {
         let node = Maker::new(src).do_while_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.do_while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4414,7 +4414,7 @@ mod while_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).while_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -4747,7 +4747,7 @@ mod for_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.compile_for_loop(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -4862,20 +4862,12 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", None => Ok((svec(&["EMPTY"]), false, false)); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).function_declaration();
+    #[test_case(None => svec(&["EMPTY"]); "typical")]
+    fn compile(spots_avail: Option<usize>) -> Vec<String> {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c)
-            .map(|status| {
-                (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                    status.maybe_ref(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        FunctionDeclaration::compile(&mut c);
+        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
     #[test_case("function named(){}", true, &[] => Ok((svec(&["FUNC_OBJ 0 named"]), true, false)); "named function")]
@@ -4938,7 +4930,7 @@ mod function_expression {
             })
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -5020,7 +5012,7 @@ mod labelled_item {
         let node = Maker::new(src).labelled_item();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -5079,7 +5071,7 @@ mod labelled_statement {
         let node = Maker::new(src).labelled_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -5983,7 +5975,7 @@ mod compile_fdi {
 mod arrow_function {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -6195,7 +6187,7 @@ mod expression_body {
 mod param_source {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum Kind {
         Formal,
         Arrow,
@@ -7083,7 +7075,7 @@ fn compile_new_evaluator(
     };
     let mut c = complex_filled_chunk("x", what);
 
-    super::compile_new_evaluator(&mut c, strict, src, constructor_expression, potential_arguments)
+    super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
         .map(|status| {
             (
                 c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9819,7 +9811,7 @@ mod destructuring_assignment_target {
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum ForInOfExprKind {
         Expression,
         AssignmentExpression,
@@ -10389,7 +10381,7 @@ mod for_in_of_statement {
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum LHSKind {
         Assignment,
         Destructuring,
@@ -12069,7 +12061,39 @@ mod method_definition {
         ]));
         "success; enumerable"
     )]
-    #[test_case("get a(){}", true, &[], true => panics "not yet implemented"; "getter")]
+    #[test_case(
+        "get a(){}", true, &[], true
+        => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 enumerable"]));
+        "getter"
+    )]
+    #[test_case(
+        "get [1n](){}", true, &[(Fillable::BigInt, 0)], true
+        => serr("Out of room for big ints in this compilation unit");
+        "getter; name compile fails"
+    )]
+    #[test_case(
+        "get [a](){}", true, &[], true
+        => Ok(svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 1",
+            "TO_KEY",
+            "JUMP_IF_ABRUPT 5",
+            "DEF_GETTER 0 enumerable",
+            "JUMP 2",
+            "UNWIND 1"
+        ]));
+        "getter; fallible name"
+    )]
+    #[test_case(
+        "get a(){}", true, &[(Fillable::FunctionStash, 0)], true
+        => serr("Out of room for more functions!");
+        "getter; function doesn't fit"
+    )]
+    #[test_case(
+        "get a(){}", true, &[], false => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 hidden"])); "getter, not enumerable"
+    )]
     #[test_case("set a(b){}", true, &[], true => panics "not yet implemented"; "setter")]
     #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
     #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]

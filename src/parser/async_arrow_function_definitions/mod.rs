@@ -16,10 +16,10 @@ impl fmt::Display for AsyncArrowFunction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AsyncArrowFunction::IdentOnly(id, body, ..) => {
-                write!(f, "async {} => {}", id, body)
+                write!(f, "async {id} => {body}")
             }
             AsyncArrowFunction::Formals(params, body) => {
-                write!(f, "{} => {}", params, body)
+                write!(f, "{params} => {body}")
             }
         }
     }
@@ -31,7 +31,7 @@ impl PrettyPrint for AsyncArrowFunction {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncArrowFunction: {}", first, self)?;
+        writeln!(writer, "{first}AsyncArrowFunction: {self}")?;
         match self {
             AsyncArrowFunction::IdentOnly(id, body, ..) => {
                 id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -49,7 +49,7 @@ impl PrettyPrint for AsyncArrowFunction {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncArrowFunction: {}", first, self)?;
+        writeln!(writer, "{first}AsyncArrowFunction: {self}")?;
         match self {
             AsyncArrowFunction::IdentOnly(head, tail, ..) => {
                 pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
@@ -196,7 +196,7 @@ impl PrettyPrint for AsyncArrowHead {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncArrowHead: {}", first, self)?;
+        writeln!(writer, "{first}AsyncArrowHead: {self}")?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -205,7 +205,7 @@ impl PrettyPrint for AsyncArrowHead {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncArrowHead: {}", first, self)?;
+        writeln!(writer, "{first}AsyncArrowHead: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.params.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -273,7 +273,7 @@ impl fmt::Display for AsyncConciseBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AsyncConciseBody::Expression(node) => node.fmt(f),
-            AsyncConciseBody::Function(node, ..) => write!(f, "{{ {} }}", node),
+            AsyncConciseBody::Function(node, ..) => write!(f, "{{ {node} }}"),
         }
     }
 }
@@ -284,7 +284,7 @@ impl PrettyPrint for AsyncConciseBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncConciseBody: {}", first, self)?;
+        writeln!(writer, "{first}AsyncConciseBody: {self}")?;
         match self {
             AsyncConciseBody::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             AsyncConciseBody::Function(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -299,7 +299,7 @@ impl PrettyPrint for AsyncConciseBody {
             AsyncConciseBody::Expression(node) => node.concise_with_leftpad(writer, pad, state),
             AsyncConciseBody::Function(node, ..) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}AsyncConciseBody: {}", first, self)?;
+                writeln!(writer, "{first}AsyncConciseBody: {self}")?;
                 pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
@@ -435,7 +435,7 @@ impl PrettyPrint for AsyncArrowBindingIdentifier {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncArrowBindingIdentifier: {}", first, self)?;
+        writeln!(writer, "{first}AsyncArrowBindingIdentifier: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -500,7 +500,7 @@ impl PrettyPrint for CoverCallExpressionAndAsyncArrowHead {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverCallExpressionAndAsyncArrowHead: {}", first, self)?;
+        writeln!(writer, "{first}CoverCallExpressionAndAsyncArrowHead: {self}")?;
         self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.args.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -510,7 +510,7 @@ impl PrettyPrint for CoverCallExpressionAndAsyncArrowHead {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverCallExpressionAndAsyncArrowHead: {}", first, self)?;
+        writeln!(writer, "{first}CoverCallExpressionAndAsyncArrowHead: {self}")?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.args.concise_with_leftpad(writer, &successive, Spot::Final)
     }

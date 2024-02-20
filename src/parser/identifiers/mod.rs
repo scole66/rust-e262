@@ -41,46 +41,46 @@ impl Identifier {
         let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Identifier(id) => match id.keyword_id {
-                Some(Keyword::Await)
-                | Some(Keyword::Break)
-                | Some(Keyword::Case)
-                | Some(Keyword::Catch)
-                | Some(Keyword::Class)
-                | Some(Keyword::Const)
-                | Some(Keyword::Continue)
-                | Some(Keyword::Debugger)
-                | Some(Keyword::Default)
-                | Some(Keyword::Delete)
-                | Some(Keyword::Do)
-                | Some(Keyword::Else)
-                | Some(Keyword::Enum)
-                | Some(Keyword::Export)
-                | Some(Keyword::Extends)
-                | Some(Keyword::False)
-                | Some(Keyword::Finally)
-                | Some(Keyword::For)
-                | Some(Keyword::Function)
-                | Some(Keyword::If)
-                | Some(Keyword::Import)
-                | Some(Keyword::In)
-                | Some(Keyword::Instanceof)
-                | Some(Keyword::New)
-                | Some(Keyword::Null)
-                | Some(Keyword::Return)
-                | Some(Keyword::Super)
-                | Some(Keyword::Switch)
-                | Some(Keyword::This)
-                | Some(Keyword::Throw)
-                | Some(Keyword::True)
-                | Some(Keyword::Try)
-                | Some(Keyword::Typeof)
-                | Some(Keyword::Var)
-                | Some(Keyword::Void)
-                | Some(Keyword::While)
-                | Some(Keyword::With)
-                | Some(Keyword::Yield) => {
-                    Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), tok_loc))
-                }
+                Some(
+                    Keyword::Await
+                    | Keyword::Break
+                    | Keyword::Case
+                    | Keyword::Catch
+                    | Keyword::Class
+                    | Keyword::Const
+                    | Keyword::Continue
+                    | Keyword::Debugger
+                    | Keyword::Default
+                    | Keyword::Delete
+                    | Keyword::Do
+                    | Keyword::Else
+                    | Keyword::Enum
+                    | Keyword::Export
+                    | Keyword::Extends
+                    | Keyword::False
+                    | Keyword::Finally
+                    | Keyword::For
+                    | Keyword::Function
+                    | Keyword::If
+                    | Keyword::Import
+                    | Keyword::In
+                    | Keyword::Instanceof
+                    | Keyword::New
+                    | Keyword::Null
+                    | Keyword::Return
+                    | Keyword::Super
+                    | Keyword::Switch
+                    | Keyword::This
+                    | Keyword::Throw
+                    | Keyword::True
+                    | Keyword::Try
+                    | Keyword::Typeof
+                    | Keyword::Var
+                    | Keyword::Void
+                    | Keyword::While
+                    | Keyword::With
+                    | Keyword::Yield,
+                ) => Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), tok_loc)),
                 _ => Ok((Rc::new(Identifier { name: id, location: tok_loc }), after_tok)),
             },
             _ => Err(ParseError::new(PECode::InvalidIdentifier, tok_loc)),
@@ -215,7 +215,7 @@ impl PrettyPrint for IdentifierReference {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}IdentifierReference: {}", first, self)?;
+        writeln!(writer, "{first}IdentifierReference: {self}")?;
         if let IdentifierReference::Identifier { identifier, .. } = self {
             identifier.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
@@ -238,7 +238,7 @@ impl PrettyPrint for IdentifierReference {
 impl fmt::Display for IdentifierReference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IdentifierReference::Identifier { identifier, .. } => write!(f, "{}", identifier),
+            IdentifierReference::Identifier { identifier, .. } => write!(f, "{identifier}"),
             IdentifierReference::Yield { .. } => write!(f, "yield"),
             IdentifierReference::Await { .. } => write!(f, "await"),
         }
@@ -309,8 +309,7 @@ impl IdentifierReference {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             IdentifierReference::Identifier { identifier, .. } => identifier.contains(kind),
-            IdentifierReference::Yield { .. } => false,
-            IdentifierReference::Await { .. } => false,
+            IdentifierReference::Yield { .. } | IdentifierReference::Await { .. } => false,
         }
     }
 
@@ -432,7 +431,7 @@ impl fmt::Display for BindingIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingIdentifier::Await { .. } => write!(f, "await"),
-            BindingIdentifier::Identifier { identifier, .. } => write!(f, "{}", identifier),
+            BindingIdentifier::Identifier { identifier, .. } => write!(f, "{identifier}"),
             BindingIdentifier::Yield { .. } => write!(f, "yield"),
         }
     }
@@ -444,7 +443,7 @@ impl PrettyPrint for BindingIdentifier {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingIdentifier: {}", first, self)?;
+        writeln!(writer, "{first}BindingIdentifier: {self}")?;
         if let BindingIdentifier::Identifier { identifier, .. } = self {
             identifier.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
@@ -526,8 +525,7 @@ impl BindingIdentifier {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BindingIdentifier::Yield { .. } => false,
-            BindingIdentifier::Await { .. } => false,
+            BindingIdentifier::Yield { .. } | BindingIdentifier::Await { .. } => false,
             BindingIdentifier::Identifier { identifier, .. } => identifier.contains(kind),
         }
     }
@@ -557,7 +555,7 @@ impl BindingIdentifier {
                 let sv = id.string_value();
                 if strict && [JSString::from("arguments"), JSString::from("eval")].contains(&sv) {
                     errs.push(create_syntax_error_object(
-                        format!("identifier not allowed in strict mode: {}", sv).as_str(),
+                        format!("identifier not allowed in strict mode: {sv}").as_str(),
                         Some(data.location),
                     ));
                 }
@@ -656,7 +654,7 @@ impl PrettyPrint for LabelIdentifier {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LabelIdentifier: {}", first, self)?;
+        writeln!(writer, "{first}LabelIdentifier: {self}")?;
         match self {
             LabelIdentifier::Identifier { identifier: id, .. } => {
                 id.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -750,8 +748,7 @@ impl LabelIdentifier {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             LabelIdentifier::Identifier { identifier: node, .. } => node.contains(kind),
-            LabelIdentifier::Yield { .. } => false,
-            LabelIdentifier::Await { .. } => false,
+            LabelIdentifier::Yield { .. } | LabelIdentifier::Await { .. } => false,
         }
     }
 

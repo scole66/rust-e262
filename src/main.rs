@@ -1,6 +1,18 @@
 #![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::single_match_else)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::doc_markdown)]
+// nursery denies.
+#![deny(clippy::empty_line_after_doc_comments)]
 
 mod agent;
 mod arguments_object;
@@ -18,6 +30,7 @@ mod errors;
 mod execution_context;
 mod function_object;
 mod map;
+mod math;
 mod number_object;
 mod object;
 mod object_object;
@@ -48,6 +61,7 @@ pub use crate::errors::*;
 pub use crate::execution_context::*;
 pub use crate::function_object::*;
 pub use crate::map::*;
+pub use crate::math::*;
 pub use crate::number_object::*;
 pub use crate::object::*;
 pub use crate::object_object::*;
@@ -88,9 +102,9 @@ impl VM {
     //    Ok(0)
     //}
 
-    fn run(&mut self) -> Result<i32, String> {
-        Ok(0)
-    }
+    //fn run(&mut self) -> Result<i32, String> {
+    //    Ok(0)
+    //}
 }
 
 fn interpret(source: &str) -> Result<i32, String> {
@@ -122,10 +136,10 @@ fn repl() {
             break;
         }
 
-        println!("You entered the string {:?}", line);
+        println!("You entered the string {line:?}");
         match interpret(&line) {
-            Ok(value) => println!("{}", value),
-            Err(err) => println!("{}", err),
+            Ok(value) => println!("{value}"),
+            Err(err) => println!("{err}"),
         }
     }
 }
@@ -161,7 +175,7 @@ fn run_app() -> Result<(), i32> {
 
 fn main() {
     std::process::exit(match run_app() {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(err) => err,
     });
 }
