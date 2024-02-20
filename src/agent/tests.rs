@@ -1506,7 +1506,10 @@ mod ec_pop_list {
     fn call(setup: fn() -> ()) -> Result<Vec<String>, String> {
         setup();
 
-        ec_pop_list().map(|v| v.into_iter().map(|r| format!("{r}")).collect::<Vec<_>>()).map_err(|e| format!("{e:?}"))
+        ec_pop_list()
+            .as_ref()
+            .map(|v| v.iter().map(ToString::to_string).collect::<Vec<_>>())
+            .map_err(ToString::to_string)
     }
 }
 
