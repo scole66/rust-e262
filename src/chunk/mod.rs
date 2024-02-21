@@ -99,14 +99,18 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
-        let delta = location as isize - self.opcodes.len() as isize - 1;
+        let delta = isize::try_from(location).expect("a hope and a prayer")
+            - isize::try_from(self.opcodes.len()).expect("should be ok")
+            - 1;
         let offset = i16::try_from(delta)?;
         self.opcodes.push(offset as u16);
         Ok(())
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {
@@ -121,6 +125,7 @@ impl Chunk {
         self.opcodes.len()
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
         let mut idx = starting_idx;
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
@@ -166,7 +171,7 @@ impl Chunk {
             | Insn::DefineMethod
             | Insn::DefineMethodProperty => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<24}{}", insn, arg))
+                (2, format!("    {insn:<24}{arg}"))
             }
             Insn::Ref
             | Insn::StrictRef
@@ -289,7 +294,7 @@ impl Chunk {
             | Insn::JumpIfNotUndef
             | Insn::JumpNotThrow => {
                 let arg = self.opcodes[idx] as i16;
-                (2, format!("    {:<24}{}", insn, arg))
+                (2, format!("    {insn:<24}{arg}"))
             }
             Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;

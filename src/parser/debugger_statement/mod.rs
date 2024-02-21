@@ -22,7 +22,7 @@ impl PrettyPrint for DebuggerStatement {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}DebuggerStatement: {}", first, self)
+        writeln!(writer, "{first}DebuggerStatement: {self}")
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -30,7 +30,7 @@ impl PrettyPrint for DebuggerStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}DebuggerStatement: {}", first, self)?;
+        writeln!(writer, "{first}DebuggerStatement: {self}")?;
         pprint_token(writer, "debugger", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }

@@ -12,9 +12,9 @@ fn member_expression_test_primary_expression() {
     chk_scan(&scanner, 1);
     assert!(matches!(&*me, MemberExpression::PrimaryExpression(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: a", vec!["PrimaryExpression: a"]);
-    concise_check(&*me, "IdentifierName: a", vec![]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: a", &["PrimaryExpression: a"]);
+    concise_check(&*me, "IdentifierName: a", &[]);
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -23,9 +23,9 @@ fn member_expression_test_meta_property() {
     chk_scan(&scanner, 10);
     assert!(matches!(&*me, MemberExpression::MetaProperty(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: new . target", vec!["MetaProperty: new . target"]);
-    concise_check(&*me, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: new . target", &["MetaProperty: new . target"]);
+    concise_check(&*me, "MetaProperty: new . target", &["Keyword: new", "Punctuator: .", "Keyword: target"]);
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -34,9 +34,9 @@ fn member_expression_test_super_property() {
     chk_scan(&scanner, 9);
     assert!(matches!(&*me, MemberExpression::SuperProperty(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: super . ior", vec!["SuperProperty: super . ior"]);
-    concise_check(&*me, "SuperProperty: super . ior", vec!["Keyword: super", "Punctuator: .", "IdentifierName: ior"]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: super . ior", &["SuperProperty: super . ior"]);
+    concise_check(&*me, "SuperProperty: super . ior", &["Keyword: super", "Punctuator: .", "IdentifierName: ior"]);
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -46,16 +46,16 @@ fn member_expression_test_new_me_args() {
     chk_scan(&scanner, 27);
     assert!(matches!(&*me, MemberExpression::NewArguments(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
+    format!("{me:?}");
     pretty_check(
         &*me,
         "MemberExpression: new shoes ( 'red' , 'leather' )",
-        vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"],
+        &["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"],
     );
     concise_check(
         &*me,
         "MemberExpression: new shoes ( 'red' , 'leather' )",
-        vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"],
+        &["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"],
     );
     assert_eq!(me.is_function_definition(), false);
 }
@@ -65,12 +65,12 @@ fn member_expression_test_me_expression() {
     chk_scan(&scanner, 7);
     assert!(matches!(&*me, MemberExpression::Expression(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: bill [ a ]", &["MemberExpression: bill", "Expression: a"]);
     concise_check(
         &*me,
         "MemberExpression: bill [ a ]",
-        vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+        &["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
     );
     assert_eq!(me.is_function_definition(), false);
 }
@@ -80,12 +80,12 @@ fn member_expression_test_me_ident() {
     chk_scan(&scanner, 10);
     assert!(matches!(&*me, MemberExpression::IdentifierName(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: alice . name", &["MemberExpression: alice"]);
     concise_check(
         &*me,
         "MemberExpression: alice . name",
-        vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"],
+        &["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"],
     );
     assert_eq!(me.is_function_definition(), false);
 }
@@ -95,12 +95,12 @@ fn member_expression_test_me_private() {
     chk_scan(&scanner, 11);
     assert!(matches!(&*me, MemberExpression::PrivateId(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: alice . #name", vec!["MemberExpression: alice"]);
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: alice . #name", &["MemberExpression: alice"]);
     concise_check(
         &*me,
         "MemberExpression: alice . #name",
-        vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"],
+        &["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"],
     );
     assert_eq!(me.is_function_definition(), false);
 }
@@ -110,16 +110,12 @@ fn member_expression_test_me_template() {
     chk_scan(&scanner, 11);
     assert!(matches!(&*me, MemberExpression::TemplateLiteral(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", me);
-    pretty_check(
-        &*me,
-        "MemberExpression: alice `${ a }`",
-        vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"],
-    );
+    format!("{me:?}");
+    pretty_check(&*me, "MemberExpression: alice `${ a }`", &["MemberExpression: alice", "TemplateLiteral: `${ a }`"]);
     concise_check(
         &*me,
         "MemberExpression: alice `${ a }`",
-        vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"],
+        &["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"],
     );
     assert_eq!(me.is_function_definition(), false);
 }
@@ -397,7 +393,7 @@ mod member_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -521,12 +517,12 @@ fn super_property_test_expression() {
     chk_scan(&scanner, 8);
     assert!(matches!(*sp, SuperProperty::Expression { .. }));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", sp);
-    pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
+    format!("{sp:?}");
+    pretty_check(&*sp, "SuperProperty: super [ a ]", &["Expression: a"]);
     concise_check(
         &*sp,
         "SuperProperty: super [ a ]",
-        vec!["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+        &["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
     );
 }
 #[test]
@@ -535,9 +531,9 @@ fn super_property_test_ident() {
     chk_scan(&scanner, 9);
     assert!(matches!(*sp, SuperProperty::IdentifierName { .. }));
     // Excersize the Debug formatter, for code coverage
-    format!("{:?}", sp);
-    pretty_check(&*sp, "SuperProperty: super . bob", vec![]);
-    concise_check(&*sp, "SuperProperty: super . bob", vec!["Keyword: super", "Punctuator: .", "IdentifierName: bob"]);
+    format!("{sp:?}");
+    pretty_check(&*sp, "SuperProperty: super . bob", &[]);
+    concise_check(&*sp, "SuperProperty: super . bob", &["Keyword: super", "Punctuator: .", "IdentifierName: bob"]);
 }
 #[test]
 fn super_property_test_nomatch() {
@@ -626,7 +622,7 @@ mod super_property {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("super[arguments]" => true; "Expression (yes)")]
@@ -649,9 +645,9 @@ fn meta_property_test_newtarget() {
     let (mp, scanner) = check(MetaProperty::parse(&mut newparser("new.target"), Scanner::new()));
     chk_scan(&scanner, 10);
     assert!(matches!(*mp, MetaProperty::NewTarget { .. }));
-    format!("{:?}", mp);
-    pretty_check(&*mp, "MetaProperty: new . target", vec![]);
-    concise_check(&*mp, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
+    format!("{mp:?}");
+    pretty_check(&*mp, "MetaProperty: new . target", &[]);
+    concise_check(&*mp, "MetaProperty: new . target", &["Keyword: new", "Punctuator: .", "Keyword: target"]);
 }
 #[test_case(ParseGoal::Script => Some(ParseGoal::Script); "script")]
 #[test_case(ParseGoal::Module => Some(ParseGoal::Module); "module")]
@@ -659,9 +655,9 @@ fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
     let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
     assert!(matches!(*mp, MetaProperty::ImportMeta { .. }));
-    format!("{:?}", mp);
-    pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
-    concise_check(&*mp, "MetaProperty: import . meta", vec!["Keyword: import", "Punctuator: .", "Keyword: meta"]);
+    format!("{mp:?}");
+    pretty_check(&*mp, "MetaProperty: import . meta", &[]);
+    concise_check(&*mp, "MetaProperty: import . meta", &["Keyword: import", "Punctuator: .", "Keyword: meta"]);
     match *mp {
         MetaProperty::NewTarget { .. } => None,
         MetaProperty::ImportMeta { goal, .. } => Some(goal),
@@ -730,7 +726,7 @@ mod meta_property {
         setup_test_agent();
         let mut errs = vec![];
         MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut errs);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("  new.target" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 10 }}; "new.target")]
@@ -746,21 +742,21 @@ fn arguments_test_onlyparens() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("()"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(*args, Arguments::Empty { .. }));
-    format!("{:?}", args);
-    pretty_check(&*args, "Arguments: ( )", vec![]);
-    concise_check(&*args, "Arguments: ( )", vec!["Punctuator: (", "Punctuator: )"]);
+    format!("{args:?}");
+    pretty_check(&*args, "Arguments: ( )", &[]);
+    concise_check(&*args, "Arguments: ( )", &["Punctuator: (", "Punctuator: )"]);
 }
 #[test]
 fn arguments_test_trailing_comma() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,)"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(*args, Arguments::ArgumentListComma(..)));
-    format!("{:?}", args);
-    pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
+    format!("{args:?}");
+    pretty_check(&*args, "Arguments: ( a , )", &["ArgumentList: a"]);
     concise_check(
         &*args,
         "Arguments: ( a , )",
-        vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"],
+        &["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"],
     );
 }
 #[test]
@@ -768,9 +764,9 @@ fn arguments_test_arglist() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(*args, Arguments::ArgumentList(..)));
-    format!("{:?}", args);
-    pretty_check(&*args, "Arguments: ( a , b )", vec!["ArgumentList: a , b"]);
-    concise_check(&*args, "Arguments: ( a , b )", vec!["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
+    format!("{args:?}");
+    pretty_check(&*args, "Arguments: ( a , b )", &["ArgumentList: a , b"]);
+    concise_check(&*args, "Arguments: ( a , b )", &["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
 }
 #[test]
 fn arguments_test_nomatch() {
@@ -870,7 +866,7 @@ mod arguments {
         setup_test_agent();
         let mut errs = vec![];
         Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("()" => false; "empty")]
@@ -896,39 +892,39 @@ fn argument_list_test_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(*al, ArgumentList::FallThru(_)));
-    format!("{:?}", al);
-    pretty_check(&*al, "ArgumentList: aba", vec!["AssignmentExpression: aba"]);
-    concise_check(&*al, "IdentifierName: aba", vec![]);
+    format!("{al:?}");
+    pretty_check(&*al, "ArgumentList: aba", &["AssignmentExpression: aba"]);
+    concise_check(&*al, "IdentifierName: aba", &[]);
 }
 #[test]
 fn argument_list_test_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(*al, ArgumentList::Dots(_)));
-    format!("{:?}", al);
-    pretty_check(&*al, "ArgumentList: ... aba", vec!["AssignmentExpression: aba"]);
-    concise_check(&*al, "ArgumentList: ... aba", vec!["Punctuator: ...", "IdentifierName: aba"]);
+    format!("{al:?}");
+    pretty_check(&*al, "ArgumentList: ... aba", &["AssignmentExpression: aba"]);
+    concise_check(&*al, "ArgumentList: ... aba", &["Punctuator: ...", "IdentifierName: aba"]);
 }
 #[test]
 fn argument_list_test_al_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(*al, ArgumentList::ArgumentList(..)));
-    format!("{:?}", al);
-    pretty_check(&*al, "ArgumentList: ab , aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
-    concise_check(&*al, "ArgumentList: ab , aba", vec!["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
+    format!("{al:?}");
+    pretty_check(&*al, "ArgumentList: ab , aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
+    concise_check(&*al, "ArgumentList: ab , aba", &["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
 }
 #[test]
 fn argument_list_test_al_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     assert!(matches!(*al, ArgumentList::ArgumentListDots(..)));
-    format!("{:?}", al);
-    pretty_check(&*al, "ArgumentList: ab , ... aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
+    format!("{al:?}");
+    pretty_check(&*al, "ArgumentList: ab , ... aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(
         &*al,
         "ArgumentList: ab , ... aba",
-        vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"],
+        &["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"],
     );
 }
 #[test]
@@ -1086,7 +1082,7 @@ mod argument_list {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "AssignmentExpression (yes)")]
@@ -1114,9 +1110,9 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("true"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ne, NewExpression::MemberExpression(_)));
-        format!("{:?}", ne);
-        pretty_check(&*ne, "NewExpression: true", vec!["MemberExpression: true"]);
-        concise_check(&*ne, "Keyword: true", vec![]);
+        format!("{ne:?}");
+        pretty_check(&*ne, "NewExpression: true", &["MemberExpression: true"]);
+        concise_check(&*ne, "Keyword: true", &[]);
         assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
@@ -1124,9 +1120,9 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*ne, NewExpression::NewExpression(..)));
-        format!("{:?}", ne);
-        pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
-        concise_check(&*ne, "NewExpression: new bob", vec!["Keyword: new", "IdentifierName: bob"]);
+        format!("{ne:?}");
+        pretty_check(&*ne, "NewExpression: new bob", &["NewExpression: bob"]);
+        concise_check(&*ne, "NewExpression: new bob", &["Keyword: new", "IdentifierName: bob"]);
         assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
@@ -1134,12 +1130,12 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob()"), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(*ne, NewExpression::MemberExpression(_)));
-        format!("{:?}", ne);
-        pretty_check(&*ne, "NewExpression: new bob ( )", vec!["MemberExpression: new bob ( )"]);
+        format!("{ne:?}");
+        pretty_check(&*ne, "NewExpression: new bob ( )", &["MemberExpression: new bob ( )"]);
         concise_check(
             &*ne,
             "MemberExpression: new bob ( )",
-            vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"],
+            &["Keyword: new", "IdentifierName: bob", "Arguments: ( )"],
         );
         assert_eq!(ne.is_function_definition(), false);
     }
@@ -1226,7 +1222,7 @@ mod new_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]
@@ -1295,9 +1291,9 @@ mod call_member_expression {
     fn me_args() {
         let (cme, scanner) = check(CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        format!("{:?}", cme);
-        pretty_check(&*cme, "CallMemberExpression: a ( )", vec!["MemberExpression: a", "Arguments: ( )"]);
-        concise_check(&*cme, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
+        format!("{cme:?}");
+        pretty_check(&*cme, "CallMemberExpression: a ( )", &["MemberExpression: a", "Arguments: ( )"]);
+        concise_check(&*cme, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
     }
     #[test]
     fn nomatch() {
@@ -1363,7 +1359,7 @@ mod call_member_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments()" => true; "Exp Args (left)")]
@@ -1389,9 +1385,9 @@ mod super_call {
         let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*sc.arguments, Arguments::Empty { .. }));
-        format!("{:?}", sc);
-        pretty_check(&*sc, "SuperCall: super ( )", vec!["Arguments: ( )"]);
-        concise_check(&*sc, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
+        format!("{sc:?}");
+        pretty_check(&*sc, "SuperCall: super ( )", &["Arguments: ( )"]);
+        concise_check(&*sc, "SuperCall: super ( )", &["Keyword: super", "Arguments: ( )"]);
     }
     #[test]
     fn nomatch() {
@@ -1435,7 +1431,7 @@ mod super_call {
         setup_test_agent();
         let mut errs = vec![];
         SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("super(arguments)" => true; "yes")]
@@ -1459,12 +1455,12 @@ mod import_call {
     fn ae() {
         let (ic, scanner) = check(ImportCall::parse(&mut newparser("import(bob)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
-        format!("{:?}", ic);
-        pretty_check(&*ic, "ImportCall: import ( bob )", vec!["AssignmentExpression: bob"]);
+        format!("{ic:?}");
+        pretty_check(&*ic, "ImportCall: import ( bob )", &["AssignmentExpression: bob"]);
         concise_check(
             &*ic,
             "ImportCall: import ( bob )",
-            vec!["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"],
+            &["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"],
         );
     }
     #[test]
@@ -1520,7 +1516,7 @@ mod import_call {
         setup_test_agent();
         let mut errs = vec![];
         ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("import(arguments)" => true; "yes")]
@@ -1545,30 +1541,30 @@ mod call_expression {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
-        format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: a ( )", vec!["CallMemberExpression: a ( )"]);
-        concise_check(&*ce, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
+        format!("{ce:?}");
+        pretty_check(&*ce, "CallExpression: a ( )", &["CallMemberExpression: a ( )"]);
+        concise_check(&*ce, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
     }
     #[test]
     fn super_x() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*ce, CallExpression::SuperCall(_)));
-        format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"]);
-        concise_check(&*ce, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
+        format!("{ce:?}");
+        pretty_check(&*ce, "CallExpression: super ( )", &["SuperCall: super ( )"]);
+        concise_check(&*ce, "SuperCall: super ( )", &["Keyword: super", "Arguments: ( )"]);
     }
     #[test]
     fn import() {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("import(pop)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
         assert!(matches!(*ce, CallExpression::ImportCall(_)));
-        format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
+        format!("{ce:?}");
+        pretty_check(&*ce, "CallExpression: import ( pop )", &["ImportCall: import ( pop )"]);
         concise_check(
             &*ce,
             "ImportCall: import ( pop )",
-            vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"],
+            &["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"],
         );
     }
     #[test]
@@ -1577,16 +1573,16 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
-        format!("{:?}", ce);
+        format!("{ce:?}");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
-            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+            &["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
         );
         concise_check(
             &*ce,
             "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
-            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+            &["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
         );
     }
     #[test]
@@ -1595,7 +1591,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
-        format!("{:?}", ce);
+        format!("{ce:?}");
     }
     #[test]
     fn ce_exp() {
@@ -1603,16 +1599,16 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionExpression(..)));
-        format!("{:?}", ce);
+        format!("{ce:?}");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) [ snap ]",
-            vec!["CallExpression: blue ( pop )", "Expression: snap"],
+            &["CallExpression: blue ( pop )", "Expression: snap"],
         );
         concise_check(
             &*ce,
             "CallExpression: blue ( pop ) [ snap ]",
-            vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"],
+            &["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"],
         );
     }
     #[test]
@@ -1621,12 +1617,12 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
         assert!(matches!(*ce, CallExpression::CallExpressionIdentifierName(..)));
-        format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
+        format!("{ce:?}");
+        pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", &["CallExpression: blue ( pop )"]);
         concise_check(
             &*ce,
             "CallExpression: blue ( pop ) . snap",
-            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"],
+            &["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"],
         );
     }
     #[test]
@@ -1635,12 +1631,12 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionPrivateId(..)));
-        format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallExpression: blue ( pop )"]);
+        format!("{ce:?}");
+        pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", &["CallExpression: blue ( pop )"]);
         concise_check(
             &*ce,
             "CallExpression: blue ( pop ) . #snap",
-            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"],
+            &["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"],
         );
     }
     #[test]
@@ -1649,16 +1645,16 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionTemplateLiteral(..)));
-        format!("{:?}", ce);
+        format!("{ce:?}");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) `snap`",
-            vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"],
+            &["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"],
         );
         concise_check(
             &*ce,
             "CallExpression: blue ( pop ) `snap`",
-            vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"],
+            &["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"],
         );
     }
     #[test]
@@ -1906,7 +1902,7 @@ mod call_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a()" => true; "standard")]
@@ -1978,39 +1974,27 @@ mod optional_expression {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalExpression::Member(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalExpression: a ?. b", vec!["MemberExpression: a", "OptionalChain: ?. b"]);
-        concise_check(&*lhs, "OptionalExpression: a ?. b", vec!["IdentifierName: a", "OptionalChain: ?. b"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalExpression: a ?. b", &["MemberExpression: a", "OptionalChain: ?. b"]);
+        concise_check(&*lhs, "OptionalExpression: a ?. b", &["IdentifierName: a", "OptionalChain: ?. b"]);
     }
     #[test]
     fn parse_02() {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalExpression::Call(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallExpression: a ( )", "OptionalChain: ?. b"]);
-        concise_check(
-            &*lhs,
-            "OptionalExpression: a ( ) ?. b",
-            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
-        );
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallExpression: a ( )", "OptionalChain: ?. b"]);
+        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
     }
     #[test]
     fn parse_03() {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a?.b?.c"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*lhs, OptionalExpression::Opt(..)));
-        format!("{:?}", lhs);
-        pretty_check(
-            &*lhs,
-            "OptionalExpression: a ?. b ?. c",
-            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
-        );
-        concise_check(
-            &*lhs,
-            "OptionalExpression: a ?. b ?. c",
-            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
-        );
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalExpression: a ?. b ?. c", &["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
+        concise_check(&*lhs, "OptionalExpression: a ?. b ?. c", &["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
     }
     #[test]
     fn parse_04() {
@@ -2144,7 +2128,7 @@ mod optional_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a?.b" => true; "member exp")]
@@ -2191,21 +2175,21 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.()"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalChain::Args(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. ( )", vec!["Arguments: ( )"]);
-        concise_check(&*lhs, "OptionalChain: ?. ( )", vec!["Punctuator: ?.", "Arguments: ( )"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. ( )", &["Arguments: ( )"]);
+        concise_check(&*lhs, "OptionalChain: ?. ( )", &["Punctuator: ?.", "Arguments: ( )"]);
     }
     #[test]
     fn parse_02() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.[1 in a]"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*lhs, OptionalChain::Exp(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", vec!["Expression: 1 in a"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", &["Expression: 1 in a"]);
         concise_check(
             &*lhs,
             "OptionalChain: ?. [ 1 in a ]",
-            vec!["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"],
+            &["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"],
         );
     }
     #[test]
@@ -2213,39 +2197,39 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*lhs, OptionalChain::Ident(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a", vec!["IdentifierName: a"]);
-        concise_check(&*lhs, "OptionalChain: ?. a", vec!["Punctuator: ?.", "IdentifierName: a"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a", &["IdentifierName: a"]);
+        concise_check(&*lhs, "OptionalChain: ?. a", &["Punctuator: ?.", "IdentifierName: a"]);
     }
     #[test]
     fn parse_04() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.`a`"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::Template(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. `a`", vec!["TemplateLiteral: `a`"]);
-        concise_check(&*lhs, "OptionalChain: ?. `a`", vec!["Punctuator: ?.", "NoSubTemplate: `a`"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. `a`", &["TemplateLiteral: `a`"]);
+        concise_check(&*lhs, "OptionalChain: ?. `a`", &["Punctuator: ?.", "NoSubTemplate: `a`"]);
     }
     #[test]
     fn parse_05() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::PlusArgs(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a ( )", vec!["OptionalChain: ?. a", "Arguments: ( )"]);
-        concise_check(&*lhs, "OptionalChain: ?. a ( )", vec!["OptionalChain: ?. a", "Arguments: ( )"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a ( )", &["OptionalChain: ?. a", "Arguments: ( )"]);
+        concise_check(&*lhs, "OptionalChain: ?. a ( )", &["OptionalChain: ?. a", "Arguments: ( )"]);
     }
     #[test]
     fn parse_06() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a[0 in b]"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
         assert!(matches!(*lhs, OptionalChain::PlusExp(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", vec!["OptionalChain: ?. a", "Expression: 0 in b"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", &["OptionalChain: ?. a", "Expression: 0 in b"]);
         concise_check(
             &*lhs,
             "OptionalChain: ?. a [ 0 in b ]",
-            vec!["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"],
+            &["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"],
         );
     }
     #[test]
@@ -2253,43 +2237,39 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::PlusIdent(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a . b", vec!["OptionalChain: ?. a", "IdentifierName: b"]);
-        concise_check(
-            &*lhs,
-            "OptionalChain: ?. a . b",
-            vec!["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"],
-        );
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a . b", &["OptionalChain: ?. a", "IdentifierName: b"]);
+        concise_check(&*lhs, "OptionalChain: ?. a . b", &["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"]);
     }
     #[test]
     fn parse_08() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a`b`"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalChain::PlusTemplate(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a `b`", vec!["OptionalChain: ?. a", "TemplateLiteral: `b`"]);
-        concise_check(&*lhs, "OptionalChain: ?. a `b`", vec!["OptionalChain: ?. a", "NoSubTemplate: `b`"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a `b`", &["OptionalChain: ?. a", "TemplateLiteral: `b`"]);
+        concise_check(&*lhs, "OptionalChain: ?. a `b`", &["OptionalChain: ?. a", "NoSubTemplate: `b`"]);
     }
     #[test]
     fn parse_09() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.#a"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalChain::PrivateId(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. #a", vec!["PrivateIdentifier: #a"]);
-        concise_check(&*lhs, "OptionalChain: ?. #a", vec!["Punctuator: ?.", "PrivateIdentifier: #a"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. #a", &["PrivateIdentifier: #a"]);
+        concise_check(&*lhs, "OptionalChain: ?. #a", &["Punctuator: ?.", "PrivateIdentifier: #a"]);
     }
     #[test]
     fn parse_10() {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a.#b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalChain::PlusPrivateId(..)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "OptionalChain: ?. a . #b", &["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
         concise_check(
             &*lhs,
             "OptionalChain: ?. a . #b",
-            vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"],
+            &["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"],
         );
     }
     #[test]
@@ -2591,7 +2571,7 @@ mod optional_chain {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("?.()" => true; "args")]
@@ -2657,9 +2637,9 @@ mod left_hand_side_expression {
         let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(*lhs, LeftHandSideExpression::New(_)));
-        format!("{:?}", lhs);
-        pretty_check(&*lhs, "LeftHandSideExpression: a", vec!["NewExpression: a"]);
-        concise_check(&*lhs, "IdentifierName: a", vec![]);
+        format!("{lhs:?}");
+        pretty_check(&*lhs, "LeftHandSideExpression: a", &["NewExpression: a"]);
+        concise_check(&*lhs, "IdentifierName: a", &[]);
         assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
@@ -2667,8 +2647,8 @@ mod left_hand_side_expression {
         let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*lhs, LeftHandSideExpression::Call(_)));
-        pretty_check(&*lhs, "LeftHandSideExpression: a ( )", vec!["CallExpression: a ( )"]);
-        concise_check(&*lhs, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
+        pretty_check(&*lhs, "LeftHandSideExpression: a ( )", &["CallExpression: a ( )"]);
+        concise_check(&*lhs, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
         assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
@@ -2677,12 +2657,8 @@ mod left_hand_side_expression {
             check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, LeftHandSideExpression::Optional(_)));
-        pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", vec!["OptionalExpression: a ( ) ?. b"]);
-        concise_check(
-            &*lhs,
-            "OptionalExpression: a ( ) ?. b",
-            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
-        );
+        pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", &["OptionalExpression: a ( ) ?. b"]);
+        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
         assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
@@ -2783,7 +2759,7 @@ mod left_hand_side_expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

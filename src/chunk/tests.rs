@@ -8,7 +8,7 @@ mod chunk {
 
     #[test]
     fn default() {
-        let c: Chunk = Default::default();
+        let c: Chunk = Chunk::default();
 
         assert_eq!(c.name, "");
         assert!(c.strings.is_empty());
@@ -20,7 +20,7 @@ mod chunk {
     #[test]
     fn debug() {
         let c = Chunk::new("debug");
-        assert_ne!(format!("{:?}", c), "");
+        assert_ne!(format!("{c:?}"), "");
     }
 
     #[test_case("tomato"; "string slice")]
@@ -189,7 +189,7 @@ mod chunk {
                     this_mode: ThisLexicality::NonLexicalThis,
                 })
                 .unwrap_err();
-            assert_eq!(res.to_string(), "Out of room for more functions!")
+            assert_eq!(res.to_string(), "Out of room for more functions!");
         }
     }
 
@@ -246,6 +246,7 @@ mod chunk {
         use super::*;
 
         #[test]
+        #[allow(clippy::cast_sign_loss)]
         fn normal() {
             let mut c = Chunk::new("op_jump_back");
 
@@ -338,7 +339,7 @@ mod chunk {
             let mut c = Chunk::new("too far");
             c.opcodes = vec![0; 33000];
             let result = c.fixup(0).unwrap_err().to_string();
-            assert_eq!(result, "out of range integral type conversion attempted")
+            assert_eq!(result, "out of range integral type conversion attempted");
         }
     }
 
@@ -410,7 +411,7 @@ mod stashed_function_data {
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        assert_ne!(format!("{:?}", sfd), "");
+        assert_ne!(format!("{sfd:?}"), "");
     }
 
     #[test]
@@ -436,7 +437,7 @@ mod stashed_function_data {
     fn eq() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
         let fd = Maker::new(src).function_declaration();
-        let sfd = StashedFunctionData {
+        let stash = StashedFunctionData {
             source_text: src.into(),
             params: fd.params.clone().into(),
             body: fd.body.clone().into(),
@@ -444,10 +445,10 @@ mod stashed_function_data {
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        let number2 = sfd.clone();
+        let number2 = stash.clone();
         let src_other = "function a() { return 3; }";
         let fd_other = Maker::new(src_other).function_declaration();
-        let sfd_other = StashedFunctionData {
+        let stash_other = StashedFunctionData {
             source_text: src.into(),
             params: fd_other.params.clone().into(),
             body: fd_other.body.clone().into(),
@@ -456,10 +457,10 @@ mod stashed_function_data {
             this_mode: ThisLexicality::NonLexicalThis,
         };
 
-        assert_eq!(sfd == number2, true);
-        assert_eq!(sfd == sfd_other, false);
-        assert_eq!(sfd != number2, false);
-        assert_eq!(sfd != sfd_other, true);
+        assert_eq!(stash == number2, true);
+        assert_eq!(stash == stash_other, false);
+        assert_eq!(stash != number2, false);
+        assert_eq!(stash != stash_other, true);
     }
 }
 

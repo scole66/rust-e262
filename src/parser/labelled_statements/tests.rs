@@ -11,13 +11,13 @@ fn labelled_statement_test_01() {
     let (node, scanner) =
         check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "LabelledStatement: blue : orange ;", vec!["LabelIdentifier: blue", "LabelledItem: orange ;"]);
+    pretty_check(&*node, "LabelledStatement: blue : orange ;", &["LabelIdentifier: blue", "LabelledItem: orange ;"]);
     concise_check(
         &*node,
         "LabelledStatement: blue : orange ;",
-        vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
+        &["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_statement_test_err_01() {
@@ -144,7 +144,7 @@ mod labelled_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).labelled_statement().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -194,29 +194,22 @@ mod labelled_statement {
 fn labelled_item_test_01() {
     let (node, scanner) = check(LabelledItem::parse(&mut newparser("orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "LabelledItem: orange ;", vec!["Statement: orange ;"]);
-    concise_check(&*node, "ExpressionStatement: orange ;", vec!["IdentifierName: orange", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "LabelledItem: orange ;", &["Statement: orange ;"]);
+    concise_check(&*node, "ExpressionStatement: orange ;", &["IdentifierName: orange", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_02() {
     let (node, scanner) =
         check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "LabelledItem: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
+    pretty_check(&*node, "LabelledItem: function a (  ) {  }", &["FunctionDeclaration: function a (  ) {  }"]);
     concise_check(
         &*node,
         "FunctionDeclaration: function a (  ) {  }",
-        vec![
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_err_01() {
@@ -365,7 +358,7 @@ mod labelled_item {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).labelled_item().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function alice(){}" => true; "direct labelled function")]

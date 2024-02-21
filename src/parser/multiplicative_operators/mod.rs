@@ -28,7 +28,7 @@ impl PrettyPrint for MultiplicativeOperator {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}MultiplicativeOperator: {}", first, self)
+        writeln!(writer, "{first}MultiplicativeOperator: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -74,9 +74,9 @@ pub enum MultiplicativeExpression {
 impl fmt::Display for MultiplicativeExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            MultiplicativeExpression::ExponentiationExpression(boxed) => write!(f, "{}", boxed),
+            MultiplicativeExpression::ExponentiationExpression(boxed) => write!(f, "{boxed}"),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, mo, ee) => {
-                write!(f, "{} {} {}", me, mo, ee)
+                write!(f, "{me} {mo} {ee}")
             }
         }
     }
@@ -97,7 +97,7 @@ impl PrettyPrint for MultiplicativeExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
+        writeln!(writer, "{first}MultiplicativeExpression: {self}")?;
         match &self {
             MultiplicativeExpression::ExponentiationExpression(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -118,7 +118,7 @@ impl PrettyPrint for MultiplicativeExpression {
             MultiplicativeExpression::ExponentiationExpression(node) => node.concise_with_leftpad(writer, pad, state),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, mo, ee) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
+                writeln!(writer, "{first}MultiplicativeExpression: {self}")?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 mo.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ee.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -166,7 +166,7 @@ impl MultiplicativeExpression {
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.as_string_literal(),
-            _ => None,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => None,
         }
     }
 
@@ -217,7 +217,7 @@ impl MultiplicativeExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_strictly_deletable(),
-            _ => true,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => true,
         }
     }
 
@@ -234,7 +234,7 @@ impl MultiplicativeExpression {
     pub fn is_named_function(&self) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_named_function(),
-            _ => false,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
         }
     }
 }

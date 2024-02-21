@@ -22,7 +22,7 @@ impl PrettyPrint for UniqueFormalParameters {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}UniqueFormalParameters: {}", first, self)?;
+        writeln!(writer, "{first}UniqueFormalParameters: {self}")?;
         self.formals.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -90,7 +90,7 @@ impl UniqueFormalParameters {
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
         let bn = self.formals.bound_names();
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.formals.location())));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.formals.location())));
         }
         self.formals.early_errors(errs, strict, true);
     }
@@ -140,9 +140,9 @@ impl fmt::Display for FormalParameters {
             FormalParameters::Empty(_) => Ok(()),
             FormalParameters::Rest(node) => node.fmt(f),
             FormalParameters::List(node) => node.fmt(f),
-            FormalParameters::ListComma(node, _) => write!(f, "{} ,", node),
+            FormalParameters::ListComma(node, _) => write!(f, "{node} ,"),
             FormalParameters::ListRest(list, rest) => {
-                write!(f, "{} , {}", list, rest)
+                write!(f, "{list} , {rest}")
             }
         }
     }
@@ -154,7 +154,7 @@ impl PrettyPrint for FormalParameters {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FormalParameters: {}", first, self)?;
+        writeln!(writer, "{first}FormalParameters: {self}")?;
         match self {
             FormalParameters::Empty(_) => Ok(()),
             FormalParameters::Rest(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -174,7 +174,7 @@ impl PrettyPrint for FormalParameters {
     {
         let header = |w: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(w, "{}FormalParameters: {}", first, self).and(Ok(successive))
+            writeln!(w, "{first}FormalParameters: {self}").and(Ok(successive))
         };
         match self {
             FormalParameters::Empty(_) => Ok(()),
@@ -251,8 +251,7 @@ impl FormalParameters {
         match self {
             FormalParameters::Empty(_) => false,
             FormalParameters::Rest(node) => node.contains(kind),
-            FormalParameters::List(node) => node.contains(kind),
-            FormalParameters::ListComma(node, _) => node.contains(kind),
+            FormalParameters::List(node) | FormalParameters::ListComma(node, _) => node.contains(kind),
             FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
         }
     }
@@ -267,8 +266,9 @@ impl FormalParameters {
         match self {
             FormalParameters::Empty(_) => true,
             FormalParameters::Rest(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::List(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::ListComma(node, _) => node.all_private_identifiers_valid(names),
+            FormalParameters::List(node) | FormalParameters::ListComma(node, _) => {
+                node.all_private_identifiers_valid(names)
+            }
             FormalParameters::ListRest(list, rest) => {
                 list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names)
             }
@@ -364,7 +364,7 @@ impl FormalParameters {
         if !dups_already_checked && (strict || !self.is_simple_parameter_list()) {
             let bn = self.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.location())));
+                errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.location())));
             }
         }
         match self {
@@ -421,7 +421,7 @@ impl fmt::Display for FormalParameterList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FormalParameterList::Item(node) => node.fmt(f),
-            FormalParameterList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            FormalParameterList::List(lst, item) => write!(f, "{lst} , {item}"),
         }
     }
 }
@@ -432,7 +432,7 @@ impl PrettyPrint for FormalParameterList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FormalParameterList: {}", first, self)?;
+        writeln!(writer, "{first}FormalParameterList: {self}")?;
         match self {
             FormalParameterList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             FormalParameterList::List(lst, item) => {
@@ -450,7 +450,7 @@ impl PrettyPrint for FormalParameterList {
             FormalParameterList::Item(node) => node.concise_with_leftpad(writer, pad, state),
             FormalParameterList::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}FormalParameterList: {}", first, self)?;
+                writeln!(writer, "{first}FormalParameterList: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -631,7 +631,7 @@ impl PrettyPrint for FunctionRestParameter {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionRestParameter: {}", first, self)?;
+        writeln!(writer, "{first}FunctionRestParameter: {self}")?;
         self.element.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -719,7 +719,7 @@ impl PrettyPrint for FormalParameter {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FormalParameter: {}", first, self)?;
+        writeln!(writer, "{first}FormalParameter: {self}")?;
         self.element.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -796,7 +796,7 @@ impl FormalParameter {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        self.element.early_errors(errs, strict)
+        self.element.early_errors(errs, strict);
     }
 
     /// Report whether this parameter contains an intializer

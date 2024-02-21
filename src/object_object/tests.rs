@@ -13,21 +13,21 @@ mod prototype {
             setup_test_agent();
             let value = ECMAScriptValue::from(10);
 
-            let result = object_prototype_value_of(value, None, &[]).unwrap();
+            let result = object_prototype_value_of(&value, None, &[]).unwrap();
             match &result {
                 ECMAScriptValue::Object(obj) => {
                     assert!(obj.o.is_number_object());
                     assert_eq!(to_number(result).unwrap(), 10.0);
                 }
                 _ => {
-                    panic!("Object.prototype.valueOf did not return an object. (Got: {:?})", result);
+                    panic!("Object.prototype.valueOf did not return an object. (Got: {result:?})");
                 }
             }
         }
         #[test]
         fn err() {
             setup_test_agent();
-            let result = object_prototype_value_of(ECMAScriptValue::Undefined, None, &[]).unwrap_err();
+            let result = object_prototype_value_of(&ECMAScriptValue::Undefined, None, &[]).unwrap_err();
             assert_eq!(unwind_type_error(result), "Undefined and null cannot be converted to objects");
         }
     }
@@ -56,10 +56,10 @@ mod prototype {
         fn f(make: fn() -> ECMAScriptValue) -> String {
             setup_test_agent();
             let value = make();
-            match object_prototype_to_string(value, None, &[]) {
+            match object_prototype_to_string(&value, None, &[]) {
                 Ok(ok) => match ok {
                     ECMAScriptValue::String(s) => String::from(s),
-                    _ => panic!("Object.prototype.toString did not return a string. (Got: {:?})", ok),
+                    _ => panic!("Object.prototype.toString did not return a string. (Got: {ok:?})"),
                 },
                 Err(err) => unwind_type_error(err),
             }
@@ -69,14 +69,14 @@ mod prototype {
     #[test_case(
         || ECMAScriptValue::Undefined,
         || {
-            let obj = ordinary_object_create(None, &[]);
             fn behavior(
-                _: ECMAScriptValue,
+                _: &ECMAScriptValue,
                 _: Option<&Object>,
                 _: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
+            let obj = ordinary_object_create(None, &[]);
             let to_primitive_method =
                 create_builtin_function(
                     behavior,
@@ -114,7 +114,7 @@ mod prototype {
         setup_test_agent();
         let this = make_this();
         let key = make_key();
-        object_prototype_has_own_property(this, None, &[key]).map_err(unwind_any_error).map(|v| v.test_result_string())
+        object_prototype_has_own_property(&this, None, &[key]).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 
     #[test_case(
@@ -129,7 +129,7 @@ mod prototype {
     fn to_locale_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let this = make_this();
-        object_prototype_to_locale_string(this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
+        object_prototype_to_locale_string(&this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 
     #[test_case(
@@ -176,20 +176,20 @@ mod prototype {
     fn is_prototype_of(make_items: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue)) -> Result<String, String> {
         setup_test_agent();
         let (this, val) = make_items();
-        object_prototype_is_prototype_of(this, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+        object_prototype_is_prototype_of(&this, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
     }
 
     #[test_case(
         || ECMAScriptValue::Undefined,
         || {
-            let obj = ordinary_object_create(None, &[]);
             fn behavior(
-                _: ECMAScriptValue,
+                _: &ECMAScriptValue,
                 _: Option<&Object>,
                 _: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
+            let obj = ordinary_object_create(None, &[]);
             let to_primitive_method =
                 create_builtin_function(
                     behavior,
@@ -253,7 +253,7 @@ mod prototype {
         setup_test_agent();
         let this = make_this();
         let val = make_val();
-        object_prototype_property_is_enumerable(this, None, &[val])
+        object_prototype_property_is_enumerable(&this, None, &[val])
             .map_err(unwind_any_error)
             .map(|v| v.test_result_string())
     }
@@ -289,10 +289,10 @@ mod constructor {
         setup_test_agent();
         let nt = new_target();
 
-        match object_constructor_function(ECMAScriptValue::Undefined, nt.as_ref(), args) {
+        match object_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), args) {
             Ok(ok) => match ok {
                 ECMAScriptValue::Object(obj) => String::from(to_string(obj).unwrap()),
-                _ => panic!("Object() did not return an object. (Got: {:?})", ok),
+                _ => panic!("Object() did not return an object. (Got: {ok:?})"),
             },
             Err(err) => unwind_type_error(err),
         }
@@ -302,6 +302,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn fake_keys(_this: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("once"), PropertyKey::from("twice")])
         }
@@ -332,13 +333,13 @@ mod constructor {
                 },
             )
             .unwrap();
-            let keys_not_props = ECMAScriptValue::from(AdaptableObject::object(AdaptableMethods {
+            let keys_not_props = ECMAScriptValue::from(&AdaptableObject::object(&AdaptableMethods {
                 own_property_keys_override: Some(fake_keys),
                 ..Default::default()
             }));
 
             let result = object_assign(
-                ECMAScriptValue::Undefined,
+                &ECMAScriptValue::Undefined,
                 None,
                 &[
                     ECMAScriptValue::from(target.clone()),
@@ -366,7 +367,7 @@ mod constructor {
                     assert!(!to.has_own_property(&PropertyKey::from("twice")).unwrap());
                 }
                 _ => {
-                    panic!("Got a non-object back: {:?}", result);
+                    panic!("Got a non-object back: {result:?}");
                 }
             }
         }
@@ -378,6 +379,7 @@ mod constructor {
         fn own_property_keys_throws() -> ECMAScriptValue {
             ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys]))
         }
+        #[allow(clippy::unnecessary_wraps)]
         fn own_prop_keys(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("prop")])
         }
@@ -385,7 +387,7 @@ mod constructor {
             Err(create_type_error("Test Sentinel"))
         }
         fn get_own_property_throws() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 own_property_keys_override: Some(own_prop_keys),
                 get_own_property_override: Some(get_own_prop_err),
                 ..Default::default()
@@ -401,6 +403,7 @@ mod constructor {
             obj.create_data_property_or_throw("something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
+        #[allow(clippy::unnecessary_wraps)]
         fn get_own_prop_ok(_: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             Ok(Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(22), writable: true }),
@@ -413,7 +416,7 @@ mod constructor {
             Err(create_type_error("[[Get]] throws from AdaptableObject"))
         }
         fn get_throws() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 own_property_keys_override: Some(own_prop_keys),
                 get_own_property_override: Some(get_own_prop_ok),
                 get_override: Some(get_err),
@@ -432,7 +435,7 @@ mod constructor {
             let to = create_to();
             let from = create_from();
 
-            let err = object_assign(ECMAScriptValue::Undefined, None, &[to, from]).unwrap_err();
+            let err = object_assign(&ECMAScriptValue::Undefined, None, &[to, from]).unwrap_err();
             unwind_type_error(err)
         }
     }
@@ -488,11 +491,11 @@ mod constructor {
         #[test_case(normal_obj, || ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys])) => Err(String::from("[[OwnPropertyKeys]] called on TestObject")); "own_property_keys throws")]
         #[test_case(|| TestObject::object(&[FunctionId::DefineOwnProperty(None)]), normal_params => Err(String::from("[[DefineOwnProperty]] called on TestObject")); "define_property_or_throw throws")]
         #[test_case(normal_obj,
-                    || ECMAScriptValue::from(AdaptableObject::object(AdaptableMethods { own_property_keys_override: Some(|_| Ok(vec![PropertyKey::from("something")])),
+                    || ECMAScriptValue::from(&AdaptableObject::object(&AdaptableMethods { own_property_keys_override: Some(|_| Ok(vec![PropertyKey::from("something")])),
                     ..Default::default() })) =>
                     Ok(vec![]); "prop, but not")]
         #[test_case(normal_obj,
-                    || ECMAScriptValue::from(AdaptableObject::object(AdaptableMethods {
+                    || ECMAScriptValue::from(&AdaptableObject::object(&AdaptableMethods {
                         own_property_keys_override: Some(|_| Ok(vec![PropertyKey::from("something")])),
                         get_own_property_override: Some(|_, _| Err(create_type_error("[[GetOwnProperty]] throws from AdaptableObject"))),
                         ..Default::default()
@@ -522,7 +525,7 @@ mod constructor {
                         assert_eq!(o, target);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Non-object came back from object_define_properties_helper(): {:?}", val),
+                    _ => panic!("Non-object came back from object_define_properties_helper(): {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -554,7 +557,7 @@ mod constructor {
             setup_test_agent();
             let proto = make_proto();
             let props = make_props();
-            match object_create(ECMAScriptValue::Undefined, None, &[proto.clone(), props]) {
+            match object_create(&ECMAScriptValue::Undefined, None, &[proto.clone(), props]) {
                 Ok(val) => match val {
                     ECMAScriptValue::Object(o) => {
                         assert_eq!(
@@ -567,7 +570,7 @@ mod constructor {
                         );
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Object.create returned a non-object: {:?}", val),
+                    _ => panic!("Object.create returned a non-object: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -603,13 +606,13 @@ mod constructor {
             setup_test_agent();
             let obj = make_obj();
             let props = make_props();
-            match object_define_properties(ECMAScriptValue::Undefined, None, &[obj.clone(), props]) {
+            match object_define_properties(&ECMAScriptValue::Undefined, None, &[obj.clone(), props]) {
                 Ok(val) => match &val {
                     ECMAScriptValue::Object(o) => {
                         assert_eq!(val, obj);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Got a non-object back from Object.defineProperties: {:?}", val),
+                    _ => panic!("Got a non-object back from Object.defineProperties: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -623,7 +626,7 @@ mod constructor {
         fn plain_obj() -> ECMAScriptValue {
             ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
         }
-        fn faux_errors(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        fn faux_errors(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Err(create_type_error("Test Sentinel"))
         }
         fn make_bad_property_key() -> ECMAScriptValue {
@@ -684,14 +687,14 @@ mod constructor {
             let key = make_key();
             let attrs = make_attrs();
 
-            let result = object_define_property(ECMAScriptValue::Undefined, None, &[obj.clone(), key, attrs]);
+            let result = object_define_property(&ECMAScriptValue::Undefined, None, &[obj.clone(), key, attrs]);
             match result {
                 Ok(val) => match &val {
                     ECMAScriptValue::Object(o) => {
                         assert_eq!(obj, val);
                         Ok(o.o.common_object_data().borrow().propdump())
                     }
-                    _ => panic!("Got a non-object back from Object.defineProperty: {:?}", val),
+                    _ => panic!("Got a non-object back from Object.defineProperty: {val:?}"),
                 },
                 Err(err) => Err(unwind_type_error(err)),
             }
@@ -702,7 +705,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        fn undef() -> ECMAScriptValue {
+        const fn undef() -> ECMAScriptValue {
             ECMAScriptValue::Undefined
         }
         fn dead() -> ECMAScriptValue {
@@ -714,7 +717,7 @@ mod constructor {
         fn errs(make_arg: fn() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let arg = make_arg();
-            object_entries(ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
+            object_entries(&ECMAScriptValue::Undefined, None, &[arg]).map_err(unwind_any_error)
         }
 
         #[test]
@@ -725,7 +728,7 @@ mod constructor {
             obj.create_data_property_or_throw("one", 1.0).unwrap();
             obj.create_data_property_or_throw("favorite", "spaghetti").unwrap();
 
-            let result = object_entries(ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap();
+            let result = object_entries(&ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap();
             let entries: Object = result.try_into().unwrap();
             assert!(entries.is_array().unwrap());
             assert_eq!(entries.get(&"length".into()).unwrap(), 2.0.into());
@@ -748,13 +751,13 @@ mod constructor {
         #[test]
         fn no_args() {
             setup_test_agent();
-            assert_eq!(object_freeze(ECMAScriptValue::Undefined, None, &[]).unwrap(), ECMAScriptValue::Undefined);
+            assert_eq!(object_freeze(&ECMAScriptValue::Undefined, None, &[]).unwrap(), ECMAScriptValue::Undefined);
         }
         #[test]
         fn number() {
             setup_test_agent();
             assert_eq!(
-                object_freeze(ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(),
+                object_freeze(&ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(),
                 ECMAScriptValue::from(2003.25)
             );
         }
@@ -762,7 +765,7 @@ mod constructor {
         fn dead() {
             setup_test_agent();
             let arg: ECMAScriptValue = DeadObject::object().into();
-            let result = object_freeze(ECMAScriptValue::Undefined, None, &[arg]).unwrap_err();
+            let result = object_freeze(&ECMAScriptValue::Undefined, None, &[arg]).unwrap_err();
             assert_eq!(unwind_any_error(result), "TypeError: prevent_extensions called on DeadObject");
         }
         #[test]
@@ -771,7 +774,7 @@ mod constructor {
             let obj = ordinary_object_create(None, &[]);
             obj.create_data_property_or_throw("property", "holiday").unwrap();
             let result: Object =
-                object_freeze(ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap().try_into().unwrap();
+                object_freeze(&ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap().try_into().unwrap();
             assert_eq!(
                 result.o.common_object_data().borrow().propdump(),
                 vec![PropertyInfo {
@@ -785,11 +788,11 @@ mod constructor {
         #[test]
         fn prevention_prevented() {
             setup_test_agent();
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 prevent_extensions_override: Some(|_| Ok(false)),
                 ..Default::default()
             });
-            let result = object_freeze(ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap_err();
+            let result = object_freeze(&ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap_err();
             assert_eq!(unwind_any_error(result), "TypeError: Object cannot be frozen");
         }
     }
@@ -817,7 +820,7 @@ mod constructor {
             let args = make_args();
 
             let res =
-                object_from_entries(ECMAScriptValue::Undefined, None, args.as_slice()).map_err(unwind_any_error)?;
+                object_from_entries(&ECMAScriptValue::Undefined, None, args.as_slice()).map_err(unwind_any_error)?;
 
             Ok(res.test_result_string())
         }
@@ -836,7 +839,7 @@ mod constructor {
         let o = make_o();
         let p = make_p();
         let result =
-            object_get_own_property_descriptor(ECMAScriptValue::Undefined, None, &[o, p]).map_err(unwind_any_error)?;
+            object_get_own_property_descriptor(&ECMAScriptValue::Undefined, None, &[o, p]).map_err(unwind_any_error)?;
         Ok(result.test_result_string())
     }
 
@@ -844,11 +847,12 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
         }
         fn lyingkeys() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 own_property_keys_override: Some(lying_ownprops),
                 ..Default::default()
             });
@@ -866,7 +870,7 @@ mod constructor {
             Ok(ordinary_get_own_property(ao, key))
         }
         fn kaboom() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 get_own_property_override: Some(kaboom_gop),
                 ..Default::default()
             });
@@ -883,7 +887,7 @@ mod constructor {
             setup_test_agent();
             let o = make_o();
             let info = Object::try_from(
-                object_get_own_property_descriptors(ECMAScriptValue::Undefined, None, &[o])
+                object_get_own_property_descriptors(&ECMAScriptValue::Undefined, None, &[o])
                     .map_err(unwind_any_error)?,
             )
             .unwrap();
@@ -893,10 +897,10 @@ mod constructor {
             let mut first = true;
             for key in keys {
                 let value = info.get(&key).unwrap();
-                if !first {
-                    r.push(',');
-                } else {
+                if first {
                     first = false;
+                } else {
+                    r.push(',');
                 }
                 let value_str = value.test_result_string();
                 r.push_str(&format!("{key}:{{{value_str}}}"));
@@ -910,7 +914,7 @@ mod constructor {
     fn get_own_property_names(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let o = make_o();
-        let item = object_get_own_property_names(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+        let item = object_get_own_property_names(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
         Ok(item.test_result_string())
     }
 
@@ -923,7 +927,8 @@ mod constructor {
     fn get_own_property_symbols(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
         setup_test_agent();
         let o = make_o();
-        let item = object_get_own_property_symbols(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+        let item =
+            object_get_own_property_symbols(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
         Ok(item.test_result_string())
     }
 
@@ -945,15 +950,15 @@ mod constructor {
         fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let o = make_o();
-            let result = object_get_prototype_of(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+            let result = object_get_prototype_of(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
             match result {
                 ECMAScriptValue::Object(obj) => {
                     let key = global_symbol("gpo_test".into());
                     let val = obj.get(&key.into()).unwrap();
-                    if !val.is_string() {
-                        Ok(obj.into())
-                    } else {
+                    if val.is_string() {
                         Ok(val)
+                    } else {
+                        Ok(obj.into())
                     }
                 }
                 _ => Ok(result),
@@ -972,7 +977,7 @@ mod constructor {
         let o = make_o();
         let p = make_p();
 
-        object_has_own(ECMAScriptValue::Undefined, None, &[o, p]).map_err(unwind_any_error)
+        object_has_own(&ECMAScriptValue::Undefined, None, &[o, p]).map_err(unwind_any_error)
     }
 
     // Don't need to get fancy here, same_value is already tested.
@@ -980,7 +985,7 @@ mod constructor {
     #[test_case(ECMAScriptValue::from("bob"), ECMAScriptValue::Null => vok(false); "not equal")]
     fn is(left: ECMAScriptValue, right: ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
-        object_is(ECMAScriptValue::Undefined, None, &[left, right]).map_err(unwind_any_error)
+        object_is(&ECMAScriptValue::Undefined, None, &[left, right]).map_err(unwind_any_error)
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(false); "non-object")]
@@ -988,7 +993,7 @@ mod constructor {
     fn is_extensible(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
-        object_is_extensible(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+        object_is_extensible(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
@@ -996,7 +1001,7 @@ mod constructor {
     fn is_frozen(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
-        object_is_frozen(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+        object_is_frozen(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
@@ -1004,7 +1009,7 @@ mod constructor {
     fn is_sealed(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
-        object_is_sealed(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
+        object_is_sealed(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)
     }
 
     #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
@@ -1013,7 +1018,7 @@ mod constructor {
     fn keys(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let o = make_o();
-        object_keys(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
+        object_keys(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
             ECMAScriptValue::Undefined
             | ECMAScriptValue::Null
             | ECMAScriptValue::Boolean(_)
@@ -1023,10 +1028,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
+                    let length = to_usize(f64::try_from(o.get(&"length".into()).unwrap()).unwrap()).unwrap();
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = o.get(&format!("{idx}").into()).unwrap();
+                        let val = o.get(&idx.into()).unwrap();
                         result.push(val);
                     }
                     result
@@ -1041,12 +1046,13 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }
 
         fn unlockable() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 prevent_extensions_override: Some(never_locks),
                 ..Default::default()
             });
@@ -1066,7 +1072,7 @@ mod constructor {
         fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let o = make_o();
-            let res = object_prevent_extensions(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+            let res = object_prevent_extensions(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
                 Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
@@ -1078,12 +1084,13 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }
 
         fn unlockable() -> ECMAScriptValue {
-            let obj = AdaptableObject::object(AdaptableMethods {
+            let obj = AdaptableObject::object(&AdaptableMethods {
                 prevent_extensions_override: Some(never_locks),
                 ..Default::default()
             });
@@ -1103,7 +1110,7 @@ mod constructor {
         fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let o = make_o();
-            let res = object_seal(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
+            let res = object_seal(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
                 Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
@@ -1151,7 +1158,7 @@ mod constructor {
             let o = make_o();
             let proto = make_p();
             let res =
-                object_set_prototype_of(ECMAScriptValue::Undefined, None, &[o, proto]).map_err(unwind_any_error)?;
+                object_set_prototype_of(&ECMAScriptValue::Undefined, None, &[o, proto]).map_err(unwind_any_error)?;
             match Object::try_from(res.clone()) {
                 Err(_) => Ok(res),
                 Ok(o) => Ok(o.get(&"sentinel".into()).unwrap()),
@@ -1165,7 +1172,7 @@ mod constructor {
     fn values(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<Vec<ECMAScriptValue>, String> {
         setup_test_agent();
         let o = make_o();
-        object_values(ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
+        object_values(&ECMAScriptValue::Undefined, None, &[o]).map_err(unwind_any_error).map(|v| match v {
             ECMAScriptValue::Undefined
             | ECMAScriptValue::Null
             | ECMAScriptValue::Boolean(_)
@@ -1175,10 +1182,10 @@ mod constructor {
             | ECMAScriptValue::Symbol(_) => vec![v],
             ECMAScriptValue::Object(o) => {
                 if o.o.has_property(&"length".into()).unwrap() {
-                    let length = f64::try_from(o.get(&"length".into()).unwrap()).unwrap() as usize;
+                    let length = to_usize(f64::try_from(o.get(&"length".into()).unwrap()).unwrap()).unwrap();
                     let mut result = vec![];
                     for idx in 0..length {
-                        let val = o.get(&format!("{idx}").into()).unwrap();
+                        let val = o.get(&idx.into()).unwrap();
                         result.push(val);
                     }
                     result

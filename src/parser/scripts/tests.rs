@@ -18,34 +18,34 @@ mod var_scope_decl {
         VarScopeDecl::from(part).to_string()
     }
 
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    fn display(part: VarScopeDecl) -> String {
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    fn display(part: &VarScopeDecl) -> String {
         part.to_string()
     }
 
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    fn string_from(part: VarScopeDecl) -> String {
-        String::from(&part)
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    fn string_from(part: &VarScopeDecl) -> String {
+        String::from(part)
     }
 
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
-    fn debug(part: VarScopeDecl) -> String {
-        format!("{:?}", part)
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
+    #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
+    #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
+    fn debug(part: &VarScopeDecl) -> String {
+        format!("{part:?}")
     }
 
     #[test]
@@ -65,21 +65,21 @@ fn script_test_01() {
     assert_eq!(scanner.line, 2);
     assert_eq!(scanner.column, 21);
     assert_eq!(scanner.start_idx, 53);
-    pretty_check(&*node, "Script: let a = 1 ;", vec!["ScriptBody: let a = 1 ;"]);
+    pretty_check(&*node, "Script: let a = 1 ;", &["ScriptBody: let a = 1 ;"]);
     concise_check(
         &*node,
         "LexicalDeclaration: let a = 1 ;",
-        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+        &["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn script_test_02() {
     let (node, scanner) = check(Script::parse(&mut newparser(""), Scanner::new()));
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "Script: ", vec![]);
-    concise_check(&*node, "Script:", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Script: ", &[]);
+    concise_check(&*node, "Script:", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn script_test_err_01() {
@@ -142,7 +142,7 @@ mod script {
         setup_test_agent();
         let mut errs = vec![];
         Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => svec(&[]); "empty")]
@@ -182,13 +182,13 @@ mod script {
 fn script_body_test_01() {
     let (node, scanner) = check(ScriptBody::parse(&mut newparser("let a=1;"), Scanner::new()));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ScriptBody: let a = 1 ;", vec!["StatementList: let a = 1 ;"]);
+    pretty_check(&*node, "ScriptBody: let a = 1 ;", &["StatementList: let a = 1 ;"]);
     concise_check(
         &*node,
         "LexicalDeclaration: let a = 1 ;",
-        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+        &["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn script_body_test_err_01() {
@@ -282,7 +282,7 @@ mod script_body {
         setup_test_agent();
         let mut errs = vec![];
         ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut errs, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]

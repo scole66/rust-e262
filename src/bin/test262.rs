@@ -1,4 +1,5 @@
 use clap::Parser;
+use color_eyre::eyre::Context;
 use color_eyre::eyre::{eyre, Result};
 use std::fmt;
 use std::fs::File;
@@ -65,6 +66,9 @@ struct TestInfo {
 }
 
 fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
+    const METASTART: &str = "/*---";
+    const METAEND: &str = "---*/";
+
     // Load the test file into memory (this file contains the test's metadata, along with the test itself)
     let file = File::open(path)?;
     let mut buf_reader = BufReader::new(file);
@@ -72,9 +76,6 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
     buf_reader.read_to_string(&mut contents)?;
 
     // Extract the metadata
-    const METASTART: &str = "/*---";
-    const METAEND: &str = "---*/";
-
     let metadata_start_index = contents.find(METASTART).map(|s| s + METASTART.len());
     let metadata_end_index = contents.find(METAEND);
     if let (Some(start), Some(end)) = (metadata_start_index, metadata_end_index) {
@@ -91,16 +92,13 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
 
         let description = info
             .get(&Yaml::String("description".into()))
-            .map(|x| x.as_str().unwrap().trim().to_string())
-            .unwrap_or_else(String::new);
-        let includes = info
-            .get(&Yaml::String("includes".into()))
-            .map(|x| x.as_vec().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect::<Vec<_>>())
-            .unwrap_or_else(Vec::new);
-        let features = info
-            .get(&Yaml::String("features".into()))
-            .map(|x| x.as_vec().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect::<Vec<_>>())
-            .unwrap_or_else(Vec::new);
+            .map_or_else(String::new, |x| x.as_str().unwrap().trim().to_string());
+        let includes = info.get(&Yaml::String("includes".into())).map_or_else(Vec::new, |x| {
+            x.as_vec().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect::<Vec<_>>()
+        });
+        let features = info.get(&Yaml::String("features".into())).map_or_else(Vec::new, |x| {
+            x.as_vec().unwrap().iter().map(|item| item.as_str().unwrap().to_string()).collect::<Vec<_>>()
+        });
         let negative = info.get(&Yaml::String("negative".into())).map(|item| item.as_hash().unwrap()).map(|hash| {
             let phase = hash.get(&Yaml::String("phase".into())).unwrap().as_str().unwrap().parse::<Phase>().unwrap();
             let error_type = hash.get(&Yaml::String("type".into())).unwrap().as_str().unwrap().to_string();
@@ -114,7 +112,7 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
         let mut flag_can_block_is_false = false;
         let mut flag_can_block_is_true = false;
         if let Some(flags) = info.get(&Yaml::String("flags".into())) {
-            for item in flags.as_vec().unwrap().iter() {
+            for item in flags.as_vec().unwrap() {
                 let flag = item.as_str().unwrap();
                 match flag {
                     "onlyStrict" => flag_only_strict = true,
@@ -148,16 +146,13 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
                     if flag_async {
                         test_source.push_str(&load_harness_file("doneprintHandle.js")?);
                     }
-                    for item in includes.iter() {
+                    for item in &includes {
                         test_source.push_str(&load_harness_file(item)?);
                     }
                     test_source.push_str(&contents);
                     source.push(Source {
                         source: test_source,
-                        mark: match strict {
-                            true => Marker::Strict,
-                            false => Marker::NonStrict,
-                        },
+                        mark: if strict { Marker::Strict } else { Marker::NonStrict },
                     });
                 }
             }
@@ -177,9 +172,10 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
 }
 
 fn load_harness_file(filename: &str) -> Result<String> {
-    const HARNESS_ROOT: &str = "/home/scole/rustplay/test262/harness";
+    //const HARNESS_ROOT: &str = "/home/scole/rustplay/test262/harness";
+    const HARNESS_ROOT: &str = "/Users/scole/fun/test262/harness";
     let path = Path::new(HARNESS_ROOT).join(filename);
-    let file = File::open(path)?;
+    let file = File::open(&path).context(format!("Opening {}", path.to_string_lossy()))?;
     let mut buf_reader = BufReader::new(file);
     let mut contents = String::new();
     buf_reader.read_to_string(&mut contents)?;
@@ -217,7 +213,7 @@ fn main() -> Result<()> {
     let test_name = args.path;
     let info = construct_test(Path::new(&test_name), false)?;
 
-    for source in info.source.iter() {
+    for source in &info.source {
         if let Some(path) = args.keep_constructed.as_ref() {
             let output_path = Path::new(path).join(format!("{}.js", source.mark));
             let mut file = File::create(output_path)?;

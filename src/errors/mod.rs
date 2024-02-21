@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 fn create_native_error_object(
     message: impl Into<JSString>,
-    error_constructor: Object,
+    error_constructor: &Object,
     proto_id: IntrinsicId,
     location: Option<Location>,
 ) -> Object {
@@ -30,7 +30,7 @@ fn create_native_error_object(
         define_property_or_throw(
             &loc,
             "byte_length",
-            PotentialPropertyDescriptor::new().value(location.span.length as u32).writable(true).configurable(true),
+            PotentialPropertyDescriptor::new().value(location.span.length).writable(true).configurable(true),
         )
         .unwrap();
         define_property_or_throw(
@@ -45,7 +45,7 @@ fn create_native_error_object(
 
 pub fn create_type_error_object(message: impl Into<JSString>) -> Object {
     let error_constructor = intrinsic(IntrinsicId::TypeError);
-    create_native_error_object(message, error_constructor, IntrinsicId::TypeErrorPrototype, None)
+    create_native_error_object(message, &error_constructor, IntrinsicId::TypeErrorPrototype, None)
 }
 
 pub fn create_type_error(message: impl Into<JSString>) -> AbruptCompletion {
@@ -54,7 +54,7 @@ pub fn create_type_error(message: impl Into<JSString>) -> AbruptCompletion {
 
 pub fn create_reference_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::ReferenceError);
-    create_native_error_object(message, cstr, IntrinsicId::ReferenceErrorPrototype, None)
+    create_native_error_object(message, &cstr, IntrinsicId::ReferenceErrorPrototype, None)
 }
 
 pub fn create_reference_error(message: impl Into<JSString>) -> AbruptCompletion {
@@ -63,7 +63,7 @@ pub fn create_reference_error(message: impl Into<JSString>) -> AbruptCompletion 
 
 pub fn create_syntax_error_object(message: impl Into<JSString>, location: Option<Location>) -> Object {
     let cstr = intrinsic(IntrinsicId::SyntaxError);
-    create_native_error_object(message, cstr, IntrinsicId::SyntaxErrorPrototype, location)
+    create_native_error_object(message, &cstr, IntrinsicId::SyntaxErrorPrototype, location)
 }
 
 pub fn create_syntax_error(message: impl Into<JSString>, location: Option<Location>) -> AbruptCompletion {
@@ -72,7 +72,7 @@ pub fn create_syntax_error(message: impl Into<JSString>, location: Option<Locati
 
 pub fn create_range_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::RangeError);
-    create_native_error_object(message, cstr, IntrinsicId::RangeErrorPrototype, None)
+    create_native_error_object(message, &cstr, IntrinsicId::RangeErrorPrototype, None)
 }
 
 pub fn create_range_error(message: impl Into<JSString>) -> AbruptCompletion {
@@ -81,7 +81,7 @@ pub fn create_range_error(message: impl Into<JSString>) -> AbruptCompletion {
 
 pub fn create_eval_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::EvalError);
-    create_native_error_object(message, cstr, IntrinsicId::EvalErrorPrototype, None)
+    create_native_error_object(message, &cstr, IntrinsicId::EvalErrorPrototype, None)
 }
 
 pub fn create_eval_error(message: impl Into<JSString>) -> AbruptCompletion {
@@ -90,7 +90,7 @@ pub fn create_eval_error(message: impl Into<JSString>) -> AbruptCompletion {
 
 pub fn create_uri_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::URIError);
-    create_native_error_object(message, cstr, IntrinsicId::URIErrorPrototype, None)
+    create_native_error_object(message, &cstr, IntrinsicId::URIErrorPrototype, None)
 }
 
 pub fn create_uri_error(message: impl Into<JSString>) -> AbruptCompletion {
@@ -303,7 +303,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
 //          c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
 //      4. Return O.
 pub fn error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -324,7 +324,7 @@ pub fn error_constructor_function(
 //      8. If msg is the empty String, return name.
 //      9. Return the string-concatenation of name, the code unit 0x003A (COLON), the code unit 0x0020 (SPACE), and msg.
 pub fn error_prototype_tostring(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -349,7 +349,7 @@ fn provision_native_error_intrinsics(
     realm: &Rc<RefCell<Realm>>,
     name: &str,
     native_error_constructor_function: fn(
-        ECMAScriptValue,
+        &ECMAScriptValue,
         Option<&Object>,
         &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue>,
@@ -462,7 +462,7 @@ fn provision_native_error_intrinsics(
 // "%ReferenceError.prototype%", "%SyntaxError.prototype%", "%TypeError.prototype%", or "%URIError.prototype%"
 // corresponding to which NativeError constructor is being defined.
 fn native_error_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
     intrinsic_id: IntrinsicId,
@@ -489,42 +489,42 @@ fn native_error_constructor_function(
 }
 
 fn type_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::TypeErrorPrototype)
 }
 fn eval_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::EvalErrorPrototype)
 }
 fn range_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::RangeErrorPrototype)
 }
 fn reference_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::ReferenceErrorPrototype)
 }
 fn syntax_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::SyntaxErrorPrototype)
 }
 fn uri_error_constructor_function(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -576,7 +576,7 @@ pub fn unwind_any_error_value(err: ECMAScriptValue) -> String {
 pub fn unwind_any_error(completion: AbruptCompletion) -> String {
     match completion {
         AbruptCompletion::Throw { value: err } => unwind_any_error_value(err),
-        _ => panic!("Improper completion for error: {:?}", completion),
+        _ => panic!("Improper completion for error: {completion:?}"),
     }
 }
 
@@ -584,7 +584,7 @@ pub fn unwind_any_error_object(o: &Object) -> String {
     let name_prop = o.get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined);
     let name = if name_prop.is_undefined() { String::from("Error") } else { name_prop.to_string() };
     let msg_prop = o.get(&"message".into()).unwrap_or(ECMAScriptValue::Undefined);
-    let msg = if msg_prop.is_undefined() { String::from("") } else { msg_prop.to_string() };
+    let msg = if msg_prop.is_undefined() { String::new() } else { msg_prop.to_string() };
     if name.is_empty() {
         msg
     } else if msg.is_empty() {

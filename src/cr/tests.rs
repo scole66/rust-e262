@@ -9,20 +9,20 @@ mod normal_completion {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(NormalCompletion::Empty, NormalCompletion::Value(ECMAScriptValue::Undefined) => false; "not equal")]
-    #[test_case(NormalCompletion::Value(ECMAScriptValue::from(78.0)), NormalCompletion::Value(ECMAScriptValue::from(78)) => true; "equal")]
-    #[test_case(NormalCompletion::from(67), NormalCompletion::Empty => false; "value vs empty")]
-    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
-                NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None)))
+    #[test_case(&NormalCompletion::Empty, &NormalCompletion::Value(ECMAScriptValue::Undefined) => false; "not equal")]
+    #[test_case(&NormalCompletion::Value(ECMAScriptValue::from(78.0)), &NormalCompletion::Value(ECMAScriptValue::from(78)) => true; "equal")]
+    #[test_case(&NormalCompletion::from(67), &NormalCompletion::Empty => false; "value vs empty")]
+    #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
+                &NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None)))
                 => true; "ref-equal")]
-    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
-                NormalCompletion::from(10)
+    #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))),
+                &NormalCompletion::from(10)
                 => false; "ref-notequal")]
-    #[test_case(NormalCompletion::PrivateName(PrivateName::new("charlie")), NormalCompletion::from(10) => false; "one pn")]
-    #[test_case(NormalCompletion::PrivateName(PrivateName::new("alice")),
-                NormalCompletion::PrivateName(PrivateName::new("bob"))
+    #[test_case(&NormalCompletion::PrivateName(PrivateName::new("charlie")), &NormalCompletion::from(10) => false; "one pn")]
+    #[test_case(&NormalCompletion::PrivateName(PrivateName::new("alice")),
+                &NormalCompletion::PrivateName(PrivateName::new("bob"))
                 => false; "both pn")]
-    fn eq(left: NormalCompletion, right: NormalCompletion) -> bool {
+    fn eq(left: &NormalCompletion, right: &NormalCompletion) -> bool {
         left == right
     }
 
@@ -55,23 +55,23 @@ mod normal_completion {
         left == right
     }
 
-    #[test_case(NormalCompletion::Empty, NormalCompletion::Value(ECMAScriptValue::Undefined) => true; "not equal")]
-    #[test_case(NormalCompletion::Value(ECMAScriptValue::from(78.0)), NormalCompletion::Value(ECMAScriptValue::from(78)) => false; "equal")]
-    fn ne(left: NormalCompletion, right: NormalCompletion) -> bool {
+    #[test_case(&NormalCompletion::Empty, &NormalCompletion::Value(ECMAScriptValue::Undefined) => true; "not equal")]
+    #[test_case(&NormalCompletion::Value(ECMAScriptValue::from(78.0)), &NormalCompletion::Value(ECMAScriptValue::from(78)) => false; "equal")]
+    fn ne(left: &NormalCompletion, right: &NormalCompletion) -> bool {
         left != right
     }
 
-    #[test_case(NormalCompletion::Empty => NormalCompletion::Empty; "empty")]
-    #[test_case(NormalCompletion::Value(ECMAScriptValue::from("alice")) => NormalCompletion::Value(ECMAScriptValue::from("alice")); "value")]
-    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))); "reference")]
-    fn clone(orig: NormalCompletion) -> NormalCompletion {
+    #[test_case(&NormalCompletion::Empty => NormalCompletion::Empty; "empty")]
+    #[test_case(&NormalCompletion::Value(ECMAScriptValue::from("alice")) => NormalCompletion::Value(ECMAScriptValue::from("alice")); "value")]
+    #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))); "reference")]
+    fn clone(orig: &NormalCompletion) -> NormalCompletion {
         #[allow(clippy::redundant_clone)]
         orig.clone()
     }
 
-    #[test_case(NormalCompletion::Empty => with |s| assert_ne!(s, ""); "empty")]
-    fn debug(nc: NormalCompletion) -> String {
-        format!("{:?}", nc)
+    #[test_case(&NormalCompletion::Empty => with |s| assert_ne!(s, ""); "empty")]
+    fn debug(nc: &NormalCompletion) -> String {
+        format!("{nc:?}")
     }
 
     mod from {
@@ -269,19 +269,19 @@ mod normal_completion {
         src.into()
     }
 
-    #[test_case(NormalCompletion::Empty => "[empty]"; "empty")]
-    #[test_case(NormalCompletion::from(103) => "103"; "value")]
-    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => "Ref(unresolvable->a)"; "non-strict reference")]
-    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
-    #[test_case(NormalCompletion::PrivateName(PrivateName::new("alpha")) => "PN[alpha]"; "private name")]
-    fn display(n: NormalCompletion) -> String {
+    #[test_case(&NormalCompletion::Empty => "[empty]"; "empty")]
+    #[test_case(&NormalCompletion::from(103) => "103"; "value")]
+    #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => "Ref(unresolvable->a)"; "non-strict reference")]
+    #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
+    #[test_case(&NormalCompletion::PrivateName(PrivateName::new("alpha")) => "PN[alpha]"; "private name")]
+    fn display(n: &NormalCompletion) -> String {
         format!("{n}")
     }
 
     fn make_regex_validator(regex: &str) -> impl Fn(String) + '_ {
         move |actual: String| {
             let re = Regex::new(regex).unwrap();
-            assert!(re.is_match(&actual))
+            assert!(re.is_match(&actual));
         }
     }
 
@@ -337,7 +337,7 @@ mod abrupt_completion {
         let value = NormalCompletion::from(ECMAScriptValue::Number(10.0));
         let target = Some(JSString::from("outer"));
         let first = AbruptCompletion::Break { value, target };
-        assert_ne!(format!("{:?}", first), "");
+        assert_ne!(format!("{first:?}"), "");
     }
 
     #[test]
@@ -359,17 +359,17 @@ mod abrupt_completion {
         assert_eq!(c1 != c3, false);
     }
 
-    #[test_case(AbruptCompletion::Return{value: 67.into()} => "Return{67}"; "abrupt return")]
-    #[test_case(AbruptCompletion::Throw{value: 99.into()} => "Throw{99}"; "abrupt throw")]
-    #[test_case(AbruptCompletion::Break{value: ().into(), target: None} => "Break{}"; "break with no data")]
-    #[test_case(AbruptCompletion::Break{value: ().into(), target: Some("tgt".into())} => "Break{T:tgt}"; "break with target")]
-    #[test_case(AbruptCompletion::Break{value: 102.into(), target: None} => "Break{V:102}"; "break with value")]
-    #[test_case(AbruptCompletion::Break{value: 10.into(), target: Some("xx".into())} => "Break{V:10,T:xx}"; "break with value and target")]
-    #[test_case(AbruptCompletion::Continue{value: ().into(), target: None} => "Continue{}"; "Continue with no data")]
-    #[test_case(AbruptCompletion::Continue{value: ().into(), target: Some("tgt".into())} => "Continue{T:tgt}"; "Continue with target")]
-    #[test_case(AbruptCompletion::Continue{value: 102.into(), target: None} => "Continue{V:102}"; "Continue with value")]
-    #[test_case(AbruptCompletion::Continue{value: 10.into(), target: Some("xx".into())} => "Continue{V:10,T:xx}"; "Continue with value and target")]
-    fn display(ac: AbruptCompletion) -> String {
+    #[test_case(&AbruptCompletion::Return{value: 67.into()} => "Return{67}"; "abrupt return")]
+    #[test_case(&AbruptCompletion::Throw{value: 99.into()} => "Throw{99}"; "abrupt throw")]
+    #[test_case(&AbruptCompletion::Break{value: ().into(), target: None} => "Break{}"; "break with no data")]
+    #[test_case(&AbruptCompletion::Break{value: ().into(), target: Some("tgt".into())} => "Break{T:tgt}"; "break with target")]
+    #[test_case(&AbruptCompletion::Break{value: 102.into(), target: None} => "Break{V:102}"; "break with value")]
+    #[test_case(&AbruptCompletion::Break{value: 10.into(), target: Some("xx".into())} => "Break{V:10,T:xx}"; "break with value and target")]
+    #[test_case(&AbruptCompletion::Continue{value: ().into(), target: None} => "Continue{}"; "Continue with no data")]
+    #[test_case(&AbruptCompletion::Continue{value: ().into(), target: Some("tgt".into())} => "Continue{T:tgt}"; "Continue with target")]
+    #[test_case(&AbruptCompletion::Continue{value: 102.into(), target: None} => "Continue{V:102}"; "Continue with value")]
+    #[test_case(&AbruptCompletion::Continue{value: 10.into(), target: Some("xx".into())} => "Continue{V:10,T:xx}"; "Continue with value and target")]
+    fn display(ac: &AbruptCompletion) -> String {
         format!("{ac}")
     }
 }
@@ -404,9 +404,9 @@ mod throw_value {
         assert_ne!(format!("{:?}", ThrowValue(99.into())), "");
     }
 
-    #[test_case(ThrowValue("hi".into()), ThrowValue("hi".into()) => false; "equal")]
-    #[test_case(ThrowValue("hpi".into()), ThrowValue("hi".into()) => true; "not equal")]
-    fn ne(a: ThrowValue, b: ThrowValue) -> bool {
+    #[test_case(&ThrowValue("hi".into()), &ThrowValue("hi".into()) => false; "equal")]
+    #[test_case(&ThrowValue("hpi".into()), &ThrowValue("hi".into()) => true; "not equal")]
+    fn ne(a: &ThrowValue, b: &ThrowValue) -> bool {
         a != b
     }
 }

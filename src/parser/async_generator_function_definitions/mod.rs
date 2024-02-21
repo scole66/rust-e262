@@ -25,7 +25,7 @@ impl PrettyPrint for AsyncGeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorMethod: {self}")?;
         self.name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -36,7 +36,7 @@ impl PrettyPrint for AsyncGeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorMethod: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -205,7 +205,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -218,7 +218,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorDeclaration: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -387,7 +387,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -400,7 +400,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorExpression: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -537,7 +537,7 @@ impl PrettyPrint for AsyncGeneratorBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorBody: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 

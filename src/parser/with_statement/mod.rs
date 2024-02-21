@@ -24,7 +24,7 @@ impl PrettyPrint for WithStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}WithStatement: {}", first, self)?;
+        writeln!(writer, "{first}WithStatement: {self}")?;
         self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.statement.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -34,7 +34,7 @@ impl PrettyPrint for WithStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}WithStatement: {}", first, self)?;
+        writeln!(writer, "{first}WithStatement: {self}")?;
         pprint_token(writer, "with", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

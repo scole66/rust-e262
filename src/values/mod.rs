@@ -173,17 +173,18 @@ impl From<f64> for ECMAScriptValue {
 
 impl From<u32> for ECMAScriptValue {
     fn from(source: u32) -> Self {
-        Self::Number(source as f64)
+        Self::Number(f64::from(source))
     }
 }
 
 impl From<i32> for ECMAScriptValue {
     fn from(source: i32) -> Self {
-        Self::Number(source as f64)
+        Self::Number(f64::from(source))
     }
 }
 
 impl From<u64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: u64) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -194,6 +195,7 @@ impl From<u64> for ECMAScriptValue {
 }
 
 impl From<usize> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: usize) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -203,6 +205,7 @@ impl From<usize> for ECMAScriptValue {
     }
 }
 impl From<i64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
             Self::from(val as f64)
@@ -313,7 +316,7 @@ impl PropertyKey {
             PropertyKey::String(s) => {
                 let as_u32 = to_uint32_agentless(s).expect("strings always convert to numbers");
                 let restrung = to_string_agentless(as_u32).expect("numbers always convert to strings");
-                as_u32 != 0xFFFFFFFF && restrung == *s
+                as_u32 != 0xFFFF_FFFF && restrung == *s
             }
         }
     }
@@ -360,6 +363,18 @@ impl From<String> for PropertyKey {
 
 impl From<usize> for PropertyKey {
     fn from(num: usize) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<u64> for PropertyKey {
+    fn from(num: u64) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<i32> for PropertyKey {
+    fn from(num: i32) -> Self {
         Self::from(num.to_string())
     }
 }
@@ -415,13 +430,13 @@ impl TryFrom<ECMAScriptValue> for Option<Object> {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
 pub struct ArrayIndex(u32);
 
 impl TryFrom<u32> for ArrayIndex {
     type Error = &'static str;
     fn try_from(val: u32) -> Result<ArrayIndex, Self::Error> {
-        if val < 0xFFFFFFFF {
+        if val < 0xFFFF_FFFF {
             Ok(ArrayIndex(val))
         } else {
             Err("The maximum array index is 4294967294")
@@ -495,7 +510,7 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueKind {
     Undefined,
     Null,
@@ -537,7 +552,7 @@ impl PartialEq for PrivateName {
 impl Hash for PrivateName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // No need to hash the description; the id is unique already.
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 
@@ -585,7 +600,7 @@ impl fmt::Display for PrivateElementKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PrivateElementKind::Field { value } => write!(f, "Field({})", value.borrow()),
-            PrivateElementKind::Method { value } => write!(f, "Method({})", value),
+            PrivateElementKind::Method { value } => write!(f, "Method({value})"),
             PrivateElementKind::Accessor { get, set } => match (get.as_ref(), set.as_ref()) {
                 (None, None) => write!(f, "Accessor(-,-)"),
                 (None, Some(set)) => write!(
@@ -639,13 +654,14 @@ where
     }
     let info = dtoa(value);
 
-    let k = info.chars.find('\u{0}').unwrap() as i64;
-    let n = info.decpt as i64;
+    let k = i64::try_from(info.chars.find('\u{0}').expect("a NUL shoul exist"))
+        .expect("number string representation isn't as large as an i64");
+    let n = i64::from(info.decpt);
     let mut iter = info.chars.chars();
     if k <= n && n <= 21 {
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         let zeros = n - k;
         for _ in 0..zeros {
@@ -656,12 +672,12 @@ where
     if 0 < n && n <= 21 {
         for _ in 0..n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         write!(writer, ".")?;
         for _ in 0..k - n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
@@ -672,17 +688,17 @@ where
         }
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
     let ch = iter.next().unwrap();
-    write!(writer, "{}", ch)?;
+    write!(writer, "{ch}")?;
     if k > 1 {
         write!(writer, ".")?;
         for _ in 1..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
     }
     write!(writer, "e")?;
@@ -707,6 +723,7 @@ where
 //          i. Let result be ? Call(method, O).
 //          ii. If Type(result) is not Object, return result.
 //  6. Throw a TypeError exception.
+#[derive(Copy, Clone)]
 pub enum ConversionHint {
     String,
     Number,
@@ -720,7 +737,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
             vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")]
         }
     };
-    for name in method_names.iter() {
+    for name in &method_names {
         let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
@@ -806,9 +823,8 @@ impl From<ECMAScriptValue> for bool {
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
             ECMAScriptValue::String(s) => !s.is_empty(),
-            ECMAScriptValue::Symbol(_) => true,
+            ECMAScriptValue::Symbol(_) | ECMAScriptValue::Object(_) => true,
             ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
-            ECMAScriptValue::Object(_) => true,
         }
     }
 }
@@ -974,6 +990,17 @@ pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completio
     }
 }
 
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_sign_loss)]
+pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
+    if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
+        Ok(arg as usize)
+    } else {
+        Err(anyhow!("invalid conversion of {arg} to usize"))
+    }
+}
+
 // ToInt32 ( argument )
 //
 // The abstract operation ToInt32 takes argument argument. It converts argument to one of 232 integral Number values in
@@ -1022,8 +1049,9 @@ fn to_core_signed(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completi
         }
     })
 }
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
-    Ok(to_core_signed(4294967296.0, argument)? as i32)
+    Ok(to_core_signed(4_294_967_296.0, argument)? as i32)
 }
 
 // ToUint32 ( argument )
@@ -1045,13 +1073,15 @@ pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint32(argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
-    let i = to_core_int(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+    let i = to_core_int(4_294_967_296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
-    let i = to_core_int_agentless(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+    let i = to_core_int_agentless(4_294_967_296.0, argument)? as i64;
+    Ok((if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
 }
 
 // ToInt16 ( argument )
@@ -1064,6 +1094,7 @@ pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Resu
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
     Ok(to_core_signed(65536.0, argument)? as i16)
 }
@@ -1083,6 +1114,7 @@ pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
     let i = to_core_int(65536.0, argument)? as i64;
     Ok((if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1098,6 +1130,7 @@ pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
     Ok(to_core_signed(256.0, argument)? as i8)
 }
@@ -1112,6 +1145,7 @@ pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_uint8(argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
     let i = to_core_int(256.0, argument)? as i64;
     Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1172,11 +1206,15 @@ impl TryFrom<ECMAScriptValue> for JSString {
                 number_to_string(&mut s, n).unwrap();
                 Ok(JSString::from(s))
             }
-            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
+            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(bi)),
             ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
             ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
         }
     }
+}
+
+pub fn bigint_to_string_radix(bi: &Rc<BigInt>, radix: u32) -> JSString {
+    bi.to_str_radix(radix).into()
 }
 
 // ToObject ( argument )
@@ -1236,9 +1274,10 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
+#[allow(clippy::cast_possible_truncation)]
 pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let len = to_integer_or_infinity(argument)?;
-    Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
+    Ok(len.clamp(0.0, 9_007_199_254_740_991.0) as i64)
 }
 
 // CanonicalNumericIndexString ( argument )
@@ -1254,12 +1293,12 @@ pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
 //
 // A canonical numeric string is any String value for which the CanonicalNumericIndexString abstract operation does not
 // return undefined.
-pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
-    if argument == "-0" {
+pub fn canonical_numeric_index_string(argument: &JSString) -> Option<f64> {
+    if *argument == "-0" {
         Some(-0.0)
     } else {
         let n = to_number_agentless(argument.clone()).unwrap();
-        if argument == to_string_agentless(n).unwrap() {
+        if *argument == to_string_agentless(n).unwrap() {
             Some(n)
         } else {
             None
@@ -1288,10 +1327,11 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     } else {
         let integer = to_integer_or_infinity(value)?;
         let clamped = to_length(integer).unwrap();
-        if clamped as f64 != integer {
-            Err(create_range_error(format!("{} out of range for index", integer).as_str()))
-        } else {
+        #[allow(clippy::cast_precision_loss)]
+        if clamped as f64 == integer {
             Ok(clamped)
+        } else {
+            Err(create_range_error(format!("{integer} out of range for index").as_str()))
         }
     }
 }
@@ -1331,8 +1371,8 @@ impl ECMAScriptValue {
     #[inline]
     pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
         match (self, other) {
-            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => true,
-            (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
             (ECMAScriptValue::String(a), ECMAScriptValue::String(b)) => a == b,
             (ECMAScriptValue::Boolean(a), ECMAScriptValue::Boolean(b)) => a == b,
             (ECMAScriptValue::Symbol(a), ECMAScriptValue::Symbol(b)) => a == b,
@@ -1436,17 +1476,23 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
                 ECMAScriptValue::from(to_number(y.clone()).expect("Booleans are always convertable to numbers"));
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
+        (
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+            ECMAScriptValue::Object(_),
+        ) => {
             let new_y = to_primitive(y.clone(), None)?;
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
+        (
+            ECMAScriptValue::Object(_),
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+        ) => {
             let new_x = to_primitive(x.clone(), None)?;
             is_loosely_equal(&new_x, y)
         }
@@ -1454,12 +1500,8 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
         | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
             Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
         }
-        (ECMAScriptValue::Undefined, _)
-        | (ECMAScriptValue::Null, _)
-        | (ECMAScriptValue::Symbol(_), _)
-        | (_, ECMAScriptValue::Undefined)
-        | (_, ECMAScriptValue::Null)
-        | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
+        (ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_), _)
+        | (_, ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_)) => Ok(false),
     }
 }
 

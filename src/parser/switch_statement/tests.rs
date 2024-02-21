@@ -13,14 +13,14 @@ fn switch_statement_test_01() {
     pretty_check(
         &*node,
         "SwitchStatement: switch ( 0 ) { default : 0 ; }",
-        vec!["Expression: 0", "CaseBlock: { default : 0 ; }"],
+        &["Expression: 0", "CaseBlock: { default : 0 ; }"],
     );
     concise_check(
         &*node,
         "SwitchStatement: switch ( 0 ) { default : 0 ; }",
-        vec!["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"],
+        &["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn switch_statement_test_err() {
@@ -123,7 +123,7 @@ mod switch_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).switch_statement().early_errors(&mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("switch(arguments){}" => true; "left")]
@@ -149,33 +149,29 @@ mod switch_statement {
 fn case_block_test_01() {
     let (node, scanner) = check(CaseBlock::parse(&mut newparser("{}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "CaseBlock: { }", vec![]);
-    concise_check(&*node, "CaseBlock: { }", vec!["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseBlock: { }", &[]);
+    concise_check(&*node, "CaseBlock: { }", &["Punctuator: {", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_02() {
     let (node, scanner) = check(CaseBlock::parse(&mut newparser("{case 0:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "CaseBlock: { case 0 : ; }", vec!["CaseClauses: case 0 : ;"]);
-    concise_check(
-        &*node,
-        "CaseBlock: { case 0 : ; }",
-        vec!["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseBlock: { case 0 : ; }", &["CaseClauses: case 0 : ;"]);
+    concise_check(&*node, "CaseBlock: { case 0 : ; }", &["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_03() {
     let (node, scanner) = check(CaseBlock::parse(&mut newparser("{default:;}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "CaseBlock: { default : ; }", vec!["DefaultClause: default : ;"]);
+    pretty_check(&*node, "CaseBlock: { default : ; }", &["DefaultClause: default : ;"]);
     concise_check(
         &*node,
         "CaseBlock: { default : ; }",
-        vec!["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"],
+        &["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_04() {
@@ -185,14 +181,14 @@ fn case_block_test_04() {
     pretty_check(
         &*node,
         "CaseBlock: { case 0 : ; default : ; }",
-        vec!["CaseClauses: case 0 : ;", "DefaultClause: default : ;"],
+        &["CaseClauses: case 0 : ;", "DefaultClause: default : ;"],
     );
     concise_check(
         &*node,
         "CaseBlock: { case 0 : ; default : ; }",
-        vec!["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"],
+        &["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_05() {
@@ -202,14 +198,14 @@ fn case_block_test_05() {
     pretty_check(
         &*node,
         "CaseBlock: { default : ; case 0 : ; }",
-        vec!["DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
+        &["DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
     );
     concise_check(
         &*node,
         "CaseBlock: { default : ; case 0 : ; }",
-        vec!["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
+        &["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_06() {
@@ -219,12 +215,12 @@ fn case_block_test_06() {
     pretty_check(
         &*node,
         "CaseBlock: { case 1 : ; default : ; case 0 : ; }",
-        vec!["CaseClauses: case 1 : ;", "DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
+        &["CaseClauses: case 1 : ;", "DefaultClause: default : ;", "CaseClauses: case 0 : ;"],
     );
     concise_check(
         &*node,
         "CaseBlock: { case 1 : ; default : ; case 0 : ; }",
-        vec![
+        &[
             "Punctuator: {",
             "CaseClause: case 1 : ;",
             "DefaultClause: default : ;",
@@ -232,7 +228,7 @@ fn case_block_test_06() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn case_block_test_errs() {
@@ -389,7 +385,7 @@ mod case_block {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).case_block().early_errors(&mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("{ }" => Vec::<String>::new(); "empty")]
@@ -454,30 +450,18 @@ mod case_block {
 fn case_clauses_test_01() {
     let (node, scanner) = check(CaseClauses::parse(&mut newparser("case 0:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "CaseClauses: case 0 : ;", vec!["CaseClause: case 0 : ;"]);
-    concise_check(
-        &*node,
-        "CaseClause: case 0 : ;",
-        vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseClauses: case 0 : ;", &["CaseClause: case 0 : ;"]);
+    concise_check(&*node, "CaseClause: case 0 : ;", &["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_clauses_test_02() {
     let (node, scanner) =
         check(CaseClauses::parse(&mut newparser("case 0:;case 1:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 16);
-    pretty_check(
-        &*node,
-        "CaseClauses: case 0 : ; case 1 : ;",
-        vec!["CaseClauses: case 0 : ;", "CaseClause: case 1 : ;"],
-    );
-    concise_check(
-        &*node,
-        "CaseClauses: case 0 : ; case 1 : ;",
-        vec!["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", &["CaseClauses: case 0 : ;", "CaseClause: case 1 : ;"]);
+    concise_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", &["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_clauses_test_errs() {
@@ -568,7 +552,7 @@ mod case_clauses {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).case_clauses().early_errors(&mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("case 0: let a;" => vec!["a"]; "single")]
@@ -613,21 +597,17 @@ mod case_clauses {
 fn case_clause_test_01() {
     let (node, scanner) = check(CaseClause::parse(&mut newparser("case 0:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "CaseClause: case 0 : ;", vec!["Expression: 0", "StatementList: ;"]);
-    concise_check(
-        &*node,
-        "CaseClause: case 0 : ;",
-        vec!["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseClause: case 0 : ;", &["Expression: 0", "StatementList: ;"]);
+    concise_check(&*node, "CaseClause: case 0 : ;", &["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_clause_test_02() {
     let (node, scanner) = check(CaseClause::parse(&mut newparser("case 0:"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "CaseClause: case 0 :", vec!["Expression: 0"]);
-    concise_check(&*node, "CaseClause: case 0 :", vec!["Keyword: case", "Numeric: 0", "Punctuator: :"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "CaseClause: case 0 :", &["Expression: 0"]);
+    concise_check(&*node, "CaseClause: case 0 :", &["Keyword: case", "Numeric: 0", "Punctuator: :"]);
+    format!("{node:?}");
 }
 #[test]
 fn case_clause_test_errs() {
@@ -721,7 +701,7 @@ mod case_clause {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).case_clause().early_errors(&mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
@@ -757,17 +737,17 @@ mod case_clause {
 fn default_clause_test_01() {
     let (node, scanner) = check(DefaultClause::parse(&mut newparser("default:;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "DefaultClause: default : ;", vec!["StatementList: ;"]);
-    concise_check(&*node, "DefaultClause: default : ;", vec!["Keyword: default", "Punctuator: :", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "DefaultClause: default : ;", &["StatementList: ;"]);
+    concise_check(&*node, "DefaultClause: default : ;", &["Keyword: default", "Punctuator: :", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn default_clause_test_02() {
     let (node, scanner) = check(DefaultClause::parse(&mut newparser("default:"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "DefaultClause: default :", vec![]);
-    concise_check(&*node, "DefaultClause: default :", vec!["Keyword: default", "Punctuator: :"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "DefaultClause: default :", &[]);
+    concise_check(&*node, "DefaultClause: default :", &["Keyword: default", "Punctuator: :"]);
+    format!("{node:?}");
 }
 #[test]
 fn default_clause_test_errs() {
@@ -855,7 +835,7 @@ mod default_clause {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).default_clause().early_errors(&mut errs, strict, wi);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("default:" => Vec::<String>::new(); "no statements")]

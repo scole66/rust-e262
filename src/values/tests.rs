@@ -35,7 +35,7 @@ fn nts_test_negatives() {
 #[test]
 fn nts_test_ends_with_zeroes() {
     let mut s = Vec::new();
-    number_to_string(&mut s, 98000000.0).unwrap();
+    number_to_string(&mut s, 98_000_000.0).unwrap();
     assert_eq!(s, "98000000".as_bytes());
 }
 #[test]
@@ -107,7 +107,7 @@ mod ecmascript_value {
     }
     #[test]
     fn default() {
-        let def: ECMAScriptValue = Default::default();
+        let def = ECMAScriptValue::default();
         assert_eq!(def, ECMAScriptValue::Undefined);
     }
     #[test]
@@ -122,14 +122,14 @@ mod ecmascript_value {
         assert_eq!(v, ECMAScriptValue::Number(10.0));
         let v = ECMAScriptValue::from(10_i64);
         assert_eq!(v, ECMAScriptValue::Number(10.0));
-        let v = ECMAScriptValue::from(1152921504606846976_u64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_u64))));
-        let v = ECMAScriptValue::from(1152921504606846976_i64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_i64))));
-        let v = ECMAScriptValue::from(-1152921504606846976_i64);
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1152921504606846976_i64))));
-        let v = ECMAScriptValue::from(Rc::new(BigInt::from(789999999999999999999999_i128)));
-        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789999999999999999999999_i128))));
+        let v = ECMAScriptValue::from(1_152_921_504_606_846_976_u64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1_152_921_504_606_846_976_u64))));
+        let v = ECMAScriptValue::from(1_152_921_504_606_846_976_i64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1_152_921_504_606_846_976_i64))));
+        let v = ECMAScriptValue::from(-1_152_921_504_606_846_976_i64);
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1_152_921_504_606_846_976_i64))));
+        let v = ECMAScriptValue::from(Rc::new(BigInt::from(789_999_999_999_999_999_999_999_i128)));
+        assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789_999_999_999_999_999_999_999_i128))));
         let v = ECMAScriptValue::from(vec!['a' as u16, 'b' as u16, 'c' as u16]);
         assert_eq!(v, ECMAScriptValue::String(JSString::from("abc")));
         let v = ECMAScriptValue::from(&JSString::from("blue"));
@@ -156,10 +156,10 @@ mod ecmascript_value {
         let new_obj: Object = val.try_into().unwrap();
         assert_eq!(new_obj.o.id(), orig_id);
     }
-    #[test_case(Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
-    #[test_case(Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
-    fn from_numeric_ref(n: Numeric) -> ECMAScriptValue {
-        ECMAScriptValue::from(&n)
+    #[test_case(&Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
+    #[test_case(&Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
+    fn from_numeric_ref(n: &Numeric) -> ECMAScriptValue {
+        ECMAScriptValue::from(n)
     }
     #[test_case(Numeric::Number(45.3) => ECMAScriptValue::Number(45.3); "number")]
     #[test_case(Numeric::BigInt(Rc::new(BigInt::from(9911))) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(9911))); "bigint")]
@@ -185,7 +185,7 @@ mod ecmascript_value {
         ECMAScriptValue::from(s)
     }
     #[test_case(56_usize => (ECMAScriptValue::Number(56.0), ValueKind::Number); "small number")]
-    #[test_case(9007199254741092_usize => (ECMAScriptValue::from(9007199254741092_u64), ValueKind::BigInt); "big number")]
+    #[test_case(9_007_199_254_741_092_usize => (ECMAScriptValue::from(9_007_199_254_741_092_u64), ValueKind::BigInt); "big number")]
     fn from_usize(u: usize) -> (ECMAScriptValue, ValueKind) {
         let v = ECMAScriptValue::from(u);
         let kind = v.kind();
@@ -311,7 +311,7 @@ mod ecmascript_value {
         )
         .unwrap();
 
-        assert_ne!(format!("{:?}", obj), "");
+        assert_ne!(format!("{obj:?}"), "");
     }
     #[test]
     fn is_array() {
@@ -327,14 +327,14 @@ mod ecmascript_value {
         use super::*;
         use test_case::test_case;
 
-        #[test_case(ECMAScriptValue::Undefined => "undefined"; "undefined")]
-        #[test_case(ECMAScriptValue::Null => "null"; "null")]
-        #[test_case(ECMAScriptValue::Boolean(true) => "true"; "bool true")]
-        #[test_case(ECMAScriptValue::Boolean(false) => "false"; "bool false")]
-        #[test_case(ECMAScriptValue::String("turnip".into()) => "turnip"; "string")]
-        #[test_case(ECMAScriptValue::Number(67.331) => "67.331"; "number")]
-        #[test_case(ECMAScriptValue::BigInt(Rc::new(BigInt::from(12345))) => "12345n"; "bigint")]
-        fn simple(val: ECMAScriptValue) -> String {
+        #[test_case(&ECMAScriptValue::Undefined => "undefined"; "undefined")]
+        #[test_case(&ECMAScriptValue::Null => "null"; "null")]
+        #[test_case(&ECMAScriptValue::Boolean(true) => "true"; "bool true")]
+        #[test_case(&ECMAScriptValue::Boolean(false) => "false"; "bool false")]
+        #[test_case(&ECMAScriptValue::String("turnip".into()) => "turnip"; "string")]
+        #[test_case(&ECMAScriptValue::Number(67.331) => "67.331"; "number")]
+        #[test_case(&ECMAScriptValue::BigInt(Rc::new(BigInt::from(12345))) => "12345n"; "bigint")]
+        fn simple(val: &ECMAScriptValue) -> String {
             format!("{val}")
         }
 
@@ -400,7 +400,7 @@ mod ecmascript_value {
         BigInt::from(10).into()
     }
     fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1097631).into()
+        BigInt::from(-1_097_631).into()
     }
 
     #[test_case(undef, undef => true; "undefined")]
@@ -495,13 +495,13 @@ fn symbol_debug() {
 fn symbol_display_normal() {
     setup_test_agent();
     let symbol = Symbol::new(Some(JSString::from("Normal")));
-    assert_eq!(format!("{}", symbol), "Symbol(Normal)");
+    assert_eq!(format!("{symbol}"), "Symbol(Normal)");
 }
 #[test]
 fn symbol_display_empty() {
     setup_test_agent();
     let symbol = Symbol::new(None);
-    assert_eq!(format!("{}", symbol), "Symbol()");
+    assert_eq!(format!("{symbol}"), "Symbol()");
 }
 #[test]
 #[allow(clippy::redundant_clone)]
@@ -577,7 +577,7 @@ mod pn {
         let pn = PN(());
         let b = pn; // Copy
         let c = pn.clone();
-        assert_ne!(format!("{:?}", b), "");
+        assert_ne!(format!("{b:?}"), "");
         assert_eq!(b == c, true);
         assert_eq!(b != c, false);
         assert_eq!(b.cmp(&c), Ordering::Equal);
@@ -620,7 +620,7 @@ mod private_name {
     }
     #[test]
     fn hash() {
-        let mut s: AHashSet<PrivateName> = Default::default();
+        let mut s: AHashSet<PrivateName> = AHashSet::default();
         s.insert(PrivateName::new("blue"));
         s.insert(PrivateName::new("green"));
         s.insert(PrivateName::new("red"));
@@ -628,8 +628,8 @@ mod private_name {
         assert_eq!(s.len(), 4);
     }
 
-    #[test_case(PrivateName::new("something") => "PN[something]"; "normal")]
-    fn display(pn: PrivateName) -> String {
+    #[test_case(&PrivateName::new("something") => "PN[something]"; "normal")]
+    fn display(pn: &PrivateName) -> String {
         format!("{pn}")
     }
 }
@@ -641,7 +641,7 @@ mod private_element_kind {
     #[test]
     fn debug() {
         let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
-        assert_ne!(format!("{:?}", pek), "");
+        assert_ne!(format!("{pek:?}"), "");
     }
     #[test]
     #[allow(clippy::redundant_clone)]
@@ -701,18 +701,18 @@ mod private_element_kind {
     }
 
     #[test_case(
-        PrivateElementKind::Field{ value: RefCell::new(ECMAScriptValue::from("field")) },
-        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) }
+        &PrivateElementKind::Field{ value: RefCell::new(ECMAScriptValue::from("field")) },
+        &PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) }
         => true;
         "field equal"
     )]
     #[test_case(
-        PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) },
-        PrivateElementKind::Method{value: ECMAScriptValue::from("method")}
+        &PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::from("field")) },
+        &PrivateElementKind::Method{value: ECMAScriptValue::from("method")}
         => false;
         "field/method"
     )]
-    fn eq(left: PrivateElementKind, right: PrivateElementKind) -> bool {
+    fn eq(left: &PrivateElementKind, right: &PrivateElementKind) -> bool {
         left == right
     }
 }
@@ -727,7 +727,7 @@ mod private_element {
             key: PrivateName::new("just a key"),
             kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) },
         };
-        assert_ne!(format!("{:?}", pe), "");
+        assert_ne!(format!("{pe:?}"), "");
     }
 
     #[test]
@@ -820,7 +820,7 @@ mod property_key {
         assert_eq!(pk, PropertyKey::Symbol(wks(WksId::ToPrimitive)));
         let pk = PropertyKey::from(String::from("d"));
         assert_eq!(pk, PropertyKey::String(JSString::from("d")));
-        let pk = PropertyKey::from(848183_usize);
+        let pk = PropertyKey::from(848_183_usize);
         assert_eq!(pk, PropertyKey::String(JSString::from("848183")));
     }
     #[test]
@@ -978,8 +978,8 @@ fn to_numeric_01() {
 #[test]
 fn to_numeric_02() {
     setup_test_agent();
-    let result = to_numeric(ECMAScriptValue::from(BigInt::from(4747474))).unwrap();
-    assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4747474))));
+    let result = to_numeric(ECMAScriptValue::from(BigInt::from(4_747_474))).unwrap();
+    assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4_747_474))));
 }
 #[test]
 fn to_numeric_03() {
@@ -1059,12 +1059,12 @@ fn to_number_07() {
         ("0030", 30.0),
         (" \t\r\n\u{a0}\u{2029}\u{2028}\u{b}\u{c}\u{feff}", 0.0),
         ("0xabcd", 43981.0),
-        ("0X6A8BB", 436411.0),
+        ("0X6A8BB", 436_411.0),
         ("0b010", 2.0),
         ("0B110", 6.0),
         ("0o766", 502.0),
         ("0O7", 7.0),
-        ("0xabcdabcdabcdabcdabcdabcdabcdabcd", 228365892722206371581333312115001109453.0),
+        ("0xabcdabcdabcdabcdabcdabcdabcdabcd", 228_365_892_722_206_371_581_333_312_115_001_109_453.0),
     ];
 
     for (s, e) in testcases {
@@ -1194,8 +1194,9 @@ fn to_string_09() {
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
+#[allow(clippy::unnecessary_wraps)]
 fn tostring_symbol(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1216,7 +1217,7 @@ fn to_string_10() {
 #[test]
 fn to_string_11() {
     setup_test_agent();
-    let result = to_string(ECMAScriptValue::from(BigInt::from(789123))).unwrap();
+    let result = to_string(ECMAScriptValue::from(BigInt::from(789_123))).unwrap();
     assert_eq!(result, "789123");
 }
 
@@ -1271,11 +1272,12 @@ fn to_object_06() {
     assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]
-#[should_panic(expected = "not yet implemented")] // An XFAIL. BigInt objects not yet implemented.
 fn to_object_07() {
     setup_test_agent();
     let test_value = BigInt::from(10);
-    let _result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(ECMAScriptValue::from(test_value.clone())).unwrap();
+    let bi_obj = result.o.to_bigint_object().unwrap();
+    assert_eq!(*bi_obj.value(), test_value);
 }
 #[test]
 fn to_object_08() {
@@ -1293,24 +1295,27 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_number(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Ok(ECMAScriptValue::from(123456))
+    Ok(ECMAScriptValue::from(123_456))
 }
 // non-object string
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_string(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
+#[allow(clippy::unnecessary_wraps)]
 fn faux_makes_obj(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1320,12 +1325,13 @@ fn faux_makes_obj(
 }
 // error
 fn faux_errors(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     Err(create_type_error("Test Sentinel"))
 }
+#[derive(Copy, Clone)]
 enum FauxKind {
     Object,
     Primitive,
@@ -1468,7 +1474,7 @@ fn ordinary_to_primitive_nonoobj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Primitive);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
@@ -1498,17 +1504,17 @@ fn ordinary_to_primitive_nonobj_obj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Object);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
-    assert_eq!(result_2, ECMAScriptValue::from(123456));
+    assert_eq!(result_2, ECMAScriptValue::from(123_456));
 }
 #[test]
 fn ordinary_to_primitive_call_errors() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Error);
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
     assert_eq!(unwind_type_error(result_2), "Test Sentinel");
@@ -1518,7 +1524,7 @@ fn ordinary_to_primitive_get_errors() {
     setup_test_agent();
     let test_obj = make_tostring_getter_error();
     let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
-    assert_eq!(result_1, ECMAScriptValue::from(123456));
+    assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
     assert_eq!(unwind_type_error(result_2), "Test Sentinel");
@@ -1568,20 +1574,21 @@ fn to_primitive_prefer_number() {
     let test_value = ECMAScriptValue::from(test_obj);
 
     let result = to_primitive(test_value.clone(), None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123456));
+    assert_eq!(result, ECMAScriptValue::from(123_456));
     let result = to_primitive(test_value.clone(), Some(ConversionHint::Number)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123456));
+    assert_eq!(result, ECMAScriptValue::from(123_456));
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
+#[allow(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     if arguments.len() == 1 {
         if let ECMAScriptValue::String(s) = &arguments[0] {
-            Ok(ECMAScriptValue::from(format!("Saw {}", s)))
+            Ok(ECMAScriptValue::from(format!("Saw {s}")))
         } else {
             Ok(ECMAScriptValue::from(format!("Saw {:?}", arguments[0])))
         }
@@ -1593,7 +1600,7 @@ fn exotic_to_prim(
     }
 }
 fn make_toprimitive_obj(
-    steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
 ) -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -1637,8 +1644,9 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
+#[allow(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1657,7 +1665,7 @@ fn to_primitive_exotic_returns_object() {
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1735,8 +1743,8 @@ mod to_property_key {
 #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
 #[test_case(|| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
 #[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-#[test_case(|| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
-#[test_case(|| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991); "top edge")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991); "over")]
 #[test_case(|| ECMAScriptValue::from(Symbol::new(Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
 fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
     setup_test_agent();
@@ -1754,11 +1762,12 @@ mod canonical_numeric_index_string {
     #[test_case("0.250000" => None; "trailing zeroes")]
     #[test_case("Infinity" => Some(f64::INFINITY); "infinity")]
     fn f(src: &str) -> Option<f64> {
-        canonical_numeric_index_string(src.into())
+        let p = src.into();
+        canonical_numeric_index_string(&p)
     }
     #[test]
     fn negzero() {
-        let result = canonical_numeric_index_string("-0".into()).unwrap();
+        let result = canonical_numeric_index_string(&"-0".into()).unwrap();
         assert_eq!(result, 0.0);
         assert_eq!(result.signum(), -1.0);
     }
@@ -1791,9 +1800,9 @@ mod to_int32 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(0x7FFFFFFF as f64 => Ok(0x7FFFFFFF); "upper limit")]
-    #[test_case(2147483648.0 => Ok(-2147483648); "lower rollover")]
-    #[test_case(-2147483648.0 => Ok(-2147483648); "lower limit")]
+    #[test_case(f64::from(0x7FFF_FFFF) => Ok(0x7FFF_FFFF); "upper limit")]
+    #[test_case(2_147_483_648.0 => Ok(-2_147_483_648); "lower rollover")]
+    #[test_case(-2_147_483_648.0 => Ok(-2_147_483_648); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
         setup_test_agent();
@@ -1810,9 +1819,9 @@ mod to_uint32 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(4294967295.0 => Ok(0xFFFFFFFF); "upper limit")]
-    #[test_case(4294967296.0 => Ok(0); "rollover")]
-    #[test_case(-300.0 => Ok(4294966996); "negative inputs")]
+    #[test_case(4_294_967_295.0 => Ok(0xFFFF_FFFF); "upper limit")]
+    #[test_case(4_294_967_296.0 => Ok(0); "rollover")]
+    #[test_case(-300.0 => Ok(4_294_966_996); "negative inputs")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
         setup_test_agent();
@@ -1829,7 +1838,7 @@ mod to_int16 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(0x7FFF as f64 => Ok(0x7FFF); "upper limit")]
+    #[test_case(f64::from(0x7FFF) => Ok(0x7FFF); "upper limit")]
     #[test_case(32768.0 => Ok(-32768); "lower rollover")]
     #[test_case(-32768.0 => Ok(-32768); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
@@ -1867,7 +1876,7 @@ mod to_int8 {
     #[test_case(f64::INFINITY => Ok(0); "inf")]
     #[test_case(0.0 => Ok(0); "zero")]
     #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(0x7F as f64 => Ok(0x7F); "upper limit")]
+    #[test_case(f64::from(0x7F) => Ok(0x7F); "upper limit")]
     #[test_case(128.0 => Ok(-128); "lower rollover")]
     #[test_case(-128.0 => Ok(-128); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
@@ -1920,14 +1929,14 @@ mod array_index {
 
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Ordering::Equal; "same")]
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Less; "less")]
-    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Greater; "greater")]
+    #[test_case(ArrayIndex::try_from(100_000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Greater; "greater")]
     fn cmp(v1: ArrayIndex, v2: ArrayIndex) -> Ordering {
         v1.cmp(&v2)
     }
 
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Some(Ordering::Equal); "same")]
     #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Less); "less")]
-    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Greater); "greater")]
+    #[test_case(ArrayIndex::try_from(100_000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Greater); "greater")]
     fn partial_cmp(v1: ArrayIndex, v2: ArrayIndex) -> Option<Ordering> {
         v1.partial_cmp(&v2)
     }
@@ -1938,10 +1947,10 @@ mod array_index {
         use test_case::test_case;
 
         #[test_case(0 => Ok(ArrayIndex(0)); "lower bound")]
-        #[test_case(4294967294 => Ok(ArrayIndex(4294967294)); "upper bound")]
-        #[test_case(4294967295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
+        #[test_case(4_294_967_294 => Ok(ArrayIndex(4_294_967_294)); "upper bound")]
+        #[test_case(4_294_967_295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
         fn from_u32(u: u32) -> Result<ArrayIndex, String> {
-            ArrayIndex::try_from(u).map_err(|e| e.into())
+            ArrayIndex::try_from(u).map_err(Into::into)
         }
 
         #[test_case(|| wks(WksId::ToPrimitive).into() => Err("Symbols are not u32s".to_string()); "symbol")]
@@ -1953,7 +1962,7 @@ mod array_index {
         fn property_key(make_key: fn() -> PropertyKey) -> Result<ArrayIndex, String> {
             setup_test_agent();
             let key = make_key();
-            ArrayIndex::try_from(&key).map_err(|e| e.into())
+            ArrayIndex::try_from(&key).map_err(Into::into)
         }
     }
 
@@ -1962,7 +1971,7 @@ mod array_index {
         use test_case::test_case;
 
         #[test_case(ArrayIndex(0) => 0; "lower")]
-        #[test_case(ArrayIndex(4294967294) => 4294967294; "upper")]
+        #[test_case(ArrayIndex(4_294_967_294) => 4_294_967_294; "upper")]
         fn into_u32(a: ArrayIndex) -> u32 {
             u32::from(a)
         }
@@ -2137,12 +2146,13 @@ mod agent {
         BigInt::from(10).into()
     }
     fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1097631).into()
+        BigInt::from(-1_097_631).into()
     }
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
     }
-    fn returns_10(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn returns_10(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
     fn object_10() -> ECMAScriptValue {
@@ -2218,4 +2228,11 @@ mod value_kind {
     fn eq(v1: ValueKind, v2: ValueKind) -> bool {
         v1 == v2
     }
+}
+
+#[test_case(BigInt::from(100), 10 => "100"; "base 10")]
+#[test_case(BigInt::from(-2020), 10 => "-2020"; "negative base 10")]
+#[test_case(BigInt::from(65536), 16 => "10000"; "base 16")]
+fn bigint_to_string_radix(bi: BigInt, radix: u32) -> String {
+    String::from(super::bigint_to_string_radix(&Rc::new(bi), radix))
 }

@@ -14,12 +14,12 @@ fn async_generator_method_test_01() {
     pretty_check(
         &*node,
         "AsyncGeneratorMethod: async * a (  ) {  }",
-        vec!["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "],
+        &["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
         "AsyncGeneratorMethod: async * a (  ) {  }",
-        vec![
+        &[
             "Keyword: async",
             "Punctuator: *",
             "IdentifierName: a",
@@ -29,7 +29,7 @@ fn async_generator_method_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_generator_method_test_025() {
@@ -186,7 +186,7 @@ mod async_generator_method {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_method();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test]
@@ -228,12 +228,12 @@ fn async_generator_declaration_test_01() {
     pretty_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+        &["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -244,7 +244,7 @@ fn async_generator_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -260,12 +260,12 @@ fn async_generator_declaration_test_02() {
     pretty_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * (  ) {  }",
-        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+        &["FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * (  ) {  }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -275,7 +275,7 @@ fn async_generator_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -541,7 +541,7 @@ mod async_generator_declaration {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_declaration();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -570,12 +570,12 @@ fn async_generator_expression_test_01() {
     pretty_check(
         &*node,
         "AsyncGeneratorExpression: async function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+        &["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * a (  ) {  }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -586,7 +586,7 @@ fn async_generator_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -597,12 +597,12 @@ fn async_generator_expression_test_02() {
     pretty_check(
         &*node,
         "AsyncGeneratorExpression: async function * (  ) {  }",
-        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+        &["FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * (  ) {  }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -612,7 +612,7 @@ fn async_generator_expression_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -786,7 +786,7 @@ mod async_generator_expression {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_expression();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async function *a(){}" => true; "named")]
@@ -806,9 +806,9 @@ mod async_generator_expression {
 fn async_generator_body_test_01() {
     let (node, scanner) = AsyncGeneratorBody::parse(&mut newparser("yield 1;"), Scanner::new());
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "AsyncGeneratorBody: yield 1 ;", vec!["FunctionBody: yield 1 ;"]);
-    concise_check(&*node, "ExpressionStatement: yield 1 ;", vec!["YieldExpression: yield 1", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "AsyncGeneratorBody: yield 1 ;", &["FunctionBody: yield 1 ;"]);
+    concise_check(&*node, "ExpressionStatement: yield 1 ;", &["YieldExpression: yield 1", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn async_generator_body_test_cache_01() {
@@ -853,7 +853,7 @@ mod async_generator_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_generator_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]

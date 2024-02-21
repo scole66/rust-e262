@@ -9,7 +9,7 @@ fn create_native_error_object_01() {
     let message = "Great Googly Moogly!";
     let proto_id = IntrinsicId::RangeErrorPrototype;
 
-    let result = create_native_error_object(message, constructor, proto_id, None);
+    let result = create_native_error_object(message, &constructor, proto_id, None);
 
     assert!(result.o.is_error_object());
     let msg_val = result.get(&PropertyKey::from("message")).unwrap();
@@ -191,7 +191,7 @@ fn create_uri_error_01() {
 fn error_object_debug() {
     setup_test_agent();
     let eo = ErrorObject { common: RefCell::new(CommonObjectData::new(None, true, &[])) };
-    assert_ne!(format!("{:?}", eo), "");
+    assert_ne!(format!("{eo:?}"), "");
 }
 
 #[test]

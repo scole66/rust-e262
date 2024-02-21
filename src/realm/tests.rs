@@ -8,6 +8,8 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::ArrayPrototype,
     IntrinsicId::ArrayPrototypeValues,
     IntrinsicId::ArrayIteratorPrototype,
+    IntrinsicId::BigInt,
+    IntrinsicId::BigIntPrototype,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
     IntrinsicId::DecodeURI,
@@ -57,7 +59,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
 #[test]
 fn intrinsic_id_debug() {
     for id in ALL_INTRINSIC_IDS {
-        assert_ne!(format!("{:?}", id), "");
+        assert_ne!(format!("{id:?}"), "");
     }
 }
 #[test]
@@ -95,7 +97,7 @@ mod intrinsics {
     #[test]
     fn debug() {
         setup_test_agent();
-        assert_ne!(format!("{:?}", Intrinsics::new()), "")
+        assert_ne!(format!("{:?}", Intrinsics::new()), "");
     }
 
     #[test]
@@ -160,9 +162,11 @@ mod intrinsics {
     }
 
     #[test_case(|| intrinsic(IntrinsicId::Array) => Some(IntrinsicId::Array); "id: Array")]
+    #[test_case(|| intrinsic(IntrinsicId::ArrayIteratorPrototype) => Some(IntrinsicId::ArrayIteratorPrototype); "id: ArrayIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ArrayPrototype) => Some(IntrinsicId::ArrayPrototype); "id: ArrayPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ArrayPrototypeValues) => Some(IntrinsicId::ArrayPrototypeValues); "id: ArrayPrototypeValues")]
-    #[test_case(|| intrinsic(IntrinsicId::ArrayIteratorPrototype) => Some(IntrinsicId::ArrayIteratorPrototype); "id: ArrayIteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::BigInt) => Some(IntrinsicId::BigInt); "id: BigInt")]
+    #[test_case(|| intrinsic(IntrinsicId::BigIntPrototype) => Some(IntrinsicId::BigIntPrototype); "id: BigIntPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Boolean) => Some(IntrinsicId::Boolean); "id: Boolean")]
     #[test_case(|| intrinsic(IntrinsicId::BooleanPrototype) => Some(IntrinsicId::BooleanPrototype); "id: BooleanPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::DecodeURI) => Some(IntrinsicId::DecodeURI); "id: DecodeURI")]
@@ -177,13 +181,14 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::ForInIteratorPrototype) => Some(IntrinsicId::ForInIteratorPrototype); "id: ForInIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Function) => Some(IntrinsicId::Function); "id: Function")]
     #[test_case(|| intrinsic(IntrinsicId::FunctionPrototype) => Some(IntrinsicId::FunctionPrototype); "id: FunctionPrototype")]
-    #[test_case(|| intrinsic(IntrinsicId::IsFinite) => Some(IntrinsicId::IsFinite); "id: IsFinite")]
-    #[test_case(|| intrinsic(IntrinsicId::IsNaN) => Some(IntrinsicId::IsNaN); "id: IsNaN")]
-    #[test_case(|| intrinsic(IntrinsicId::IteratorPrototype) => Some(IntrinsicId::IteratorPrototype); "id: IteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunction) => Some(IntrinsicId::GeneratorFunction); "id: GeneratorFunction")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototype) => Some(IntrinsicId::GeneratorFunctionPrototype); "id: GeneratorFunctionPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype) => Some(IntrinsicId::GeneratorFunctionPrototypePrototype); "id: GeneratorFunctionPrototypePrototype")]
     #[test_case(|| intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext) => Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext); "id: GeneratorFunctionPrototypePrototypeNext")]
+    #[test_case(|| intrinsic(IntrinsicId::IsFinite) => Some(IntrinsicId::IsFinite); "id: IsFinite")]
+    #[test_case(|| intrinsic(IntrinsicId::IsNaN) => Some(IntrinsicId::IsNaN); "id: IsNaN")]
+    #[test_case(|| intrinsic(IntrinsicId::IteratorPrototype) => Some(IntrinsicId::IteratorPrototype); "id: IteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Math) => Some(IntrinsicId::Math); "id: Math")]
     #[test_case(|| intrinsic(IntrinsicId::Number) => Some(IntrinsicId::Number); "id: Number")]
     #[test_case(|| intrinsic(IntrinsicId::NumberPrototype) => Some(IntrinsicId::NumberPrototype); "id: NumberPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Object) => Some(IntrinsicId::Object); "id: Object")]
@@ -191,6 +196,7 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::ObjectPrototypeToString) => Some(IntrinsicId::ObjectPrototypeToString); "id: ObjectPrototypeToString")]
     #[test_case(|| intrinsic(IntrinsicId::ParseFloat) => Some(IntrinsicId::ParseFloat); "id: ParseFloat")]
     #[test_case(|| intrinsic(IntrinsicId::ParseInt) => Some(IntrinsicId::ParseInt); "id: ParseInt")]
+    #[test_case(|| intrinsic(IntrinsicId::Proxy) => Some(IntrinsicId::Proxy); "id: Proxy")]
     #[test_case(|| intrinsic(IntrinsicId::RangeError) => Some(IntrinsicId::RangeError); "id: RangeError")]
     #[test_case(|| intrinsic(IntrinsicId::RangeErrorPrototype) => Some(IntrinsicId::RangeErrorPrototype); "id: RangeErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ReferenceError) => Some(IntrinsicId::ReferenceError); "id: ReferenceError")]
@@ -221,13 +227,13 @@ fn realm_debug() {
     setup_test_agent();
     let realm_ptr = current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
-    assert_ne!(format!("{:?}", realm), "");
+    assert_ne!(format!("{realm:?}"), "");
 }
 
 #[test]
 fn throw_type_error_test() {
     setup_test_agent();
-    let err = throw_type_error(ECMAScriptValue::Undefined, None, &[]).unwrap_err();
+    let err = throw_type_error(&ECMAScriptValue::Undefined, None, &[]).unwrap_err();
     let msg = unwind_type_error(err);
     assert_eq!(msg, "Generic TypeError");
 }
@@ -238,9 +244,9 @@ fn throw_type_error_test() {
 #[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
 #[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
 #[test_case(super::parse_int => panics "not yet implemented"; "parse_int")]
-fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
-    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
 #[test_case(
@@ -256,7 +262,7 @@ where
 {
     setup_test_agent();
     let val = make_val().into();
-    super::is_nan(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::is_nan(&ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
 #[test_case(
@@ -274,5 +280,7 @@ where
 {
     setup_test_agent();
     let val = make_val().into();
-    super::is_finite(ECMAScriptValue::Undefined, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::is_finite(&ECMAScriptValue::Undefined, None, &[val])
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
 }

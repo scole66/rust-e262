@@ -28,7 +28,7 @@ impl PrettyPrint for Script {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Script: {}", first, self)?;
+        writeln!(writer, "{first}Script: {self}")?;
         if let Some(body) = &self.body {
             body.pprint_with_leftpad(writer, &successive, Spot::Final)
         } else {
@@ -43,7 +43,7 @@ impl PrettyPrint for Script {
         match &self.body {
             None => {
                 let (first, _) = prettypad(pad, state);
-                writeln!(writer, "{}Script:", first)
+                writeln!(writer, "{first}Script:")
             }
             Some(body) => body.concise_with_leftpad(writer, pad, state),
         }
@@ -233,7 +233,7 @@ impl PrettyPrint for ScriptBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ScriptBody: {}", first, self)?;
+        writeln!(writer, "{first}ScriptBody: {self}")?;
         self.statement_list.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 

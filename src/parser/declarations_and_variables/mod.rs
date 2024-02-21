@@ -26,7 +26,7 @@ impl PrettyPrint for LexicalDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LexicalDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}LexicalDeclaration: {self}")?;
         self.style.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.list.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -36,7 +36,7 @@ impl PrettyPrint for LexicalDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LexicalDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}LexicalDeclaration: {self}")?;
         self.style.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
@@ -151,7 +151,7 @@ impl LexicalDeclaration {
 // LetOrConst :
 //      let
 //      const
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum LetOrConst {
     Let,
     Const,
@@ -172,7 +172,7 @@ impl PrettyPrint for LetOrConst {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}LetOrConst: {}", first, self)
+        writeln!(writer, "{first}LetOrConst: {self}")
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -206,7 +206,7 @@ impl fmt::Display for BindingList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingList::Item(node) => node.fmt(f),
-            BindingList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            BindingList::List(lst, item) => write!(f, "{lst} , {item}"),
         }
     }
 }
@@ -217,7 +217,7 @@ impl PrettyPrint for BindingList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingList: {}", first, self)?;
+        writeln!(writer, "{first}BindingList: {self}")?;
         match self {
             BindingList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingList::List(lst, item) => {
@@ -235,7 +235,7 @@ impl PrettyPrint for BindingList {
             BindingList::Item(node) => node.concise_with_leftpad(writer, pad, state),
             BindingList::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingList: {}", first, self)?;
+                writeln!(writer, "{first}BindingList: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -346,9 +346,9 @@ pub enum LexicalBinding {
 impl fmt::Display for LexicalBinding {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LexicalBinding::Identifier(bi, Some(i)) => write!(f, "{} {}", bi, i),
+            LexicalBinding::Identifier(bi, Some(i)) => write!(f, "{bi} {i}"),
             LexicalBinding::Identifier(bi, None) => bi.fmt(f),
-            LexicalBinding::Pattern(bp, i) => write!(f, "{} {}", bp, i),
+            LexicalBinding::Pattern(bp, i) => write!(f, "{bp} {i}"),
         }
     }
 }
@@ -359,7 +359,7 @@ impl PrettyPrint for LexicalBinding {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LexicalBinding: {}", first, self)?;
+        writeln!(writer, "{first}LexicalBinding: {self}")?;
         match self {
             LexicalBinding::Identifier(bi, Some(i)) => {
                 bi.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -379,7 +379,7 @@ impl PrettyPrint for LexicalBinding {
     {
         let head = |writer: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}LexicalBinding: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}LexicalBinding: {self}").and(Ok(successive))
         };
         match self {
             LexicalBinding::Identifier(bi, None) => bi.concise_with_leftpad(writer, pad, state),
@@ -526,7 +526,7 @@ impl PrettyPrint for VariableStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}VariableStatement: {}", first, self)?;
+        writeln!(writer, "{first}VariableStatement: {self}")?;
         self.list.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -535,7 +535,7 @@ impl PrettyPrint for VariableStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}VariableStatement: {}", first, self)?;
+        writeln!(writer, "{first}VariableStatement: {self}")?;
         pprint_token(writer, "var", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
@@ -611,7 +611,7 @@ pub struct VariableDeclarationList {
 impl fmt::Display for VariableDeclarationList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.list[0].fmt(f)?;
-        for item in self.list[1..].iter() {
+        for item in &self.list[1..] {
             write!(f, " , {item}")?;
         }
         Ok(())
@@ -624,9 +624,9 @@ impl PrettyPrint for VariableDeclarationList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}VariableDeclarationList: {}", first, self)?;
+        writeln!(writer, "{first}VariableDeclarationList: {self}")?;
         let last_item_index = usize::from(self.list.len()) - 1;
-        for item in self.list[0..last_item_index].iter() {
+        for item in &self.list[0..last_item_index] {
             item.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
         self.list[last_item_index].pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -640,8 +640,8 @@ impl PrettyPrint for VariableDeclarationList {
             1 => self.list[0].concise_with_leftpad(writer, pad, state),
             _ => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}VariableDeclarationList: {}", first, self)?;
-                for item in self.list[0..usize::from(self.list.len()) - 1].iter() {
+                writeln!(writer, "{first}VariableDeclarationList: {self}")?;
+                for item in &self.list[0..usize::from(self.list.len()) - 1] {
                     item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 }
@@ -724,7 +724,7 @@ impl VariableDeclarationList {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        for item in self.list.iter() {
+        for item in &self.list {
             item.early_errors(errs, strict);
         }
     }
@@ -749,9 +749,9 @@ pub enum VariableDeclaration {
 impl fmt::Display for VariableDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            VariableDeclaration::Identifier(bi, Some(i)) => write!(f, "{} {}", bi, i),
+            VariableDeclaration::Identifier(bi, Some(i)) => write!(f, "{bi} {i}"),
             VariableDeclaration::Identifier(bi, None) => bi.fmt(f),
-            VariableDeclaration::Pattern(bp, i) => write!(f, "{} {}", bp, i),
+            VariableDeclaration::Pattern(bp, i) => write!(f, "{bp} {i}"),
         }
     }
 }
@@ -762,7 +762,7 @@ impl PrettyPrint for VariableDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}VariableDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}VariableDeclaration: {self}")?;
         match self {
             VariableDeclaration::Identifier(bi, Some(i)) => {
                 bi.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -782,7 +782,7 @@ impl PrettyPrint for VariableDeclaration {
     {
         let head = |writer: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}VariableDeclaration: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}VariableDeclaration: {self}").and(Ok(successive))
         };
         match self {
             VariableDeclaration::Identifier(bi, None) => bi.concise_with_leftpad(writer, pad, state),
@@ -914,7 +914,7 @@ impl PrettyPrint for BindingPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingPattern: {}", first, self)?;
+        writeln!(writer, "{first}BindingPattern: {self}")?;
         match self {
             BindingPattern::Object(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingPattern::Array(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1043,12 +1043,12 @@ impl fmt::Display for ObjectBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ObjectBindingPattern::Empty { .. } => write!(f, "{{ }}"),
-            ObjectBindingPattern::RestOnly { brp, .. } => write!(f, "{{ {} }}", brp),
-            ObjectBindingPattern::ListOnly { bpl, .. } => write!(f, "{{ {} }}", bpl),
+            ObjectBindingPattern::RestOnly { brp, .. } => write!(f, "{{ {brp} }}"),
+            ObjectBindingPattern::ListOnly { bpl, .. } => write!(f, "{{ {bpl} }}"),
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
-                write!(f, "{{ {} , {} }}", bpl, rst)
+                write!(f, "{{ {bpl} , {rst} }}")
             }
-            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => write!(f, "{{ {} , }}", bpl),
+            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => write!(f, "{{ {bpl} , }}"),
         }
     }
 }
@@ -1059,7 +1059,7 @@ impl PrettyPrint for ObjectBindingPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectBindingPattern: {}", first, self)?;
+        writeln!(writer, "{first}ObjectBindingPattern: {self}")?;
         match self {
             ObjectBindingPattern::Empty { .. } => Ok(()),
             ObjectBindingPattern::RestOnly { brp, .. } => brp.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1079,7 +1079,7 @@ impl PrettyPrint for ObjectBindingPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectBindingPattern: {}", first, self)?;
+        writeln!(writer, "{first}ObjectBindingPattern: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ObjectBindingPattern::Empty { .. } => {}
@@ -1206,13 +1206,14 @@ impl ObjectBindingPattern {
         match self {
             ObjectBindingPattern::Empty { .. } => vec![],
             ObjectBindingPattern::RestOnly { brp, .. } => brp.bound_names(),
-            ObjectBindingPattern::ListOnly { bpl, .. } => bpl.bound_names(),
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                bpl.bound_names()
+            }
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 let mut names = bpl.bound_names();
                 names.extend(rst.bound_names());
                 names
             }
-            ObjectBindingPattern::ListRest { bpl, brp: None, .. } => bpl.bound_names(),
         }
     }
 
@@ -1266,7 +1267,7 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::Empty { .. } => (),
             ObjectBindingPattern::RestOnly { brp, .. } => brp.early_errors(errs, strict),
             ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
-                bpl.early_errors(errs, strict)
+                bpl.early_errors(errs, strict);
             }
             ObjectBindingPattern::ListRest { bpl, brp: Some(rst), .. } => {
                 bpl.early_errors(errs, strict);
@@ -1315,27 +1316,27 @@ impl fmt::Display for ArrayBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
-                write!(f, "[ {} {} ]", elisions, node)
+                write!(f, "[ {elisions} {node} ]")
             }
             ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: None, .. } => {
-                write!(f, "[ {} ]", elisions)
+                write!(f, "[ {elisions} ]")
             }
             ArrayBindingPattern::RestOnly { elision: None, bre: Some(node), .. } => {
-                write!(f, "[ {} ]", node)
+                write!(f, "[ {node} ]")
             }
             ArrayBindingPattern::RestOnly { elision: None, bre: None, .. } => write!(f, "[ ]"),
-            ArrayBindingPattern::ListOnly { bel: node, .. } => write!(f, "[ {} ]", node),
+            ArrayBindingPattern::ListOnly { bel: node, .. } => write!(f, "[ {node} ]"),
             ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: Some(rst), .. } => {
-                write!(f, "[ {} , {} {} ]", lst, elisions, rst)
+                write!(f, "[ {lst} , {elisions} {rst} ]")
             }
             ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: Some(rst), .. } => {
-                write!(f, "[ {} , {} ]", lst, rst)
+                write!(f, "[ {lst} , {rst} ]")
             }
             ArrayBindingPattern::ListRest { bel: lst, elision: Some(elisions), bre: None, .. } => {
-                write!(f, "[ {} , {} ]", lst, elisions)
+                write!(f, "[ {lst} , {elisions} ]")
             }
             ArrayBindingPattern::ListRest { bel: lst, elision: None, bre: None, .. } => {
-                write!(f, "[ {} , ]", lst)
+                write!(f, "[ {lst} , ]")
             }
         }
     }
@@ -1347,7 +1348,7 @@ impl PrettyPrint for ArrayBindingPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayBindingPattern: {}", first, self)?;
+        writeln!(writer, "{first}ArrayBindingPattern: {self}")?;
         match self {
             ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1387,7 +1388,7 @@ impl PrettyPrint for ArrayBindingPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayBindingPattern: {}", first, self)?;
+        writeln!(writer, "{first}ArrayBindingPattern: {self}")?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ArrayBindingPattern::RestOnly { elision: Some(elisions), bre: Some(node), .. } => {
@@ -1592,7 +1593,7 @@ impl ArrayBindingPattern {
             ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.early_errors(errs, strict),
             ArrayBindingPattern::RestOnly { bre: None, .. } => (),
             ArrayBindingPattern::ListRest { bel, bre: None, .. } | ArrayBindingPattern::ListOnly { bel, .. } => {
-                bel.early_errors(errs, strict)
+                bel.early_errors(errs, strict);
             }
             ArrayBindingPattern::ListRest { bel: lst, bre: Some(rst), .. } => {
                 lst.early_errors(errs, strict);
@@ -1628,7 +1629,7 @@ pub enum BindingRestProperty {
 impl fmt::Display for BindingRestProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let BindingRestProperty::Id(node) = self;
-        write!(f, "... {}", node)
+        write!(f, "... {node}")
     }
 }
 
@@ -1638,7 +1639,7 @@ impl PrettyPrint for BindingRestProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingRestProperty: {}", first, self)?;
+        writeln!(writer, "{first}BindingRestProperty: {self}")?;
         let BindingRestProperty::Id(node) = self;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1648,7 +1649,7 @@ impl PrettyPrint for BindingRestProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingRestProperty: {}", first, self)?;
+        writeln!(writer, "{first}BindingRestProperty: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let BindingRestProperty::Id(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1703,7 +1704,7 @@ impl fmt::Display for BindingPropertyList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingPropertyList::Item(node) => node.fmt(f),
-            BindingPropertyList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            BindingPropertyList::List(lst, item) => write!(f, "{lst} , {item}"),
         }
     }
 }
@@ -1714,7 +1715,7 @@ impl PrettyPrint for BindingPropertyList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingPropertyList: {}", first, self)?;
+        writeln!(writer, "{first}BindingPropertyList: {self}")?;
         match self {
             BindingPropertyList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingPropertyList::List(lst, item) => {
@@ -1732,7 +1733,7 @@ impl PrettyPrint for BindingPropertyList {
             BindingPropertyList::Item(node) => node.concise_with_leftpad(writer, pad, state),
             BindingPropertyList::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingPropertyList: {}", first, self)?;
+                writeln!(writer, "{first}BindingPropertyList: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1841,7 +1842,7 @@ impl fmt::Display for BindingElementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingElementList::Item(node) => node.fmt(f),
-            BindingElementList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            BindingElementList::List(lst, item) => write!(f, "{lst} , {item}"),
         }
     }
 }
@@ -1852,7 +1853,7 @@ impl PrettyPrint for BindingElementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingElementList: {}", first, self)?;
+        writeln!(writer, "{first}BindingElementList: {self}")?;
         match self {
             BindingElementList::Item(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingElementList::List(lst, item) => {
@@ -1870,7 +1871,7 @@ impl PrettyPrint for BindingElementList {
             BindingElementList::Item(node) => node.concise_with_leftpad(writer, pad, state),
             BindingElementList::List(lst, item) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingElementList: {}", first, self)?;
+                writeln!(writer, "{first}BindingElementList: {self}")?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1984,7 +1985,7 @@ impl fmt::Display for BindingElisionElement {
         match self {
             BindingElisionElement::Element(None, elem) => elem.fmt(f),
             BindingElisionElement::Element(Some(elision), elem) => {
-                write!(f, "{} {}", elision, elem)
+                write!(f, "{elision} {elem}")
             }
         }
     }
@@ -1996,7 +1997,7 @@ impl PrettyPrint for BindingElisionElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingElisionElement: {}", first, self)?;
+        writeln!(writer, "{first}BindingElisionElement: {self}")?;
         match self {
             BindingElisionElement::Element(None, elem) => elem.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingElisionElement::Element(Some(elision), elem) => {
@@ -2014,7 +2015,7 @@ impl PrettyPrint for BindingElisionElement {
             BindingElisionElement::Element(None, node) => node.concise_with_leftpad(writer, pad, state),
             BindingElisionElement::Element(Some(elision), node) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingElisionElement: {}", first, self)?;
+                writeln!(writer, "{first}BindingElisionElement: {self}")?;
                 elision.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -2096,7 +2097,7 @@ impl fmt::Display for BindingProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingProperty::Single(node) => node.fmt(f),
-            BindingProperty::Property(name, elem) => write!(f, "{} : {}", name, elem),
+            BindingProperty::Property(name, elem) => write!(f, "{name} : {elem}"),
         }
     }
 }
@@ -2107,7 +2108,7 @@ impl PrettyPrint for BindingProperty {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingProperty: {}", first, self)?;
+        writeln!(writer, "{first}BindingProperty: {self}")?;
         match self {
             BindingProperty::Single(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingProperty::Property(name, elem) => {
@@ -2125,7 +2126,7 @@ impl PrettyPrint for BindingProperty {
             BindingProperty::Single(node) => node.concise_with_leftpad(writer, pad, state),
             BindingProperty::Property(name, elem) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingProperty: {}", first, self)?;
+                writeln!(writer, "{first}BindingProperty: {self}")?;
                 name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elem.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -2233,7 +2234,7 @@ impl fmt::Display for BindingElement {
             BindingElement::Single(node) => node.fmt(f),
             BindingElement::Pattern(node, None) => node.fmt(f),
             BindingElement::Pattern(node, Some(init)) => {
-                write!(f, "{} {}", node, init)
+                write!(f, "{node} {init}")
             }
         }
     }
@@ -2245,7 +2246,7 @@ impl PrettyPrint for BindingElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingElement: {}", first, self)?;
+        writeln!(writer, "{first}BindingElement: {self}")?;
         match self {
             BindingElement::Single(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingElement::Pattern(node, None) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2265,7 +2266,7 @@ impl PrettyPrint for BindingElement {
             BindingElement::Pattern(node, None) => node.concise_with_leftpad(writer, pad, state),
             BindingElement::Pattern(node, Some(init)) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}BindingElement: {}", first, self)?;
+                writeln!(writer, "{first}BindingElement: {self}")?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 init.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -2419,7 +2420,7 @@ pub enum SingleNameBinding {
 impl fmt::Display for SingleNameBinding {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SingleNameBinding::Id(id, Some(init)) => write!(f, "{} {}", id, init),
+            SingleNameBinding::Id(id, Some(init)) => write!(f, "{id} {init}"),
             SingleNameBinding::Id(id, None) => id.fmt(f),
         }
     }
@@ -2431,7 +2432,7 @@ impl PrettyPrint for SingleNameBinding {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SingleNameBinding: {}", first, self)?;
+        writeln!(writer, "{first}SingleNameBinding: {self}")?;
         match self {
             SingleNameBinding::Id(id, Some(init)) => {
                 id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -2449,7 +2450,7 @@ impl PrettyPrint for SingleNameBinding {
             SingleNameBinding::Id(id, None) => id.concise_with_leftpad(writer, pad, state),
             SingleNameBinding::Id(id, Some(init)) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}SingleNameBinding: {}", first, self)?;
+                writeln!(writer, "{first}SingleNameBinding: {self}")?;
                 id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 init.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -2570,8 +2571,8 @@ pub enum BindingRestElement {
 impl fmt::Display for BindingRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BindingRestElement::Identifier(node, ..) => write!(f, "... {}", node),
-            BindingRestElement::Pattern(node, ..) => write!(f, "... {}", node),
+            BindingRestElement::Identifier(node, ..) => write!(f, "... {node}"),
+            BindingRestElement::Pattern(node, ..) => write!(f, "... {node}"),
         }
     }
 }
@@ -2582,7 +2583,7 @@ impl PrettyPrint for BindingRestElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingRestElement: {}", first, self)?;
+        writeln!(writer, "{first}BindingRestElement: {self}")?;
         match self {
             BindingRestElement::Identifier(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BindingRestElement::Pattern(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2594,7 +2595,7 @@ impl PrettyPrint for BindingRestElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}BindingRestElement: {}", first, self)?;
+        writeln!(writer, "{first}BindingRestElement: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             BindingRestElement::Identifier(node, ..) => node.concise_with_leftpad(writer, &successive, Spot::Final),

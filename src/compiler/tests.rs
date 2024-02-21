@@ -438,17 +438,17 @@ mod nameable_production {
     fn debug() {
         let fd = Maker::new("function (){}").function_expression();
         let x = NameableProduction::Function(fd);
-        assert_ne!(format!("{:?}", x), "");
+        assert_ne!(format!("{x:?}"), "");
     }
 
-    #[test_case(NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
-    #[test_case(NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
-    #[test_case(NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
-    #[test_case(NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
-    #[test_case(NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
-    #[test_case(NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
-    #[test_case(NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
-    fn display(node: NameableProduction) -> String {
+    #[test_case(&NameableProduction::Function(Maker::new("function(){}").function_expression()) => "function (  ) {  }"; "Function")]
+    #[test_case(&NameableProduction::Generator(Maker::new("function*(){}").generator_expression()) => "function * (  ) {  }"; "Generator")]
+    #[test_case(&NameableProduction::AsyncFunction(Maker::new("async function(){}").async_function_expression()) => "async function (  ) {  }"; "AsyncFunction")]
+    #[test_case(&NameableProduction::AsyncGenerator(Maker::new("async function*(){}").async_generator_expression()) => "async function * (  ) {  }"; "AsyncGenerator")]
+    #[test_case(&NameableProduction::Class(Maker::new("class{}").class_expression()) => "class { }"; "Class")]
+    #[test_case(&NameableProduction::Arrow(Maker::new("x=>x").arrow_function()) => "x => x"; "Arrow")]
+    #[test_case(&NameableProduction::AsyncArrow(Maker::new("async x=>x").async_arrow_function()) => "async x => x"; "AsyncArrow")]
+    fn display(node: &NameableProduction) -> String {
         node.to_string()
     }
 
@@ -591,7 +591,7 @@ mod nameable_production {
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats = vec![56878142.0; 65536];
+    c.floats = vec![56_878_142.0; 65536];
     c.strings = Vec::with_capacity(65536);
     c.bigints = Vec::with_capacity(65536);
     for nbr in 0..65536 {
@@ -602,9 +602,9 @@ fn full_chunk(n: &str) -> Chunk {
 }
 
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
-    let mut c = Chunk::new(n);
     const LIMIT: usize = 65536;
-    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0);
+    let mut c = Chunk::new(n);
+    c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0);
     c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler"));
     c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783)));
     let sample: AHashSet<JSString> = vec![JSString::from("jkalhoadf")].into_iter().collect();
@@ -621,11 +621,11 @@ enum Fillable {
     FunctionStash,
 }
 fn complex_filled_chunk(name: &str, what: &[(Fillable, usize)]) -> Chunk {
-    let mut c = Chunk::new(name);
     const LIMIT: usize = 65536;
+    let mut c = Chunk::new(name);
     for &(section, slots_left) in what {
         match section {
-            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7489305.0),
+            Fillable::Float => c.floats.resize(LIMIT - slots_left.min(LIMIT), 7_489_305.0),
             Fillable::String => c.strings.resize(LIMIT - slots_left.min(LIMIT), JSString::from("filler")),
             Fillable::BigInt => c.bigints.resize(LIMIT - slots_left.min(LIMIT), Rc::new(BigInt::from(783))),
             Fillable::StringSet => {
@@ -804,7 +804,7 @@ mod literal {
             node.compile(&mut c).unwrap();
             // The point of this literal is to fill the string table -- such that the call to add a string to the table
             // will fail. So that's what we test.
-            assert!(c.add_to_string_pool("test".into()).is_err())
+            assert!(c.add_to_string_pool("test".into()).is_err());
         }
 
         #[test]
@@ -1111,38 +1111,42 @@ mod member_expression {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 18",
+        "JUMP_IF_ABRUPT 12",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 8",
+        "JUMP_IF_ABRUPT 4",
         "TO_KEY",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
-        "STRICT_REF"
+        "JUMP_IF_ABRUPT 1",
+        "STRICT_REF",
+        "UNWIND_IF_ABRUPT 1"
     ]), true, true)); "strict member exp")]
-    #[test_case("a[b]", false, None => Ok((svec(&[
-        "STRING 0 (a)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_ABRUPT 18",
-        "STRING 1 (b)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 8",
-        "TO_KEY",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
-        "REF"
-    ]), true, true)); "non-strict member exp")]
+    #[test_case(
+        "a[b]", false, None
+        => Ok((svec(&[
+            "STRING 0 (a)",
+            "RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 12",
+            "STRING 1 (b)",
+            "RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 4",
+            "TO_KEY",
+            "JUMP_IF_ABRUPT 1",
+            "REF",
+            "UNWIND_IF_ABRUPT 1"
+        ]), true, true));
+        "non-strict member exp"
+    )]
     #[test_case("a[b]", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no space for base (expression)")]
-    #[test_case("(1)[1]", true, None => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "STRICT_REF"]), true, true)); "no errors in base (expression)")]
+    #[test_case(
+        "(1)[1]", true, None
+        => Ok((svec(&[
+            "FLOAT 0 (1)", "FLOAT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 1", "STRICT_REF", "UNWIND_IF_ABRUPT 1"
+        ]), true, true));
+        "no errors in base (expression)"
+    )]
     #[test_case("b[a]", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for expression (expression)")]
     #[test_case("a[@@@]", true, None => serr("out of range integral type conversion attempted"); "bad jump (expression)")]
     #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
@@ -1278,18 +1282,15 @@ mod call_expression {
         "JUMP 3",
         "FLOAT 0 (0)",
         "CALL_STRICT",
-        "JUMP_IF_ABRUPT 18",
+        "JUMP_IF_ABRUPT 12",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 8",
+        "JUMP_IF_ABRUPT 4",
         "TO_KEY",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
-        "STRICT_REF"
+        "JUMP_IF_ABRUPT 1",
+        "STRICT_REF",
+        "UNWIND_IF_ABRUPT 1"
     ]), true, true)); "CallExpression: [ Expression ]")]
     #[test_case("a().b[c]", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
@@ -1305,18 +1306,15 @@ mod call_expression {
         "STRING 1 (b)",
         "STRICT_REF",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 18",
+        "JUMP_IF_ABRUPT 12",
         "STRING 2 (c)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 8",
+        "JUMP_IF_ABRUPT 4",
         "TO_KEY",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
-        "STRICT_REF"
+        "JUMP_IF_ABRUPT 1",
+        "STRICT_REF",
+        "UNWIND_IF_ABRUPT 1"
     ]), true, true)); "ce-exp; ce is ref")]
     #[test_case("a()[b]", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "ce-exp; ce fails compilation")]
     #[test_case("a()[8n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "ce-exp; exp fails compilation")]
@@ -2613,13 +2611,12 @@ mod assignment_expression {
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 10",
+        "JUMP_IF_ABRUPT 8",
         "FLOAT 0 (1)",
         "TO_KEY",
-        "JUMP_IF_NORMAL 4",
-        "UNWIND 1",
-        "JUMP 1",
+        "JUMP_IF_ABRUPT 1",
         "REF",
+        "UNWIND_IF_ABRUPT 1",
         "JUMP_IF_ABRUPT 13",
         "STRING 1 ()",
         "FUNC_IIFE 0",
@@ -3276,7 +3273,7 @@ mod statement {
         let node = Maker::new(src).statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -3996,12 +3993,11 @@ mod empty_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(";", None => (svec(&["EMPTY"]), false, false); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
-        let node = Maker::new(src).empty_statement();
+    #[test_case(None => (svec(&["EMPTY"]), false, false); "typical")]
+    fn compile(spots_avail: Option<usize>) -> (Vec<String>, bool, bool) {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let status = node.compile(&mut c);
+        let status = EmptyStatement::compile(&mut c);
         (
             c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
             status.maybe_abrupt(),
@@ -4190,7 +4186,7 @@ mod breakable_statement {
         let node = Maker::new(src).breakable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4299,7 +4295,7 @@ mod iteration_statement {
         let node = Maker::new(src).iteration_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4383,7 +4379,7 @@ mod do_while_statement {
         let node = Maker::new(src).do_while_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.do_while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -4415,7 +4411,7 @@ mod while_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).while_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -4748,7 +4744,7 @@ mod for_statement {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_statement();
         let mut c = complex_filled_chunk("x", what);
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.compile_for_loop(&mut c, strict, src, &label_set)
             .map(|status| {
                 (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
@@ -4863,20 +4859,12 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function x(){}", None => Ok((svec(&["EMPTY"]), false, false)); "typical")]
-    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).function_declaration();
+    #[test_case(None => svec(&["EMPTY"]); "typical")]
+    fn compile(spots_avail: Option<usize>) -> Vec<String> {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c)
-            .map(|status| {
-                (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                    status.maybe_ref(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        FunctionDeclaration::compile(&mut c);
+        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
     #[test_case("function named(){}", true, &[] => Ok((svec(&["FUNC_OBJ 0 named"]), true, false)); "named function")]
@@ -4939,7 +4927,7 @@ mod function_expression {
             })
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -5021,7 +5009,7 @@ mod labelled_item {
         let node = Maker::new(src).labelled_item();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -5080,7 +5068,7 @@ mod labelled_statement {
         let node = Maker::new(src).labelled_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        let label_set = labels.iter().cloned().map(JSString::from).collect::<Vec<JSString>>();
+        let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
@@ -5984,7 +5972,7 @@ mod compile_fdi {
 mod arrow_function {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum TestLoc {
         None,
         Stack,
@@ -6196,7 +6184,7 @@ mod expression_body {
 mod param_source {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum Kind {
         Formal,
         Arrow,
@@ -7084,7 +7072,7 @@ fn compile_new_evaluator(
     };
     let mut c = complex_filled_chunk("x", what);
 
-    super::compile_new_evaluator(&mut c, strict, src, constructor_expression, potential_arguments)
+    super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
         .map(|status| {
             (
                 c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9296,8 +9284,8 @@ mod assignment_element {
     #[test_case("[a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "dstr fail")]
     #[test_case("a=@@(15)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big v2")]
     #[test_case("0=@@(11)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big v3")]
-    #[test_case("[a[@@(46)]]=q", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big")]
-    #[test_case("[a[@@(44)]]", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big v2")]
+    #[test_case("[a[@@(44)]]=q", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big")]
+    #[test_case("[a[@@(42)]]", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big v2")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9348,7 +9336,7 @@ mod assignment_elision_element {
     ])); "has elision; normal")]
     #[test_case(",,,,,,,a", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision fail")]
     #[test_case(",a[8n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "element fail")]
-    #[test_case(",a[@@(30)]", true, &[] => serr("out of range integral type conversion attempted"); "elem too big")]
+    #[test_case(",a[@@(28)]", true, &[] => serr("out of range integral type conversion attempted"); "elem too big")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9409,7 +9397,7 @@ mod assignment_element_list {
     ])); "list; normal")]
     #[test_case("a[1n],b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list fail")]
     #[test_case("a,b[1n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "item fail")]
-    #[test_case("a,b[@@(30)]", true, &[] => serr("out of range integral type conversion attempted"); "item too big")]
+    #[test_case("a,b[@@(28)]", true, &[] => serr("out of range integral type conversion attempted"); "item too big")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9554,7 +9542,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "elision+rest; normal")]
     #[test_case("[,,,...a]", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision+rest; elision fail")]
-    #[test_case("[,...a[@@(35)]]", true, &[] => serr("out of range integral type conversion attempted"); "elision+rest; rest too big")]
+    #[test_case("[,...a[@@(33)]]", true, &[] => serr("out of range integral type conversion attempted"); "elision+rest; rest too big")]
     #[test_case("[...a]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -9579,7 +9567,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "rest; normal")]
     #[test_case("[...a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "rest fail")]
-    #[test_case("[...a[@@(36)]]", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too big")]
+    #[test_case("[...a[@@(34)]]", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too big")]
     #[test_case("[a]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -9604,7 +9592,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "list; normal")]
     #[test_case("[a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list fail")]
-    #[test_case("[a[@@(36)]]", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")]
+    #[test_case("[a[@@(34)]]", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")]
     #[test_case("[a,]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -9744,8 +9732,8 @@ mod array_assignment_pattern {
     #[test_case("[a[1n],]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list+e+r; list fail")]
     #[test_case("[a,,,]", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "l+e+r; elision fail")]
     #[test_case("[a,...b[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "l+e+r; rest fail")]
-    #[test_case("[a,,...b[@@(35)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big")]
-    #[test_case("[a,,...b[@@(66)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big v2")]
+    #[test_case("[a,,...b[@@(37)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big")]
+    #[test_case("[a,,...b[@@(33)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big v2")]
     fn destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9820,7 +9808,7 @@ mod destructuring_assignment_target {
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;
-
+    #[derive(Copy, Clone)]
     enum ForInOfExprKind {
         Expression,
         AssignmentExpression,
@@ -10390,7 +10378,7 @@ mod for_in_of_statement {
             .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
-
+    #[derive(Copy, Clone)]
     enum LHSKind {
         Assignment,
         Destructuring,
@@ -10848,7 +10836,7 @@ mod object_assignment_pattern {
         "UNWIND 1"
     ])); "rest-only: normal")]
     #[test_case("{...b}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest-only; fail")]
-    #[test_case("{...b[@@(38)]}", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too large")]
+    #[test_case("{...b[@@(36)]}", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too large")]
     #[test_case("{a,b}", true, &[] => Ok(svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 66",
@@ -10981,7 +10969,7 @@ mod object_assignment_pattern {
     ])); "list-rest; normal")]
     #[test_case("{a=8n,...b}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; list-fail")]
     #[test_case("{a,...b[8n]}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; rest-fail")]
-    #[test_case("{a,...b[@@(39)]}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; rest too big")]
+    #[test_case("{a,...b[@@(37)]}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; rest too big")]
     #[test_case("{a=@@(59),...b}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; list too big")]
     fn destructuring_assignment_evaluation(
         src: &str,
@@ -11184,7 +11172,7 @@ mod optional_expression {
         "oc: me oc; me not ref + oc too big"
     )]
     #[test_case(
-        "a?.[@@(26)]", false, &[]
+        "a?.[@@(24)]", false, &[]
         => serr("out of range integral type conversion attempted");
         "oc: me oc; me fallible + oc too big (but smaller)"
     )]
@@ -11294,7 +11282,7 @@ mod optional_chain {
         "?.[0]", true, &[]
         => Ok(
             (svec(&[
-                "UNWIND 1", "FLOAT 0 (0)", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "STRICT_REF"
+                "UNWIND 1", "FLOAT 0 (0)", "TO_KEY", "JUMP_IF_ABRUPT 1", "STRICT_REF", "UNWIND_IF_ABRUPT 1"
             ]),
             true,
             true
@@ -11365,13 +11353,12 @@ mod optional_chain {
                 "STRING 0 (a)",
                 "REF",
                 "GET_VALUE",
-                "JUMP_IF_ABRUPT 10",
+                "JUMP_IF_ABRUPT 8",
                 "FLOAT 0 (0)",
                 "TO_KEY",
-                "JUMP_IF_NORMAL 4",
-                "UNWIND 1",
-                "JUMP 1",
-                "REF"
+                "JUMP_IF_ABRUPT 1",
+                "REF",
+                "UNWIND_IF_ABRUPT 1"
             ]),
             true,
             true
@@ -11389,13 +11376,12 @@ mod optional_chain {
             svec(&[
                 "FLOAT 0 (0)",
                 "CALL",
-                "JUMP_IF_ABRUPT 10",
+                "JUMP_IF_ABRUPT 8",
                 "FLOAT 0 (0)",
                 "TO_KEY",
-                "JUMP_IF_NORMAL 4",
-                "UNWIND 1",
-                "JUMP 1",
-                "REF"
+                "JUMP_IF_ABRUPT 1",
+                "REF",
+                "UNWIND_IF_ABRUPT 1"
             ]),
             true,
             true

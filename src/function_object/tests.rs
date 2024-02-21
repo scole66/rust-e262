@@ -222,16 +222,16 @@ mod function_prototype_call {
     ) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let this_value = get_this();
-        super::function_prototype_call(this_value, None, args).map_err(unwind_any_error)
+        super::function_prototype_call(&this_value, None, args).map_err(unwind_any_error)
     }
 }
 
 #[test_case(super::function_prototype_apply => panics "not yet implemented"; "function_prototype_apply")]
 #[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
 #[test_case(super::function_constructor_function => panics "not yet implemented"; "function_constructor_function")]
-fn todo(f: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
+fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
-    f(ECMAScriptValue::Undefined, None, &[]).unwrap();
+    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
 }
 
 #[test_case(|| intrinsic(IntrinsicId::IsNaN) => sok("function isNaN() { [native code] }"); "builtin fcn")]
@@ -283,7 +283,7 @@ where
 {
     setup_test_agent();
     let this = make_this().into();
-    super::function_prototype_to_string(this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::function_prototype_to_string(&this, None, &[]).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
 #[test_case(|| intrinsic(IntrinsicId::Object).into(), || intrinsic(IntrinsicId::Function).into() => sok("true"); "success")]
@@ -294,7 +294,9 @@ fn function_prototype_has_instance(
     setup_test_agent();
     let this = make_this();
     let val = make_val();
-    super::function_prototype_has_instance(this, None, &[val]).map_err(unwind_any_error).map(|v| v.test_result_string())
+    super::function_prototype_has_instance(&this, None, &[val])
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
 }
 
 #[test]
@@ -485,8 +487,8 @@ mod class_name {
         assert_ne!(format!("{cn:?}"), "");
     }
 
-    #[test_case(ClassName::Empty => ClassName::Empty; "empty")]
-    fn clone(a: ClassName) -> ClassName {
+    #[test_case(&ClassName::Empty => ClassName::Empty; "empty")]
+    fn clone(a: &ClassName) -> ClassName {
         a.clone()
     }
 
@@ -623,7 +625,7 @@ mod param_source {
         let a = ParamSource::FormalParameters(params_a);
         assert_ne!(format!("{a:?}"), "");
     }
-
+    #[derive(Copy, Clone)]
     enum Kind {
         Formal,
         Arrow,
@@ -786,58 +788,58 @@ mod param_source {
         result == expected
     }
 
-    #[test_case(ParamSource::from(Maker::new("a,b,c").formal_parameters()) => "a , b , c"; "formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a,b,c").formal_parameters()) => "a , b , c"; "formal_parameters")]
     #[test_case(
-        ParamSource::from(Maker::new("a,b,c").unique_formal_parameters()) => "a , b , c"; "unique_formal_parameters"
+        &ParamSource::from(Maker::new("a,b,c").unique_formal_parameters()) => "a , b , c"; "unique_formal_parameters"
     )]
     #[test_case(
-        ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => "a"; "async_arrow_binding_identifier"
+        &ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => "a"; "async_arrow_binding_identifier"
     )]
     #[test_case(
-        ParamSource::from(Maker::new("(a,b,c)").arrow_formal_parameters()) => "( a , b , c )"; "arrow_formal_parameters"
+        &ParamSource::from(Maker::new("(a,b,c)").arrow_formal_parameters()) => "( a , b , c )"; "arrow_formal_parameters"
     )]
-    #[test_case(ParamSource::from(Maker::new("a").arrow_parameters()) => "a"; "arrow_parameters")]
-    fn display_fmt(item: ParamSource) -> String {
+    #[test_case(&ParamSource::from(Maker::new("a").arrow_parameters()) => "a"; "arrow_parameters")]
+    fn display_fmt(item: &ParamSource) -> String {
         format!("{item}")
     }
 
-    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => false; "formal_parameters / false")]
-    #[test_case(ParamSource::from(Maker::new("a=1").formal_parameters()) => true; "formal_parameters / true")]
-    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => false; "unique_formal_parameters / false")]
-    #[test_case(ParamSource::from(Maker::new("a=1").unique_formal_parameters()) => true; "unique_formal_parameters / true")]
-    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => false; "async_arrow_binding_identifier / false")]
-    #[test_case(ParamSource::from(Maker::new("(a)").arrow_formal_parameters()) => false; "arrow_formal_parameters / false")]
-    #[test_case(ParamSource::from(Maker::new("(a=1)").arrow_formal_parameters()) => true; "arrow_formal_parameters / true")]
-    #[test_case(ParamSource::from(Maker::new("a").arrow_parameters()) => false; "arrow_parameters / false")]
-    #[test_case(ParamSource::from(Maker::new("(a=1)").arrow_parameters()) => true; "arrow_parameters / true")]
-    fn contains_expression(item: ParamSource) -> bool {
+    #[test_case(&ParamSource::from(Maker::new("a, b, c").formal_parameters()) => false; "formal_parameters / false")]
+    #[test_case(&ParamSource::from(Maker::new("a=1").formal_parameters()) => true; "formal_parameters / true")]
+    #[test_case(&ParamSource::from(Maker::new("a").unique_formal_parameters()) => false; "unique_formal_parameters / false")]
+    #[test_case(&ParamSource::from(Maker::new("a=1").unique_formal_parameters()) => true; "unique_formal_parameters / true")]
+    #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => false; "async_arrow_binding_identifier / false")]
+    #[test_case(&ParamSource::from(Maker::new("(a)").arrow_formal_parameters()) => false; "arrow_formal_parameters / false")]
+    #[test_case(&ParamSource::from(Maker::new("(a=1)").arrow_formal_parameters()) => true; "arrow_formal_parameters / true")]
+    #[test_case(&ParamSource::from(Maker::new("a").arrow_parameters()) => false; "arrow_parameters / false")]
+    #[test_case(&ParamSource::from(Maker::new("(a=1)").arrow_parameters()) => true; "arrow_parameters / true")]
+    fn contains_expression(item: &ParamSource) -> bool {
         item.contains_expression()
     }
 
-    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => 3.0; "formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => 1.0; "unique_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => 1.0; "async_arrow_binding_identifier")]
-    #[test_case(ParamSource::from(Maker::new("(a, b)").arrow_formal_parameters()) => 2.0; "arrow_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("(a=1,q)").arrow_parameters()) => 0.0; "arrow_parameters")]
-    fn expected_argument_count(item: ParamSource) -> f64 {
+    #[test_case(&ParamSource::from(Maker::new("a, b, c").formal_parameters()) => 3.0; "formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").unique_formal_parameters()) => 1.0; "unique_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => 1.0; "async_arrow_binding_identifier")]
+    #[test_case(&ParamSource::from(Maker::new("(a, b)").arrow_formal_parameters()) => 2.0; "arrow_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("(a=1,q)").arrow_parameters()) => 0.0; "arrow_parameters")]
+    fn expected_argument_count(item: &ParamSource) -> f64 {
         item.expected_argument_count()
     }
 
-    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => svec(&["a", "b", "c"]); "formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => svec(&["a"]); "unique_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => svec(&["a"]); "async_arrow_binding_identifier")]
-    #[test_case(ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => svec(&["a", "b"]); "arrow_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => svec(&["c", "b", "a"]); "arrow_parameters")]
-    fn bound_names(item: ParamSource) -> Vec<String> {
+    #[test_case(&ParamSource::from(Maker::new("a, b, c").formal_parameters()) => svec(&["a", "b", "c"]); "formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").unique_formal_parameters()) => svec(&["a"]); "unique_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => svec(&["a"]); "async_arrow_binding_identifier")]
+    #[test_case(&ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => svec(&["a", "b"]); "arrow_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => svec(&["c", "b", "a"]); "arrow_parameters")]
+    fn bound_names(item: &ParamSource) -> Vec<String> {
         item.bound_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case(ParamSource::from(Maker::new("a, b, c").formal_parameters()) => true; "formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").unique_formal_parameters()) => true; "unique_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => true; "async_arrow_binding_identifier")]
-    #[test_case(ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => true; "arrow_formal_parameters")]
-    #[test_case(ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => true; "arrow_parameters")]
-    fn is_simple_parameter_list(item: ParamSource) -> bool {
+    #[test_case(&ParamSource::from(Maker::new("a, b, c").formal_parameters()) => true; "formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").unique_formal_parameters()) => true; "unique_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => true; "async_arrow_binding_identifier")]
+    #[test_case(&ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => true; "arrow_formal_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => true; "arrow_parameters")]
+    fn is_simple_parameter_list(item: &ParamSource) -> bool {
         item.is_simple_parameter_list()
     }
 }

@@ -10,51 +10,51 @@ use test_case::test_case;
 fn continue_statement_test_01() {
     let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
-    concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ContinueStatement: continue ;", &[]);
+    concise_check(&*node, "ContinueStatement: continue ;", &["Keyword: continue", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_02() {
     let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "ContinueStatement: continue a ;", vec!["LabelIdentifier: a"]);
+    pretty_check(&*node, "ContinueStatement: continue a ;", &["LabelIdentifier: a"]);
     concise_check(
         &*node,
         "ContinueStatement: continue a ;",
-        vec!["Keyword: continue", "IdentifierName: a", "Punctuator: ;"],
+        &["Keyword: continue", "IdentifierName: a", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_03() {
     let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
-    concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ContinueStatement: continue ;", &[]);
+    concise_check(&*node, "ContinueStatement: continue ;", &["Keyword: continue", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_04() {
     let (node, scanner) =
         check(ContinueStatement::parse(&mut newparser("continue label"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "ContinueStatement: continue label ;", vec!["LabelIdentifier: label"]);
+    pretty_check(&*node, "ContinueStatement: continue label ;", &["LabelIdentifier: label"]);
     concise_check(
         &*node,
         "ContinueStatement: continue label ;",
-        vec!["Keyword: continue", "IdentifierName: label", "Punctuator: ;"],
+        &["Keyword: continue", "IdentifierName: label", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_05() {
     let (node, scanner) =
         check(ContinueStatement::parse(&mut newparser("continue\nlabel"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
-    concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ContinueStatement: continue ;", &[]);
+    concise_check(&*node, "ContinueStatement: continue ;", &["Keyword: continue", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn continue_statement_test_err_01() {
@@ -134,7 +134,7 @@ mod continue_statement {
             strict,
             within_iteration,
         );
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "no label")]

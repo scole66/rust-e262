@@ -79,7 +79,7 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn reflect_apply(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -104,7 +104,7 @@ fn reflect_apply(
 }
 
 fn reflect_construct(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -138,7 +138,7 @@ fn reflect_construct(
 }
 
 fn reflect_define_property(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -160,7 +160,7 @@ fn reflect_define_property(
 }
 
 fn reflect_delete_property(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -180,7 +180,7 @@ fn reflect_delete_property(
 }
 
 fn reflect_get(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -204,7 +204,7 @@ fn reflect_get(
 }
 
 fn reflect_get_own_property_descriptor(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -226,7 +226,7 @@ fn reflect_get_own_property_descriptor(
 }
 
 fn reflect_get_prototype_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -244,7 +244,7 @@ fn reflect_get_prototype_of(
 }
 
 fn reflect_has(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -264,7 +264,7 @@ fn reflect_has(
 }
 
 fn reflect_is_extensible(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -282,7 +282,7 @@ fn reflect_is_extensible(
 }
 
 fn reflect_own_keys(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -302,7 +302,7 @@ fn reflect_own_keys(
 }
 
 fn reflect_prevent_extensions(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -320,7 +320,7 @@ fn reflect_prevent_extensions(
 }
 
 fn reflect_set(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -345,7 +345,7 @@ fn reflect_set(
 }
 
 fn reflect_set_prototype_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

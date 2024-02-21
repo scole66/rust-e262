@@ -23,7 +23,7 @@ impl PrettyPrint for ExpressionStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ExpressionStatement: {}", first, self)?;
+        writeln!(writer, "{first}ExpressionStatement: {self}")?;
         self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -31,7 +31,7 @@ impl PrettyPrint for ExpressionStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ExpressionStatement: {}", first, self)?;
+        writeln!(writer, "{first}ExpressionStatement: {self}")?;
         self.exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }

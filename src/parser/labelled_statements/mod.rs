@@ -23,7 +23,7 @@ impl PrettyPrint for LabelledStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LabelledStatement: {}", first, self)?;
+        writeln!(writer, "{first}LabelledStatement: {self}")?;
         self.identifier.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.item.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -33,7 +33,7 @@ impl PrettyPrint for LabelledStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LabelledStatement: {}", first, self)?;
+        writeln!(writer, "{first}LabelledStatement: {self}")?;
         self.identifier.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -191,7 +191,7 @@ impl PrettyPrint for LabelledItem {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}LabelledItem: {}", first, self)?;
+        writeln!(writer, "{first}LabelledItem: {self}")?;
         match self {
             LabelledItem::Statement(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             LabelledItem::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
