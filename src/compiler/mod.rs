@@ -2959,6 +2959,8 @@ impl UnaryExpression {
     }
 }
 
+// This needs to be a macro (and not a function) because left & right have different types depending on the particular
+// parse node that's being compiled.
 macro_rules! compile_binary_expression {
     ( $chunk:expr, $strict:expr, $text:expr, $left:expr, $right:expr, $op:expr ) => {{
         // Stack: ...
@@ -3041,64 +3043,51 @@ impl MultiplicativeExpression {
 
 impl AdditiveExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        match self {
-            AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict, text),
-            AdditiveExpression::Add(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::Add).map(CompilerStatusFlags::from)
-            }
-            AdditiveExpression::Subtract(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::Subtract)
-                    .map(CompilerStatusFlags::from)
-            }
-        }
+        let (insn, left, right) = match self {
+            AdditiveExpression::MultiplicativeExpression(me) => return me.compile(chunk, strict, text),
+            AdditiveExpression::Add(left, right) => (Insn::Add, left, right),
+            AdditiveExpression::Subtract(left, right) => (Insn::Subtract, left, right),
+        };
+        compile_binary_expression!(chunk, strict, text, left, right, insn).map(CompilerStatusFlags::from)
     }
 }
 
 impl ShiftExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        match self {
-            ShiftExpression::AdditiveExpression(ae) => ae.compile(chunk, strict, text),
-            ShiftExpression::LeftShift(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::LeftShift)
-                    .map(CompilerStatusFlags::from)
-            }
-            ShiftExpression::SignedRightShift(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::SignedRightShift)
-                    .map(CompilerStatusFlags::from)
-            }
-            ShiftExpression::UnsignedRightShift(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::UnsignedRightShift)
-                    .map(CompilerStatusFlags::from)
-            }
-        }
+        let (insn, left, right) = match self {
+            ShiftExpression::AdditiveExpression(ae) => return ae.compile(chunk, strict, text),
+            ShiftExpression::LeftShift(left, right) => (Insn::LeftShift, left, right),
+            ShiftExpression::SignedRightShift(left, right) => (Insn::SignedRightShift, left, right),
+            ShiftExpression::UnsignedRightShift(left, right) => (Insn::UnsignedRightShift, left, right),
+        };
+        compile_binary_expression!(chunk, strict, text, left, right, insn).map(CompilerStatusFlags::from)
     }
 }
 
 impl RelationalExpression {
+    fn insn(&self) -> Result<Insn, anyhow::Error> {
+        Ok(match self {
+            RelationalExpression::Less(_, _) => Insn::Less,
+            RelationalExpression::Greater(_, _) => Insn::Greater,
+            RelationalExpression::LessEqual(_, _) => Insn::LessEqual,
+            RelationalExpression::GreaterEqual(_, _) => Insn::GreaterEqual,
+            RelationalExpression::InstanceOf(_, _) => Insn::InstanceOf,
+            RelationalExpression::In(_, _) => Insn::In,
+            _ => anyhow::bail!("RelationalExpression has no binary instruction"),
+        })
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, text),
-            RelationalExpression::Less(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::Less).map(CompilerStatusFlags::from)
-            }
-            RelationalExpression::Greater(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::Greater)
-                    .map(CompilerStatusFlags::from)
-            }
-            RelationalExpression::LessEqual(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::LessEqual)
-                    .map(CompilerStatusFlags::from)
-            }
-            RelationalExpression::GreaterEqual(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::GreaterEqual)
-                    .map(CompilerStatusFlags::from)
-            }
-            RelationalExpression::InstanceOf(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::InstanceOf)
-                    .map(CompilerStatusFlags::from)
-            }
-            RelationalExpression::In(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::In).map(CompilerStatusFlags::from)
+            RelationalExpression::Less(left, right)
+            | RelationalExpression::Greater(left, right)
+            | RelationalExpression::LessEqual(left, right)
+            | RelationalExpression::GreaterEqual(left, right)
+            | RelationalExpression::InstanceOf(left, right)
+            | RelationalExpression::In(left, right) => {
+                let insn = self.insn().expect("relational exp should be binary");
+                compile_binary_expression!(chunk, strict, text, left, right, insn).map(CompilerStatusFlags::from)
             }
             RelationalExpression::PrivateIn(_, _, _) => todo!(),
         }
@@ -3107,22 +3096,27 @@ impl RelationalExpression {
 
 impl EqualityExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        fn equality_binary(
+            chunk: &mut Chunk,
+            strict: bool,
+            text: &str,
+            left: &Rc<EqualityExpression>,
+            right: &Rc<RelationalExpression>,
+            insn: Insn,
+        ) -> anyhow::Result<CompilerStatusFlags> {
+            compile_binary_expression!(chunk, strict, text, left, right, insn).map(CompilerStatusFlags::from)
+        }
         match self {
             EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict, text),
-            EqualityExpression::Equal(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::Equal).map(CompilerStatusFlags::from)
-            }
+            EqualityExpression::Equal(left, right) => equality_binary(chunk, strict, text, left, right, Insn::Equal),
             EqualityExpression::NotEqual(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::NotEqual)
-                    .map(CompilerStatusFlags::from)
+                equality_binary(chunk, strict, text, left, right, Insn::NotEqual)
             }
             EqualityExpression::StrictEqual(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictEqual)
-                    .map(CompilerStatusFlags::from)
+                equality_binary(chunk, strict, text, left, right, Insn::StrictEqual)
             }
             EqualityExpression::NotStrictEqual(left, right) => {
-                compile_binary_expression!(chunk, strict, text, left, right, Insn::StrictNotEqual)
-                    .map(CompilerStatusFlags::from)
+                equality_binary(chunk, strict, text, left, right, Insn::StrictNotEqual)
             }
         }
     }

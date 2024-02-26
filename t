@@ -86,6 +86,7 @@ test_defs[CompilerMultiplicativeExpression]="parser::multiplicative_operators::M
 test_defs[CompilerAdditiveExpression]="parser::additive_operators::AdditiveExpression additive_expression compiler"
 test_defs[CompilerShiftExpression]="parser::bitwise_shift_operators::ShiftExpression shift_expression compiler"
 test_defs[CompilerRelationalExpression]="parser::relational_operators::RelationalExpression relational_expression compiler"
+test_defs[CompilerRelationalExpression_insn]="parser::relational_operators::RelationalExpression::insn relational_expression::insn compiler"
 test_defs[CompilerEqualityExpression]="parser::equality_operators::EqualityExpression equality_expression compiler"
 test_defs[CompilerBitwiseANDExpression]="parser::binary_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler"
 test_defs[CompilerBitwiseXORExpression]="parser::binary_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler"
