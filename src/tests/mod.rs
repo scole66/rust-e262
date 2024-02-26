@@ -599,8 +599,7 @@ pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }
 
-#[allow(clippy::needless_pass_by_value)]
-pub fn disasm_filt(s: String) -> Option<String> {
+pub fn disasm_filt(s: &str) -> Option<String> {
     if s.starts_with('=') {
         return None;
     }

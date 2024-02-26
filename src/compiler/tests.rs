@@ -379,6 +379,14 @@ mod always_abrupt_result {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = AlwaysAbruptResult {};
+        let cloned = item.clone();
+        assert!(matches!(cloned, AlwaysAbruptResult {}));
+    }
+
+    #[test]
     fn maybe_ref() {
         let item = AlwaysAbruptResult {};
         assert!(!item.maybe_ref());
@@ -398,6 +406,14 @@ mod always_ref_result {
     fn debug() {
         assert_ne!(format!("{:?}", AlwaysRefResult {}), "");
     }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = AlwaysRefResult {};
+        let cloned = item.clone();
+        assert!(matches!(cloned, AlwaysRefResult {}));
+    }
 }
 
 mod always_abrupt_ref_result {
@@ -406,6 +422,14 @@ mod always_abrupt_ref_result {
     #[test]
     fn debug() {
         assert_ne!(format!("{:?}", AlwaysAbruptRefResult {}), "");
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = AlwaysAbruptRefResult {};
+        let cloned = item.clone();
+        assert!(matches!(cloned, AlwaysAbruptRefResult {}));
     }
 }
 
@@ -427,6 +451,14 @@ mod never_abrupt_ref_result {
     fn maybe_abrupt() {
         let item = NeverAbruptRefResult {};
         assert!(!item.maybe_abrupt());
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = NeverAbruptRefResult {};
+        let cloned = item.clone();
+        assert!(matches!(cloned, NeverAbruptRefResult {}));
     }
 }
 
@@ -517,7 +549,7 @@ mod nameable_production {
         node.compile_named_evaluation(&mut c, strict, src, NameLoc::Index(id))
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -685,7 +717,7 @@ mod identifier_reference {
             let node = Maker::new(src).yield_ok(false).await_ok(false).identifier_reference();
             let mut c = Chunk::new("identifier test");
             node.compile(&mut c, strict).unwrap();
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
         #[test]
@@ -740,7 +772,7 @@ mod primary_expression {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
             node.compile(&mut c, strict, src).unwrap();
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
     }
 }
@@ -762,7 +794,7 @@ mod literal {
             let node = Maker::new(src).literal();
             let mut c = Chunk::new("lit");
             node.compile(&mut c).unwrap();
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
         #[test_case("'apple'" => "Out of room for strings in this compilation unit"; "string")]
@@ -843,7 +875,7 @@ mod parenthesized_expression {
         let node = Maker::new(src).parenthesized_expression();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -858,7 +890,7 @@ mod object_literal {
         let node = Maker::new(src).object_literal();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -898,7 +930,7 @@ mod property_definition_list {
         node.property_definition_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -984,7 +1016,7 @@ mod property_definition {
         node.property_definition_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1007,7 +1039,7 @@ mod property_name {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1049,7 +1081,7 @@ mod literal_property_name {
         node.compile(&mut c)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1073,7 +1105,7 @@ mod computed_property_name {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1177,7 +1209,7 @@ mod member_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1213,7 +1245,7 @@ mod new_expression {
         let node = Maker::new(src).new_expression();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -1360,7 +1392,7 @@ mod call_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1388,7 +1420,7 @@ mod call_member_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1447,7 +1479,7 @@ mod left_hand_side_expression {
         let node = Maker::new(src).left_hand_side_expression();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -1509,7 +1541,7 @@ mod arguments {
         node.argument_list_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1683,7 +1715,7 @@ mod argument_list {
         node.argument_list_evaluation(&mut c, strict, src)
             .map(|(ArgListSizeHint { fixed_len: count, has_variable }, status)| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     count,
                     has_variable,
                     status.maybe_abrupt(),
@@ -1789,7 +1821,7 @@ mod update_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1834,7 +1866,7 @@ mod unary_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -1847,14 +1879,58 @@ mod exponentiation_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a**8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "EXPONENTIATE"]); "exponent expr; non-strict")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case(
+        "a**8", true, &[]
+        => Ok((
+            svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "EXPONENTIATE"]),
+            true,
+            false
+        ));
+        "exponent expr; non-strict"
+    )]
+    #[test_case(
+        "2**b", false, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (2)",
+                "STRING 0 (b)",
+                "RESOLVE",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL 4",
+                "UNWIND 1",
+                "JUMP 1",
+                "EXPONENTIATE"
+                ]),
+            true,
+            false
+        ));
+        "left infallible; right fallible"
+    )]
+    #[test_case(
+        "8n**2", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compilation fails"
+    )]
+    #[test_case(
+        "2**7n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compilation fails"
+    )]
+    fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).exponentiation_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = complex_filled_chunk("x", slots_left);
+        node.compile(&mut c, strict, src)
+            .as_ref()
+            .map(|flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                    flags.maybe_ref(),
+                )
+            })
+            .map_err(ToString::to_string)
     }
 }
 
@@ -1862,16 +1938,76 @@ mod multiplicative_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a*8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MULTIPLY"]); "multiply expr; strict")]
-    #[test_case("a/8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "DIVIDE"]); "divide expr; strict")]
-    #[test_case("a%8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MODULO"]); "modulo expr; strict")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case(
+        "a*8", true, &[]
+        => Ok((
+            svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MULTIPLY"]),
+            true,
+            false
+        ));
+        "multiply expr; strict"
+    )]
+    #[test_case(
+        "a/8", true, &[]
+        => Ok((
+            svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "DIVIDE"]),
+            true,
+            false
+        ));
+        "divide expr; strict"
+    )]
+    #[test_case(
+        "a%8", true, &[]
+        => Ok((
+            svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MODULO"]),
+            true,
+            false
+        ));
+        "modulo expr; strict"
+    )]
+    #[test_case(
+        "8*a", true, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (8)",
+                "STRING 0 (a)",
+                "STRICT_RESOLVE",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL 4",
+                "UNWIND 1",
+                "JUMP 1",
+                "MULTIPLY"
+            ]),
+            true,
+            false
+        ));
+        "left infallible; right fallible"
+    )]
+    #[test_case(
+        "8n*1", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compile fails"
+    )]
+    #[test_case(
+        "1*8n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compile fails"
+    )]
+    fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).multiplicative_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = complex_filled_chunk("x", slots_left);
+        node.compile(&mut c, strict, src)
+            .as_ref()
+            .map(|flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                    flags.maybe_ref(),
+                )
+            })
+            .map_err(ToString::to_string)
     }
 }
 
@@ -1879,15 +2015,26 @@ mod additive_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a+3", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "ADD"]); "add expr")]
-    #[test_case("a-3", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "SUBTRACT"]); "sub expr")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a+3", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "ADD"]), true, false)); "add expr")]
+    #[test_case("a-3", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "SUBTRACT"]), true, false)); "sub expr")]
+    #[test_case("3+a", true, &[] => Ok((svec(&["FLOAT 0 (3)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "ADD"]), true, false)); "left infallible, right fallible")]
+    #[test_case("8n+a", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "left compile fails")]
+    #[test_case("a+8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "right compile fails")]
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).additive_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = complex_filled_chunk("x", slot_data);
+        node.compile(&mut c, strict, src)
+            .as_ref()
+            .map(|flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                    flags.maybe_ref(),
+                )
+            })
+            .map_err(ToString::to_string)
     }
 }
 
@@ -1895,9 +2042,9 @@ mod shift_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a<<2", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<<2", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -1905,7 +2052,7 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "LSH"
     ]), true, false)); "left shift, strict")]
-    #[test_case("a<<2", false, None => Ok((svec(&[
+    #[test_case("a<<2", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -1913,7 +2060,7 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "LSH"
     ]), true, false)); "left shift, non-strict")]
-    #[test_case("a>>2", true, None => Ok((svec(&[
+    #[test_case("a>>2", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -1921,7 +2068,7 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "SRSH"
     ]), true, false)); "signed right shift, strict")]
-    #[test_case("a>>2", false, None => Ok((svec(&[
+    #[test_case("a>>2", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -1929,7 +2076,7 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "SRSH"
     ]), true, false)); "signed right shift, non-strict")]
-    #[test_case("a>>>2", true, None => Ok((svec(&[
+    #[test_case("a>>>2", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -1937,7 +2084,7 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "URSH"
     ]), true, false)); "unsigned right shift, strict")]
-    #[test_case("a>>>2", false, None => Ok((svec(&[
+    #[test_case("a>>>2", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -1945,12 +2092,12 @@ mod shift_expression {
         "FLOAT 0 (2)",
         "URSH"
     ]), true, false)); "unsigned right shift, non-strict")]
-    #[test_case("2>>4", true, None => Ok((svec(&[
+    #[test_case("2>>4", true, &[] => Ok((svec(&[
         "FLOAT 0 (2)",
         "FLOAT 1 (4)",
         "SRSH"
     ]), true, false)); "nothing that can throw")]
-    #[test_case("2>>a", true, None => Ok((svec(&[
+    #[test_case("2>>a", true, &[] => Ok((svec(&[
         "FLOAT 0 (2)",
         "STRING 0 (a)",
         "STRICT_RESOLVE",
@@ -1960,19 +2107,19 @@ mod shift_expression {
         "JUMP 1",
         "SRSH"
     ]), true, false)); "can throw from right")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).shift_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -1980,13 +2127,13 @@ mod relational_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a<10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/strict")]
-    #[test_case("a>10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/strict")]
-    #[test_case("a<=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/strict")]
-    #[test_case("a>=10", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/strict")]
-    #[test_case("a in b", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a<10", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/strict")]
+    #[test_case("a>10", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/strict")]
+    #[test_case("a<=10", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/strict")]
+    #[test_case("a>=10", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/strict")]
+    #[test_case("a in b", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -1999,7 +2146,7 @@ mod relational_expression {
         "JUMP 1",
         "IN"
     ]), true, false)); "in/strict")]
-    #[test_case("a instanceof c", true, None => Ok((svec(&[
+    #[test_case("a instanceof c", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2012,12 +2159,12 @@ mod relational_expression {
         "JUMP 1",
         "INSTANCEOF"
     ]), true, false)); "instanceof/strict")]
-    #[test_case("#blue in gray", true, None => panics "not yet implemented"; "privateid in")]
-    #[test_case("a<10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/non-strict")]
-    #[test_case("a>10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/non-strict")]
-    #[test_case("a<=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/non-strict")]
-    #[test_case("a>=10", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/non-strict")]
-    #[test_case("a in b", false, None => Ok((svec(&[
+    #[test_case("#blue in gray", true, &[] => panics "not yet implemented"; "privateid in")]
+    #[test_case("a<10", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/non-strict")]
+    #[test_case("a>10", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/non-strict")]
+    #[test_case("a<=10", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/non-strict")]
+    #[test_case("a>=10", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GE"]), true, false)); "greater equal/non-strict")]
+    #[test_case("a in b", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2030,7 +2177,7 @@ mod relational_expression {
         "JUMP 1",
         "IN"
     ]), true, false)); "in/non-strict")]
-    #[test_case("a instanceof c", false, None => Ok((svec(&[
+    #[test_case("a instanceof c", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2043,19 +2190,31 @@ mod relational_expression {
         "JUMP 1",
         "INSTANCEOF"
     ]), true, false)); "instanceof/non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).relational_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case("a" => serr("RelationalExpression has no binary instruction"); "fall thru")]
+    #[test_case("a < b" => Ok(Insn::Less); "less")]
+    #[test_case("a <= b" => Ok(Insn::LessEqual); "less-equal")]
+    #[test_case("a > b" => Ok(Insn::Greater); "greater")]
+    #[test_case("a >= b" => Ok(Insn::GreaterEqual); "greater-equal")]
+    #[test_case("a in b" => Ok(Insn::In); "op-in")]
+    #[test_case("a instanceof b" => Ok(Insn::InstanceOf); "instance of")]
+    fn insn(src: &str) -> Result<Insn, String> {
+        let node = Maker::new(src).relational_expression();
+        node.insn().map_err(|e| e.to_string())
     }
 }
 
@@ -2063,9 +2222,9 @@ mod equality_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a==43", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a==43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2073,7 +2232,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "EQ"
     ]), true, false)); "loosely eq/strict")]
-    #[test_case("a===43", true, None => Ok((svec(&[
+    #[test_case("a===43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2081,7 +2240,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "SEQ"
     ]), true, false)); "strict eq/strict")]
-    #[test_case("a!=43", true, None => Ok((svec(&[
+    #[test_case("a!=43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2089,7 +2248,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "NE"
     ]), true, false)); "loosely not eq/strict")]
-    #[test_case("a!==43", true, None => Ok((svec(&[
+    #[test_case("a!==43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2097,7 +2256,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "SNE"
     ]), true, false)); "strict not eq/strict")]
-    #[test_case("a==43", false, None => Ok((svec(&[
+    #[test_case("a==43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2105,7 +2264,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "EQ"
     ]), true, false)); "loosely eq/non-strict")]
-    #[test_case("a===43", false, None => Ok((svec(&[
+    #[test_case("a===43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2113,7 +2272,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "SEQ"
     ]), true, false)); "strict eq/non-strict")]
-    #[test_case("a!=43", false, None => Ok((svec(&[
+    #[test_case("a!=43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2121,7 +2280,7 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "NE"
     ]), true, false)); "loosely not eq/non-strict")]
-    #[test_case("a!==43", false, None => Ok((svec(&[
+    #[test_case("a!==43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2129,19 +2288,40 @@ mod equality_expression {
         "FLOAT 0 (43)",
         "SNE"
     ]), true, false)); "strict not eq/non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case(
+        "5==b", false, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (5)", "STRING 0 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "EQ"
+                ]),
+            true,
+            false
+        ));
+        "left infallible; right fallible"
+    )]
+    #[test_case(
+        "5n==a", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compile fails"
+    )]
+    #[test_case(
+        "a==5n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compile fails"
+    )]
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).equality_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -2149,9 +2329,9 @@ mod bitwise_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a&43", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a&43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2159,7 +2339,7 @@ mod bitwise_and_expression {
         "FLOAT 0 (43)",
         "AND"
     ]), true, false)); "bit and expr/strict")]
-    #[test_case("a&43", false, None => Ok((svec(&[
+    #[test_case("a&43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2167,19 +2347,40 @@ mod bitwise_and_expression {
         "FLOAT 0 (43)",
         "AND"
     ]), true, false)); "bit and expr/non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case(
+        "43&a", false, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (43)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "AND"
+                ]),
+            true,
+            false
+        ));
+        "infallible left, fallible right"
+    )]
+    #[test_case(
+        "43n&a", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compile fails"
+    )]
+    #[test_case(
+        "a&43n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compile fails"
+    )]
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_and_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -2187,9 +2388,9 @@ mod bitwise_xor_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a^43", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a^43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2197,7 +2398,7 @@ mod bitwise_xor_expression {
         "FLOAT 0 (43)",
         "XOR"
     ]), true, false)); "bit xor expr/strict")]
-    #[test_case("a^43", false, None => Ok((svec(&[
+    #[test_case("a^43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2205,19 +2406,40 @@ mod bitwise_xor_expression {
         "FLOAT 0 (43)",
         "XOR"
     ]), true, false)); "bit xor expr/non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case(
+        "2^x", false, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (2)", "STRING 0 (x)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "XOR"
+                ]),
+            true,
+            false
+        ));
+        "left infallible, right fallible"
+    )]
+    #[test_case(
+        "2n^a", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compile fails"
+    )]
+    #[test_case(
+        "a^2n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compile fails"
+    )]
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_xor_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -2225,9 +2447,9 @@ mod bitwise_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
-    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
-    #[test_case("a|43", true, None => Ok((svec(&[
+    #[test_case("id", true, &[] => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, &[] => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a|43", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -2235,7 +2457,7 @@ mod bitwise_or_expression {
         "FLOAT 0 (43)",
         "OR"
     ]), true, false)); "bit or expr/strict")]
-    #[test_case("a|43", false, None => Ok((svec(&[
+    #[test_case("a|43", false, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -2243,19 +2465,40 @@ mod bitwise_or_expression {
         "FLOAT 0 (43)",
         "OR"
     ]), true, false)); "bit or expr/non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    #[test_case(
+        "43|a", false, &[]
+        => Ok((
+            svec(&[
+                "FLOAT 0 (43)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "OR"
+            ]),
+            true,
+            false
+        ));
+        "left infallible, right fallible"
+    )]
+    #[test_case(
+        "2n|a", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "left compile fails"
+    )]
+    #[test_case(
+        "a|2n", false, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "right compile fails"
+    )]
+    fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_or_expression();
-        let mut c =
-            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = complex_filled_chunk("x", slot_data);
         node.compile(&mut c, strict, src)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -2299,7 +2542,7 @@ mod logical_and_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -2348,7 +2591,7 @@ mod logical_or_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -2395,7 +2638,7 @@ mod coalesce_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -2439,7 +2682,7 @@ mod coalesce_expression_head {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -2483,7 +2726,7 @@ mod short_circuit_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -2544,7 +2787,7 @@ mod conditional_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3012,7 +3255,7 @@ mod assignment_expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3041,7 +3284,7 @@ mod expression {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3064,7 +3307,7 @@ mod expression_statement {
             let node = Maker::new(src).expression_statement();
             let mut c = Chunk::new("x");
             node.compile(&mut c, strict, src).unwrap();
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
         #[test_case("a;" => "Out of room for strings in this compilation unit"; "no room")]
@@ -3119,7 +3362,7 @@ mod statement_list {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3164,7 +3407,7 @@ mod statement_list_item {
         let node = Maker::new(src).statement_list_item();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -3235,7 +3478,7 @@ mod statement {
         let node = Maker::new(src).statement();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
     #[test_case("do break alpha; while (false)", &["alpha", "beta"], true, None => Ok((svec(&[
@@ -3277,7 +3520,7 @@ mod statement {
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3314,7 +3557,7 @@ mod declaration {
         let node = Maker::new(src).declaration();
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -3348,7 +3591,7 @@ mod lexical_declaration {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3407,7 +3650,7 @@ mod binding_list {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3496,7 +3739,7 @@ mod lexical_binding {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3518,7 +3761,7 @@ mod block_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3587,7 +3830,7 @@ mod block {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3637,7 +3880,7 @@ mod initializer {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3684,7 +3927,7 @@ mod variable_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3733,7 +3976,7 @@ mod variable_declaration_list {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3855,7 +4098,7 @@ mod variable_declaration {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3894,7 +4137,7 @@ mod throw_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3917,7 +4160,7 @@ mod script {
         let node = Maker::new(src).script();
         let mut c = Chunk::new("x");
         node.compile(&mut c, false, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -3941,7 +4184,7 @@ mod script_body {
         let node = Maker::new(src).script_body();
         let mut c = Chunk::new("x");
         node.compile(&mut c, false, src).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
 
@@ -3980,7 +4223,7 @@ mod fcn_def {
         part.compile_fo_instantiation(&mut c, strict, &src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -3999,7 +4242,7 @@ mod empty_statement {
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let status = EmptyStatement::compile(&mut c);
         (
-            c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
             status.maybe_abrupt(),
             status.maybe_ref(),
         )
@@ -4053,7 +4296,7 @@ mod if_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4099,7 +4342,7 @@ mod breakable_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4190,7 +4433,7 @@ mod breakable_statement {
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4299,7 +4542,7 @@ mod iteration_statement {
         node.loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4383,7 +4626,7 @@ mod do_while_statement {
         node.do_while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4414,7 +4657,10 @@ mod while_statement {
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.while_loop_compile(&mut c, strict, src, &label_set)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -4747,7 +4993,10 @@ mod for_statement {
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
         node.compile_for_loop(&mut c, strict, src, &label_set)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -4766,7 +5015,7 @@ mod continue_statement {
         node.compile(&mut c)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4789,7 +5038,7 @@ mod break_statement {
         node.compile(&mut c)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4849,7 +5098,10 @@ mod switch_statement {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -4864,7 +5116,7 @@ mod function_declaration {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         FunctionDeclaration::compile(&mut c);
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
     #[test_case("function named(){}", true, &[] => Ok((svec(&["FUNC_OBJ 0 named"]), true, false)); "named function")]
@@ -4881,7 +5133,7 @@ mod function_declaration {
         node.compile_fo_instantiation(&mut c, strict, src, node.clone())
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4901,7 +5153,7 @@ mod function_expression {
         node.compile(&mut c, strict, src, node.clone())
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4920,7 +5172,7 @@ mod function_expression {
         node.compile_named_evaluation(&mut c, strict, src, node.clone(), NameLoc::OnStack)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -4958,7 +5210,7 @@ mod function_expression {
         node.instantiate_ordinary_function_expression(&mut c, strict, name, src, node.clone())
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5013,7 +5265,7 @@ mod labelled_item {
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5072,7 +5324,7 @@ mod labelled_statement {
         node.labelled_compile(&mut c, strict, src, &label_set)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5117,7 +5369,7 @@ mod labelled_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5149,7 +5401,7 @@ mod binding_identifier {
         node.compile_binding_initialization(&mut c, strict, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5180,7 +5432,7 @@ mod binding_identifier {
         node.compile(&mut c, strict)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5304,7 +5556,7 @@ mod binding_element {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5514,7 +5766,7 @@ mod binding_element {
         let node = Maker::new(src).binding_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 
@@ -5618,7 +5870,7 @@ mod binding_element {
         let node = Maker::new(src).binding_element();
         let mut c = complex_filled_chunk("x", what);
         node.keyed_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -5703,7 +5955,7 @@ mod binding_property {
         let node = Maker::new(src).binding_property();
         let mut c = complex_filled_chunk("x", what);
         node.property_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -5767,7 +6019,7 @@ mod binding_pattern {
         let node = Maker::new(src).binding_pattern();
         let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -5787,7 +6039,7 @@ mod return_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -5960,7 +6212,7 @@ mod compile_fdi {
         super::compile_fdi(&mut c, &text, &info)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6000,7 +6252,7 @@ mod arrow_function {
         node.instantiate_arrow_function_expression(&mut c, strict, src, name, node.clone())
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6015,7 +6267,7 @@ mod arrow_function {
         node.compile(&mut c, true, src, node.clone())
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6030,7 +6282,7 @@ mod arrow_function {
         node.compile_named_evaluation(&mut c, true, src, node.clone(), NameLoc::OnStack)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6131,7 +6383,7 @@ mod concise_body {
             .compile_body(&mut c, src, &data)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6172,7 +6424,7 @@ mod expression_body {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6190,6 +6442,7 @@ mod param_source {
         Arrow,
         AsyncArrowBinding,
         ArrowFormals,
+        UniqueFormals,
     }
 
     #[test_case("a", Kind::Formal, true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "strict/dups/formal")]
@@ -6202,6 +6455,7 @@ mod param_source {
     #[test_case("a", Kind::Arrow, false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "ILB 0 (a)"]), false, false)); "non-strict/no-dups/arrow")]
     #[test_case("a", Kind::AsyncArrowBinding, false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "async arrow binding")]
     #[test_case("(a)", Kind::ArrowFormals, false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "arrow formals")]
+    #[test_case("a", Kind::UniqueFormals, false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "unique formal params")]
     fn compile_binding_initialization(
         src: &str,
         which: Kind,
@@ -6214,17 +6468,19 @@ mod param_source {
             Kind::Arrow => ParamSource::ArrowParameters(Maker::new(src).arrow_parameters()),
             Kind::AsyncArrowBinding => ParamSource::AsyncArrowBinding(Maker::new(src).async_arrow_binding_identifier()),
             Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new(src).arrow_formal_parameters()),
+            Kind::UniqueFormals => ParamSource::UniqueFormalParameters(Maker::new(src).unique_formal_parameters()),
         };
         let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, env)
+            .as_ref()
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
-            .map_err(|e| e.to_string())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -6252,7 +6508,7 @@ mod formal_parameters {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6284,7 +6540,7 @@ mod arrow_parameters {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6312,7 +6568,7 @@ mod arrow_formal_parameters {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6340,7 +6596,7 @@ mod unique_formal_parameters {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6357,7 +6613,7 @@ fn compile_initialize_bound_name(strict: bool, env: EnvUsage) -> Vec<String> {
     let mut c = Chunk::new("cibn");
     let string_idx = c.add_to_string_pool("simply_fascinating".into()).unwrap();
     super::compile_initialize_bound_name(&mut c, strict, env, string_idx);
-    c.disassemble().into_iter().filter_map(disasm_filt).collect()
+    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect()
 }
 
 mod formal_parameter_list {
@@ -6388,7 +6644,7 @@ mod formal_parameter_list {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6416,7 +6672,7 @@ mod formal_parameter {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6451,7 +6707,7 @@ mod single_name_binding {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6571,7 +6827,7 @@ mod single_name_binding {
         let node = Maker::new(src).single_name_binding();
         let mut c = complex_filled_chunk("x", what);
         node.keyed_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 
@@ -6710,7 +6966,7 @@ mod single_name_binding {
         let node = Maker::new(src).single_name_binding();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -6731,7 +6987,7 @@ mod function_rest_parameter {
         node.compile_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6845,7 +7101,7 @@ mod function_body {
             .compile_body(&mut c, src, &data)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6867,7 +7123,7 @@ mod function_statement_list {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -6947,7 +7203,7 @@ mod construct_expr {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -7075,7 +7331,7 @@ fn compile_new_evaluator(
     super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
         .map(|status| {
             (
-                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 status.maybe_abrupt(),
                 status.maybe_ref(),
             )
@@ -7121,7 +7377,7 @@ mod catch_parameter {
         node.compile_binding_initialization(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -7272,7 +7528,7 @@ mod try_statement {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -7294,7 +7550,7 @@ mod finally {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -7326,7 +7582,7 @@ mod catch {
         node.compile_catch_clause_evaluation(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -7347,7 +7603,10 @@ mod elisions {
         let mut c = complex_filled_chunk("x", what);
         node.array_accumulation(&mut c)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7362,7 +7621,10 @@ mod elisions {
         let mut c = complex_filled_chunk("x", what);
         node.iterator_destructuring_assignment_evaluation(&mut c)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7403,7 +7665,10 @@ mod element_list {
         let mut c = complex_filled_chunk("x", what);
         node.array_accumulation(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7421,7 +7686,10 @@ mod spread_element {
         let mut c = complex_filled_chunk("x", what);
         node.array_accumulation(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7447,7 +7715,10 @@ mod array_literal {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7529,7 +7800,10 @@ mod template_middle_list {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7560,7 +7834,10 @@ mod template_spans {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7631,7 +7908,10 @@ mod substitution_template {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7659,7 +7939,10 @@ mod template_literal {
         let mut c = complex_filled_chunk("x", what);
         node.compile(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -7783,7 +8066,7 @@ mod binding_property_list {
         let node = Maker::new(src).binding_property_list();
         let mut c = complex_filled_chunk("x", what);
         node.property_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -7830,7 +8113,7 @@ mod binding_rest_property {
         let node = Maker::new(src).binding_rest_property();
         let mut c = complex_filled_chunk("x", what);
         node.rest_binding_initialization(&mut c, strict, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8003,7 +8286,10 @@ mod array_binding_pattern {
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -8067,7 +8353,7 @@ mod binding_rest_element {
         let node = Maker::new(src).binding_rest_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8121,7 +8407,7 @@ mod binding_elision_element {
         let node = Maker::new(src).binding_elision_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8186,7 +8472,7 @@ mod binding_element_list {
         let node = Maker::new(src).binding_element_list();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8300,7 +8586,7 @@ mod object_binding_pattern {
         let node = Maker::new(src).object_binding_pattern();
         let mut c = complex_filled_chunk("x", what);
         node.compile_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8318,7 +8604,7 @@ mod for_declaration {
         let node = Maker::new(src).for_declaration();
         let mut c = complex_filled_chunk("x", what);
         node.for_declaration_binding_instantiation(&mut c)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 
@@ -8333,7 +8619,10 @@ mod for_declaration {
         let mut c = complex_filled_chunk("x", what);
         node.for_declaration_binding_initialization(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -8433,7 +8722,10 @@ mod for_binding {
         let mut c = complex_filled_chunk("x", what);
         node.binding_initialization(&mut c, strict, src, env)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -8448,7 +8740,7 @@ mod for_binding {
         node.compile(&mut c, strict)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
@@ -8522,12 +8814,20 @@ mod for_in_of_expr {
         node.compile(&mut c, strict, src)
             .map(|status| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     status.maybe_abrupt(),
                     status.maybe_ref(),
                 )
             })
             .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn clone() {
+        let ae = Maker::new("a=3").assignment_expression();
+        let expr = ForInOfExpr::AssignmentExpression(&ae);
+        let cloned = expr.clone();
+        assert!(matches!(cloned, ForInOfExpr::AssignmentExpression(x) if Rc::ptr_eq(x, &ae)));
     }
 }
 
@@ -8594,6 +8894,14 @@ mod for_in_of_lhs_expr {
         let node = item.into();
         node.is_destructuring()
     }
+
+    #[test]
+    fn clone() {
+        let lhse = Maker::new("twelve").left_hand_side_expression();
+        let expr = ForInOfLHSExpr::LeftHandSideExpression(&lhse);
+        let cloned = expr.clone();
+        assert!(matches!(cloned, ForInOfLHSExpr::LeftHandSideExpression(x) if Rc::ptr_eq(x, &lhse)));
+    }
 }
 
 mod assignment_pattern {
@@ -8654,7 +8962,7 @@ mod assignment_pattern {
         let node = Maker::new(src).assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
         node.destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8844,7 +9152,10 @@ mod assignment_property {
         let mut c = complex_filled_chunk("x", what);
         node.property_destructuring_assignment_evaluation(&mut c, strict, src)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -8921,7 +9232,7 @@ mod assignment_property_list {
         let node = Maker::new(src).assignment_property_list();
         let mut c = complex_filled_chunk("x", what);
         node.property_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -8972,7 +9283,7 @@ mod assignment_rest_property {
         let node = Maker::new(src).assignment_rest_property();
         let mut c = complex_filled_chunk("x", what);
         node.rest_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9127,7 +9438,7 @@ mod assignment_element {
         let node = Maker::new(src).assignment_element();
         let mut c = complex_filled_chunk("x", what);
         node.keyed_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 
@@ -9294,7 +9605,7 @@ mod assignment_element {
         let node = Maker::new(src).assignment_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9345,7 +9656,7 @@ mod assignment_elision_element {
         let node = Maker::new(src).assignment_elision_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9406,7 +9717,7 @@ mod assignment_element_list {
         let node = Maker::new(src).assignment_element_list();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9480,7 +9791,7 @@ mod assignment_rest_element {
         let node = Maker::new(src).assignment_rest_element();
         let mut c = complex_filled_chunk("x", what);
         node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9742,7 +10053,7 @@ mod array_assignment_pattern {
         let node = Maker::new(src).array_assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
         node.destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 }
@@ -9783,7 +10094,7 @@ mod destructuring_assignment_target {
         let node = Maker::new(src).destructuring_assignment_target();
         let mut c = complex_filled_chunk("x", what);
         node.destructuring_assignment_evaluation(&mut c, strict, src)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
 
@@ -9795,7 +10106,7 @@ mod destructuring_assignment_target {
         node.compile(&mut c, strict, src)
             .map(|flags| {
                 (
-                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                     flags.maybe_abrupt(),
                     flags.maybe_ref(),
                 )
@@ -9885,7 +10196,10 @@ mod for_in_of_statement {
         let uninitialized_bound_names = names.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
         ForInOfStatement::for_in_of_head_evaluation(&mut c, strict, src, &uninitialized_bound_names, node, iter)
             .map(|status| {
-                (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.maybe_abrupt())
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.maybe_abrupt(),
+                )
             })
             .map_err(|e| e.to_string())
     }
@@ -10375,7 +10689,7 @@ mod for_in_of_statement {
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
         node.for_in_of_evaluation(&mut c, strict, src, &label_set)
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
     #[derive(Copy, Clone)]
@@ -10523,6 +10837,18 @@ mod for_in_of_statement {
                 "UNWIND 2"
             ]))
             ; "for [item] in / strict / sync")]
+    #[test_case(
+        "[item=9n]",
+            true,
+            LHSKind::Destructuring,
+            ";",
+            IterationKind::Enumerate,
+            &[],
+            IteratorKind::Sync,
+            &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "for [item] in / destructuring compile fails"
+    )]
     #[test_case("item", true, LHSKind::VarBinding, ";", IterationKind::Enumerate, &[], IteratorKind::Sync, &[]
             => Ok(svec(&[
                 "UNDEFINED",
@@ -10804,7 +11130,7 @@ mod for_in_of_statement {
             &label_set,
             iterator_kind,
         )
-        .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+        .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
         .map_err(|e| e.to_string())
     }
 }
@@ -10981,7 +11307,7 @@ mod object_assignment_pattern {
 
         node.destructuring_assignment_evaluation(&mut c, strict, src)
             .map_err(|e| e.to_string())
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }
 
@@ -10997,7 +11323,10 @@ mod class_element_name {
         let mut c = complex_filled_chunk("x", what);
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -11031,7 +11360,10 @@ mod field_definition {
         let node2 = node.clone();
 
         node.class_field_definition_evaluation(&mut c, strict, src, node2).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -11057,7 +11389,10 @@ mod class_static_block_statement_list {
         let mut c = complex_filled_chunk("x", what);
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -11083,7 +11418,10 @@ mod class_static_block_body {
         let mut c = complex_filled_chunk("x", what);
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -11105,7 +11443,7 @@ mod class_static_block {
 
         node.class_static_block_definition_evaluation(&mut c, strict, node2)
             .map_err(|e| e.to_string())
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
 }
 
@@ -11261,7 +11599,7 @@ mod optional_expression {
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
             (
-                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
                 flags.maybe_ref(),
             )
@@ -11446,7 +11784,7 @@ mod optional_chain {
 
         node.chain_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
             (
-                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
                 flags.maybe_ref(),
             )
@@ -11466,7 +11804,7 @@ mod default_clause {
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
             (
-                c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
                 flags.maybe_ref(),
             )
@@ -11505,7 +11843,10 @@ mod case_clause {
         let mut c = complex_filled_chunk("x", what);
 
         node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 
@@ -11541,7 +11882,10 @@ mod case_clause {
         let mut c = complex_filled_chunk("x", what);
 
         node.case_clause_is_selected(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -11986,7 +12330,10 @@ mod case_block {
         let mut c = complex_filled_chunk("x", what);
 
         node.case_block_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), flags.maybe_abrupt())
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
         })
     }
 }
@@ -12018,7 +12365,7 @@ mod method_definition {
 
         node.define_method(&mut c, strict, src, &node)
             .map_err(|e| e.to_string())
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
 
     #[test_case(
@@ -12104,6 +12451,26 @@ mod method_definition {
 
         node.method_definition_evaluation(enumerable, &mut c, strict, src, &node)
             .map_err(|e| e.to_string())
-            .map(|_| c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>())
+            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
+    }
+}
+
+mod class_declaration {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("class a {}", true, &[] => panics "not yet implemented"; "todo, still")]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+        let node = Maker::new(src).class_declaration();
+        let mut c = complex_filled_chunk("x", what);
+        node.compile(&mut c, strict, src)
+            .as_ref()
+            .map(|flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                )
+            })
+            .map_err(ToString::to_string)
     }
 }
