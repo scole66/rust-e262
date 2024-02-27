@@ -923,7 +923,7 @@ mod parse_script {
         assert_eq!(format!("{ecmascript_code}"), "'hello world' ;");
         assert_eq!(compiled.name, "top level script");
         assert_eq!(
-            compiled.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+            compiled.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
             svec(&["STRING 0 (hello world)",])
         );
         assert_eq!(text, src);
