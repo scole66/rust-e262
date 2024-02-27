@@ -148,6 +148,7 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
         assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Reflect), intrinsics.reflect);
         assert_eq!(intrinsics.get(IntrinsicId::String), intrinsics.string);
         assert_eq!(intrinsics.get(IntrinsicId::StringPrototype), intrinsics.string_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
@@ -201,6 +202,7 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::RangeErrorPrototype) => Some(IntrinsicId::RangeErrorPrototype); "id: RangeErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::ReferenceError) => Some(IntrinsicId::ReferenceError); "id: ReferenceError")]
     #[test_case(|| intrinsic(IntrinsicId::ReferenceErrorPrototype) => Some(IntrinsicId::ReferenceErrorPrototype); "id: ReferenceErrorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Reflect) => Some(IntrinsicId::Reflect); "id: Reflect")]
     #[test_case(|| intrinsic(IntrinsicId::String) => Some(IntrinsicId::String); "id: String")]
     #[test_case(|| intrinsic(IntrinsicId::StringPrototype) => Some(IntrinsicId::StringPrototype); "id: StringPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Symbol) => Some(IntrinsicId::Symbol); "id: Symbol")]

@@ -42,34 +42,34 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
         };
     }
 
-    // 28.1.1 Reflect.apply ( target, thisArgument, argumentsList )
+    // Reflect.apply ( target, thisArgument, argumentsList )
     function_property!(reflect_apply, "apply", 3);
-    // 28.1.2 Reflect.construct ( target, argumentsList [ , newTarget ] )
+    // Reflect.construct ( target, argumentsList [ , newTarget ] )
     function_property!(reflect_construct, "construct", 2);
-    // 28.1.3 Reflect.defineProperty ( target, propertyKey, attributes )
+    // Reflect.defineProperty ( target, propertyKey, attributes )
     function_property!(reflect_define_property, "defineProperty", 3);
-    // 28.1.4 Reflect.deleteProperty ( target, propertyKey )
+    // Reflect.deleteProperty ( target, propertyKey )
     function_property!(reflect_delete_property, "deleteProperty", 2);
-    // 28.1.5 Reflect.get ( target, propertyKey [ , receiver ] )
+    // Reflect.get ( target, propertyKey [ , receiver ] )
     function_property!(reflect_get, "get", 2);
-    // 28.1.6 Reflect.getOwnPropertyDescriptor ( target, propertyKey )
+    // Reflect.getOwnPropertyDescriptor ( target, propertyKey )
     function_property!(reflect_get_own_property_descriptor, "getOwnPropertyDescriptor", 2);
-    // 28.1.7 Reflect.getPrototypeOf ( target )
+    // Reflect.getPrototypeOf ( target )
     function_property!(reflect_get_prototype_of, "getPrototypeOf", 1);
-    // 28.1.8 Reflect.has ( target, propertyKey )
+    // Reflect.has ( target, propertyKey )
     function_property!(reflect_has, "has", 2);
-    // 28.1.9 Reflect.isExtensible ( target )
+    // Reflect.isExtensible ( target )
     function_property!(reflect_is_extensible, "isExtensible", 1);
-    // 28.1.10 Reflect.ownKeys ( target )
+    // Reflect.ownKeys ( target )
     function_property!(reflect_own_keys, "ownKeys", 1);
-    // 28.1.11 Reflect.preventExtensions ( target )
+    // Reflect.preventExtensions ( target )
     function_property!(reflect_prevent_extensions, "preventExtensions", 1);
-    // 28.1.12 Reflect.set ( target, propertyKey, V [ , receiver ] )
+    // Reflect.set ( target, propertyKey, V [ , receiver ] )
     function_property!(reflect_set, "set", 3);
-    // 28.1.13 Reflect.setPrototypeOf ( target, proto )
+    // Reflect.setPrototypeOf ( target, proto )
     function_property!(reflect_set_prototype_of, "setPrototypeOf", 2);
 
-    // 28.1.14 Reflect [ @@toStringTag ]
+    // Reflect [ @@toStringTag ]
     define_property_or_throw(
         &reflect,
         wks(WksId::ToStringTag),
@@ -367,3 +367,6 @@ fn reflect_set_prototype_of(
         Err(create_type_error("Reflect.setPrototypeOf: target must be an object"))
     }
 }
+
+#[cfg(test)]
+mod tests;

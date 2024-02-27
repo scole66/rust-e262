@@ -2141,5 +2141,5 @@ fn set_default_global_bindings() {
     //validate_intrinsic_data!("Atomics", Atomics);
     //validate_intrinsic_data!("JSON", Json);
     validate_intrinsic_data!("Math", Math);
-    //validate_intrinsic_data!("Reflect", Reflect);
+    validate_intrinsic_data!("Reflect", Reflect);
 }

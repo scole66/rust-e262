@@ -484,6 +484,38 @@ mod ecmascript_value {
 
         x.kind()
     }
+
+    #[test_case(|| None => "undefined"; "choose-none")]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("item", 10).unwrap();
+            Some(obj)
+        }
+        => "item:10";
+        "choose-some"
+    )]
+    fn to_obj_or_undefined(make_input: impl FnOnce() -> Option<Object>) -> String {
+        setup_test_agent();
+        let inp = make_input();
+        ECMAScriptValue::to_obj_or_undefined(inp).test_result_string()
+    }
+
+    #[test_case(|| None => "null"; "choose-none")]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("item", 10).unwrap();
+            Some(obj)
+        }
+        => "item:10";
+        "choose-some"
+    )]
+    fn to_obj_or_null(make_input: impl FnOnce() -> Option<Object>) -> String {
+        setup_test_agent();
+        let inp = make_input();
+        ECMAScriptValue::to_obj_or_null(inp).test_result_string()
+    }
 }
 
 #[test]
