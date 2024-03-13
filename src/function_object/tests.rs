@@ -843,3 +843,47 @@ mod param_source {
         item.is_simple_parameter_list()
     }
 }
+
+mod function_object {
+    use super::*;
+
+    fn make() -> Object {
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let params = ParamSource::FormalParameters(Maker::new("(a, b, c)").formal_parameters());
+        let body = BodySource::Function(Maker::new("{ return a + b + c; }").function_body());
+        let realm = current_realm_record().unwrap();
+        FunctionObject::object(
+            None,
+            env,
+            None,
+            params,
+            body,
+            ConstructorKind::Base,
+            realm,
+            None,
+            ThisMode::Global,
+            false,
+            None,
+            "function(a, b, c) { return a+b+c; }",
+            vec![],
+            vec![],
+            ClassName::Empty,
+            false,
+            Rc::new(Chunk::new("tester")),
+        )
+    }
+
+    false_function!(is_proxy_object);
+    none_function!(to_proxy_object);
+}
+
+mod builtin_function_object {
+    use super::*;
+
+    fn make() -> Object {
+        intrinsic(IntrinsicId::ThrowTypeError)
+    }
+
+    false_function!(is_proxy_object);
+    none_function!(to_proxy_object);
+}

@@ -1121,4 +1121,26 @@ impl CommonObjectData {
     }
 }
 
+mod test_object {
+    use super::*;
+
+    fn make() -> Object {
+        TestObject::object(&[])
+    }
+
+    false_function!(is_proxy_object);
+    none_function!(to_proxy_object);
+}
+
+mod adaptable_object {
+    use super::*;
+
+    fn make() -> Object {
+        AdaptableObject::object(&AdaptableMethods::default())
+    }
+
+    false_function!(is_proxy_object);
+    none_function!(to_proxy_object);
+}
+
 mod integration;

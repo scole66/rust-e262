@@ -269,6 +269,20 @@ mod arguments_object {
     }
 
     #[test]
+    fn to_proxy_object() {
+        setup_test_agent();
+        let ao = test_ao();
+        assert!(ao.o.to_proxy_object().is_none());
+    }
+
+    #[test]
+    fn is_proxy_object() {
+        setup_test_agent();
+        let ao = test_ao();
+        assert!(!ao.o.is_proxy_object());
+    }
+
+    #[test]
     fn debug() {
         setup_test_agent();
         let obj = test_ao();

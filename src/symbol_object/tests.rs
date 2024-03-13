@@ -118,6 +118,13 @@ mod symbol_object {
     }
 
     #[test]
+    fn to_proxy_object() {
+        setup_test_agent();
+        let obj = create_symbol_object(wks(WksId::ToPrimitive));
+        assert!(obj.o.to_proxy_object().is_none());
+    }
+
+    #[test]
     fn is_string_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
