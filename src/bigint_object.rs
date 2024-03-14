@@ -504,3 +504,6 @@ fn to_big_int(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
         ECMAScriptValue::Object(_) => unreachable!(),
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -93,6 +93,7 @@ mod normal_completion {
         #[test_case(PropertyKey::from("bob") => NormalCompletion::Value(ECMAScriptValue::from("bob")); "from property key")]
         #[test_case(() => NormalCompletion::Empty; "from unit")]
         #[test_case("bob" => NormalCompletion::Value(ECMAScriptValue::from("bob")); "from &str")]
+        #[test_case(1_usize => NormalCompletion::Value(ECMAScriptValue::Number(1.0)); "from usize")]
         fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
             value.into()
         }
@@ -209,6 +210,7 @@ mod normal_completion {
 
     mod try_from {
         use super::*;
+        use std::cell::Cell;
         use test_case::test_case;
 
         #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "empty")]
@@ -239,6 +241,38 @@ mod normal_completion {
         #[test_case(NormalCompletion::from(true) => Err("Value not numeric".to_string()); "not numeric")]
         fn numeric(n: NormalCompletion) -> Result<Numeric, String> {
             n.try_into().map_err(|e: anyhow::Error| e.to_string())
+        }
+
+        #[test_case(
+            || {
+                let iterator = ordinary_object_create(None, &[]);
+                iterator.create_data_property_or_throw("sentinel", 3939).unwrap();
+                let next_method = intrinsic(IntrinsicId::ThrowTypeError);
+                let done = Cell::new(true);
+                let ir = IteratorRecord { iterator, next_method, done };
+                NormalCompletion::IteratorRecord(Rc::new(ir))
+            }
+            => sok("3939 throw-type-error done");
+            "ordinary ir"
+        )]
+        #[test_case(|| NormalCompletion::Empty => serr("Not an iterator record"); "not an ir")]
+        fn iterator_record(make_comp: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+            setup_test_agent();
+            let nc = make_comp();
+            let res: Result<Rc<IteratorRecord>, anyhow::Error> = nc.try_into();
+            res.as_ref()
+                .map(|item| {
+                    let IteratorRecord { iterator, next_method, done } = item.as_ref();
+                    let name = String::from(to_string(iterator.get(&"sentinel".into()).unwrap()).unwrap());
+                    let method = if next_method == &intrinsic(IntrinsicId::ThrowTypeError) {
+                        "throw-type-error"
+                    } else {
+                        "something-else"
+                    };
+                    let donestr = if done.get() { "done" } else { "unfinished" };
+                    format!("{name} {method} {donestr}")
+                })
+                .map_err(ToString::to_string)
         }
 
         mod object {

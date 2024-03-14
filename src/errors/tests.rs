@@ -362,11 +362,13 @@ fn error_object_other_automatic_functions() {
     assert!(no.o.to_builtin_function_obj().is_none());
     assert!(!no.o.is_callable_obj());
     assert!(no.o.to_boolean_obj().is_none());
-    //assert!(no.o.to_number_obj().is_none());
+    assert!(no.o.to_number_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
     assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
+    assert!(!no.o.is_proxy_object());
+    assert!(no.o.to_proxy_object().is_none());
 }
 
 #[test]

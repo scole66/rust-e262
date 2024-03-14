@@ -221,6 +221,7 @@ test_defs[CompilerCaseClause]="parser::switch_statement::CaseClause case_clause 
 test_defs[CompilerMethodDefinition]="parser::method_definitions::MethodDefinition method_definition compiler"
 test_defs[CompilerMethodDefinition_define_method]="parser::method_definitions::MethodDefinition::define_method method_definition::define_method compiler"
 test_defs[CompilerMethodDefinition_method_definition_evaluation]="parser::method_definitions::MethodDefinition::method_definition_evaluation method_definition::method_definition_evaluation compiler"
+test_defs[NameLoc]="NameLoc name_loc compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
@@ -867,6 +868,8 @@ test_defs[ProxyObject_get]="ProxyObject@ObjectInterface::get proxy_object::get::
 test_defs[ProxyObject_set]="ProxyObject@ObjectInterface::set proxy_object::set:: proxy_object"
 test_defs[ProxyObject_delete]="ProxyObject@ObjectInterface::delete proxy_object::delete proxy_object"
 test_defs[ProxyObject_own_property_keys]="ProxyObject@ObjectInterface::own_property_keys proxy_object::own_property_keys proxy_object"
+test_defs[proxy_constructor_function]="proxy_constructor_function proxy_constructor_function proxy_object"
+test_defs[proxy_create]="proxy_create proxy_create proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")

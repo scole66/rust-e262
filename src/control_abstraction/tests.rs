@@ -311,6 +311,14 @@ mod generator_error {
     fn eq(left: GeneratorError, right: GeneratorError) -> bool {
         left == right
     }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = GeneratorError::AlreadyActive;
+        let copy = item.clone();
+        assert_eq!(copy, GeneratorError::AlreadyActive);
+    }
 }
 
 mod generator_object {

@@ -195,6 +195,7 @@ fn number_object_other_automatic_functions() {
     assert!(no.o.to_constructable().is_none());
     assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
+    assert!(!no.o.is_proxy_object());
 }
 
 #[test]

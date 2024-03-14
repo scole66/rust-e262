@@ -2215,7 +2215,7 @@ mod proxy_object {
                     all the keys of the own properties of the target object and no other values.");
             "target not extensible; but the handler adds some keys, without dropping others")]
         #[test_case(target_get_prop_throws
-            => serr("TypeError: [[GetOwnProperty]] fails"); 
+            => serr("TypeError: [[GetOwnProperty]] fails");
             "target [[GetOwnProperty]] fails")]
         #[test_case(no_overrides
             => Ok((
@@ -2354,5 +2354,101 @@ mod proxy_items {
             proxy_target: ordinary_object_create(None, &[]),
         };
         assert_ne!(format!("{items:?}"), "");
+    }
+}
+
+mod proxy_constructor_function {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| (None, vec![]) => serr("TypeError: Proxy may not be called as a function"); "called as func")]
+    #[test_case(
+        || (Some(intrinsic(IntrinsicId::Proxy)), vec![])
+        => serr("TypeError: Proxy target and handler must be objects");
+        "called with bad args"
+    )]
+    #[test_case(
+        || (
+            Some(intrinsic(IntrinsicId::Proxy)),
+            vec![
+                ECMAScriptValue::Object({
+                    let o = ordinary_object_create(None, &[]);
+                    o.create_data_property_or_throw("name", "target").unwrap();
+                    o
+                }),
+                ECMAScriptValue::Object({
+                    let o = ordinary_object_create(None, &[]);
+                    o.create_data_property_or_throw("name", "handler").unwrap();
+                    o
+                })
+            ]
+        )
+        => sok("target: target; handler: handler");
+        "called with empty objects"
+    )]
+    fn f(make_items: impl FnOnce() -> (Option<Object>, Vec<ECMAScriptValue>)) -> Result<String, String> {
+        setup_test_agent();
+        let (nt, args) = make_items();
+        let o = Object::try_from(
+            super::proxy_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), &args)
+                .map_err(unwind_any_error)?,
+        )
+        .unwrap();
+        let proxy = o.o.to_proxy_object().unwrap();
+        let target_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_target.get(&PropertyKey::from("name")).unwrap();
+        let handler_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_handler.get(&PropertyKey::from("name")).unwrap();
+
+        Ok(format!("target: {target_name}; handler: {handler_name}"))
+    }
+}
+
+mod proxy_create {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+        => serr("TypeError: Proxy target and handler must be objects");
+        "no objects"
+    )]
+    #[test_case(
+        || (ECMAScriptValue::Object(ordinary_object_create(None, &[])), ECMAScriptValue::Undefined)
+        => serr("TypeError: Proxy handler must be an object");
+        "handler not obj"
+    )]
+    #[test_case(
+        || (ECMAScriptValue::Undefined, ECMAScriptValue::Object(ordinary_object_create(None, &[])))
+        => serr("TypeError: Proxy target must be an object");
+        "target not obj"
+    )]
+    #[test_case(
+        || (
+            ECMAScriptValue::Object({
+                let o = ordinary_object_create(None, &[]);
+                o.create_data_property_or_throw("name", "target").unwrap();
+                o
+            }),
+            ECMAScriptValue::Object({
+                let o = ordinary_object_create(None, &[]);
+                o.create_data_property_or_throw("name", "handler").unwrap();
+                o
+            })
+        )
+        => sok("target: target; handler: handler");
+        "called with objects"
+    )]
+    fn f(make_items: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue)) -> Result<String, String> {
+        setup_test_agent();
+        let (target, handler) = make_items();
+        let o = Object::try_from(super::proxy_create(target, handler).map_err(unwind_any_error)?).unwrap();
+        let proxy = o.o.to_proxy_object().unwrap();
+        let target_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_target.get(&PropertyKey::from("name")).unwrap();
+        let handler_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_handler.get(&PropertyKey::from("name")).unwrap();
+
+        Ok(format!("target: {target_name}; handler: {handler_name}"))
     }
 }

@@ -12474,3 +12474,15 @@ mod class_declaration {
             .map_err(ToString::to_string)
     }
 }
+
+mod name_loc {
+    use super::*;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = NameLoc::OnStack;
+        let copy = item.clone();
+        assert!(matches!(copy, NameLoc::OnStack));
+    }
+}
