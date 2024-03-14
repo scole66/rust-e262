@@ -61,10 +61,24 @@ fn provision_reflect_intrinsic() {
 #[test_case(|| (ordinary_object_create(None, &[]).into(), ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => serr("TypeError: Reflect.apply requires a callable target"); "not callable")]
 #[test_case(|| (intrinsic(IntrinsicId::IsNaN).into(), ECMAScriptValue::Undefined, create_array_from_list(&[100.into()]).into()) => sok("false"); "successful; without this")]
 #[test_case(|| (intrinsic(IntrinsicId::IsNaN).into(), ECMAScriptValue::Undefined, ECMAScriptValue::Null) => serr("TypeError: CreateListFromArrayLike called on non-object"); "bad args")]
-fn reflect_apply(make_args: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue)) -> Result<String, String> {
+fn reflect_apply(
+    make_args: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue),
+) -> Result<String, String> {
     setup_test_agent();
     let (target, this_argument, argument_list) = make_args();
     super::reflect_apply(&ECMAScriptValue::Undefined, None, &[target, this_argument, argument_list])
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
+}
+
+#[test_case(Vec::new => serr("TypeError: Reflect.construct: target must be a constructor"); "no args")]
+#[test_case(|| vec![ECMAScriptValue::Object(intrinsic(IntrinsicId::Array))] => serr("TypeError: CreateListFromArrayLike called on non-object"); "constructor target only")]
+#[test_case(|| vec![ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)), ECMAScriptValue::Object(create_array_from_list(&[])), ECMAScriptValue::Number(10.3)] => serr("TypeError: Reflect.construct: newTarget, if supplied, must be a constructor"); "newTarget not constructor")]
+#[test_case(|| vec![ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)), ECMAScriptValue::Object(create_array_from_list(&[ECMAScriptValue::from("a"), ECMAScriptValue::from("b"), ECMAScriptValue::from("c")])), ECMAScriptValue::Object(intrinsic(IntrinsicId::String))] => sok("0:a,1:b,2:c,length:3"); "Array as String")]
+fn reflect_construct(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+    setup_test_agent();
+    let args = make_args();
+    super::reflect_construct(&ECMAScriptValue::Undefined, None, &args)
         .map_err(unwind_any_error)
         .map(|v| v.test_result_string())
 }

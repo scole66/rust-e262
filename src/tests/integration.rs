@@ -676,6 +676,22 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("let o = { get a() { return 3; } }; Object.getOwnPropertyDescriptor(o, 'a').get.length" => vok(0); "method_def_get_length")]
 #[test_case("let o = { get [(()=>{throw 0;})()]() { return 3; } };" => serr("Thrown: 0"); "method_def_get_name_throws")]
 // Reflect
+#[test_case("Reflect.apply(Array.prototype.map, [1, 2, 3], [x => x * 2]).join(', ')" => vok("2, 4, 6"); "Reflect.apply builtin function")]
+#[test_case("Reflect.apply(x => x / 3, undefined, [9])" => vok(3); "Reflect.apply function object")]
+#[test_case("Reflect.apply(10, undefined, [])" => serr("Thrown: TypeError: Reflect.apply requires a callable target"); "Reflect.apply: target not callable")]
+#[test_case("Reflect.apply(x => x * 2, undefined, undefined)" => serr("Thrown: TypeError: CreateListFromArrayLike called on non-object"); "Reflect.apply CreateListFromArrayLike throws")]
+#[test_case("Reflect.apply(x => { throw 'oops'; }, undefined, [])" => serr("Thrown: oops"); "Reflect.apply call throws")]
+#[test_case("Reflect.construct(Array, [1, 2, 3]).join(', ')" => vok("1, 2, 3"); "Reflect.construct: builtin, no new.target")]
+#[test_case("let a = Reflect.construct(Array, [1, 2, 3], String); `${a.trim.name}; ${Array.isArray(a)}`" => vok("trim; true"); "Reflect.construct builtin with new.target")]
+#[test_case("Reflect.construct(function (x) { return { value: x }; }, [27]).value" => vok(27); "Reflect.construct function object")]
+#[test_case("Reflect.construct({}, [])" => serr("Thrown: TypeError: Reflect.construct: target must be a constructor"); "Reflect.construct: target must be a constructor")]
+#[test_case("Reflect.construct(Array, [1, 2, 3], Reflect)" => serr("Thrown: TypeError: Reflect.construct: newTarget, if supplied, must be a constructor"); "Reflect.construct: new.target not constructor")]
+#[test_case("Reflect.construct(Array, undefined)" => serr("Thrown: TypeError: CreateListFromArrayLike called on non-object"); "Reflect.construct: CreateListFromArrayLike throws")]
+#[test_case("Reflect.construct(function (x) { throw 'oops'; }, [1, 2, 3])" => serr("Thrown: oops"); "Reflect.construct: construct call throws")]
+#[test_case("let a={}; let result = Reflect.defineProperty(a, 'key', { value: 'some value' }); `Result: ${result}; a.key: ${a.key}`" => vok("Result: true; a.key: some value"); "Reflect.defineProperty; normal")]
+#[test_case("Reflect.defineProperty(10, 'key', undefined)" => serr("Thrown: TypeError: Reflect.defineProperty: target must be an object"); "Reflect.defineProperty: target not an object")]
+#[test_case("Reflect.defineProperty({}, {toString() { throw 'nope'; }}, { value: 'some value' })" => serr("Thrown: nope"); "Reflect.defineProperty: ToPropertyKey throws")]
+#[test_case("Reflect.defineProperty({}, 'key', undefined)" => serr("Thrown: TypeError: Must be an object"); "Reflect.defineProperty: ToPropertyDescriptor throws")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

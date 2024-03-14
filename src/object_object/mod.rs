@@ -703,7 +703,7 @@ fn object_get_prototype_of(
     let obj = to_object(o)?;
     Ok(match obj.o.get_prototype_of()? {
         Some(obj) => ECMAScriptValue::from(obj),
-        None => ECMAScriptValue::Undefined,
+        None => ECMAScriptValue::Null,
     })
 }
 
