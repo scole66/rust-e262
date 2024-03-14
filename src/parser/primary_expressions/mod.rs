@@ -107,7 +107,10 @@ impl PrettyPrint for PrimaryExpression {
 
 impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
-        use PrimaryExpression::*;
+        use PrimaryExpression::{
+            ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
+            ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
+        };
         match self {
             This { .. }
             | IdentifierReference { .. }
@@ -433,7 +436,10 @@ impl PrimaryExpression {
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        use PrimaryExpression::*;
+        use PrimaryExpression::{
+            ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
+            ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
+        };
         match self {
             This { .. }
             | Literal { .. }

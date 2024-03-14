@@ -172,8 +172,8 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
 }
 
 fn load_harness_file(filename: &str) -> Result<String> {
-    //const HARNESS_ROOT: &str = "/home/scole/rustplay/test262/harness";
-    const HARNESS_ROOT: &str = "/Users/scole/fun/test262/harness";
+    const HARNESS_ROOT: &str = "/home/scole/rustplay/test262/harness";
+    //const HARNESS_ROOT: &str = "/Users/scole/fun/test262/harness";
     let path = Path::new(HARNESS_ROOT).join(filename);
     let file = File::open(&path).context(format!("Opening {}", path.to_string_lossy()))?;
     let mut buf_reader = BufReader::new(file);

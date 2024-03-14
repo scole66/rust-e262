@@ -2,7 +2,6 @@ use super::*;
 use rand::prelude::*;
 use std::f64;
 
-#[allow(unused_variables)]
 pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The Math object:
     //

@@ -98,6 +98,22 @@ impl ECMAScriptValue {
             ECMAScriptValue::Object(o) => o.concise(f),
         }
     }
+
+    pub fn to_obj_or_undefined(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Undefined
+        }
+    }
+
+    pub fn to_obj_or_null(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Null
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {

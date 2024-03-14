@@ -946,7 +946,7 @@ mod constructor {
         #[test_case(object_with_std_proto => vok("%ObjectPrototype%"); "normal object chain")]
         #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
         #[test_case(|| DeadObject::object().into() => serr("TypeError: get_prototype_of called on DeadObject"); "get_prototype_of throws")]
-        #[test_case(|| ordinary_object_create(None, &[]).into() => vok(ECMAScriptValue::Undefined); "no prototype")]
+        #[test_case(|| ordinary_object_create(None, &[]).into() => vok(ECMAScriptValue::Null); "no prototype")]
         fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let o = make_o();

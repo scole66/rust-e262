@@ -4428,6 +4428,14 @@ mod object {
                 .map(|()| ECMAScriptValue::from(target).test_result_string())
         }
     }
+
+    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype) => false; "not constructor")]
+    #[test_case(|| intrinsic(IntrinsicId::Array) => true; "is constructor")]
+    fn is_constructor(make_obj: impl FnOnce() -> Object) -> bool {
+        setup_test_agent();
+        let obj = make_obj();
+        obj.is_constructor()
+    }
 }
 
 mod integrity_level {

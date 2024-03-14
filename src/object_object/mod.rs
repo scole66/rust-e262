@@ -701,10 +701,7 @@ fn object_get_prototype_of(
     let mut args = FuncArgs::from(arguments);
     let o = args.next_arg();
     let obj = to_object(o)?;
-    Ok(match obj.o.get_prototype_of()? {
-        Some(obj) => ECMAScriptValue::from(obj),
-        None => ECMAScriptValue::Undefined,
-    })
+    Ok(ECMAScriptValue::to_obj_or_null(obj.o.get_prototype_of()?))
 }
 
 fn object_has_own(
