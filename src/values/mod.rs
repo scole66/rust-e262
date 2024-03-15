@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
 use regex::Regex;
@@ -982,6 +982,15 @@ pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
         Ok(arg as usize)
     } else {
         Err(anyhow!("invalid conversion of {arg} to usize"))
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+pub fn to_f64(arg: usize) -> anyhow::Result<f64> {
+    if arg <= 1<<53 {
+        Ok(arg as f64)
+    } else {
+        bail!("invalid conversion of {arg} to f64");
     }
 }
 

@@ -611,10 +611,9 @@ fn string_prototype_index_of(
     let search_str = to_string(search_string)?;
     let pos = to_integer_or_infinity(position)?;
     let len = s.len();
-    assert!(len < 1 << 53, "len needs to fit into a float");
+    let max = to_f64(len).expect("len should fit within a float");
     #[allow(clippy::cast_precision_loss)]
-    let start =
-        to_usize(pos.clamp(0.0, len as f64)).expect("start should be within the string's length, which fits a usize");
+    let start = to_usize(pos.clamp(0.0, max)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
 }
 

@@ -874,7 +874,9 @@ mod function_object {
     }
 
     false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
     none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
 }
 
 mod builtin_function_object {
@@ -885,5 +887,108 @@ mod builtin_function_object {
     }
 
     false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
     none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
+}
+
+mod rc_try_from {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| FunctionSource::from(Maker::new("function () { return 3; }").function_expression()) => sok("function (  ) { return 3 ; }"); "function expression")]
+    #[test_case(|| FunctionSource::from(Maker::new("function a() {}").function_declaration()) => serr("FunctionExpression expected"); "not function expression")]
+    fn function_expression_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<FunctionExpression> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("function a() { return 3; }").function_declaration()) => sok("function a (  ) { return 3 ; }"); "function declaration")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("FunctionDeclaration expected"); "not function declaration")]
+    fn function_declaration_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<FunctionDeclaration> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("static {}").class_static_block()) => sok("static {  }"); "class static block")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("ClassStaticBody expected"); "not class static block")]
+    fn class_static_block_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<ClassStaticBlock> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()) => sok("x => 0"); "arrow function")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("ArrowFunction expected"); "not arrow function")]
+    fn arrow_function_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<ArrowFunction> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("x").field_definition()) => sok("x"); "field definition")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("FieldDefinition expected"); "not field definition")]
+    fn field_definition_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<FieldDefinition> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("x(){}").method_definition()) => sok("x (  ) {  }"); "method definition")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("MethodDefinition expected"); "not method definition")]
+    fn method_definition_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<MethodDefinition> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| ParamSource::from(Maker::new("a, b").formal_parameters()) => sok("a , b"); "formal parameters")]
+    #[test_case(|| ParamSource::from(Maker::new("x").arrow_parameters()) => serr("Not FormalParameters"); "not formal parameters")]
+    fn formal_parameters_from_param_source(
+        make_source: impl FnOnce() -> ParamSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<FormalParameters> as TryFrom<ParamSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| BodySource::from(Maker::new("x();").function_body()) => sok("x ( ) ;"); "function body")]
+    #[test_case(|| BodySource::from(Maker::new("=x").initializer()) => serr("Not a FunctionBody"); "not function body")]
+    fn function_body_from_body_source(
+        make_source: impl FnOnce() -> BodySource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<FunctionBody> as TryFrom<BodySource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
 }

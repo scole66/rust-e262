@@ -183,6 +183,14 @@ mod let_or_const {
     fn debug(src: LetOrConst) -> String {
         format!("{src:?}")
     }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = LetOrConst::Let;
+        let duplicate = item.clone();
+        assert!(matches!(duplicate, LetOrConst::Let));
+    }
 }
 
 // BINDING LIST
