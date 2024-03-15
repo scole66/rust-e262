@@ -922,9 +922,7 @@ mod rc_try_from {
 
     #[test_case(|| FunctionSource::from(Maker::new("static {}").class_static_block()) => sok("static {  }"); "class static block")]
     #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("ClassStaticBody expected"); "not class static block")]
-    fn class_static_block_from_function_source(
-        make_source: impl FnOnce() -> FunctionSource,
-    ) -> Result<String, String> {
+    fn class_static_block_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
         setup_test_agent();
         <Rc<ClassStaticBlock> as TryFrom<FunctionSource>>::try_from(make_source())
             .as_ref()
@@ -934,9 +932,7 @@ mod rc_try_from {
 
     #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()) => sok("x => 0"); "arrow function")]
     #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("ArrowFunction expected"); "not arrow function")]
-    fn arrow_function_from_function_source(
-        make_source: impl FnOnce() -> FunctionSource,
-    ) -> Result<String, String> {
+    fn arrow_function_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
         setup_test_agent();
         <Rc<ArrowFunction> as TryFrom<FunctionSource>>::try_from(make_source())
             .as_ref()
@@ -946,9 +942,7 @@ mod rc_try_from {
 
     #[test_case(|| FunctionSource::from(Maker::new("x").field_definition()) => sok("x"); "field definition")]
     #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("FieldDefinition expected"); "not field definition")]
-    fn field_definition_from_function_source(
-        make_source: impl FnOnce() -> FunctionSource,
-    ) -> Result<String, String> {
+    fn field_definition_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
         setup_test_agent();
         <Rc<FieldDefinition> as TryFrom<FunctionSource>>::try_from(make_source())
             .as_ref()
@@ -958,9 +952,7 @@ mod rc_try_from {
 
     #[test_case(|| FunctionSource::from(Maker::new("x(){}").method_definition()) => sok("x (  ) {  }"); "method definition")]
     #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()) => serr("MethodDefinition expected"); "not method definition")]
-    fn method_definition_from_function_source(
-        make_source: impl FnOnce() -> FunctionSource,
-    ) -> Result<String, String> {
+    fn method_definition_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
         setup_test_agent();
         <Rc<MethodDefinition> as TryFrom<FunctionSource>>::try_from(make_source())
             .as_ref()
@@ -970,9 +962,7 @@ mod rc_try_from {
 
     #[test_case(|| ParamSource::from(Maker::new("a, b").formal_parameters()) => sok("a , b"); "formal parameters")]
     #[test_case(|| ParamSource::from(Maker::new("x").arrow_parameters()) => serr("Not FormalParameters"); "not formal parameters")]
-    fn formal_parameters_from_param_source(
-        make_source: impl FnOnce() -> ParamSource,
-    ) -> Result<String, String> {
+    fn formal_parameters_from_param_source(make_source: impl FnOnce() -> ParamSource) -> Result<String, String> {
         setup_test_agent();
         <Rc<FormalParameters> as TryFrom<ParamSource>>::try_from(make_source())
             .as_ref()
@@ -982,9 +972,7 @@ mod rc_try_from {
 
     #[test_case(|| BodySource::from(Maker::new("x();").function_body()) => sok("x ( ) ;"); "function body")]
     #[test_case(|| BodySource::from(Maker::new("=x").initializer()) => serr("Not a FunctionBody"); "not function body")]
-    fn function_body_from_body_source(
-        make_source: impl FnOnce() -> BodySource,
-    ) -> Result<String, String> {
+    fn function_body_from_body_source(make_source: impl FnOnce() -> BodySource) -> Result<String, String> {
         setup_test_agent();
         <Rc<FunctionBody> as TryFrom<BodySource>>::try_from(make_source())
             .as_ref()
