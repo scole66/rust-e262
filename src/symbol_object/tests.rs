@@ -5,6 +5,10 @@ use test_case::test_case;
 mod symbol_object {
     use super::*;
 
+    fn make() -> Object {
+        create_symbol_object(wks(WksId::ToPrimitive))
+    }
+
     #[test]
     fn debug() {
         setup_test_agent();
@@ -240,6 +244,13 @@ mod symbol_object {
 
         assert!(obj.o.to_arguments_object().is_none());
     }
+
+    false_function!(is_bigint_object);
+    false_function!(is_generator_object);
+    none_function!(to_bigint_object);
+    none_function!(to_for_in_iterator);
+    none_function!(to_generator_object);
+    none_function!(to_string_obj);
 
     #[test]
     fn get_prototype_of() {
