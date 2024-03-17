@@ -196,6 +196,8 @@ fn number_object_other_automatic_functions() {
     assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
     assert!(!no.o.is_proxy_object());
+    assert!(!no.o.is_symbol_object());
+    assert!(no.o.to_symbol_obj().is_none());
 }
 
 #[test]

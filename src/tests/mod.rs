@@ -1129,7 +1129,9 @@ mod test_object {
     }
 
     false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
     none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
 }
 
 mod adaptable_object {
@@ -1140,7 +1142,9 @@ mod adaptable_object {
     }
 
     false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
     none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
 }
 
 mod integration;

@@ -697,6 +697,7 @@ test_defs[function_prototype_apply]="function_prototype_apply todo::function_pro
 test_defs[function_prototype_bind]="function_prototype_bind todo::function_prototype_bind function_object"
 test_defs[function_prototype_to_string]="function_prototype_to_string function_prototype_to_string function_object"
 test_defs[function_prototype_has_instance]="function_prototype_has_instance function_prototype_has_instance function_object"
+test_defs[FunctionObject_Rc_TryFrom]="alloc::rc::Rc@core::convert::TryFrom rc_try_from function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 test_defs[is_str_whitespace]="is_str_whitespace is_str_whitespace strings"
@@ -949,6 +950,9 @@ for d in ${results[@]}; do
   else
     echo "Rendering:"
     rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
+    # echo --------
+    # cat $namelist
+    # echo --------
     report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata | tee ${d}/lines.txt
     if [ $(wc -l < ${d}/lines.txt) -gt 0 ]; then
       has_uncovered=("${has_uncovered[@]}" "$(< ${d}/name.txt)")

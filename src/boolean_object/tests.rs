@@ -205,6 +205,8 @@ fn bool_object_checks() {
     assert!(bool_obj.o.to_callable_obj().is_none());
     assert!(!bool_obj.o.is_proxy_object());
     assert!(bool_obj.o.to_proxy_object().is_none());
+    assert!(!bool_obj.o.is_symbol_object());
+    assert!(bool_obj.o.to_symbol_obj().is_none());
 }
 #[test]
 fn bool_object_debug() {
