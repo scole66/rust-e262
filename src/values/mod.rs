@@ -480,7 +480,7 @@ impl Symbol {
         Self(Rc::new(SymbolInternals { id: next_symbol_id(), description }))
     }
     pub fn description(&self) -> Option<JSString> {
-        self.0.description.as_ref().cloned()
+        self.0.description.clone()
     }
     pub fn descriptive_string(&self) -> JSString {
         let desc = self.description().unwrap_or_else(|| JSString::from(""));
