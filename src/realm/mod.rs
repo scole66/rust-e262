@@ -399,7 +399,7 @@ impl fmt::Debug for Realm {
         f.debug_struct(format!("Realm({})", self.id).as_str())
             .field("intrinsics", &self.intrinsics)
             .field("global_object", &ConciseOptionalObject::from(&self.global_object))
-            .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.as_ref().map(Rc::clone)))
+            .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.clone()))
             .finish()
     }
 }
