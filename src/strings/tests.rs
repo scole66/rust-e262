@@ -99,7 +99,7 @@ fn code_point_at_01() {
 fn code_point_at_02() {
     let src: Vec<u16> = vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902];
     let mystr = JSString::from(src);
-    let expected = vec![
+    let expected = [
         CodePointAtResult { code_point: 0, code_unit_count: 1, is_unpaired_surrogate: false },
         CodePointAtResult { code_point: 0x10000, code_unit_count: 2, is_unpaired_surrogate: false },
         CodePointAtResult { code_point: 0xde00, code_unit_count: 1, is_unpaired_surrogate: true },

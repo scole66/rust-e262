@@ -411,7 +411,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.outer_env.as_ref().cloned()
+        self.outer_env.clone()
     }
 
     fn name(&self) -> String {
@@ -677,7 +677,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.outer_env.as_ref().cloned()
+        self.outer_env.clone()
     }
 
     fn name(&self) -> String {
@@ -841,7 +841,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.base.outer_env.as_ref().cloned()
+        self.base.outer_env.clone()
     }
 
     // GetThisBinding ( )

@@ -24,7 +24,7 @@ mod agent {
         assert!(agent.execution_context_stack.borrow().is_empty());
 
         // All well-known symbols initialized, and different from one another.
-        let symbols = vec![
+        let symbols = [
             agent.symbols.async_iterator_,
             agent.symbols.has_instance_,
             agent.symbols.is_concat_spreadable_,
@@ -1451,7 +1451,7 @@ mod create_per_iteration_environment {
             .collect::<Vec<_>>();
         bindings.sort_unstable();
 
-        let outer = current_lexical_env.get_outer_env().as_ref().cloned();
+        let outer = current_lexical_env.get_outer_env().clone();
         let outer_name = outer.as_ref().map_or_else(String::new, |e| e.name());
         let mut outer_bindings = outer.map_or_else(Vec::new, |e| {
             e.binding_names()
