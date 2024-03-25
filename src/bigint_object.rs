@@ -150,7 +150,7 @@ fn bigint_constructor_function(
     } else {
         let prim = to_primitive(value, Some(ConversionHint::Number))?;
         match prim {
-            ECMAScriptValue::Number(_) => Ok(number_to_big_int(prim)?.into()),
+            ECMAScriptValue::Number(_) => Ok(prim.number_to_big_int()?.into()),
             _ => Ok(to_big_int(prim)?.into()),
         }
     }
@@ -240,9 +240,9 @@ fn bigint_to_string(
     let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
     let x = this_bigint_value(this_value.clone())?;
-    let radix_mv = if radix == ECMAScriptValue::Undefined { 10.0 } else { to_integer_or_infinity(radix)? };
+    let radix_mv = if radix == ECMAScriptValue::Undefined { 10.0 } else { radix.to_integer_or_infinity()? };
     if (2.0..=36.0).contains(&radix_mv) {
-        let radix_mv = to_uint32(radix_mv).expect("radix_mv should be in [2..36]");
+        let radix_mv = to_uint32_f64(radix_mv);
         Ok(bigint_to_string_radix(&x, radix_mv).into())
     } else {
         Err(create_range_error("A radix must be an interger between 2 and 36, inclusive"))
@@ -410,9 +410,11 @@ impl BigIntObject {
     }
 }
 
-pub fn create_bigint_object(b: Rc<BigInt>) -> Object {
-    let prototype = intrinsic(IntrinsicId::BigIntPrototype);
-    BigIntObject::object(Some(prototype), b)
+impl From<Rc<BigInt>> for Object {
+    fn from(b: Rc<BigInt>) -> Self {
+        let prototype = intrinsic(IntrinsicId::BigIntPrototype);
+        BigIntObject::object(Some(prototype), b)
+    }
 }
 
 fn this_bigint_value(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
@@ -444,19 +446,21 @@ fn this_bigint_value(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
     }
 }
 
-fn number_to_big_int(number: ECMAScriptValue) -> Completion<Rc<BigInt>> {
-    // NumberToBigInt ( number )
-    // The abstract operation NumberToBigInt takes argument number (a Number) and returns either a normal completion
-    // containing a BigInt or a throw completion. It performs the following steps when called:
-    //
-    //  1. If IsIntegralNumber(number) is false, throw a RangeError exception.
-    //  2. Return ℤ(ℝ(number)).
-    const ERRMSG: &str = "Non-integral number used in bigint creation";
-    if is_integral_number(&number) {
-        let num = to_number(number).unwrap();
-        Ok(Rc::new(BigInt::from_f64(num).ok_or_else(|| create_range_error(ERRMSG))?))
-    } else {
-        Err(create_range_error(ERRMSG))
+impl ECMAScriptValue {
+    fn number_to_big_int(&self) -> Completion<Rc<BigInt>> {
+        // NumberToBigInt ( number )
+        // The abstract operation NumberToBigInt takes argument number (a Number) and returns either a normal completion
+        // containing a BigInt or a throw completion. It performs the following steps when called:
+        //
+        //  1. If IsIntegralNumber(number) is false, throw a RangeError exception.
+        //  2. Return ℤ(ℝ(number)).
+        const ERRMSG: &str = "Non-integral number used in bigint creation";
+        if is_integral_number(self) {
+            let num = self.to_number().unwrap();
+            Ok(Rc::new(BigInt::from_f64(num).ok_or_else(|| create_range_error(ERRMSG))?))
+        } else {
+            Err(create_range_error(ERRMSG))
+        }
     }
 }
 

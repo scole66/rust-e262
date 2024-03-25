@@ -1644,7 +1644,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let exp = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
                     let val = get_value(exp);
                     let result = match val {
-                        Ok(ev) => to_number(ev).map(NormalCompletion::from),
+                        Ok(ev) => ev.to_number().map(NormalCompletion::from),
                         Err(ac) => Err(ac),
                     };
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
@@ -1672,7 +1672,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     };
                     let result = match old_val {
                         Err(ac) => Err(ac),
-                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32(n).unwrap())),
+                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32_f64(n))),
                         Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(!&*bi))),
                     };
                     agent.execution_context_stack.borrow_mut()[index].stack.push(result);
@@ -1954,7 +1954,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                                         Ok(next_value) => {
                                             array
                                                 .create_data_property_or_throw(
-                                                    to_string(next_index).expect("numbers should be stringable"),
+                                                    JSString::from(next_index),
                                                     next_value,
                                                 )
                                                 .expect("props should store ok");
@@ -2791,36 +2791,36 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
         (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => Ok(NormalCompletion::from(left + right)),
         (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => Ok(NormalCompletion::from(left - right)),
         (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => {
-            let left_num = to_int32(left).expect("Numbers are always convertable to Int32");
-            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let left_num = to_int32_f64(left);
+            let right_num = to_uint32_f64(right);
             let shift_count = right_num % 32;
             Ok(NormalCompletion::from(left_num << shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => {
-            let left_num = to_int32(left).expect("Numbers are always convertable to Int32");
-            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let left_num = to_int32_f64(left);
+            let right_num = to_uint32_f64(right);
             let shift_count = right_num % 32;
             Ok(NormalCompletion::from(left_num >> shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => {
-            let left_num = to_uint32(left).expect("Numbers are always convertable to Uint32");
-            let right_num = to_uint32(right).expect("Numbers are always convertable to Uint32");
+            let left_num = to_uint32_f64(left);
+            let right_num = to_uint32_f64(right);
             let shift_count = right_num % 32;
             Ok(NormalCompletion::from(left_num >> shift_count))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
-            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
-            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            let left_num = to_int32_f64(left);
+            let right_num = to_int32_f64(right);
             Ok(NormalCompletion::from(left_num & right_num))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => {
-            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
-            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            let left_num = to_int32_f64(left);
+            let right_num = to_int32_f64(right);
             Ok(NormalCompletion::from(left_num | right_num))
         }
         (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => {
-            let left_num = to_int32(left).expect("Numbers are always convertable to int32");
-            let right_num = to_int32(right).expect("Numbers are always convertable to int32");
+            let left_num = to_int32_f64(left);
+            let right_num = to_int32_f64(right);
             Ok(NormalCompletion::from(left_num ^ right_num))
         }
         (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {

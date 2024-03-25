@@ -1145,7 +1145,7 @@ mod function_environment_record {
 
     fn make_super() -> FunctionEnvironmentRecord {
         let (f, fer) = make_fer("function a(){}", None);
-        let home_object_prototype = create_string_object("Home Object Prototype".into());
+        let home_object_prototype = Object::from("Home Object Prototype");
         let home_object = ordinary_object_create(Some(home_object_prototype), &[]);
 
         let fo = f.o.to_function_obj().unwrap();
@@ -1160,7 +1160,7 @@ mod function_environment_record {
 
         fer.get_super_base()
             .map_err(unwind_any_error)
-            .map(|opt_obj| opt_obj.map(|obj| String::from(to_string(obj).unwrap())))
+            .map(|opt_obj| opt_obj.map(|obj| String::from(obj.to_string().unwrap())))
     }
 
     #[test_case(make_lexical => false; "lexical - no super")]

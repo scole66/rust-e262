@@ -662,7 +662,7 @@ fn is_finite(
     //  3. Otherwise, return true.
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
-    let num = to_number(number)?;
+    let num = number.to_number()?;
     Ok(ECMAScriptValue::from(num.is_finite()))
 }
 
@@ -680,7 +680,7 @@ fn is_nan(
     //  3. Otherwise, return false.
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
-    let num = to_number(number)?;
+    let num = number.to_number()?;
     Ok(ECMAScriptValue::from(num.is_nan()))
 }
 

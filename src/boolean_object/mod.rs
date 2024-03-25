@@ -165,13 +165,15 @@ impl BooleanObject {
 //  3. Let O be ? OrdinaryCreateFromConstructor(%Boolean%, "%Boolean.prototype%", « [[BooleanData]] »).
 //  4. Set O.[[BooleanData]] to b.
 //  5. Return O.
-pub fn create_boolean_object(b: bool) -> Object {
-    let constructor = intrinsic(IntrinsicId::Boolean);
-    let o = constructor
-        .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])
-        .unwrap();
-    *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
-    o
+impl From<bool> for Object {
+    fn from(b: bool) -> Self {
+        let constructor = intrinsic(IntrinsicId::Boolean);
+        let o = constructor
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])
+            .unwrap();
+        *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
+        o
+    }
 }
 
 // The abstract operation thisBooleanValue takes argument value. It performs the following steps when called:

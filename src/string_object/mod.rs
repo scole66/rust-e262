@@ -186,9 +186,16 @@ impl ObjectInterface for StringObject {
 pub fn string_create(value: JSString, prototype: Option<Object>) -> Object {
     StringObject::object(value, prototype)
 }
-pub fn create_string_object(s: JSString) -> Object {
-    let prototype = intrinsic(IntrinsicId::StringPrototype);
-    string_create(s, Some(prototype))
+impl From<JSString> for Object {
+    fn from(s: JSString) -> Self {
+        let prototype = intrinsic(IntrinsicId::StringPrototype);
+        string_create(s, Some(prototype))
+    }
+}
+impl From<&str> for Object {
+    fn from(s: &str) -> Self {
+        Object::from(JSString::from(s))
+    }
 }
 
 impl StringObject {
@@ -506,8 +513,10 @@ fn string_from_char_code(
     //      b. Append nextCU to elements.
     //  3. Return the String value whose code units are the elements in the List elements. If codeUnits is empty, the
     //     empty String is returned.
-    Ok(JSString::from(arguments.iter().map(|v| to_uint16(v.clone())).collect::<Result<Vec<u16>, AbruptCompletion>>()?)
-        .into())
+    Ok(JSString::from(
+        arguments.iter().map(ECMAScriptValue::to_uint16).collect::<Result<Vec<u16>, AbruptCompletion>>()?,
+    )
+    .into())
 }
 fn string_from_code_point(
     _this_value: &ECMAScriptValue,
@@ -609,7 +618,7 @@ fn string_prototype_index_of(
     require_object_coercible(this_value)?;
     let s = to_string(this_value.clone())?;
     let search_str = to_string(search_string)?;
-    let pos = to_integer_or_infinity(position)?;
+    let pos = position.to_integer_or_infinity()?;
     let len = s.len();
     let max = to_f64(len).expect("len should fit within a float");
     #[allow(clippy::cast_precision_loss)]

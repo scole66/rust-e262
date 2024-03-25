@@ -164,7 +164,7 @@ fn math_abs(
     //  5. If n < -0𝔽, return -n.
     //  6. Return n.
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.abs().into())
+    Ok(args.next_arg().to_number()?.abs().into())
 }
 
 fn math_acos(
@@ -183,7 +183,7 @@ fn math_acos(
     //  3. If n is 1𝔽, return +0𝔽.
     //  4. Return an implementation-approximated Number value representing the result of the inverse cosine of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.acos().into())
+    Ok(args.next_arg().to_number()?.acos().into())
 }
 
 fn math_acosh(
@@ -203,7 +203,7 @@ fn math_acosh(
     //  5. Return an implementation-approximated Number value representing the result of the inverse hyperbolic cosine
     //     of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.acosh().into())
+    Ok(args.next_arg().to_number()?.acosh().into())
 }
 
 fn math_asin(
@@ -222,7 +222,7 @@ fn math_asin(
     //  3. If n > 1𝔽 or n < -1𝔽, return NaN.
     //  4. Return an implementation-approximated Number value representing the result of the inverse sine of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.asin().into())
+    Ok(args.next_arg().to_number()?.asin().into())
 }
 
 fn math_asinh(
@@ -240,7 +240,7 @@ fn math_asinh(
     //  3. Return an implementation-approximated Number value representing the result of the inverse hyperbolic sine of
     //     ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.asinh().into())
+    Ok(args.next_arg().to_number()?.asinh().into())
 }
 
 fn math_atan(
@@ -260,7 +260,7 @@ fn math_atan(
     //  4. If n is -∞𝔽, return an implementation-approximated Number value representing -π / 2.
     //  5. Return an implementation-approximated Number value representing the result of the inverse tangent of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.atan().into())
+    Ok(args.next_arg().to_number()?.atan().into())
 }
 
 fn math_atanh(
@@ -281,7 +281,7 @@ fn math_atanh(
     //  6. Return an implementation-approximated Number value representing the result of the inverse hyperbolic tangent
     //     of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.atanh().into())
+    Ok(args.next_arg().to_number()?.atanh().into())
 }
 
 fn math_atan2(
@@ -327,8 +327,8 @@ fn math_atan2(
     //  12. Return an implementation-approximated Number value representing the result of the inverse tangent of the
     //      quotient ℝ(ny) / ℝ(nx).
     let mut args = FuncArgs::from(arguments);
-    let y = to_number(args.next_arg())?;
-    let x = to_number(args.next_arg())?;
+    let y = args.next_arg().to_number()?;
+    let x = args.next_arg().to_number()?;
     Ok(y.atan2(x).into())
 }
 
@@ -346,7 +346,7 @@ fn math_cbrt(
     //  2. If n is not finite or n is either +0𝔽 or -0𝔽, return n.
     //  3. Return an implementation-approximated Number value representing the result of the cube root of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.cbrt().into())
+    Ok(args.next_arg().to_number()?.cbrt().into())
 }
 
 fn math_ceil(
@@ -368,7 +368,7 @@ fn math_ceil(
     // NOTE
     // The value of Math.ceil(x) is the same as the value of -Math.floor(-x).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.ceil().into())
+    Ok(args.next_arg().to_number()?.ceil().into())
 }
 
 fn math_clz32(
@@ -385,7 +385,7 @@ fn math_clz32(
     // NOTE
     // If n is either +0𝔽 or -0𝔽, this method returns 32𝔽. If the most significant bit of the 32-bit binary encoding of n is 1, this method returns +0𝔽.
     let mut args = FuncArgs::from(arguments);
-    Ok(to_uint32(args.next_arg())?.leading_zeros().into())
+    Ok(args.next_arg().to_uint32()?.leading_zeros().into())
 }
 
 fn math_cos(
@@ -403,7 +403,7 @@ fn math_cos(
     //  3. If n is either +0𝔽 or -0𝔽, return 1𝔽.
     //  4. Return an implementation-approximated Number value representing the result of the cosine of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.cos().into())
+    Ok(args.next_arg().to_number()?.cos().into())
 }
 
 fn math_cosh(
@@ -424,7 +424,7 @@ fn math_cosh(
     // NOTE
     // The value of Math.cosh(x) is the same as the value of (Math.exp(x) + Math.exp(-x)) / 2.
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.cosh().into())
+    Ok(args.next_arg().to_number()?.cosh().into())
 }
 
 fn math_exp(
@@ -445,7 +445,7 @@ fn math_exp(
     //  5. Return an implementation-approximated Number value representing the result of the exponential function of
     //     ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.exp().into())
+    Ok(args.next_arg().to_number()?.exp().into())
 }
 
 fn math_expm1(
@@ -466,7 +466,7 @@ fn math_expm1(
     //  4. Return an implementation-approximated Number value representing the result of subtracting 1 from the
     //     exponential function of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.exp_m1().into())
+    Ok(args.next_arg().to_number()?.exp_m1().into())
 }
 
 fn math_floor(
@@ -487,7 +487,7 @@ fn math_floor(
     // NOTE
     // The value of Math.floor(x) is the same as the value of -Math.ceil(-x).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.floor().into())
+    Ok(args.next_arg().to_number()?.floor().into())
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -506,7 +506,7 @@ fn math_fround(
     //  5. Let n64 be the result of converting n32 to IEEE 754-2019 binary64 format.
     //  6. Return the ECMAScript Number value corresponding to n64.
     let mut args = FuncArgs::from(arguments);
-    let n = to_number(args.next_arg())?;
+    let n = args.next_arg().to_number()?;
     let n32 = n as f32;
     Ok(f64::from(n32).into())
 }
@@ -539,7 +539,7 @@ fn math_hypot(
     // NOTE
     // Implementations should take care to avoid the loss of precision from overflows and underflows that are prone to
     // occur in naive implementations when this function is called with two or more arguments.
-    let coerced = arguments.iter().map(|val| to_number(val.clone())).collect::<Completion<Vec<_>>>()?;
+    let coerced = arguments.iter().map(ECMAScriptValue::to_number).collect::<Completion<Vec<_>>>()?;
     let mut saw_nan = false;
     let mut only_zero = true;
     for item in &coerced {
@@ -575,8 +575,8 @@ fn math_imul(
     //  3. Let product be (a × b) modulo 2**32.
     //  4. If product ≥ 2**31, return 𝔽(product - 2**32); otherwise return 𝔽(product).
     let mut args = FuncArgs::from(arguments);
-    let a = to_uint32(args.next_arg())?;
-    let b = to_uint32(args.next_arg())?;
+    let a = args.next_arg().to_uint32()?;
+    let b = args.next_arg().to_uint32()?;
     let product = a * b;
     let result = if product >= 2_147_483_648 { i64::from(product) - 4_294_967_296 } else { i64::from(product) };
     Ok(result.into())
@@ -599,7 +599,7 @@ fn math_log(
     // 5. If n < -0𝔽, return NaN.
     // 6. Return an implementation-approximated Number value representing the result of the natural logarithm of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.ln().into())
+    Ok(args.next_arg().to_number()?.ln().into())
 }
 
 fn math_log1p(
@@ -620,7 +620,7 @@ fn math_log1p(
     //  5. Return an implementation-approximated Number value representing the result of the natural logarithm of 1 +
     //     ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.ln_1p().into())
+    Ok(args.next_arg().to_number()?.ln_1p().into())
 }
 
 fn math_log10(
@@ -640,7 +640,7 @@ fn math_log10(
     //  5. If n < -0𝔽, return NaN.
     //  6. Return an implementation-approximated Number value representing the result of the base 10 logarithm of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.log10().into())
+    Ok(args.next_arg().to_number()?.log10().into())
 }
 
 fn math_log2(
@@ -660,7 +660,7 @@ fn math_log2(
     //  5. If n < -0𝔽, return NaN.
     //  6. Return an implementation-approximated Number value representing the result of the base 2 logarithm of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.log2().into())
+    Ok(args.next_arg().to_number()?.log2().into())
 }
 
 fn math_max(
@@ -686,7 +686,7 @@ fn math_max(
     //  5. Return highest.
     // NOTE The comparison of values to determine the largest value is done using the IsLessThan algorithm except that
     // +0𝔽 is considered to be larger than -0𝔽.
-    let coerced = arguments.iter().map(|v| to_number(v.clone())).collect::<Completion<Vec<_>>>()?;
+    let coerced = arguments.iter().map(ECMAScriptValue::to_number).collect::<Completion<Vec<_>>>()?;
     let mut highest = f64::NEG_INFINITY;
     for number in coerced {
         if number.is_nan() {
@@ -722,7 +722,7 @@ fn math_min(
     //  5. Return lowest.
     // NOTE The comparison of values to determine the largest value is done using the IsLessThan algorithm except that
     // +0𝔽 is considered to be larger than -0𝔽.
-    let coerced = arguments.iter().map(|v| to_number(v.clone())).collect::<Completion<Vec<_>>>()?;
+    let coerced = arguments.iter().map(|v| v.clone().to_number()).collect::<Completion<Vec<_>>>()?;
     let mut lowest = f64::INFINITY;
     for number in coerced {
         if number.is_nan() {
@@ -747,8 +747,8 @@ fn math_pow(
     //  2. Set exponent to ? ToNumber(exponent).
     //  3. Return Number::exponentiate(base, exponent).
     let mut args = FuncArgs::from(arguments);
-    let base = to_number(args.next_arg())?;
-    let exponent = to_number(args.next_arg())?;
+    let base = args.next_arg().to_number()?;
+    let exponent = args.next_arg().to_number()?;
     Ok(exponentiate(base, exponent).into())
 }
 
@@ -793,7 +793,7 @@ fn math_round(
     // +0𝔽. Math.round(x) may also differ from the value of Math.floor(x + 0.5) because of internal rounding when
     // computing x + 0.5.
     let mut args = FuncArgs::from(arguments);
-    let n = to_number(args.next_arg())?;
+    let n = args.next_arg().to_number()?;
     if (-0.5..0.0).contains(&n) {
         return Ok((-0.0).into());
     }
@@ -819,7 +819,7 @@ fn math_sign(
     //  3. If n < -0𝔽, return -1𝔽.
     //  4. Return 1𝔽.
     let mut args = FuncArgs::from(arguments);
-    let n = to_number(args.next_arg())?;
+    let n = args.next_arg().to_number()?;
     if n == 0.0 {
         return Ok(n.into());
     }
@@ -841,7 +841,7 @@ fn math_sin(
     //  3. If n is either +∞𝔽 or -∞𝔽, return NaN.
     //  4. Return an implementation-approximated Number value representing the result of the sine of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.sin().into())
+    Ok(args.next_arg().to_number()?.sin().into())
 }
 
 fn math_sinh(
@@ -860,7 +860,7 @@ fn math_sinh(
     // NOTE
     // The value of Math.sinh(x) is the same as the value of (Math.exp(x) - Math.exp(-x)) / 2.
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.sinh().into())
+    Ok(args.next_arg().to_number()?.sinh().into())
 }
 
 fn math_sqrt(
@@ -878,7 +878,7 @@ fn math_sqrt(
     //  3. If n < -0𝔽, return NaN.
     //  4. Return an implementation-approximated Number value representing the result of the square root of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.sqrt().into())
+    Ok(args.next_arg().to_number()?.sqrt().into())
 }
 
 fn math_tan(
@@ -896,7 +896,7 @@ fn math_tan(
     //  3. If n is either +∞𝔽 or -∞𝔽, return NaN.
     //  4. Return an implementation-approximated Number value representing the result of the tangent of ℝ(n).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.tan().into())
+    Ok(args.next_arg().to_number()?.tan().into())
 }
 
 fn math_tanh(
@@ -917,7 +917,7 @@ fn math_tanh(
     // NOTE The value of Math.tanh(x) is the same as the value of (Math.exp(x) - Math.exp(-x)) / (Math.exp(x) +
     // Math.exp(-x)).
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.tanh().into())
+    Ok(args.next_arg().to_number()?.tanh().into())
 }
 
 fn math_trunc(
@@ -936,5 +936,5 @@ fn math_trunc(
     //  4. If n < -0𝔽 and n > -1𝔽, return -0𝔽.
     //  5. Return the integral Number nearest n in the direction of +0𝔽.
     let mut args = FuncArgs::from(arguments);
-    Ok(to_number(args.next_arg())?.trunc().into())
+    Ok(args.next_arg().to_number()?.trunc().into())
 }

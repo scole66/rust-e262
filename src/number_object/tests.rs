@@ -28,7 +28,7 @@ fn number_object_object() {
 #[allow(clippy::float_cmp)]
 fn create_number_object_01() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
     assert_eq!(no.o.get_prototype_of().unwrap(), Some(number_prototype));
@@ -38,7 +38,7 @@ fn create_number_object_01() {
 #[test]
 fn number_object_common_object_data() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
 
     let cod = no.o.common_object_data();
@@ -52,7 +52,7 @@ fn number_object_common_object_data() {
 #[test]
 fn number_object_uses_ordinary_get_prototype_of() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.uses_ordinary_get_prototype_of();
 
@@ -61,7 +61,7 @@ fn number_object_uses_ordinary_get_prototype_of() {
 #[test]
 fn number_object_id() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     // ... essentially, assert that it doesn't panic.
     no.o.id();
@@ -69,7 +69,7 @@ fn number_object_id() {
 #[test]
 fn number_object_to_number_object() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.to_number_obj();
     assert!(result.is_some());
@@ -77,7 +77,7 @@ fn number_object_to_number_object() {
 #[test]
 fn number_object_is_number_object() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.is_number_object();
 
@@ -86,7 +86,7 @@ fn number_object_is_number_object() {
 #[test]
 fn number_object_get_prototype_of() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.get_prototype_of().unwrap();
     assert!(result.is_some());
@@ -94,7 +94,7 @@ fn number_object_get_prototype_of() {
 #[test]
 fn number_object_set_prototype_of() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.set_prototype_of(None).unwrap();
     assert!(result);
@@ -102,7 +102,7 @@ fn number_object_set_prototype_of() {
 #[test]
 fn number_object_is_extensible() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.is_extensible().unwrap();
     assert!(result);
@@ -110,7 +110,7 @@ fn number_object_is_extensible() {
 #[test]
 fn number_object_prevent_extensions() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.prevent_extensions().unwrap();
     assert!(result);
@@ -118,7 +118,7 @@ fn number_object_prevent_extensions() {
 #[test]
 fn number_object_get_own_property() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.get_own_property(&PropertyKey::from("a")).unwrap();
     assert!(result.is_none());
@@ -126,7 +126,7 @@ fn number_object_get_own_property() {
 #[test]
 fn number_object_define_own_property() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result =
         no.o.define_own_property(
@@ -139,7 +139,7 @@ fn number_object_define_own_property() {
 #[test]
 fn number_object_has_property() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.has_property(&PropertyKey::from("a")).unwrap();
     assert!(!result);
@@ -147,7 +147,7 @@ fn number_object_has_property() {
 #[test]
 fn number_object_get() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.get(&PropertyKey::from("a"), &ECMAScriptValue::from(no.clone())).unwrap();
     assert_eq!(result, ECMAScriptValue::Undefined);
@@ -155,7 +155,7 @@ fn number_object_get() {
 #[test]
 fn number_object_set() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result =
         no.o.set(PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
@@ -164,7 +164,7 @@ fn number_object_set() {
 #[test]
 fn number_object_delete() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.delete(&PropertyKey::from("a")).unwrap();
     assert!(result);
@@ -172,7 +172,7 @@ fn number_object_delete() {
 #[test]
 fn number_object_own_property_keys() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     let result = no.o.own_property_keys().unwrap();
     assert_eq!(result, &[]);
@@ -180,7 +180,7 @@ fn number_object_own_property_keys() {
 #[test]
 fn number_object_other_automatic_functions() {
     setup_test_agent();
-    let no = create_number_object(100.0);
+    let no = Object::from(100.0);
 
     assert!(!no.o.is_error_object());
     assert!(no.o.to_function_obj().is_none());

@@ -1085,7 +1085,7 @@ pub struct PropertyInfo {
 
 impl fmt::Display for PropertyInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:", to_string(&self.name).unwrap())?;
+        write!(f, "{}:", to_string(ECMAScriptValue::from(self.name.clone())).unwrap())?;
         match &self.kind {
             PropertyInfoKind::Accessor { getter, setter } => write!(f, "[[Get]]: {getter}, [[Set]]: {setter} ("),
             PropertyInfoKind::Data { value, writable } => write!(f, "{} ({}", value, if *writable { 'w' } else { '-' }),
