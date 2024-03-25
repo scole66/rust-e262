@@ -124,7 +124,7 @@ fn create_iter_result_object(value: &ECMAScriptValue, done: bool) {
 }
 
 #[test_case(|| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
-#[test_case(|| create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
+#[test_case(|| Object::from("blue").into(), "" => serr("TypeError: Generator required"); "not a generator")]
 #[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
@@ -1331,7 +1331,7 @@ mod iterator_record {
             return Ok((r.try_into().unwrap(), vec![]));
         }
         let tracker = tracker.unwrap();
-        let tracker_len = to_usize(to_number(tracker.get(&"length".into()).unwrap()).unwrap()).unwrap();
+        let tracker_len = to_usize(tracker.get(&"length".into()).unwrap().to_number().unwrap()).unwrap();
         let mut tracks = vec![];
         for idx in 0..tracker_len {
             let item = tracker.get(&idx.into()).unwrap();

@@ -172,11 +172,13 @@ impl SymbolObject {
     }
 }
 
-pub fn create_symbol_object(sym: Symbol) -> Object {
-    let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
-    let obj = SymbolObject::object(Some(symbol_proto));
-    *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
-    obj
+impl From<Symbol> for Object {
+    fn from(sym: Symbol) -> Self {
+        let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
+        let obj = SymbolObject::object(Some(symbol_proto));
+        *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
+        obj
+    }
 }
 
 pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {

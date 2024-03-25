@@ -89,8 +89,8 @@ impl ObjectInterface for ArrayObject {
         } else if key.is_array_index() {
             let p = JSString::try_from(key).unwrap();
             let old_len_desc = DataDescriptor::try_from(ordinary_get_own_property(self, &length_key).unwrap()).unwrap();
-            let old_len = to_uint32(old_len_desc.value).unwrap();
-            let index = to_uint32(p.clone()).unwrap();
+            let old_len = old_len_desc.value.to_uint32().unwrap();
+            let index = p.to_uint32();
             if index >= old_len && !old_len_desc.writable {
                 Ok(false)
             } else {
@@ -228,15 +228,15 @@ impl ArrayObject {
             return ordinary_define_own_property(self, PropertyKey::from("length"), descriptor);
         }
         let mut new_len_desc = descriptor.clone();
-        let new_len = to_uint32(descriptor.value.clone().unwrap())?;
-        let number_len = to_number(descriptor.value.unwrap())?;
+        let new_len = descriptor.value.as_ref().unwrap().to_uint32()?;
+        let number_len = descriptor.value.as_ref().unwrap().to_number()?;
         if !number_same_value_zero(f64::from(new_len), number_len) {
             return Err(create_range_error("Invalid array length"));
         }
         new_len_desc.value = Some(ECMAScriptValue::from(new_len));
         let old_len_desc = ordinary_get_own_property(self, &"length".into()).unwrap();
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
-        let old_len = to_uint32(old_len_desc.value).unwrap();
+        let old_len = old_len_desc.value.to_uint32().unwrap();
         if new_len >= old_len {
             return ordinary_define_own_property(self, "length", new_len_desc);
         }
@@ -267,7 +267,7 @@ impl ArrayObject {
         for p in keys.into_iter().rev() {
             let delete_succeeded = self.delete(&p).unwrap();
             if !delete_succeeded {
-                new_len_desc.value = Some(ECMAScriptValue::from(to_uint32(p).unwrap() + 1));
+                new_len_desc.value = Some(ECMAScriptValue::from(ECMAScriptValue::from(p).to_uint32().unwrap() + 1));
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
@@ -647,7 +647,7 @@ fn array_constructor_function(
             let array = array_create(0, Some(proto)).expect("Array creation with zero length should succeed");
             let int_len = match len {
                 ECMAScriptValue::Number(len) => {
-                    let int_len = to_uint32(len).expect("number to uint32 should not fail");
+                    let int_len = to_uint32_f64(len);
                     if !number_same_value_zero(f64::from(int_len), len) {
                         return Err(create_range_error("Bad length in array construction"));
                     }
@@ -867,7 +867,7 @@ fn array_prototype_join(
         if k > 0 {
             r = r.concat(sep.clone());
         }
-        let element = o.get(&to_string(k).expect("numbers should be string-able").into())?;
+        let element = o.get(&JSString::from(k).into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
         k += 1;
@@ -1232,8 +1232,8 @@ async fn array_iterator(
             let res = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(index), false));
             generator_yield(&co, res).await?;
         } else {
-            let element_key = to_string(index).expect("numbers should always have string representations");
-            let element_value = array.get(&element_key.into())?;
+            let element_key = PropertyKey::from(index);
+            let element_value = array.get(&element_key)?;
             if kind == KeyValueKind::Value {
                 let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
                 generator_yield(&co, res).await?;

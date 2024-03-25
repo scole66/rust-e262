@@ -1249,7 +1249,7 @@ mod array_iterator {
     ) -> Completion<ECMAScriptValue> {
         let obj = to_object(this_value.clone())?;
         let so_far = obj.get(&"called_count".into())?;
-        let so_far = if so_far.is_undefined() { 0.0 } else { to_number(so_far)? };
+        let so_far = if so_far.is_undefined() { 0.0 } else { so_far.to_number()? };
 
         let result = if so_far < 3.0 {
             generator_resume(this_value, ECMAScriptValue::Undefined, "%ArrayIteratorPrototype%")?

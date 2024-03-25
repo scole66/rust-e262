@@ -1907,6 +1907,18 @@ impl ECMAScriptValue {
         }
     }
 }
+impl Object {
+    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+        let func = self.get(key)?;
+        if func.is_undefined() || func.is_null() {
+            Ok(ECMAScriptValue::Undefined)
+        } else if !is_callable(&func) {
+            Err(create_type_error("item is not callable"))
+        } else {
+            Ok(func)
+        }
+    }
+}
 
 // HasProperty ( O, P )
 //
@@ -2133,7 +2145,7 @@ pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<boo
 pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
     let array = array_create(0, None).unwrap();
     for (n, e) in elements.iter().enumerate() {
-        let key = to_string(u64::try_from(n).unwrap()).unwrap();
+        let key = PropertyKey::from(u64::try_from(n).unwrap());
         array.create_data_property_or_throw(key, e.clone()).unwrap();
     }
     array
@@ -2194,8 +2206,8 @@ pub fn create_list_from_array_like(
     let len = usize::try_from(length_of_array_like(&obj)?).expect("array lengths should fit");
     let mut list = Vec::new();
     for index in 0..len {
-        let index_name = to_string(index).expect("number to string works");
-        let next = obj.get(&index_name.into())?;
+        let index_name = PropertyKey::from(index);
+        let next = obj.get(&index_name)?;
         if !element_types.contains(&next.kind()) {
             return Err(create_type_error("Invalid kind for array"));
         }

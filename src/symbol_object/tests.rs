@@ -6,7 +6,7 @@ mod symbol_object {
     use super::*;
 
     fn make() -> Object {
-        create_symbol_object(wks(WksId::ToPrimitive))
+        Object::from(wks(WksId::ToPrimitive))
     }
 
     #[test]
@@ -53,7 +53,7 @@ mod symbol_object {
     fn is_callable_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_callable_obj());
     }
@@ -62,7 +62,7 @@ mod symbol_object {
     fn is_number_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_number_object());
     }
@@ -71,7 +71,7 @@ mod symbol_object {
     fn is_arguments_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_arguments_object());
     }
@@ -80,7 +80,7 @@ mod symbol_object {
     fn is_boolean_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_boolean_object());
     }
@@ -89,7 +89,7 @@ mod symbol_object {
     fn is_array_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_array_object());
     }
@@ -98,7 +98,7 @@ mod symbol_object {
     fn is_error_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_error_object());
     }
@@ -107,7 +107,7 @@ mod symbol_object {
     fn is_regexp_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_regexp_object());
     }
@@ -116,7 +116,7 @@ mod symbol_object {
     fn is_proxy_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_proxy_object());
     }
@@ -124,7 +124,7 @@ mod symbol_object {
     #[test]
     fn to_proxy_object() {
         setup_test_agent();
-        let obj = create_symbol_object(wks(WksId::ToPrimitive));
+        let obj = Object::from(wks(WksId::ToPrimitive));
         assert!(obj.o.to_proxy_object().is_none());
     }
 
@@ -132,7 +132,7 @@ mod symbol_object {
     fn is_string_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_string_object());
     }
@@ -141,7 +141,7 @@ mod symbol_object {
     fn is_date_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_date_object());
     }
@@ -150,7 +150,7 @@ mod symbol_object {
     fn to_callable_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_callable_obj().is_none());
     }
@@ -159,7 +159,7 @@ mod symbol_object {
     fn to_error_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_error_obj().is_none());
     }
@@ -168,7 +168,7 @@ mod symbol_object {
     fn to_constructable() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_constructable().is_none());
     }
@@ -177,7 +177,7 @@ mod symbol_object {
     fn to_array_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_array_object().is_none());
     }
@@ -186,7 +186,7 @@ mod symbol_object {
     fn to_boolean_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_boolean_obj().is_none());
     }
@@ -195,7 +195,7 @@ mod symbol_object {
     fn to_number_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_number_obj().is_none());
     }
@@ -204,7 +204,7 @@ mod symbol_object {
     fn to_function_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_function_obj().is_none());
     }
@@ -213,7 +213,7 @@ mod symbol_object {
     fn to_builtin_function_obj() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_builtin_function_obj().is_none());
     }
@@ -222,7 +222,7 @@ mod symbol_object {
     fn uses_ordinary_get_prototype_of() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.uses_ordinary_get_prototype_of());
     }
@@ -231,7 +231,7 @@ mod symbol_object {
     fn is_plain_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(!obj.o.is_plain_object());
     }
@@ -240,7 +240,7 @@ mod symbol_object {
     fn to_arguments_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let obj = create_symbol_object(sym);
+        let obj = Object::from(sym);
 
         assert!(obj.o.to_arguments_object().is_none());
     }
@@ -256,7 +256,7 @@ mod symbol_object {
     fn get_prototype_of() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let proto = sym_obj.o.get_prototype_of().unwrap().unwrap();
         assert_eq!(proto, intrinsic(IntrinsicId::SymbolPrototype));
     }
@@ -265,7 +265,7 @@ mod symbol_object {
     fn set_prototype_of() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.set_prototype_of(None).unwrap();
         assert!(res);
         assert!(sym_obj.o.get_prototype_of().unwrap().is_none());
@@ -275,7 +275,7 @@ mod symbol_object {
     fn is_extensible() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.is_extensible().unwrap();
         assert!(res);
     }
@@ -284,7 +284,7 @@ mod symbol_object {
     fn prevent_extensions() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.prevent_extensions().unwrap();
         assert!(res);
         assert!(!sym_obj.o.is_extensible().unwrap());
@@ -294,7 +294,7 @@ mod symbol_object {
     fn define_and_get_own_property() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj
             .o
             .define_own_property(PropertyKey::from("rust"), PotentialPropertyDescriptor::new().value("is awesome"))
@@ -314,7 +314,7 @@ mod symbol_object {
     fn has_property() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.has_property(&PropertyKey::from("rust")).unwrap();
         assert_eq!(res, false);
         let tst = wks(WksId::ToStringTag);
@@ -326,7 +326,7 @@ mod symbol_object {
     fn get() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.get(&PropertyKey::from("rust"), &ECMAScriptValue::Undefined).unwrap();
         assert_eq!(res, ECMAScriptValue::Undefined);
         let tst = wks(WksId::ToStringTag);
@@ -338,7 +338,7 @@ mod symbol_object {
     fn set() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let receiver = ECMAScriptValue::Object(sym_obj.clone());
         let res = sym_obj.o.set(PropertyKey::from("rust"), ECMAScriptValue::Null, &receiver).unwrap();
         assert_eq!(res, true);
@@ -348,7 +348,7 @@ mod symbol_object {
     fn delete() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.delete(&PropertyKey::from("rust")).unwrap();
         assert_eq!(res, true);
     }
@@ -357,7 +357,7 @@ mod symbol_object {
     fn own_keys() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym);
+        let sym_obj = Object::from(sym);
         let res = sym_obj.o.own_property_keys().unwrap();
         assert!(res.is_empty());
     }
@@ -366,8 +366,8 @@ mod symbol_object {
     fn id() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
-        let sym_obj = create_symbol_object(sym.clone());
-        let sym_obj2 = create_symbol_object(sym);
+        let sym_obj = Object::from(sym.clone());
+        let sym_obj2 = Object::from(sym);
         assert_ne!(sym_obj.o.id(), sym_obj2.o.id());
     }
 }
@@ -512,7 +512,7 @@ mod this_symbol_value {
     fn symbol_in_object() {
         setup_test_agent();
         let sym = Symbol::new(Some("test_sentinel".into()));
-        let o = create_symbol_object(sym.clone());
+        let o = Object::from(sym.clone());
         let this_value = ECMAScriptValue::from(o);
 
         let result = this_symbol_value(this_value).unwrap();
@@ -638,7 +638,7 @@ mod create_symbol_object {
     fn normal() {
         setup_test_agent();
         let s1 = Symbol::new(Some("train".into()));
-        let sobj = create_symbol_object(s1.clone());
+        let sobj = Object::from(s1.clone());
         assert_eq!(s1, this_symbol_value(sobj.into()).unwrap());
     }
 }
