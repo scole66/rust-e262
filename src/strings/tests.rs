@@ -259,3 +259,17 @@ mod is_str_whitespace {
         }
     }
 }
+
+#[test_case("" => Some(Rc::new(BigInt::from(0))); "empty string")]
+#[test_case(" \t" => Some(Rc::new(BigInt::from(0))); "only whitespace (2+ chars)")]
+#[test_case(" " => Some(Rc::new(BigInt::from(0))); "only whitespace (1 char)")]
+#[test_case("  nothing  " => None; "not a number, with whitespace")]
+#[test_case("\u{26f5}" => None; "sailboat emoji ⛵")]
+#[test_case("0x10" => Some(Rc::new(BigInt::from(16))); "hex")]
+#[test_case("0b1010" => Some(Rc::new(BigInt::from(10))); "binary")]
+#[test_case("0o752" => Some(Rc::new(BigInt::from(490))); "octal")]
+#[test_case("0q1231" => None; "leading zero, but not valid")]
+#[test_case("1234567890987654321" => Some(Rc::new(BigInt::from(1_234_567_890_987_654_321_i64))); "actual number")]
+fn string_to_bigint(s: &str) -> Option<Rc<BigInt>> {
+    super::string_to_bigint(&JSString::from(s))
+}
