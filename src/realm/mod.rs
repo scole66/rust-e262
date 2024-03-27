@@ -402,7 +402,7 @@ impl fmt::Debug for Realm {
         f.debug_struct(format!("Realm({})", self.id).as_str())
             .field("intrinsics", &self.intrinsics)
             .field("global_object", &ConciseOptionalObject::from(&self.global_object))
-            .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.as_ref().map(Rc::clone)))
+            .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.clone()))
             .finish()
     }
 }
@@ -666,7 +666,7 @@ fn is_finite(
     //  3. Otherwise, return true.
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
-    let num = to_number(number)?;
+    let num = number.to_number()?;
     Ok(ECMAScriptValue::from(num.is_finite()))
 }
 
@@ -684,7 +684,7 @@ fn is_nan(
     //  3. Otherwise, return false.
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
-    let num = to_number(number)?;
+    let num = number.to_number()?;
     Ok(ECMAScriptValue::from(num.is_nan()))
 }
 

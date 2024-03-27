@@ -114,7 +114,7 @@ fn interpret(source: &str) -> Result<i32, String> {
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
-                println!("{}", to_string(err).unwrap());
+                println!("{}", err.to_string().unwrap());
             }
             Err("See above".to_string())
         }

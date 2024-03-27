@@ -380,13 +380,15 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
 // 5. Set O.[[NumberData]] to n.
 // 6. Return O.
-pub fn create_number_object(n: f64) -> Object {
-    let constructor = intrinsic(IntrinsicId::Number);
-    let o = constructor
-        .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-        .unwrap();
-    *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
-    o
+impl From<f64> for Object {
+    fn from(n: f64) -> Self {
+        let constructor = intrinsic(IntrinsicId::Number);
+        let o = constructor
+            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
+            .unwrap();
+        *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
+        o
+    }
 }
 
 // Number ( value )
@@ -603,7 +605,7 @@ fn number_prototype_to_exponential(
     let fraction_digits = args.next_arg();
 
     let value = this_number_value(&this_value.clone())?;
-    let fraction = to_integer_or_infinity(fraction_digits.clone())?;
+    let fraction = fraction_digits.to_integer_or_infinity()?;
     if !value.is_finite() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
@@ -611,7 +613,7 @@ fn number_prototype_to_exponential(
         let fd_str = to_string(fraction_digits).unwrap();
         return Err(create_range_error(format!("FractionDigits ‘{fd_str}’ must lie within the range 0..100")));
     }
-    let fraction = to_int32(fraction).expect("integer floats in the range 0..100 should convert fine");
+    let fraction = to_int32_f64(fraction);
 
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
@@ -712,7 +714,7 @@ fn number_prototype_to_fixed(
     let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
     let value = this_number_value(&this_value.clone())?;
-    let fraction = to_integer_or_infinity(fraction_digits)?;
+    let fraction = fraction_digits.to_integer_or_infinity()?;
     if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
         return Err(create_range_error("Argument for Number.toFixed must be in the range 0..100"));
     }
@@ -723,7 +725,7 @@ fn number_prototype_to_fixed(
 
     Ok(ECMAScriptValue::from({
         let sign = if value < 0.0 { "-" } else { "" };
-        let f = to_int32(fraction).expect("integer floats should convert cleanly");
+        let f = to_int32_f64(fraction);
         let mut workbuf: [u8; 101] = [b'0'; 101];
         let info = dtoa_fixed(magnitude, f);
         let mut k = info.decpt + f;
@@ -849,7 +851,7 @@ fn number_prototype_to_precision(
     if precision.is_undefined() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
-    let prec = to_integer_or_infinity(precision.clone())?;
+    let prec = precision.to_integer_or_infinity()?;
     if !value.is_finite() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
@@ -1086,9 +1088,9 @@ fn number_prototype_to_string(
     let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
     let x = this_number_value(&this_value.clone())?;
-    let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
+    let radix_mv = if radix.is_undefined() { 10.0 } else { radix.to_integer_or_infinity()? };
     if (2.0..=36.0).contains(&radix_mv) {
-        let int_radix = to_uint32(radix_mv)?;
+        let int_radix = to_uint32_f64(radix_mv);
         if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {

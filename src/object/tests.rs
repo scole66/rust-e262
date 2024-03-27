@@ -4885,7 +4885,7 @@ where
     || {
         let sp = intrinsic(IntrinsicId::StringPrototype);
         let index_of = sp.get(&"indexOf".into()).unwrap();
-        let mystring = create_string_object("Sentence With Many Words".into());
+        let mystring = Object::from("Sentence With Many Words");
         let needle = ECMAScriptValue::from("With");
         (index_of, mystring.into(), vec![needle])
     }
@@ -4903,7 +4903,7 @@ fn call(
     || {
         let sp = intrinsic(IntrinsicId::StringPrototype);
         let index_of = sp.get(&"indexOf".into()).unwrap();
-        let mystring = create_string_object("Sentence With Many Words".into());
+        let mystring = Object::from("Sentence With Many Words");
         let needle = ECMAScriptValue::from("With");
         (index_of, mystring.into(), vec![needle])
     }

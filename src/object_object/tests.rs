@@ -17,7 +17,7 @@ mod prototype {
             match &result {
                 ECMAScriptValue::Object(obj) => {
                     assert!(obj.o.is_number_object());
-                    assert_eq!(to_number(result).unwrap(), 10.0);
+                    assert_eq!(result.to_number().unwrap(), 10.0);
                 }
                 _ => {
                     panic!("Object.prototype.valueOf did not return an object. (Got: {result:?})");
@@ -291,7 +291,7 @@ mod constructor {
 
         match object_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), args) {
             Ok(ok) => match ok {
-                ECMAScriptValue::Object(obj) => String::from(to_string(obj).unwrap()),
+                ECMAScriptValue::Object(obj) => String::from(obj.to_string().unwrap()),
                 _ => panic!("Object() did not return an object. (Got: {ok:?})"),
             },
             Err(err) => unwind_type_error(err),
