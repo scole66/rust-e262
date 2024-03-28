@@ -2,20 +2,68 @@ use super::*;
 use crate::tests::*;
 use test_case::test_case;
 
-#[test]
-fn create_native_error_object_01() {
-    setup_test_agent();
-    let constructor = intrinsic(IntrinsicId::RangeError);
-    let message = "Great Googly Moogly!";
-    let proto_id = IntrinsicId::RangeErrorPrototype;
+mod create_native_error_object {
+    use super::*;
+    use test_case::test_case;
 
-    let result = create_native_error_object(message, &constructor, proto_id, None);
+    fn check<'a>(
+        exp_tostring: &'a str,
+        exp_message: &'a str,
+        exp_location: Option<&'a str>,
+    ) -> impl Fn((String, String, Option<String>)) + 'a {
+        move |actual: (String, String, Option<String>)| {
+            assert_eq!(actual.0, exp_tostring);
+            assert_eq!(actual.1, exp_message);
+            match (exp_location, &actual.2) {
+                (None, None) => {}
+                (None, Some(_)) => {
+                    panic!("Expected None, got {:?}", actual.2);
+                }
+                (Some(_), None) => {
+                    panic!("Expected {exp_location:?}, got None");
+                }
+                (Some(e), Some(a)) => {
+                    assert_eq!(a, e);
+                }
+            }
+        }
+    }
 
-    assert!(result.o.is_error_object());
-    let msg_val = result.get(&PropertyKey::from("message")).unwrap();
-    assert_eq!(msg_val, ECMAScriptValue::from(message));
-    let kind = result.get(&PropertyKey::from("name")).unwrap();
-    assert_eq!(kind, ECMAScriptValue::from("RangeError"));
+    #[test_case(
+        "Great Googly Moogly!", || intrinsic(IntrinsicId::RangeError), IntrinsicId::RangeErrorPrototype, None 
+        => using check("RangeError: Great Googly Moogly!", "Great Googly Moogly!", None); 
+        "no location"
+    )]
+    #[test_case(
+        "Great Googly Moogly!",
+        || intrinsic(IntrinsicId::TypeError),
+        IntrinsicId::TypeErrorPrototype,
+        Some(Location{ starting_line: 10, starting_column: 12, span: Span { starting_index: 50, length: 9 }})
+        => using check(
+            "TypeError: Great Googly Moogly!", "Great Googly Moogly!", Some("line:10,column:12,byte_length:9"
+        ));
+        "loc"
+    )]
+    fn f(
+        message: impl Into<JSString>,
+        make_constructor: impl FnOnce() -> Object,
+        proto_id: IntrinsicId,
+        location: Option<Location>,
+    ) -> (String, String, Option<String>) {
+        setup_test_agent();
+        let message = message.into();
+        let constructor = make_constructor();
+        let result = create_native_error_object(message, &constructor, proto_id, location);
+
+        let m = result.get(&PropertyKey::from("message")).unwrap();
+        let l = result.get(&PropertyKey::from("location")).unwrap();
+
+        (
+            result.to_string().unwrap().to_string(),
+            m.test_result_string(),
+            if l.is_undefined() { None } else { Some(l.test_result_string()) },
+        )
+    }
 }
 
 #[test]
@@ -371,6 +419,16 @@ fn error_object_other_automatic_functions() {
     assert!(no.o.to_proxy_object().is_none());
     assert!(!no.o.is_symbol_object());
     assert!(no.o.to_symbol_obj().is_none());
+    assert!(no.o.to_arguments_object().is_none());
+    assert!(no.o.to_string_obj().is_none());
+    assert!(no.o.to_for_in_iterator().is_none());
+    assert!(!no.o.is_plain_object());
+    assert!(!no.o.is_array_object());
+    assert!(no.o.to_array_object().is_none());
+    assert!(!no.o.is_generator_object());
+    assert!(no.o.to_generator_object().is_none());
+    assert!(no.o.to_bigint_object().is_none());
+    assert!(!no.o.is_bigint_object());
 }
 
 #[test]
@@ -745,4 +803,31 @@ fn unwind_any_error(maker: fn() -> AbruptCompletion) -> String {
     setup_test_agent();
     let completion = maker();
     super::unwind_any_error(completion)
+}
+
+#[test_case(|| create_type_error_object("test case 1") => "TypeError: test case 1"; "with name and msg")]
+#[test_case(|| ordinary_object_create(None, &[]) => "Error"; "neither name nor message")]
+#[test_case(
+    || {
+        let o = ordinary_object_create(None, &[]);
+        o.create_data_property_or_throw("name", "TestError").unwrap();
+        o
+    }
+    => "TestError";
+    "name only"
+)]
+#[test_case(
+    || {
+        let o = ordinary_object_create(None, &[]);
+        o.create_data_property_or_throw("name", "").unwrap();
+        o.create_data_property_or_throw("message", "test case beta").unwrap();
+        o
+    }
+    => "test case beta";
+    "name empty plus message"
+)]
+fn unwind_any_error_object(make: impl FnOnce() -> Object) -> String {
+    setup_test_agent();
+    let obj = make();
+    super::unwind_any_error_object(&obj)
 }

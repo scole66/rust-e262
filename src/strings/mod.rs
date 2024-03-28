@@ -217,17 +217,19 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      b. Append cp.[[CodePoint]] to codePoints.
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
-fn string_to_code_points(string: &JSString) -> Vec<u32> {
-    // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
-    let size = string.len();
-    let mut code_points: Vec<u32> = Vec::with_capacity(size);
-    let mut position = 0;
-    while position < size {
-        let cp = code_point_at(string, position);
-        code_points.push(cp.code_point);
-        position += cp.code_unit_count as usize;
+impl JSString {
+    fn to_code_points(&self) -> Vec<u32> {
+        // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
+        let size = self.len();
+        let mut code_points: Vec<u32> = Vec::with_capacity(size);
+        let mut position = 0;
+        while position < size {
+            let cp = code_point_at(self, position);
+            code_points.push(cp.code_point);
+            position += cp.code_unit_count as usize;
+        }
+        code_points
     }
-    code_points
 }
 
 fn is_str_whitespace(ch: u16) -> bool {
@@ -244,50 +246,52 @@ fn is_str_whitespace(ch: u16) -> bool {
         || ch == 0x3000
 }
 
-pub fn string_to_bigint(value: &JSString) -> Option<Rc<BigInt>> {
-    // StringToBigInt ( str )
-    // The abstract operation StringToBigInt takes argument str (a String) and returns a BigInt or undefined. It
-    // performs the following steps when called:
-    //
-    //  1. Let text be StringToCodePoints(str).
-    //  2. Let literal be ParseText(text, StringIntegerLiteral).
-    //  3. If literal is a List of errors, return undefined.
-    //  4. Let mv be the MV of literal.
-    //  5. Assert: mv is an integer.
-    //  6. Return ℤ(mv).
-    let mut code_units = value.s.as_ref();
-    while let [first, rest @ ..] = code_units {
-        if is_str_whitespace(*first) {
-            code_units = rest;
+impl JSString {
+    pub fn to_bigint(&self) -> Option<Rc<BigInt>> {
+        // StringToBigInt ( str )
+        // The abstract operation StringToBigInt takes argument str (a String) and returns a BigInt or undefined. It
+        // performs the following steps when called:
+        //
+        //  1. Let text be StringToCodePoints(str).
+        //  2. Let literal be ParseText(text, StringIntegerLiteral).
+        //  3. If literal is a List of errors, return undefined.
+        //  4. Let mv be the MV of literal.
+        //  5. Assert: mv is an integer.
+        //  6. Return ℤ(mv).
+        let mut code_units = self.s.as_ref();
+        while let [first, rest @ ..] = code_units {
+            if is_str_whitespace(*first) {
+                code_units = rest;
+            } else {
+                break;
+            }
+        }
+        while let [rest @ .., last] = code_units {
+            if is_str_whitespace(*last) {
+                code_units = rest;
+            } else {
+                break;
+            }
+        }
+        if code_units.is_empty() {
+            return Some(Rc::new(BigInt::from(0)));
+        }
+        let radix = if code_units.len() >= 2 && code_units[0] == 0x30 {
+            match code_units[1] {
+                98 | 66 => 2,
+                120 | 88 => 16,
+                79 | 111 => 8,
+                _ => 10,
+            }
         } else {
-            break;
+            10
+        };
+        if radix != 10 {
+            code_units = &code_units[2..];
         }
+        let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
+        BigInt::parse_bytes(&digits, radix).map(Rc::new)
     }
-    while let [rest @ .., last] = code_units {
-        if is_str_whitespace(*last) {
-            code_units = rest;
-        } else {
-            break;
-        }
-    }
-    if code_units.is_empty() {
-        return Some(Rc::new(BigInt::from(0)));
-    }
-    let radix = if code_units.len() >= 2 && code_units[0] == 0x30 {
-        match code_units[1] {
-            98 | 66 => 2,
-            120 | 88 => 16,
-            79 | 111 => 8,
-            _ => 10,
-        }
-    } else {
-        10
-    };
-    if radix != 10 {
-        code_units = &code_units[2..];
-    }
-    let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
-    BigInt::parse_bytes(&digits, radix).map(Rc::new)
 }
 
 impl From<Rc<BigInt>> for JSString {
