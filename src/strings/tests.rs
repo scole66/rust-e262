@@ -132,7 +132,7 @@ fn code_point_at_03() {
 fn string_to_code_points_01() {
     let src: Vec<u16> = vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902];
     let mystr = JSString::from(src);
-    let result = string_to_code_points(&mystr);
+    let result = mystr.to_code_points();
     let expected = vec![0, 0x10000, 0xde00, 0xd900, 0xe2, 0xd902];
     assert!(result == expected);
 }
@@ -271,5 +271,5 @@ mod is_str_whitespace {
 #[test_case("0q1231" => None; "leading zero, but not valid")]
 #[test_case("1234567890987654321" => Some(Rc::new(BigInt::from(1_234_567_890_987_654_321_i64))); "actual number")]
 fn string_to_bigint(s: &str) -> Option<Rc<BigInt>> {
-    super::string_to_bigint(&JSString::from(s))
+    JSString::from(s).to_bigint()
 }

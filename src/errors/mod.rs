@@ -2,15 +2,14 @@ use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn create_native_error_object(
-    message: impl Into<JSString>,
+fn create_native_error_object_internal(
+    message: JSString,
     error_constructor: &Object,
     proto_id: IntrinsicId,
     location: Option<Location>,
 ) -> Object {
     let o = error_constructor.ordinary_create_from_constructor(proto_id, &[InternalSlotName::ErrorData]).unwrap();
-    let desc =
-        PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
+    let desc = PotentialPropertyDescriptor::new().value(message).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(&o, "message", desc).unwrap();
     if let Some(location) = location {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
@@ -41,6 +40,16 @@ fn create_native_error_object(
         .unwrap();
     }
     o
+}
+
+fn create_native_error_object(
+    message: impl Into<JSString>,
+    error_constructor: &Object,
+    proto_id: IntrinsicId,
+    location: Option<Location>,
+) -> Object {
+    let message = message.into();
+    create_native_error_object_internal(message, error_constructor, proto_id, location)
 }
 
 pub fn create_type_error_object(message: impl Into<JSString>) -> Object {
