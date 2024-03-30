@@ -501,7 +501,7 @@ fn to_big_int(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
         | ECMAScriptValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
         ECMAScriptValue::Boolean(b) => Ok(Rc::new(BigInt::from(b))),
         ECMAScriptValue::String(s) => {
-            let n = string_to_bigint(&s);
+            let n = s.to_bigint();
             n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
         }
         ECMAScriptValue::BigInt(bi) => Ok(bi),

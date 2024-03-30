@@ -656,6 +656,10 @@ test_defs[boolean_prototype_to_string]="boolean_prototype_to_string boolean_prot
 test_defs[boolean_prototype_value_of]="boolean_prototype_value_of boolean_prototype_value_of boolean_object"
 
 test_defs[ErrorObject_own_property_keys]="ErrorObject@object::ObjectInterface::own_property_keys error_object_own_property_keys errors"
+test_defs[ErrorObject]="ErrorObject error_object errors"
+test_defs[create_native_error_object]="create_native_error_object create_native_error_object errors"
+test_defs[create_native_error_object_internal]="create_native_error_object_internal create_native_error_object errors"
+test_defs[unwind_any_error_object]="unwind_any_error_object unwind_any_error_object errors"
 
 test_defs[NumberObject_own_property_keys]="NumberObject@object::ObjectInterface::own_property_keys number_object_own_property_keys number_object"
 
@@ -706,7 +710,7 @@ test_defs[FunctionObject_Rc_TryFrom]="alloc::rc::Rc@core::convert::TryFrom rc_tr
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 test_defs[is_str_whitespace]="is_str_whitespace is_str_whitespace strings"
-test_defs[string_to_bigint]="string_to_bigint string_to_bigint strings"
+test_defs[string_to_bigint]="JSString::to_bigint string_to_bigint strings"
 test_defs[JSString_from]="JSString@from from:: strings"
 
 test_defs[StringObject]="StringObject string_object string_object"
