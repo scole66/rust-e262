@@ -491,6 +491,38 @@ mod ecmascript_value {
         x.kind()
     }
 
+    #[test_case(|| None => "undefined"; "choose-none")]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("item", 10).unwrap();
+            Some(obj)
+        }
+        => "item:10";
+        "choose-some"
+    )]
+    fn to_obj_or_undefined(make_input: impl FnOnce() -> Option<Object>) -> String {
+        setup_test_agent();
+        let inp = make_input();
+        ECMAScriptValue::to_obj_or_undefined(inp).test_result_string()
+    }
+
+    #[test_case(|| None => "null"; "choose-none")]
+    #[test_case(
+        || {
+            let obj = ordinary_object_create(None, &[]);
+            obj.create_data_property_or_throw("item", 10).unwrap();
+            Some(obj)
+        }
+        => "item:10";
+        "choose-some"
+    )]
+    fn to_obj_or_null(make_input: impl FnOnce() -> Option<Object>) -> String {
+        setup_test_agent();
+        let inp = make_input();
+        ECMAScriptValue::to_obj_or_null(inp).test_result_string()
+    }
+
     #[test_case(f64::NAN => Ok(0); "NaN")]
     #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
     #[test_case(f64::INFINITY => Ok(0); "inf")]
@@ -695,6 +727,36 @@ mod ecmascript_value {
 
         let result = ECMAScriptValue::from(sym).to_integer_or_infinity().unwrap_err();
         assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
+    }
+
+    #[test_case(|| ECMAScriptValue::from("bob") => None; "not an object")]
+    #[test_case(
+        || ECMAScriptValue::Object(intrinsic(IntrinsicId::Array))
+        => Some(IntrinsicId::Array);
+        "is constructor"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Object(intrinsic(IntrinsicId::ArrayPrototype))
+        => None;
+        "object but not constructor"
+    )]
+    fn as_constructor(make_input: impl FnOnce() -> ECMAScriptValue) -> Option<IntrinsicId> {
+        setup_test_agent();
+        let inp = make_input();
+        inp.as_constructor().and_then(which_intrinsic)
+    }
+
+    #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
+    #[test_case(|| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
+    #[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
+    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991); "top edge")]
+    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991); "over")]
+    #[test_case(|| ECMAScriptValue::from(Symbol::new(Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
+    fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
+        setup_test_agent();
+        let arg = make_arg();
+
+        arg.to_length().map_err(unwind_type_error)
     }
 }
 

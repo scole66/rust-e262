@@ -98,6 +98,22 @@ impl ECMAScriptValue {
             ECMAScriptValue::Object(o) => o.concise(f),
         }
     }
+
+    pub fn to_obj_or_undefined(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Undefined
+        }
+    }
+
+    pub fn to_obj_or_null(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Null
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {
@@ -1415,6 +1431,15 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
 }
 
 impl ECMAScriptValue {
+    pub fn as_constructor(&self) -> Option<&Object> {
+        if let Self::Object(o) = self {
+            if o.is_constructor() {
+                return Some(o);
+            }
+        }
+        None
+    }
+
     #[inline]
     pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
         match (self, other) {

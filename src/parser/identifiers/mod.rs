@@ -378,8 +378,8 @@ impl IdentifierReference {
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        use ATTKind::*;
-        use IdentifierReference::*;
+        use ATTKind::{Invalid, Simple};
+        use IdentifierReference::{Await, Identifier, Yield};
         match self {
             Identifier { identifier: id, .. } => {
                 if strict {
@@ -398,7 +398,7 @@ impl IdentifierReference {
     }
 
     pub fn string_value(&self) -> JSString {
-        use IdentifierReference::*;
+        use IdentifierReference::{Await, Identifier, Yield};
         match self {
             Identifier { identifier: id, .. } => id.string_value(),
             Yield { .. } => JSString::from("yield"),
@@ -535,7 +535,7 @@ impl BindingIdentifier {
     }
 
     pub fn bound_name(&self) -> JSString {
-        use BindingIdentifier::*;
+        use BindingIdentifier::{Await, Identifier, Yield};
         match self {
             Identifier { identifier, .. } => identifier.string_value(),
             Yield { .. } => JSString::from("yield"),
@@ -611,7 +611,7 @@ impl BindingIdentifier {
     }
 
     pub fn string_value(&self) -> JSString {
-        use BindingIdentifier::*;
+        use BindingIdentifier::{Await, Identifier, Yield};
         match self {
             Identifier { identifier, .. } => identifier.string_value(),
             Yield { .. } => JSString::from("yield"),
