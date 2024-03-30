@@ -116,18 +116,19 @@ fn reflect_construct(
     // 3. Else if IsConstructor(newTarget) is false, throw a TypeError exception.
     // 4. Let args be ? CreateListFromArrayLike(argumentsList).
     // 5. Return ? Construct(target, args, newTarget).
+    let arg_count = arguments.len();
     let mut arguments = FuncArgs::from(arguments);
     let target = arguments.next_arg();
     if is_constructor(&target) {
         let arguments_list = arguments.next_arg();
         let new_target = arguments.next_arg();
         let target_as_object = to_object(target).expect("constructors should be objects");
-        let nt = match &new_target {
-            ECMAScriptValue::Undefined => &target_as_object,
-            ECMAScriptValue::Object(o) if o.is_constructor() => o,
-            _ => {
-                return Err(create_type_error("Reflect.construct: newTarget, if supplied, must be a constructor"));
-            }
+        let nt = if arg_count <= 2 {
+            &target_as_object
+        } else {
+            new_target
+                .as_constructor()
+                .ok_or_else(|| create_type_error("Reflect.construct: newTarget, if supplied, must be a constructor"))?
         };
 
         let args = create_list_from_array_like(arguments_list, None)?;
@@ -196,7 +197,7 @@ fn reflect_get(
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
         let key = to_property_key(args.next_arg())?;
-        let receiver = if num_args < 3 { ECMAScriptValue::from(target.clone()) } else { args.next_arg() };
+        let receiver = if num_args < 3 { ECMAScriptValue::Object(target.clone()) } else { args.next_arg() };
         target.o.get(&key, &receiver)
     } else {
         Err(create_type_error("Reflect.get: target must be an object"))

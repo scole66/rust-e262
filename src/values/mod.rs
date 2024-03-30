@@ -1431,6 +1431,15 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
 }
 
 impl ECMAScriptValue {
+    pub fn as_constructor(&self) -> Option<&Object> {
+        if let Self::Object(o) = self {
+            if o.is_constructor() {
+                return Some(o);
+            }
+        }
+        None
+    }
+
     #[inline]
     pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
         match (self, other) {
