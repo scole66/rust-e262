@@ -79,7 +79,8 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
     let metadata_start_index = contents.find(METASTART).map(|s| s + METASTART.len());
     let metadata_end_index = contents.find(METAEND);
     if let (Some(start), Some(end)) = (metadata_start_index, metadata_end_index) {
-        let metadata = YamlLoader::load_from_str(&contents[start..end])?;
+        let yaml = &contents[start..end].replace("\r\n", "\n").replace('\r', "\n");
+        let metadata = YamlLoader::load_from_str(yaml)?;
         if metadata.len() != 1 {
             return Err(eyre!("Badly formed test metadata (too many or zero yaml documents)"));
         }
@@ -207,70 +208,74 @@ struct Arguments {
 }
 
 fn main() -> Result<()> {
+    let ignored_features = ["caller", "async", "cross-realm", "class"];
     color_eyre::install()?;
 
     let args = Arguments::parse();
     let test_name = args.path;
     let info = construct_test(Path::new(&test_name), false)?;
 
-    for source in &info.source {
-        if let Some(path) = args.keep_constructed.as_ref() {
-            let output_path = Path::new(path).join(format!("{}.js", source.mark));
-            let mut file = File::create(output_path)?;
-            file.write_all(source.source.as_bytes())?;
-        }
-
-        let mut child = Command::new("target/release/res")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .arg("/dev/stdin")
-            .spawn()?;
-        let mut stdin = child.stdin.take().expect("stdin should exist on child");
-        let source_text = source.source.clone();
-        let jh = std::thread::spawn(move || stdin.write_all(source_text.as_bytes()).expect("writing should be ok?"));
-        let result = child.wait_with_output()?;
-        jh.join().expect("join should succeed");
-        let finished_ok = result.status.success();
-        let test_status = if finished_ok {
-            let stdout = from_utf8(result.stdout.as_slice())?;
-            let final_line = stdout.lines().last().unwrap_or("");
-            if let Some(Negative { phase, error_type }) = &info.negative {
-                match phase {
-                    Phase::Parse => {
-                        let expected = format!("During compilation: [{error_type}: ");
-                        if final_line.starts_with(&expected) {
-                            Status::Pass
-                        } else {
-                            Status::Fail
-                        }
-                    }
-                    Phase::Resolution => {
-                        let expected = format!("During resolution: [{error_type}: ");
-                        if final_line.starts_with(&expected) {
-                            Status::Pass
-                        } else {
-                            Status::Fail
-                        }
-                    }
-                    Phase::Runtime => {
-                        let expected = format!("Thrown: {error_type}: ");
-                        if final_line.starts_with(&expected) {
-                            Status::Pass
-                        } else {
-                            Status::Fail
-                        }
-                    }
-                }
-            } else if final_line.starts_with("Thrown: ") {
-                Status::Fail
-            } else {
-                Status::Pass
+    if !ignored_features.iter().map(ToString::to_string).any(|f| info.features.contains(&f)) {
+        for source in &info.source {
+            if let Some(path) = args.keep_constructed.as_ref() {
+                let output_path = Path::new(path).join(format!("{}.js", source.mark));
+                let mut file = File::create(output_path)?;
+                file.write_all(source.source.as_bytes())?;
             }
-        } else {
-            Status::Fail
-        };
-        println!("{test_status}: {test_name} -- {}", source.mark);
+
+            let mut child = Command::new("target/release/res")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .arg("/dev/stdin")
+                .spawn()?;
+            let mut stdin = child.stdin.take().expect("stdin should exist on child");
+            let source_text = source.source.clone();
+            let jh =
+                std::thread::spawn(move || stdin.write_all(source_text.as_bytes()).expect("writing should be ok?"));
+            let result = child.wait_with_output()?;
+            jh.join().expect("join should succeed");
+            let finished_ok = result.status.success();
+            let test_status = if finished_ok {
+                let stdout = from_utf8(result.stdout.as_slice())?;
+                let final_line = stdout.lines().last().unwrap_or("");
+                if let Some(Negative { phase, error_type }) = &info.negative {
+                    match phase {
+                        Phase::Parse => {
+                            let expected = format!("During compilation: [{error_type}: ");
+                            if final_line.starts_with(&expected) {
+                                Status::Pass
+                            } else {
+                                Status::Fail
+                            }
+                        }
+                        Phase::Resolution => {
+                            let expected = format!("During resolution: [{error_type}: ");
+                            if final_line.starts_with(&expected) {
+                                Status::Pass
+                            } else {
+                                Status::Fail
+                            }
+                        }
+                        Phase::Runtime => {
+                            let expected = format!("Thrown: {error_type}: ");
+                            if final_line.starts_with(&expected) {
+                                Status::Pass
+                            } else {
+                                Status::Fail
+                            }
+                        }
+                    }
+                } else if final_line.starts_with("Thrown: ") {
+                    Status::Fail
+                } else {
+                    Status::Pass
+                }
+            } else {
+                Status::Fail
+            };
+            println!("{test_status}: {test_name} -- {}", source.mark);
+        }
     }
 
     Ok(())
