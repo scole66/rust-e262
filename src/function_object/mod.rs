@@ -1458,7 +1458,7 @@ impl CallableObject for BuiltInFunctionObject {
     }
 
     fn end_evaluation(&self, _: FullCompletion) {
-        unreachable!("end_evaluation called for builtin callable")
+        panic!("end_evaluation called for builtin callable")
     }
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {

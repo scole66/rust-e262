@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
+use ahash::AHashMap;
 use num::BigInt;
 use test_case::test_case;
 
@@ -879,17 +880,303 @@ mod function_object {
     none_function!(to_symbol_obj);
 }
 
-mod builtin_function_object {
+mod built_in_function_object {
     use super::*;
+    use test_case::test_case;
 
+    fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::Undefined)
+    }
     fn make() -> Object {
-        intrinsic(IntrinsicId::ThrowTypeError)
+        let o = create_builtin_function(behavior, false, 0.0, PropertyKey::from("f"), &[], None, None, None);
+        let proto = o.o.get_prototype_of().unwrap().unwrap();
+        proto.set("proto_sentinel", true, true).unwrap();
+        o
     }
 
+    default_get_prototype_of_test!(FunctionPrototype);
+    default_set_prototype_of_test!();
+    default_is_extensible_test!();
+    default_prevent_extensions_test!();
+    default_delete_test!();
+    default_id_test!();
+    default_has_property_test!();
+    default_uses_ordinary_get_prototype_of_test!();
+    default_get_own_property_test!();
+    default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
+
+    false_function!(is_arguments_object);
+    false_function!(is_array_object);
+    false_function!(is_bigint_object);
+    false_function!(is_boolean_object);
+    false_function!(is_date_object);
+    false_function!(is_error_object);
+    false_function!(is_generator_object);
+    false_function!(is_number_object);
+    false_function!(is_plain_object);
     false_function!(is_proxy_object);
+    false_function!(is_regexp_object);
+    false_function!(is_string_object);
     false_function!(is_symbol_object);
+    none_function!(to_arguments_object);
+    none_function!(to_array_object);
+    none_function!(to_bigint_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_error_obj);
+    none_function!(to_for_in_iterator);
+    none_function!(to_function_obj);
+    none_function!(to_generator_object);
+    none_function!(to_number_obj);
     none_function!(to_proxy_object);
+    none_function!(to_string_obj);
     none_function!(to_symbol_obj);
+
+    #[test_case::test_case(
+        776, "numberly"
+        => (
+            true,
+            [
+                (
+                    PropertyKey::from("numberly"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: true,
+                        writable: Some(true),
+                        value: Some(ECMAScriptValue::from(776)),
+                        get: None,
+                        set: None
+                    }
+                ),
+                (
+                    PropertyKey::from("name"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: false,
+                        writable: Some(false),
+                        value: Some(ECMAScriptValue::from("f")),
+                        get: None,
+                        set: None
+                    }
+                ),
+                (
+                    PropertyKey::from("length"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: false,
+                        writable: Some(false),
+                        value: Some(ECMAScriptValue::Number(0.0)),
+                        get: None,
+                        set: None
+                    }
+                )
+            ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+        ); "ordinary set"
+    )]
+    fn set(
+        new_val: impl Into<ECMAScriptValue>,
+        key: impl Into<PropertyKey>,
+    ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
+        setup_test_agent();
+        let obj = make();
+        let receiver = ECMAScriptValue::Object(obj.clone());
+        let success = obj.o.set(key.into(), new_val.into(), &receiver).unwrap();
+        let properties = obj
+            .o
+            .common_object_data()
+            .borrow()
+            .properties
+            .iter()
+            .map(|(a, b)| (a.clone(), IdealizedPropertyDescriptor::from(b.clone())))
+            .collect::<AHashMap<_, _>>();
+        (success, properties)
+    }
+
+    #[test_case::test_case(
+        PotentialPropertyDescriptor::new()
+            .value(ECMAScriptValue::from(67))
+            .writable(true)
+            .configurable(true)
+            .enumerable(true),
+        "sixty-seven"
+        => (
+            true,
+            [
+                (
+                    PropertyKey::from("sixty-seven"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: true,
+                        writable: Some(true),
+                        value: Some(ECMAScriptValue::from(67)),
+                        get: None,
+                        set: None
+                    }
+                ),
+                (
+                    PropertyKey::from("name"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: false,
+                        writable: Some(false),
+                        value: Some(ECMAScriptValue::from("f")),
+                        get: None,
+                        set: None
+                    }
+                ),
+                (
+                    PropertyKey::from("length"),
+                    IdealizedPropertyDescriptor {
+                        configurable: true,
+                        enumerable: false,
+                        writable: Some(false),
+                        value: Some(ECMAScriptValue::Number(0.0)),
+                        get: None,
+                        set: None
+                    }
+                )
+                ].into_iter().collect::<AHashMap<PropertyKey, IdealizedPropertyDescriptor>>()
+            ); "ordinary property"
+    )]
+    fn define_own_property(
+        new_value: PotentialPropertyDescriptor,
+        key: &str,
+    ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
+        setup_test_agent();
+        let obj = make();
+
+        let success = obj.o.define_own_property(key.into(), new_value).unwrap();
+        let properties = obj
+            .o
+            .common_object_data()
+            .borrow()
+            .properties
+            .iter()
+            .map(|(a, b)| (a.clone(), IdealizedPropertyDescriptor::from(b.clone())))
+            .collect::<AHashMap<_, _>>();
+        (success, properties)
+    }
+
+    #[test]
+    fn own_property_keys() {
+        setup_test_agent();
+        let obj = make();
+
+        let to_prim = wks(WksId::ToPrimitive);
+        let species = wks(WksId::Species);
+
+        obj.o
+            .define_own_property(
+                "60".into(),
+                PotentialPropertyDescriptor::new().value("q").writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "6".into(),
+                PotentialPropertyDescriptor::new().value("s").writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "zebra".into(),
+                PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "alpha".into(),
+                PotentialPropertyDescriptor::new().value(1).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                to_prim.clone().into(),
+                PotentialPropertyDescriptor::new().value(2).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                species.clone().into(),
+                PotentialPropertyDescriptor::new().value(3).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+
+        let keys = obj.o.own_property_keys().unwrap();
+
+        assert_eq!(
+            keys,
+            vec![
+                "6".into(),
+                "60".into(),
+                "length".into(),
+                "name".into(),
+                "zebra".into(),
+                "alpha".into(),
+                to_prim.into(),
+                species.into()
+            ]
+        );
+    }
+
+    #[test]
+    fn is_callable_obj() {
+        setup_test_agent();
+        let obj = make();
+        assert!(obj.o.is_callable_obj());
+    }
+
+    #[test]
+    fn to_callable_obj() {
+        setup_test_agent();
+        let obj = make();
+        let id_1 = obj.o.id();
+        let callable = obj.o.to_callable_obj().unwrap();
+        let id_2 = callable.id();
+        assert_eq!(id_1, id_2);
+    }
+
+    #[test_case(|| intrinsic(IntrinsicId::ThrowTypeError) => None; "not a constructor")]
+    #[test_case(
+        || {
+            let o = intrinsic(IntrinsicId::Array);
+            o.create_data_property_or_throw("test_key", "test_value").unwrap();
+            o
+        }
+        => ssome("test_value");
+        "is a constructor"
+    )]
+    fn to_constructable(make_obj: impl FnOnce() -> Object) -> Option<String> {
+        setup_test_agent();
+        let obj = make_obj();
+        let dup = obj.clone();
+        let result = dup.o.to_constructable();
+        result.map(|co| {
+            let val = co.get(&PropertyKey::from("test_key"), &ECMAScriptValue::from(obj)).unwrap();
+            val.test_result_string()
+        })
+    }
+
+    #[test_case(make => panics "end_evaluation called for builtin callable"; "always panics")]
+    fn end_evaluation(make_obj: impl FnOnce() -> Object) {
+        setup_test_agent();
+        let obj = make_obj();
+        let callable = obj.o.to_callable_obj().unwrap();
+        callable.end_evaluation(Ok(NormalCompletion::from(true)));
+    }
+
+    #[test_case(|| () => panics "Call must return a Completion"; "empty stack")]
+    #[test_case(|| ec_push(Ok(NormalCompletion::Empty)) => panics "Call must return a language value"; "non-value on stack")]
+    #[test_case(|| ec_push(Err(create_type_error("test case"))) => serr("TypeError: test case"); "error on stack")]
+    #[test_case(|| ec_push(Ok(NormalCompletion::from("test message"))) => sok("test message"); "value on stack")]
+    fn complete_call(fill_stack: impl FnOnce()) -> Result<String, String> {
+        setup_test_agent();
+        fill_stack();
+        let obj = make(); // The particular object doesn't matter; it's unused
+        let callable = obj.o.to_callable_obj().unwrap();
+        callable.complete_call()
+            .map_err(unwind_any_error)
+            .map(|v| v.test_result_string())
+    }
 }
 
 mod rc_try_from {
@@ -1021,4 +1308,11 @@ mod rc_try_from {
             .map(ToString::to_string)
             .map_err(ToString::to_string)
     }
+}
+
+#[test_case("alpha    beta      gamma     ", 64 => "alpha beta gamma"; "ordinary")]
+#[test_case("alpha    beta      gamma     ", 10 => "alpha b..."; "trimmed")]
+#[test_case("alpha be", 10 => "alpha be"; "just untrimmed")]
+fn nameify(src: &str, limit: usize) -> String {
+    super::nameify(src, limit)
 }
