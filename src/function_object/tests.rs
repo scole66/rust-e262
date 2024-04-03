@@ -884,6 +884,7 @@ mod built_in_function_object {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1173,9 +1174,85 @@ mod built_in_function_object {
         fill_stack();
         let obj = make(); // The particular object doesn't matter; it's unused
         let callable = obj.o.to_callable_obj().unwrap();
-        callable.complete_call()
+        callable.complete_call().map_err(unwind_any_error).map(|v| v.test_result_string())
+    }
+
+    #[test_case(
+        || (
+            intrinsic(IntrinsicId::Object),
+            ordinary_object_create(None, &[]),
+            ECMAScriptValue::Undefined,
+            vec![]
+        )
+        => panics "self and self_object must refer to the same object";
+        "self != self_object"
+    )]
+    #[test_case(
+        || (
+            intrinsic(IntrinsicId::ThrowTypeError),
+            intrinsic(IntrinsicId::ThrowTypeError),
+            ECMAScriptValue::Undefined,
+            vec![]
+        )
+        => serr("TypeError: Generic TypeError");
+        "good call, but throws"
+    )]
+    #[test_case(
+        || {
+            let number_proto = intrinsic(IntrinsicId::NumberPrototype);
+            let number_tostring = to_object(number_proto.get(&"toString".into()).unwrap()).unwrap();
+            (
+                number_tostring.clone(),
+                number_tostring,
+                ECMAScriptValue::Object(to_object(ECMAScriptValue::from(100.0)).unwrap()),
+                vec![ECMAScriptValue::from(16)]
+            )
+        }
+        => sok("64");
+        "good call, using this and arguments"
+    )]
+    fn call(
+        make_args: impl FnOnce() -> (Object, Object, ECMAScriptValue, Vec<ECMAScriptValue>),
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let (callee, callee_obj, this, args) = make_args();
+        let callable = callee.o.to_callable_obj().unwrap();
+        callable.call(&callee_obj, &this, &args);
+        ec_peek(0)
+            .unwrap()
+            .map(|nc| ECMAScriptValue::try_from(nc).unwrap().test_result_string())
             .map_err(unwind_any_error)
-            .map(|v| v.test_result_string())
+    }
+
+    #[test_case(
+        || (
+            intrinsic(IntrinsicId::Object),
+            ordinary_object_create(None, &[]),
+            vec![],
+            ordinary_object_create(None, &[])
+        )
+        => panics "self and self_object must refer to the same object";
+        "self != self_object"
+    )]
+    #[test_case(
+        || (
+            intrinsic(IntrinsicId::Object),
+            intrinsic(IntrinsicId::Object),
+            vec![ECMAScriptValue::Number(300.0)],
+            intrinsic(IntrinsicId::Object),
+        )
+        => sok("300");
+        "new Object(300)"
+    )]
+    fn construct(make_args: impl FnOnce() -> (Object, Object, Vec<ECMAScriptValue>, Object)) -> Result<String, String> {
+        setup_test_agent();
+        let (callee, callee_obj, args, new_target) = make_args();
+        let constructable = callee.o.to_constructable().unwrap();
+        constructable.construct(&callee_obj, &args, &new_target);
+        ec_peek(0)
+            .unwrap()
+            .map(|nc| to_string(ECMAScriptValue::try_from(nc).unwrap()).unwrap().to_string())
+            .map_err(unwind_any_error)
     }
 }
 

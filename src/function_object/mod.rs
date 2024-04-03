@@ -1427,7 +1427,7 @@ impl CallableObject for BuiltInFunctionObject {
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
     fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
@@ -1447,7 +1447,7 @@ impl CallableObject for BuiltInFunctionObject {
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
     fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
