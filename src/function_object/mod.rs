@@ -1228,6 +1228,12 @@ impl From<JSString> for FunctionName {
     }
 }
 
+impl From<&str> for FunctionName {
+    fn from(source: &str) -> Self {
+        Self::String(JSString::from(source))
+    }
+}
+
 impl TryFrom<FunctionName> for PropertyKey {
     type Error = anyhow::Error;
 
@@ -1947,10 +1953,206 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
 fn function_constructor_function(
     _this_value: &ECMAScriptValue,
-    _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Function ( ...parameterArgs, bodyArg )
+    // The last argument (if any) specifies the body (executable code) of a function; any preceding arguments
+    // specify formal parameters.
+    //
+    // This function performs the following steps when called:
+    //
+    //  1. Let C be the active function object.
+    //  2. If bodyArg is not present, set bodyArg to the empty String.
+    //  3. Return ? CreateDynamicFunction(C, NewTarget, NORMAL, parameterArgs, bodyArg).
+    let empty = ECMAScriptValue::from("");
+    let no_args: &[ECMAScriptValue] = &[];
+    let (parameter_args, body_arg) = if let [rest @ .., last] = arguments { (rest, last) } else { (no_args, &empty) };
+    let c = active_function_object().expect("A function should be running");
+    create_dynamic_function(&c, new_target, FunctionKind::Normal, parameter_args, body_arg).map(ECMAScriptValue::Object)
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum FunctionKind {
+    Normal,
+    Generator,
+    Async,
+    AsyncGenerator,
+}
+
+fn create_dynamic_function(
+    constructor: &Object,
+    new_target: Option<&Object>,
+    kind: FunctionKind,
+    parameter_args: &[ECMAScriptValue],
+    body_arg: &ECMAScriptValue,
+) -> Completion<Object> {
+    let new_target = new_target.unwrap_or(constructor);
+    let (prefix, fallback_proto) = match kind {
+        FunctionKind::Normal => ("function", IntrinsicId::FunctionPrototype),
+        FunctionKind::Generator => ("function*", IntrinsicId::GeneratorFunctionPrototype),
+        FunctionKind::Async => ("async function", IntrinsicId::AsyncFunctionPrototype),
+        FunctionKind::AsyncGenerator => ("async function*", IntrinsicId::AsyncGeneratorFunctionPrototype),
+    };
+    let parameter_strings = parameter_args.iter().map(|v| to_string(v.clone())).collect::<Result<Vec<_>, _>>()?;
+    let body_string = to_string(body_arg.clone())?;
+    let current_realm = current_realm_record().expect("A realm should exist");
+    let p = if parameter_strings.is_empty() {
+        String::new()
+    } else {
+        let mut parts = parameter_strings[0].to_string();
+        let mut strings = &parameter_strings[1..];
+        while let [item, rest @ ..] = strings {
+            parts.push(',');
+            parts.push_str(&item.to_string());
+            strings = rest;
+        }
+        parts
+    };
+    let body_parse_string = JSString::from("\n").concat(body_string).concat("\n");
+    let source_string = JSString::from(prefix)
+        .concat(" anonymous(")
+        .concat(p.clone())
+        .concat("\n) {")
+        .concat(body_parse_string.clone())
+        .concat("}");
+    let source_text = String::from(source_string);
+    let parameters = parse_text(
+        &p,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::No),
+            FunctionKind::Generator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::No),
+            FunctionKind::Async => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::Yes),
+            FunctionKind::AsyncGenerator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::Yes),
+        },
+        false,
+        false,
+    );
+    let parameters = match parameters {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FormalParameters(fp) => fp,
+        _ => unreachable!(),
+    };
+    let body_parse_string = String::from(body_parse_string);
+    let body = parse_text(
+        &body_parse_string,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FunctionBody(YieldAllowed::No, AwaitAllowed::No),
+            FunctionKind::Generator => ParseGoal::GeneratorBody,
+            FunctionKind::Async => ParseGoal::AsyncFunctionBody,
+            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorBody,
+        },
+        false,
+        false,
+    );
+    let body = match body {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FunctionBody(fb) => BodySource::from(fb),
+        ParsedText::GeneratorBody(gb) => BodySource::from(gb),
+        ParsedText::AsyncFunctionBody(afb) => BodySource::from(afb),
+        ParsedText::AsyncGeneratorBody(agb) => BodySource::from(agb),
+        _ => unreachable!(),
+    };
+    let body_contains_use_strict = body.contains_use_strict();
+    let function_source = match parse_text(
+        &source_text,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FunctionExpression,
+            FunctionKind::Generator => ParseGoal::GeneratorExpression,
+            FunctionKind::Async => ParseGoal::AsyncFunctionExpression,
+            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorExpression,
+        },
+        body_contains_use_strict,
+        false,
+    ) {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FunctionExpression(fe) => FunctionSource::FunctionExpression(fe),
+        ParsedText::GeneratorExpression(ge) => FunctionSource::GeneratorExpression(ge),
+        ParsedText::AsyncFunctionExpression(afe) => FunctionSource::AsyncFunctionExpression(afe),
+        ParsedText::AsyncGeneratorExpression(age) => FunctionSource::AsyncGeneratorExpression(age),
+        _ => unreachable!(),
+    };
+    let proto = new_target.get_prototype_from_constructor(fallback_proto)?;
+    let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
+
+    let chunk_name = nameify(&source_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    let function_data = StashedFunctionData {
+        source_text: source_text.clone(),
+        params: ParamSource::from(parameters.clone()),
+        body: body.clone(),
+        strict: body_contains_use_strict,
+        to_compile: function_source,
+        this_mode: ThisLexicality::NonLexicalThis,
+    };
+    let compilation_status = match &body {
+        BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
+        BodySource::Generator(_) => todo!(),
+        BodySource::AsyncFunction(_) => todo!(),
+        BodySource::AsyncGenerator(_) => todo!(),
+        _ => unreachable!(),
+    };
+    if let Err(err) = compilation_status {
+        let typeerror = create_type_error(err.to_string());
+        return Err(typeerror);
+    }
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let f = ordinary_function_create(
+        proto,
+        &source_text,
+        ParamSource::from(parameters),
+        body,
+        ThisLexicality::NonLexicalThis,
+        env,
+        None,
+        false,
+        Rc::new(compiled),
+    );
+    set_function_name(&f, FunctionName::from("anonymous"), None);
+    match kind {
+        FunctionKind::Normal => {
+            make_constructor(&f, None);
+        }
+        FunctionKind::Generator => {
+            let prototype =
+                ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)), &[]);
+            define_property_or_throw(
+                &f,
+                "prototype",
+                PotentialPropertyDescriptor::new()
+                    .value(prototype)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(false),
+            )
+            .unwrap();
+        }
+        FunctionKind::Async => {}
+        FunctionKind::AsyncGenerator => {
+            let prototype =
+                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)), &[]);
+            define_property_or_throw(
+                &f,
+                "prototype",
+                PotentialPropertyDescriptor::new()
+                    .value(prototype)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(false),
+            )
+            .unwrap();
+        }
+    }
+    Ok(f)
 }
 
 fn function_prototype_apply(

@@ -12,6 +12,9 @@ pub enum IntrinsicId {
     ArrayPrototype,
     ArrayPrototypeValues,
     ArrayIteratorPrototype,
+    AsyncFunctionPrototype,
+    AsyncGeneratorFunctionPrototype,
+    AsyncGeneratorFunctionPrototypePrototype,
     BigInt,
     BigIntPrototype,
     Boolean,
@@ -71,7 +74,10 @@ pub struct Intrinsics {
     pub array_iterator_prototype: Object, // The prototype of Array iterator objects (23.1.5)
     pub async_from_sync_iterator_prototype: Object, // The prototype of async-from-sync iterator objects (27.1.4)
     pub async_function: Object,           // The constructor of async function objects (27.7.1)
+    pub async_function_prototype: Object,
     pub async_generator_function: Object, // The constructor of async iterator objects (27.4.1)
+    pub async_generator_function_prototype: Object,
+    pub async_generator_function_prototype_prototype: Object,
     pub async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
     pub atomics: Object,                  // Atomics	The Atomics object (25.4)
     pub big_int: Object,                  // BigInt	The BigInt constructor (21.2.1)
@@ -170,7 +176,10 @@ impl Intrinsics {
             array_iterator_prototype: dead.clone(),
             async_from_sync_iterator_prototype: dead.clone(),
             async_function: dead.clone(),
+            async_function_prototype: dead.clone(),
             async_generator_function: dead.clone(),
+            async_generator_function_prototype: dead.clone(),
+            async_generator_function_prototype_prototype: dead.clone(),
             async_iterator_prototype: dead.clone(),
             atomics: dead.clone(),
             big_int: dead.clone(),
@@ -257,6 +266,9 @@ impl Intrinsics {
             IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
+            IntrinsicId::AsyncFunctionPrototype => &self.async_function_prototype,
+            IntrinsicId::AsyncGeneratorFunctionPrototype => &self.async_generator_function_prototype,
+            IntrinsicId::AsyncGeneratorFunctionPrototypePrototype => &self.async_generator_function_prototype_prototype,
             IntrinsicId::BigInt => &self.big_int,
             IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,
@@ -813,6 +825,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                     }
                     None => Ok(ECMAScriptValue::Undefined),
                 },
+                _ => unreachable!(),
             }
         }
         _ => Ok(x),

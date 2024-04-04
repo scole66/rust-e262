@@ -228,7 +228,6 @@ mod function_prototype_call {
 
 #[test_case(super::function_prototype_apply => panics "not yet implemented"; "function_prototype_apply")]
 #[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
-#[test_case(super::function_constructor_function => panics "not yet implemented"; "function_constructor_function")]
 fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(&ECMAScriptValue::Undefined, None, &[]).unwrap();

@@ -3618,6 +3618,7 @@ pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<Scri
             }
             Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk), text: source_text.into() })
         }
+        _ => unreachable!(),
     }
 }
 
