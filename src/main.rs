@@ -122,6 +122,7 @@ fn interpret(source: &str) -> Result<i32, String> {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
+        _ => unreachable!(),
     }
 }
 
