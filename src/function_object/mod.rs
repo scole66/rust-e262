@@ -1843,7 +1843,7 @@ fn function_prototype_call(
     if is_callable(func) {
         call(func, first_arg, remaining)
     } else {
-        Err(create_type_error("this isn't a function"))
+        Err(create_type_error("Function.prototype.call requires that 'this' be a function"))
     }
 }
 
@@ -1966,8 +1966,8 @@ fn function_constructor_function(
     //  2. If bodyArg is not present, set bodyArg to the empty String.
     //  3. Return ? CreateDynamicFunction(C, NewTarget, NORMAL, parameterArgs, bodyArg).
     let empty = ECMAScriptValue::from("");
-    let no_args: &[ECMAScriptValue] = &[];
-    let (parameter_args, body_arg) = if let [rest @ .., last] = arguments { (rest, last) } else { (no_args, &empty) };
+    let (parameter_args, body_arg): (_, _) =
+        if let [rest @ .., last] = arguments { (rest, last) } else { (&[], &empty) };
     let c = active_function_object().expect("A function should be running");
     create_dynamic_function(&c, new_target, FunctionKind::Normal, parameter_args, body_arg).map(ECMAScriptValue::Object)
 }
@@ -2156,11 +2156,36 @@ fn create_dynamic_function(
 }
 
 fn function_prototype_apply(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Function.prototype.apply ( thisArg, argArray )
+    // This method performs the following steps when called:
+    //
+    //  1. Let func be the this value.
+    //  2. If IsCallable(func) is false, throw a TypeError exception.
+    //  3. If argArray is either undefined or null, then
+    //      a. Perform PrepareForTailCall().
+    //      b. Return ? Call(func, thisArg).
+    //  4. Let argList be ? CreateListFromArrayLike(argArray).
+    //  5. Perform PrepareForTailCall().
+    //  6. Return ? Call(func, thisArg, argList).
+    let mut args = FuncArgs::from(arguments);
+    let this_arg = args.next_arg();
+    let arg_array = args.next_arg();
+
+    let func = this_value;
+    if is_callable(func) {
+        let arg_list = if arg_array == ECMAScriptValue::Undefined || arg_array == ECMAScriptValue::Null {
+            vec![]
+        } else {
+            create_list_from_array_like(arg_array, None)?
+        };
+        call(func, &this_arg, &arg_list)
+    } else {
+        Err(create_type_error("Function.prototype.apply requires that 'this' be callable"))
+    }
 }
 
 fn function_prototype_bind(

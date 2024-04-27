@@ -1,7 +1,9 @@
 #![allow(clippy::clone_on_copy)]
 use super::*;
-use crate::tests::setup_test_agent;
+use crate::testhelp::*;
+use crate::tests::*;
 use ahash::AHasher;
+use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use test_case::test_case;
 
@@ -1047,5 +1049,225 @@ mod span {
     #[test_case(Span{starting_index:100, length:32}, Span{starting_index:101, length:32} => true; "unequal")]
     fn ne(left: Span, right: Span) -> bool {
         left != right
+    }
+}
+
+mod await_allowed {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = AwaitAllowed::Yes;
+        let duplicate = item.clone();
+        assert!(matches!(duplicate, AwaitAllowed::Yes));
+    }
+
+    #[test]
+    fn debug() {
+        let item = AwaitAllowed::Yes;
+        assert_ne!(format!("{item:?}"), "");
+    }
+
+    #[test]
+    fn default() {
+        let item = AwaitAllowed::default();
+        assert!(matches!(item, AwaitAllowed::No));
+    }
+
+    #[test_case(AwaitAllowed::Yes, AwaitAllowed::Yes => true; "both yes")]
+    #[test_case(AwaitAllowed::No, AwaitAllowed::Yes => false; "they differ")]
+    fn eq(left: AwaitAllowed, right: AwaitAllowed) -> bool {
+        left == right
+    }
+}
+
+mod yield_allowed {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = YieldAllowed::Yes;
+        let duplicate = item.clone();
+        assert!(matches!(duplicate, YieldAllowed::Yes));
+    }
+
+    #[test]
+    fn debug() {
+        let item = YieldAllowed::Yes;
+        assert_ne!(format!("{item:?}"), "");
+    }
+
+    #[test]
+    fn default() {
+        let item = YieldAllowed::default();
+        assert!(matches!(item, YieldAllowed::No));
+    }
+
+    #[test_case(YieldAllowed::Yes, YieldAllowed::Yes => true; "both yes")]
+    #[test_case(YieldAllowed::No, YieldAllowed::Yes => false; "they differ")]
+    fn eq(left: YieldAllowed, right: YieldAllowed) -> bool {
+        left == right
+    }
+}
+
+mod parsed_text {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ParsedText::FormalParameters(Maker::new("").formal_parameters())
+        => serr("Expected a Script or Syntax Errors");
+        "not script"
+    )]
+    #[test_case(
+        || ParsedText::Script(Maker::new("let a = 3;").script())
+        => sok("let a = 3 ;");
+        "a legit script"
+    )]
+    #[test_case(
+        || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+        => sok("TypeError: testing error a, TypeError: testing second");
+        "and errors."
+    )]
+    fn try_from(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
+        setup_test_agent();
+        let pt = make_text();
+        let result: Result<Rc<Script>, Vec<Object>> = pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+        match result {
+            Ok(script) => Ok(script.to_string()),
+            Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+        }
+    }
+
+    #[test_case(|| ParsedItem::Script(Maker::new("1;").script()) => "Script(1 ;)"; "script")]
+    #[test_case(
+        || ParsedItem::FormalParameters(Maker::new("...a").formal_parameters())
+        => "FormalParameters(... a)";
+        "formal parameters"
+    )]
+    #[test_case(
+        || ParsedItem::FunctionBody(Maker::new("2;").function_body()) => "FunctionBody(2 ;)"; "function body"
+    )]
+    #[test_case(
+        || ParsedItem::GeneratorBody(Maker::new("3;").generator_body())
+        => "GeneratorBody(3 ;)";
+        "generator_body"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncFunctionBody(Maker::new("4;").async_function_body())
+        => "AsyncFunctionBody(4 ;)";
+        "async_function_body"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncGeneratorBody(Maker::new("5;").async_generator_body())
+        => "AsyncGeneratorBody(5 ;)";
+        "async_generator_body"
+    )]
+    #[test_case(
+        || ParsedItem::FunctionExpression(Maker::new("function x(){}").function_expression())
+        => "FunctionExpression(function x (  ) {  })";
+        "function_expression"
+    )]
+    #[test_case(
+        || ParsedItem::GeneratorExpression(Maker::new("function *x(){}").generator_expression())
+        => "GeneratorExpression(function * x (  ) {  })";
+        "generator_expression"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncFunctionExpression(Maker::new("async function x(){}").async_function_expression())
+        => "AsyncFunctionExpression(async function x (  ) {  })";
+        "async_function_expression"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncGeneratorExpression(
+            Maker::new("async function *x(){}").async_generator_expression()
+        )
+        => "AsyncGeneratorExpression(async function * x (  ) {  })";
+        "async_generator_expression"
+    )]
+    fn from(make_item: impl FnOnce() -> ParsedItem) -> String {
+        setup_test_agent();
+        let item = make_item();
+        let text = ParsedText::from(item);
+        match text {
+            ParsedText::Errors(errs) => format!("Errors({})", errs.iter().map(unwind_any_error_object).join(", ")),
+            ParsedText::Script(node) => format!("Script({node})"),
+            ParsedText::FormalParameters(node) => format!("FormalParameters({node})"),
+            ParsedText::FunctionBody(node) => format!("FunctionBody({node})"),
+            ParsedText::GeneratorBody(node) => format!("GeneratorBody({node})"),
+            ParsedText::AsyncFunctionBody(node) => format!("AsyncFunctionBody({node})"),
+            ParsedText::AsyncGeneratorBody(node) => format!("AsyncGeneratorBody({node})"),
+            ParsedText::FunctionExpression(node) => format!("FunctionExpression({node})"),
+            ParsedText::GeneratorExpression(node) => format!("GeneratorExpression({node})"),
+            ParsedText::AsyncFunctionExpression(node) => format!("AsyncFunctionExpression({node})"),
+            ParsedText::AsyncGeneratorExpression(node) => format!("AsyncGeneratorExpression({node})"),
+        }
+    }
+}
+
+mod parsed_item {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ParsedItem::Script(Maker::new("'use strict'; arguments = 10;").script())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "script"
+    )]
+    #[test_case(
+        || ParsedItem::FormalParameters(Maker::new("a, a").formal_parameters())
+        => svec(&["SyntaxError: ‘a’ already defined"]);
+        "formal parameters"
+    )]
+    #[test_case(
+        || ParsedItem::FunctionBody(Maker::new("'use strict'; arguments = 10;").function_body())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "function body"
+    )]
+    #[test_case(
+        || ParsedItem::GeneratorBody(Maker::new("'use strict'; arguments = 10;").generator_body())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "generator body"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncFunctionBody(Maker::new("'use strict'; arguments = 10;").async_function_body())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "async function body"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncGeneratorBody(Maker::new("'use strict'; arguments = 10;").async_generator_body())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "async generator body"
+    )]
+    #[test_case(
+        || ParsedItem::FunctionExpression(Maker::new("function() {'use strict'; arguments = 10;}").function_expression())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "function Expression"
+    )]
+    #[test_case(
+        || ParsedItem::GeneratorExpression(Maker::new("function *(){'use strict'; arguments = 10;}").generator_expression())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "generator Expression"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncFunctionExpression(Maker::new("async function () {'use strict'; arguments = 10;}").async_function_expression())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "async function Expression"
+    )]
+    #[test_case(
+        || ParsedItem::AsyncGeneratorExpression(Maker::new("async function *(){'use strict'; arguments = 10;}").async_generator_expression())
+        => svec(&["SyntaxError: Invalid left-hand side in assignment"]);
+        "async generator Expression"
+    )]
+    fn early_errors(make_item: impl FnOnce() -> ParsedItem) -> Vec<String> {
+        setup_test_agent();
+        let mut errs = vec![];
+        let item = make_item();
+        item.early_errors(&mut errs, true);
+        errs.iter().map(unwind_any_error_object).collect::<Vec<_>>()
     }
 }

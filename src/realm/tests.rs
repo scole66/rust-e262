@@ -113,6 +113,15 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
         assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::AsyncFunctionPrototype), intrinsics.async_function_prototype);
+        assert_eq!(
+            intrinsics.get(IntrinsicId::AsyncGeneratorFunctionPrototype),
+            intrinsics.async_generator_function_prototype
+        );
+        assert_eq!(
+            intrinsics.get(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype),
+            intrinsics.async_generator_function_prototype_prototype
+        );
         assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
         assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::DecodeURI), intrinsics.decode_uri);

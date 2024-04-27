@@ -1,6 +1,7 @@
 use super::*;
 use ahash::AHashMap;
 use ahash::RandomState;
+use anyhow::anyhow;
 use counter::Counter;
 use std::cmp;
 use std::cmp::Ordering;
@@ -675,7 +676,19 @@ pub enum ParsedText {
     // ... more to come
 }
 
-enum Item {
+impl TryFrom<ParsedText> for Result<Rc<Script>, Vec<Object>> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
+        match value {
+            ParsedText::Errors(errs) => Ok(Err(errs)),
+            ParsedText::Script(sr) => Ok(Ok(sr)),
+            _ => Err(anyhow!("Expected a Script or Syntax Errors")),
+        }
+    }
+}
+
+enum ParsedItem {
     Script(Rc<Script>),
     FormalParameters(Rc<FormalParameters>),
     FunctionBody(Rc<FunctionBody>),
@@ -688,46 +701,43 @@ enum Item {
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
 }
 
-impl Item {
+impl ParsedItem {
     fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Item::Script(s) => s.early_errors(errs, strict),
-            Item::FormalParameters(fp) => fp.early_errors(errs, strict, false),
-            Item::FunctionBody(fb) => fb.early_errors(errs, strict),
-            Item::GeneratorBody(gb) => gb.early_errors(errs, strict),
-            Item::AsyncFunctionBody(body) => body.early_errors(errs, strict),
-            Item::AsyncGeneratorBody(body) => body.early_errors(errs, strict),
-            Item::FunctionExpression(exp) => exp.early_errors(errs, strict),
-            Item::GeneratorExpression(exp) => exp.early_errors(errs, strict),
-            Item::AsyncFunctionExpression(exp) => exp.early_errors(errs, strict),
-            Item::AsyncGeneratorExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::Script(s) => s.early_errors(errs, strict),
+            ParsedItem::FormalParameters(fp) => fp.early_errors(errs, strict, false),
+            ParsedItem::FunctionBody(fb) => fb.early_errors(errs, strict),
+            ParsedItem::GeneratorBody(gb) => gb.early_errors(errs, strict),
+            ParsedItem::AsyncFunctionBody(body) => body.early_errors(errs, strict),
+            ParsedItem::AsyncGeneratorBody(body) => body.early_errors(errs, strict),
+            ParsedItem::FunctionExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::GeneratorExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::AsyncFunctionExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::AsyncGeneratorExpression(exp) => exp.early_errors(errs, strict),
         }
     }
 }
 
-impl From<Item> for ParsedText {
-    fn from(value: Item) -> Self {
+impl From<ParsedItem> for ParsedText {
+    fn from(value: ParsedItem) -> Self {
         match value {
-            Item::Script(s) => ParsedText::Script(s),
-            Item::FormalParameters(fp) => ParsedText::FormalParameters(fp),
-            Item::FunctionBody(fb) => ParsedText::FunctionBody(fb),
-            Item::GeneratorBody(gb) => ParsedText::GeneratorBody(gb),
-            Item::AsyncFunctionBody(body) => ParsedText::AsyncFunctionBody(body),
-            Item::AsyncGeneratorBody(body) => ParsedText::AsyncGeneratorBody(body),
-            Item::FunctionExpression(exp) => ParsedText::FunctionExpression(exp),
-            Item::GeneratorExpression(exp) => ParsedText::GeneratorExpression(exp),
-            Item::AsyncFunctionExpression(exp) => ParsedText::AsyncFunctionExpression(exp),
-            Item::AsyncGeneratorExpression(exp) => ParsedText::AsyncGeneratorExpression(exp),
+            ParsedItem::Script(s) => ParsedText::Script(s),
+            ParsedItem::FormalParameters(fp) => ParsedText::FormalParameters(fp),
+            ParsedItem::FunctionBody(fb) => ParsedText::FunctionBody(fb),
+            ParsedItem::GeneratorBody(gb) => ParsedText::GeneratorBody(gb),
+            ParsedItem::AsyncFunctionBody(body) => ParsedText::AsyncFunctionBody(body),
+            ParsedItem::AsyncGeneratorBody(body) => ParsedText::AsyncGeneratorBody(body),
+            ParsedItem::FunctionExpression(exp) => ParsedText::FunctionExpression(exp),
+            ParsedItem::GeneratorExpression(exp) => ParsedText::GeneratorExpression(exp),
+            ParsedItem::AsyncFunctionExpression(exp) => ParsedText::AsyncFunctionExpression(exp),
+            ParsedItem::AsyncGeneratorExpression(exp) => ParsedText::AsyncGeneratorExpression(exp),
         }
     }
 }
 
-fn direct_parse(
-    parser: &mut Parser,
-    strict: bool,
-    parse_fn: Box<dyn FnOnce(&mut Parser) -> Result<(Item, Scanner), ParseError>>,
-    name: &str,
-) -> ParsedText {
+type ParseClosure = Box<dyn FnOnce(&mut Parser) -> Result<(ParsedItem, Scanner), ParseError>>;
+
+fn direct_parse(parser: &mut Parser, strict: bool, parse_fn: ParseClosure, name: &str) -> ParsedText {
     match parse_fn(parser) {
         Ok((item, scan)) => {
             // advance scanner past trailing whitespace.
@@ -762,11 +772,10 @@ fn direct_parse(
 
 pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool) -> ParsedText {
     let mut parser = Parser::new(src, direct, goal_symbol);
-    let (closure, name): (Box<dyn FnOnce(&mut Parser) -> Result<(Item, Scanner), ParseError>>, &str) = match goal_symbol
-    {
+    let (closure, name): (ParseClosure, &str) = match goal_symbol {
         ParseGoal::Script => (
             Box::new(|parser: &mut Parser| {
-                Script::parse(parser, Scanner::new()).map(|(item, scanner)| (Item::Script(item), scanner))
+                Script::parse(parser, Scanner::new()).map(|(item, scanner)| (ParsedItem::Script(item), scanner))
             }),
             "script",
         ),
@@ -779,7 +788,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
                     yield_state == YieldAllowed::Yes,
                     await_state == AwaitAllowed::Yes,
                 );
-                Ok((Item::FormalParameters(fp), scan))
+                Ok((ParsedItem::FormalParameters(fp), scan))
             }),
             "parameters",
         ),
@@ -791,56 +800,56 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
                     yield_state == YieldAllowed::Yes,
                     await_state == AwaitAllowed::Yes,
                 );
-                Ok((Item::FunctionBody(body), scanner))
+                Ok((ParsedItem::FunctionBody(body), scanner))
             }),
             "function body",
         ),
         ParseGoal::GeneratorBody => (
             Box::new(|parser: &mut Parser| {
                 let (body, scanner) = GeneratorBody::parse(parser, Scanner::new());
-                Ok((Item::GeneratorBody(body), scanner))
+                Ok((ParsedItem::GeneratorBody(body), scanner))
             }),
             "generator body",
         ),
         ParseGoal::AsyncFunctionBody => (
             Box::new(|parser: &mut Parser| {
                 let (body, scanner) = AsyncFunctionBody::parse(parser, Scanner::new());
-                Ok((Item::AsyncFunctionBody(body), scanner))
+                Ok((ParsedItem::AsyncFunctionBody(body), scanner))
             }),
             "function body",
         ),
         ParseGoal::AsyncGeneratorBody => (
             Box::new(|parser: &mut Parser| {
                 let (body, scanner) = AsyncGeneratorBody::parse(parser, Scanner::new());
-                Ok((Item::AsyncGeneratorBody(body), scanner))
+                Ok((ParsedItem::AsyncGeneratorBody(body), scanner))
             }),
             "generator body",
         ),
         ParseGoal::FunctionExpression => (
             Box::new(|parser: &mut Parser| {
                 FunctionExpression::parse(parser, Scanner::new())
-                    .map(|(item, scanner)| (Item::FunctionExpression(item), scanner))
+                    .map(|(item, scanner)| (ParsedItem::FunctionExpression(item), scanner))
             }),
             "function expression",
         ),
         ParseGoal::GeneratorExpression => (
             Box::new(|parser: &mut Parser| {
                 GeneratorExpression::parse(parser, Scanner::new())
-                    .map(|(item, scanner)| (Item::GeneratorExpression(item), scanner))
+                    .map(|(item, scanner)| (ParsedItem::GeneratorExpression(item), scanner))
             }),
             "generator expression",
         ),
         ParseGoal::AsyncFunctionExpression => (
             Box::new(|parser: &mut Parser| {
                 AsyncFunctionExpression::parse(parser, Scanner::new())
-                    .map(|(item, scanner)| (Item::AsyncFunctionExpression(item), scanner))
+                    .map(|(item, scanner)| (ParsedItem::AsyncFunctionExpression(item), scanner))
             }),
             "function expression",
         ),
         ParseGoal::AsyncGeneratorExpression => (
             Box::new(|parser: &mut Parser| {
                 AsyncGeneratorExpression::parse(parser, Scanner::new())
-                    .map(|(item, scanner)| (Item::AsyncGeneratorExpression(item), scanner))
+                    .map(|(item, scanner)| (ParsedItem::AsyncGeneratorExpression(item), scanner))
             }),
             "generator expression",
         ),
