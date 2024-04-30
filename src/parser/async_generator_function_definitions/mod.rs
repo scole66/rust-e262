@@ -516,7 +516,7 @@ impl AsyncGeneratorExpression {
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
-        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
                 "Yield expressions can't be parameter initializers in generators",
@@ -530,11 +530,7 @@ impl AsyncGeneratorExpression {
             ));
         }
 
-        if let Some(bi) = &self.ident {
-            bi.early_errors(errs, strict_function);
-        }
-        self.params.early_errors(errs, strict_function, strict_function);
-        self.body.early_errors(errs, strict_function);
+        // Don't need to check the child nodes, as function_early_errors, above, already did.
     }
 
     pub fn is_named_function(&self) -> bool {

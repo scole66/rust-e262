@@ -211,25 +211,18 @@ mod constructor_kind {
     }
 }
 
-mod function_prototype_call {
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(|| ECMAScriptValue::Undefined, &[] => serr("TypeError: this isn't a function"); "bad this")]
-    #[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
-    fn function_prototype_call(
-        get_this: impl FnOnce() -> ECMAScriptValue,
-        args: &[ECMAScriptValue],
-    ) -> Result<ECMAScriptValue, String> {
-        setup_test_agent();
-        let this_value = get_this();
-        super::function_prototype_call(&this_value, None, args).map_err(unwind_any_error)
-    }
+#[test_case(|| ECMAScriptValue::Undefined, &[] => serr("TypeError: Function.prototype.call requires that 'this' be a function"); "bad this")]
+#[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::Number)), &[ECMAScriptValue::Undefined, ECMAScriptValue::from(10)] => vok(10); "built-in function call")]
+fn function_prototype_call(
+    get_this: impl FnOnce() -> ECMAScriptValue,
+    args: &[ECMAScriptValue],
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let this_value = get_this();
+    super::function_prototype_call(&this_value, None, args).map_err(unwind_any_error)
 }
 
-#[test_case(super::function_prototype_apply => panics "not yet implemented"; "function_prototype_apply")]
 #[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
-#[test_case(super::function_constructor_function => panics "not yet implemented"; "function_constructor_function")]
 fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
@@ -558,6 +551,7 @@ mod function_name {
     #[test_case(|| PropertyKey::from("stringy") => "String(stringy)"; "string as property key")]
     #[test_case(|| PropertyKey::from(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "symbol as property key")]
     #[test_case(|| PrivateName::new("alice") => "Private(PN[alice])"; "private name")]
+    #[test_case(|| "bob" => "String(bob)"; "string slice")]
     fn from<T>(make_item: impl FnOnce() -> T) -> String
     where
         FunctionName: From<T>,

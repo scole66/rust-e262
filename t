@@ -402,6 +402,12 @@ test_defs[CatchParameter]="CatchParameter catch_parameter parser::try_statement"
 test_defs[UnaryExpression]="UnaryExpression unary_expression parser::unary_operators"
 test_defs[UpdateExpression]="UpdateExpression update_expression parser::update_expressions"
 test_defs[WithStatement]="WithStatement with_statement parser::with_statement"
+test_defs[ParsedText]="ParsedText parsed_text parser"
+test_defs[ParsedItem]="ParsedItem parsed_item parser"
+test_defs[direct_parse]="direct_parse direct_parse parser"
+test_defs[parse_text]="parse_text parse_text parser"
+test_defs[ParsedText_TryFrom]="core::result::Result@convert::TryFrom parsed_text::try_from parser"
+test_defs[ParsedText_thing]="core::result::Result@alloc::rc::Rc@scripts::Script@vec::Vec@object::Object@convert::TryFrom@ParsedText@try_from parsed_text::try_from parser"
 
 test_defs[Agent]="Agent agent agent"
 test_defs[global_symbol_registry]="global_symbol_registry agent::global_symbol_registry agent"
@@ -596,11 +602,11 @@ test_defs[ArgumentsObject_get]="ArgumentsObject@object::ObjectInterface::get arg
 test_defs[ArgumentsObject_delete]="ArgumentsObject@object::ObjectInterface::delete arguments_object::delete arguments_object"
 test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInterface::own_property_keys arguments_object::own_property_keys arguments_object"
 
-test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
 test_defs[Realm]="Realm realm realm"
 test_defs[is_nan]="is_nan is_nan realm"
 test_defs[is_finite]="is_finite is_finite realm"
+test_defs[perform_eval]="perform_eval perform_eval realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
@@ -722,6 +728,7 @@ test_defs[BuiltInFunctionData]="BuiltInFunctionData built_in_function_data funct
 test_defs[make_constructor]="make_constructor make_constructor function_object"
 test_defs[set_function_name]="set_function_name set_function_name function_object"
 test_defs[initialize_instance_elements]="initialize_instance_elements initialize_instance_elements function_object"
+test_defs[create_dynamic_function]="create_dynamic_function create_dynamic_function function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
 test_defs[is_str_whitespace]="is_str_whitespace is_str_whitespace strings"
@@ -922,28 +929,23 @@ for name in ${names[@]}; do
     f64)
       regex="_3res${filemangled}d"
       ;;
-    *@*)
-      front_back=($(echo $typename | tr @ ' '))
-      frontparts=($(echo ${front_back[0]} | tr : ' '))
+    *)
+      chunks=($(echo $typename | tr @ ' '))
+      frontparts=($(echo ${chunks[0]} | tr : ' '))
       frontmangled=
       for part in ${frontparts[@]}; do
         frontmangled=${frontmangled}${#part}${part}
       done
-      backparts=($(echo ${front_back[1]} | tr : ' '))
-      backmangled=
-      for part in ${backparts[@]}; do
-        backmangled=${backmangled}${#part}${part}
+      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}"
+      backchunks=($(first=true; for x in ${chunks[@]}; do if $first; then first=false; else echo $x; fi; done))
+      for chunk in ${backchunks[@]}; do
+        backparts=($(echo ${chunk} | tr : ' '))
+        backmangled=
+        for part in ${backparts[@]}; do
+          backmangled=${backmangled}${#part}${part}
+        done
+        regex="${regex}.*${backmangled}"
       done
-      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}.*${backmangled}"
-      ;;
-    *)
-      typeparts=($(echo $typename | tr : ' '))
-      mangled=
-      for part in ${typeparts[@]}; do
-        mangled=${mangled}${#part}${part}
-      done
-
-      regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
       ;;
   esac
 
