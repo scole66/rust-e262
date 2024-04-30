@@ -1169,24 +1169,24 @@ mod parsed_text {
     )]
     #[test_case(
         || ParsedItem::FunctionExpression(Maker::new("function x(){}").function_expression())
-        => "FunctionExpression(function x (  ) {  })";
+        => "FunctionExpression(function x ( ) { })";
         "function_expression"
     )]
     #[test_case(
         || ParsedItem::GeneratorExpression(Maker::new("function *x(){}").generator_expression())
-        => "GeneratorExpression(function * x (  ) {  })";
+        => "GeneratorExpression(function * x ( ) { })";
         "generator_expression"
     )]
     #[test_case(
         || ParsedItem::AsyncFunctionExpression(Maker::new("async function x(){}").async_function_expression())
-        => "AsyncFunctionExpression(async function x (  ) {  })";
+        => "AsyncFunctionExpression(async function x ( ) { })";
         "async_function_expression"
     )]
     #[test_case(
         || ParsedItem::AsyncGeneratorExpression(
             Maker::new("async function *x(){}").async_generator_expression()
         )
-        => "AsyncGeneratorExpression(async function * x (  ) {  })";
+        => "AsyncGeneratorExpression(async function * x ( ) { })";
         "async_generator_expression"
     )]
     fn from(make_item: impl FnOnce() -> ParsedItem) -> String {
