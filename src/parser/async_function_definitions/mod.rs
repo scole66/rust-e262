@@ -17,12 +17,19 @@ pub struct AsyncFunctionDeclaration {
 
 impl fmt::Display for AsyncFunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => {
-                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
-            }
-            Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
+        write!(f, "async function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -246,12 +253,19 @@ pub struct AsyncFunctionExpression {
 
 impl fmt::Display for AsyncFunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => {
-                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
-            }
-            Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
+        write!(f, "async function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -455,7 +469,16 @@ pub struct AsyncMethod {
 
 impl fmt::Display for AsyncMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "async {} ( {} ) {{ {} }}", self.ident, self.params, self.body)
+        //write!(f, "async {} ( {} ) {{ {} }}", self.ident, self.params, self.body);
+        write!(f, "async {} ( ", self.ident)?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 

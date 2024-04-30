@@ -24,16 +24,32 @@ impl fmt::Display for MethodDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MethodDefinition::NamedFunction(name, params, body, _) => {
-                write!(f, "{name} ( {params} ) {{ {body} }}")
+                write!(f, "{name} ( ")?;
+                if !matches!(params.formals.as_ref(), FormalParameters::Empty(..)) {
+                    write!(f, "{params} ")?;
+                }
+                write!(f, ") {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
             MethodDefinition::Generator(node) => node.fmt(f),
             MethodDefinition::Async(node) => node.fmt(f),
             MethodDefinition::AsyncGenerator(node) => node.fmt(f),
             MethodDefinition::Getter(name, body, _) => {
-                write!(f, "get {name} ( ) {{ {body} }}")
+                write!(f, "get {name} ( ) {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
             MethodDefinition::Setter(name, args, body, _) => {
-                write!(f, "set {name} ( {args} ) {{ {body} }}")
+                write!(f, "set {name} ( {args} ) {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
         }
     }

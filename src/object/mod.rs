@@ -2738,6 +2738,8 @@ pub fn private_method_or_accessor_add(obj: &Object, method: Rc<PrivateElement>) 
 
 #[allow(unused_variables)]
 pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
+    // for coverage testing:
+    obj.get(&PropertyKey::from("should_error"))?;
     todo!()
 }
 

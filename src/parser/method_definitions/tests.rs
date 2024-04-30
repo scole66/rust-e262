@@ -532,6 +532,18 @@ mod method_definition {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("a(){}" => "a ( ) { }"; "named: id only")]
+    #[test_case("a(b){}" => "a ( b ) { }"; "named: id + params")]
+    #[test_case("a(){null;}" => "a ( ) { null ; }"; "named: id + body")]
+    #[test_case("a(b){null;}" => "a ( b ) { null ; }"; "named: id + params + body")]
+    #[test_case("get a(){}" => "get a ( ) { }"; "getter: empty")]
+    #[test_case("get a(){null;}" => "get a ( ) { null ; }"; "getter: body")]
+    #[test_case("set a(x){}" => "set a ( x ) { }"; "setter: empty")]
+    #[test_case("set a(x){null;}" => "set a ( x ) { null ; }"; "setter: body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).method_definition())
+    }
+
     #[test_case("a(){}" => false; "method without")]
     #[test_case("a(b=super(undefined)){}" => true; "method params with")]
     #[test_case("a(){super(a);}" => true; "method body with")]

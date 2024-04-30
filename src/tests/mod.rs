@@ -137,6 +137,16 @@ pub fn setup_test_agent() {
     initialize_host_defined_realm(0, true);
 }
 
+pub fn setup_runnable_state() {
+    setup_test_agent();
+
+    let realm = current_realm_record().unwrap();
+    let global_env = realm.borrow().global_env.clone();
+    let mut context = ExecutionContext::new(None, Rc::clone(&realm), None);
+    context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+    context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ThrowsOrNot {
     Throws,

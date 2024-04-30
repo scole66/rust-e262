@@ -148,7 +148,19 @@ impl PartialEq for BodySource {
             (Self::AsyncGenerator(l0), Self::AsyncGenerator(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ConciseBody(l0), Self::ConciseBody(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncConciseBody(l0), Self::AsyncConciseBody(r0)) => Rc::ptr_eq(l0, r0),
-            _ => false,
+            (Self::Initializer(l0), Self::Initializer(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ClassStaticBlockBody(l0), Self::ClassStaticBlockBody(r0)) => Rc::ptr_eq(l0, r0),
+            (
+                Self::Function(_)
+                | Self::Generator(_)
+                | Self::AsyncFunction(_)
+                | Self::AsyncGenerator(_)
+                | Self::ConciseBody(_)
+                | Self::AsyncConciseBody(_)
+                | Self::Initializer(_)
+                | Self::ClassStaticBlockBody(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -386,6 +398,24 @@ pub enum FunctionSource {
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
+}
+
+impl fmt::Display for FunctionSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionSource::FunctionExpression(node) => node.fmt(f),
+            FunctionSource::GeneratorExpression(node) => node.fmt(f),
+            FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
+            FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
+            FunctionSource::ArrowFunction(node) => node.fmt(f),
+            FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
+            FunctionSource::MethodDefinition(node) => node.fmt(f),
+            FunctionSource::HoistableDeclaration(node) => node.fmt(f),
+            FunctionSource::FieldDefinition(node) => node.fmt(f),
+            FunctionSource::ClassStaticBlock(node) => node.fmt(f),
+            FunctionSource::FunctionDeclaration(node) => node.fmt(f),
+        }
+    }
 }
 
 impl PartialEq for FunctionSource {
@@ -803,7 +833,9 @@ impl CallableObject for FunctionObject {
 
 pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object) -> Completion<()> {
     // InitializeInstanceElements ( O, constructor )
-    // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript function object) and returns either a normal completion containing unused or a throw completion. It performs the following steps when called:
+    // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript
+    // function object) and returns either a normal completion containing unused or a throw completion. It performs the
+    // following steps when called:
     //
     //  1. Let methods be the value of constructor.[[PrivateMethods]].
     //  2. For each PrivateElement method of methods, do
@@ -922,7 +954,7 @@ impl FunctionObject {
 /// The function being called is `func`, and any target for New expressions is in `new_target`.
 ///
 /// See [PrepareForOrdinaryCall](https://tc39.es/ecma262/#sec-prepareforordinarycall) from ECMA-262.
-fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
+pub fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
     // PrepareForOrdinaryCall ( F, newTarget )
     //
     // The abstract operation PrepareForOrdinaryCall takes arguments F (a function object) and newTarget (an Object
@@ -1433,7 +1465,7 @@ impl CallableObject for BuiltInFunctionObject {
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
     fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
@@ -1453,7 +1485,7 @@ impl CallableObject for BuiltInFunctionObject {
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
     fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
@@ -1464,7 +1496,7 @@ impl CallableObject for BuiltInFunctionObject {
     }
 
     fn end_evaluation(&self, _: FullCompletion) {
-        unreachable!("end_evaluation called for builtin callable")
+        panic!("end_evaluation called for builtin callable")
     }
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {

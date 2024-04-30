@@ -134,6 +134,9 @@ pub trait EnvironmentRecord: Debug {
     fn as_object_environment_record(&self) -> Option<&ObjectEnvironmentRecord> {
         None
     }
+    fn as_function_environment_record(&self) -> Option<&FunctionEnvironmentRecord> {
+        None
+    }
 }
 
 pub struct ConciselyPrintedEnvironmentRecord(pub Rc<dyn EnvironmentRecord>);
@@ -897,6 +900,10 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     fn get_function_object(&self) -> Option<Object> {
         Some(self.function_object.clone())
     }
+
+    fn as_function_environment_record(&self) -> Option<&FunctionEnvironmentRecord> {
+        Some(self)
+    }
 }
 
 // In addition, function Environment Records support the methods listed in Table 20:
@@ -974,6 +981,10 @@ impl FunctionEnvironmentRecord {
             new_target,
             name,
         }
+    }
+
+    pub fn get_new_target(&self) -> Option<&Object> {
+        self.new_target.as_ref()
     }
 }
 

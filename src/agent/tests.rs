@@ -2143,3 +2143,17 @@ fn set_default_global_bindings() {
     validate_intrinsic_data!("Math", Math);
     validate_intrinsic_data!("Reflect", Reflect);
 }
+
+#[test_case(setup_test_agent => 1; "nothing happening yet")]
+#[test_case(
+    || {
+        setup_test_agent();
+        push_execution_context(ExecutionContext::new(None, current_realm_record().unwrap(), None));
+    }
+    => 2;
+    "Something more on stack"
+)]
+fn execution_context_stack_len(setup: impl FnOnce()) -> usize {
+    setup();
+    super::execution_context_stack_len()
+}

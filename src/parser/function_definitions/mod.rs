@@ -16,12 +16,19 @@ pub struct FunctionDeclaration {
 
 impl fmt::Display for FunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -226,12 +233,19 @@ pub struct FunctionExpression {
 
 impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
