@@ -10,28 +10,28 @@ mod var_scope_decl {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a ( ) { }"; "function decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a ( ) { }"; "generator decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a ( ) { }"; "async function decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a ( ) { }"; "async generator decl")]
     fn from_hoistable(part: HoistableDeclPart) -> String {
         VarScopeDecl::from(part).to_string()
     }
 
-    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a ( ) { }"; "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a ( ) { }"; "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a ( ) { }"; "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a ( ) { }"; "async generator decl")]
     #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
     #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
     fn display(part: &VarScopeDecl) -> String {
         part.to_string()
     }
 
-    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a ( ) { }"; "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a ( ) { }"; "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a ( ) { }"; "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a ( ) { }"; "async generator decl")]
     #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
     #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
     fn string_from(part: &VarScopeDecl) -> String {
@@ -158,7 +158,7 @@ mod script {
     }
 
     #[test_case("" => svec(&[]); "empty")]
-    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    #[test_case("var a; function b(){}" => svec(&["a", "function b ( ) { }"]); "statements")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
@@ -285,7 +285,7 @@ mod script_body {
         errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
-    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    #[test_case("var a; function b(){}" => svec(&["a", "function b ( ) { }"]); "statements")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script_body().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }

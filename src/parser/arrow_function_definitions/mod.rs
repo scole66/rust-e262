@@ -304,7 +304,11 @@ pub struct ArrowFormalParameters {
 
 impl fmt::Display for ArrowFormalParameters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "( {} )", self.params)
+        write!(f, "( ")?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ")")
     }
 }
 

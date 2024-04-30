@@ -78,6 +78,62 @@ mod script_or_module {
         let text = som.source_text();
         text.clone()
     }
+
+    #[test_case(
+        || {
+            let mut sr = ScriptRecord::new_empty(current_realm_record().unwrap());
+            sr.text = String::from("I am a walrus");
+            let som = ScriptOrModule::Script(Rc::new(sr));
+            (som.clone(), som)
+        }
+        => true;
+        "a script record match"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap()))),
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap())))
+        )
+        => false;
+        "a script record difference"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap()))),
+            ScriptOrModule::Module(Rc::new(ModuleRecord{}))
+        )
+        => false;
+        "script vs module"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap())))
+        )
+        => false;
+        "module vs script"
+    )]
+    #[test_case(
+        || {
+            let som = ScriptOrModule::Module(Rc::new(ModuleRecord{}));
+            (som.clone(), som)
+        }
+        => true;
+        "module record match"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+        )
+        => false;
+        "module record mismatch"
+    )]
+    fn eq(make_pair: impl FnOnce() -> (ScriptOrModule, ScriptOrModule)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_pair();
+        left == right
+    }
 }
 
 mod execution_context {

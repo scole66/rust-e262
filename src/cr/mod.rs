@@ -86,6 +86,11 @@ impl fmt::Display for AbruptCompletion {
         }
     }
 }
+impl From<AbruptCompletion> for String {
+    fn from(value: AbruptCompletion) -> Self {
+        unwind_any_error(value)
+    }
+}
 
 pub type Completion<T> = Result<T, AbruptCompletion>;
 pub type FullCompletion = Completion<NormalCompletion>;

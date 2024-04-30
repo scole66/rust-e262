@@ -624,7 +624,7 @@ mod class_body {
             .collect::<Vec<_>>()
     }
 
-    #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) {  }"); "constructor present")]
+    #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) { }"); "constructor present")]
     #[test_case("boring;" => None; "no constructor present")]
     fn constructor_method(src: &str) -> Option<String> {
         Maker::new(src).class_body().constructor_method().map(|cstr| format!("{cstr}"))
@@ -675,10 +675,10 @@ mod private_id_info {
 fn class_element_list_test_01() {
     let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ClassElementList: a (  ) {  }", &["ClassElement: a (  ) {  }"]);
+    pretty_check(&*node, "ClassElementList: a ( ) { }", &["ClassElement: a ( ) { }"]);
     concise_check(
         &*node,
-        "MethodDefinition: a (  ) {  }",
+        "MethodDefinition: a ( ) { }",
         &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -690,13 +690,13 @@ fn class_element_list_test_02() {
     chk_scan(&scanner, 16);
     pretty_check(
         &*node,
-        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
-        &["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"],
+        "ClassElementList: a ( ) { } ; b ( a ) { a ; }",
+        &["ClassElementList: a ( ) { } ;", "ClassElement: b ( a ) { a ; }"],
     );
     concise_check(
         &*node,
-        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
-        &["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"],
+        "ClassElementList: a ( ) { } ; b ( a ) { a ; }",
+        &["ClassElementList: a ( ) { } ;", "MethodDefinition: b ( a ) { a ; }"],
     );
     format!("{node:?}");
 }
@@ -844,10 +844,10 @@ mod class_element_list {
 fn class_element_test_01() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ClassElement: a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
+    pretty_check(&*node, "ClassElement: a ( ) { }", &["MethodDefinition: a ( ) { }"]);
     concise_check(
         &*node,
-        "MethodDefinition: a (  ) {  }",
+        "MethodDefinition: a ( ) { }",
         &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     assert_ne!(format!("{node:?}"), "");
@@ -856,8 +856,8 @@ fn class_element_test_01() {
 fn class_element_test_02() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "ClassElement: static a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
-    concise_check(&*node, "ClassElement: static a (  ) {  }", &["Keyword: static", "MethodDefinition: a (  ) {  }"]);
+    pretty_check(&*node, "ClassElement: static a ( ) { }", &["MethodDefinition: a ( ) { }"]);
+    concise_check(&*node, "ClassElement: static a ( ) { }", &["Keyword: static", "MethodDefinition: a ( ) { }"]);
     assert_ne!(format!("{node:?}"), "");
 }
 #[test]
@@ -896,8 +896,8 @@ fn class_element_test_06() {
 fn class_element_test_07() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("static {}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "ClassElement: static {  }", &["ClassStaticBlock: static {  }"]);
-    concise_check(&*node, "ClassStaticBlock: static {  }", &["Keyword: static", "Punctuator: {", "Punctuator: }"]);
+    pretty_check(&*node, "ClassElement: static { }", &["ClassStaticBlock: static { }"]);
+    concise_check(&*node, "ClassStaticBlock: static { }", &["Keyword: static", "Punctuator: {", "Punctuator: }"]);
     assert_ne!(format!("{node:?}"), "");
 }
 #[test]
@@ -1491,6 +1491,14 @@ mod class_static_block {
             "ClassStaticBlock: static { 0 ; }",
             &["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"],
         );
+        assert_ne!(format!("{node:?}"), "");
+    }
+    #[test]
+    fn parse_2() {
+        let (node, scanner) = check(ClassStaticBlock::parse(&mut newparser("static {}"), Scanner::new()));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "ClassStaticBlock: static { }", &["ClassStaticBlockBody: "]);
+        concise_check(&*node, "ClassStaticBlock: static { }", &["Keyword: static", "Punctuator: {", "Punctuator: }"]);
         assert_ne!(format!("{node:?}"), "");
     }
     #[test_case("", "‘static’ expected", 1; "Empty Source")]

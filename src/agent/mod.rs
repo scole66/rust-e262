@@ -249,6 +249,13 @@ pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
     })
 }
 
+pub fn execution_context_stack_len() -> usize {
+    AGENT.with(|agent| {
+        let execution_context_stack = agent.execution_context_stack.borrow();
+        execution_context_stack.len()
+    })
+}
+
 pub fn ec_stack_len() -> usize {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();

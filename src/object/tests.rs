@@ -5005,6 +5005,7 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
 }
 
 #[test_case(|| ordinary_object_create(None, &[]), &ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
+#[test_case(DeadObject::object, &ClassFieldDefinitionRecord{} => serr("TypeError: get called on DeadObject"); "fails")]
 fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(), String> {
     setup_test_agent();
     let obj = make_obj();

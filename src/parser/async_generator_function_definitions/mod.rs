@@ -15,7 +15,15 @@ pub struct AsyncGeneratorMethod {
 
 impl fmt::Display for AsyncGeneratorMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "async * {} ( {} ) {{ {} }}", self.name, self.params, self.body)
+        write!(f, "async * {} ( ", self.name)?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -190,12 +198,19 @@ pub struct AsyncGeneratorDeclaration {
 
 impl fmt::Display for AsyncGeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => {
-                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
-            }
-            Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
+        write!(f, "async function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -372,12 +387,19 @@ pub struct AsyncGeneratorExpression {
 
 impl fmt::Display for AsyncGeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
-            None => {
-                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
-            }
+        write!(f, "async function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 

@@ -15,7 +15,15 @@ pub struct GeneratorMethod {
 
 impl fmt::Display for GeneratorMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "* {} ( {} ) {{ {} }}", self.name, self.params, self.body)
+        write!(f, "* {} ( ", self.name)?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -186,12 +194,19 @@ pub struct GeneratorDeclaration {
 
 impl fmt::Display for GeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -344,12 +359,19 @@ pub struct GeneratorExpression {
 
 impl fmt::Display for GeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 

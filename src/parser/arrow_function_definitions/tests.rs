@@ -411,7 +411,7 @@ mod concise_body {
     }
 
     #[test_case("x + 3" => svec(&[]); "expression body")]
-    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).concise_body().var_scoped_declarations().iter().map(String::from).collect()
     }
@@ -598,5 +598,11 @@ mod arrow_formal_parameters {
     #[test_case("(a=0)" => true; "present")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).arrow_formal_parameters().contains_expression()
+    }
+
+    #[test_case("(a=0)" => "( a = 0 )"; "has args")]
+    #[test_case("()" => "( )"; "no args")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).arrow_formal_parameters())
     }
 }

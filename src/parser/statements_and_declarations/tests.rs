@@ -620,10 +620,10 @@ mod hoistable_decl_part {
         assert_eq!(hdp.to_string(), my_copy.to_string());
     }
 
-    #[test_case(&HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(&HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(&HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(&HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(&HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
     fn display(part: &HoistableDeclPart) -> String {
         part.to_string()
     }
@@ -638,35 +638,35 @@ mod decl_part {
         format!("{part:?}")
     }
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
     fn from_hoistable(part: HoistableDeclPart) -> String {
         DeclPart::from(part).to_string()
     }
 
-    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
     #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
     #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
     fn display(part: &DeclPart) -> String {
         part.to_string()
     }
 
-    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
     #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
     #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
     fn string_from(part: &DeclPart) -> String {
         String::from(part)
     }
 
-    #[test_case(Maker::new("function a(){}").function_declaration() => "function a (  ) {  }"; "function decl")]
+    #[test_case(Maker::new("function a(){}").function_declaration() => "function a ( ) { }"; "function decl")]
     fn from_funcdecl(part: Rc<FunctionDeclaration>) -> String {
         DeclPart::from(part).to_string()
     }
@@ -699,10 +699,10 @@ mod decl_part {
 fn declaration_test_01() {
     let (node, scanner) = check(Declaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "Declaration: function a (  ) {  }", &["HoistableDeclaration: function a (  ) {  }"]);
+    pretty_check(&*node, "Declaration: function a ( ) { }", &["HoistableDeclaration: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function a (  ) {  }",
+        "FunctionDeclaration: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -812,7 +812,7 @@ mod declaration {
         Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 
-    #[test_case("function kobold(){}" => "function kobold (  ) {  }"; "hoistable")]
+    #[test_case("function kobold(){}" => "function kobold ( ) { }"; "hoistable")]
     #[test_case("class goblin {}" => "class goblin { }"; "class def")]
     #[test_case("const pixie = bullywug;" => "const pixie = bullywug ;"; "lexical decl")]
     fn declaration_part(src: &str) -> String {
@@ -845,10 +845,10 @@ fn hoistable_declaration_test_01() {
     let (node, scanner) =
         check(HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "HoistableDeclaration: function a (  ) {  }", &["FunctionDeclaration: function a (  ) {  }"]);
+    pretty_check(&*node, "HoistableDeclaration: function a ( ) { }", &["FunctionDeclaration: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function a (  ) {  }",
+        "FunctionDeclaration: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -858,14 +858,10 @@ fn hoistable_declaration_test_02() {
     let (node, scanner) =
         check(HoistableDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 15);
-    pretty_check(
-        &*node,
-        "HoistableDeclaration: function * a (  ) {  }",
-        &["GeneratorDeclaration: function * a (  ) {  }"],
-    );
+    pretty_check(&*node, "HoistableDeclaration: function * a ( ) { }", &["GeneratorDeclaration: function * a ( ) { }"]);
     concise_check(
         &*node,
-        "GeneratorDeclaration: function * a (  ) {  }",
+        "GeneratorDeclaration: function * a ( ) { }",
         &[
             "Keyword: function",
             "Punctuator: *",
@@ -885,12 +881,12 @@ fn hoistable_declaration_test_03() {
     chk_scan(&scanner, 20);
     pretty_check(
         &*node,
-        "HoistableDeclaration: async function a (  ) {  }",
-        &["AsyncFunctionDeclaration: async function a (  ) {  }"],
+        "HoistableDeclaration: async function a ( ) { }",
+        &["AsyncFunctionDeclaration: async function a ( ) { }"],
     );
     concise_check(
         &*node,
-        "AsyncFunctionDeclaration: async function a (  ) {  }",
+        "AsyncFunctionDeclaration: async function a ( ) { }",
         &[
             "Keyword: async",
             "Keyword: function",
@@ -915,12 +911,12 @@ fn hoistable_declaration_test_04() {
     chk_scan(&scanner, 21);
     pretty_check(
         &*node,
-        "HoistableDeclaration: async function * a (  ) {  }",
-        &["AsyncGeneratorDeclaration: async function * a (  ) {  }"],
+        "HoistableDeclaration: async function * a ( ) { }",
+        &["AsyncGeneratorDeclaration: async function * a ( ) { }"],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * a (  ) {  }",
+        "AsyncGeneratorDeclaration: async function * a ( ) { }",
         &[
             "Keyword: async",
             "Keyword: function",
@@ -1047,10 +1043,10 @@ mod hoistable_declaration {
         errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
-    #[test_case("function a(){}" => "function a (  ) {  }"; "function def")]
-    #[test_case("function *a(){}" => "function * a (  ) {  }"; "generator def")]
-    #[test_case("async function a(){}" => "async function a (  ) {  }"; "async fcn")]
-    #[test_case("async function *a(){}" => "async function * a (  ) {  }"; "async gen")]
+    #[test_case("function a(){}" => "function a ( ) { }"; "function def")]
+    #[test_case("function *a(){}" => "function * a ( ) { }"; "generator def")]
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "async fcn")]
+    #[test_case("async function *a(){}" => "async function * a ( ) { }"; "async gen")]
     fn declaration_part(src: &str) -> String {
         Maker::new(src).hoistable_declaration().declaration_part().to_string()
     }

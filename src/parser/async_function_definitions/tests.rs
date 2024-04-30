@@ -241,6 +241,18 @@ mod async_function_declaration {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "id only")]
+    #[test_case("async function (){}" => "async function ( ) { }"; "nothing")]
+    #[test_case("async function a(b){}" => "async function a ( b ) { }"; "id + params")]
+    #[test_case("async function (b){}" => "async function ( b ) { }"; "params only")]
+    #[test_case("async function a(){null;}" => "async function a ( ) { null ; }"; "id + body")]
+    #[test_case("async function (){null;}" => "async function ( ) { null ; }"; "body only")]
+    #[test_case("async function a(b){null;}" => "async function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function (b){null;}" => "async function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_function_declaration())
+    }
+
     #[test_case("async function a(arg=item.#valid){}" => true; "Params valid")]
     #[test_case("async function a(arg) {return item.#valid;}" => true; "Body valid")]
     #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
@@ -459,6 +471,18 @@ mod async_function_expression {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "id only")]
+    #[test_case("async function (){}" => "async function ( ) { }"; "nothing")]
+    #[test_case("async function a(b){}" => "async function a ( b ) { }"; "id + params")]
+    #[test_case("async function (b){}" => "async function ( b ) { }"; "params only")]
+    #[test_case("async function a(){null;}" => "async function a ( ) { null ; }"; "id + body")]
+    #[test_case("async function (){null;}" => "async function ( ) { null ; }"; "body only")]
+    #[test_case("async function a(b){null;}" => "async function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function (b){null;}" => "async function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_function_expression())
+    }
+
     #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
     #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
@@ -616,6 +640,14 @@ mod async_method {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async a(){}" => "async a ( ) { }"; "id only")]
+    #[test_case("async a(b){}" => "async a ( b ) { }"; "id + params")]
+    #[test_case("async a(){null;}" => "async a ( ) { null ; }"; "id + body")]
+    #[test_case("async a(b){null;}" => "async a ( b ) { null ; }"; "id + params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_method())
+    }
+
     #[test_case("async #blue() {}" => Some("#blue".to_string()); "pid there")]
     #[test_case("async blue(){}" => None; "nothing private")]
     fn private_bound_identifier(src: &str) -> Option<String> {
@@ -748,7 +780,7 @@ mod async_function_body {
         Maker::new(src).async_function_body().var_declared_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_function_body().var_scoped_declarations().iter().map(String::from).collect()
     }

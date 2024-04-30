@@ -89,10 +89,10 @@ fn primary_expression_test_func() {
     chk_scan(&scanner, 14);
     assert!(matches!(*node, PrimaryExpression::Function { .. }));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", &["FunctionExpression: function a (  ) {  }"]);
+    pretty_check(&*node, "PrimaryExpression: function a ( ) { }", &["FunctionExpression: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionExpression: function a (  ) {  }",
+        "FunctionExpression: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
 }
@@ -1742,7 +1742,7 @@ mod initializer {
 
     #[test_case("=a" => None; "not function")]
     #[test_case("=function a(){}" => None; "named function")]
-    #[test_case("=function (){}" => ssome("function (  ) {  }"); "unnamed function")]
+    #[test_case("=function (){}" => ssome("function ( ) { }"); "unnamed function")]
     fn anonymous_function_definition(src: &str) -> Option<String> {
         Maker::new(src).initializer().anonymous_function_definition().map(|fd| fd.to_string())
     }
@@ -2217,10 +2217,10 @@ fn property_definition_test_05() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*pd, PropertyDefinition::MethodDefinition(..)));
-    pretty_check(&*pd, "PropertyDefinition: a (  ) {  }", &["MethodDefinition: a (  ) {  }"]);
+    pretty_check(&*pd, "PropertyDefinition: a ( ) { }", &["MethodDefinition: a ( ) { }"]);
     concise_check(
         &*pd,
-        "MethodDefinition: a (  ) {  }",
+        "MethodDefinition: a ( ) { }",
         &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
 }

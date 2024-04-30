@@ -12,12 +12,12 @@ fn generator_method_test_01() {
     chk_scan(&scanner, 6);
     pretty_check(
         &*node,
-        "GeneratorMethod: * a (  ) {  }",
+        "GeneratorMethod: * a ( ) { }",
         &["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
-        "GeneratorMethod: * a (  ) {  }",
+        "GeneratorMethod: * a ( ) { }",
         &["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -117,6 +117,14 @@ mod generator_method {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("*a(){}" => "* a ( ) { }"; "id only")]
+    #[test_case("*a(b){}" => "* a ( b ) { }"; "id + params")]
+    #[test_case("*a(){null;}" => "* a ( ) { null ; }"; "id + body")]
+    #[test_case("*a(b){null;}" => "* a ( b ) { null ; }"; "id + params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).generator_method())
+    }
+
     #[test_case("*a(){}" => false; "without")]
     #[test_case("*a(b=super(0)){}" => true; "params")]
     #[test_case("*a(){super(1);}" => true; "body")]
@@ -170,12 +178,12 @@ fn generator_declaration_test_01() {
     chk_scan(&scanner, 15);
     pretty_check(
         &*node,
-        "GeneratorDeclaration: function * a (  ) {  }",
+        "GeneratorDeclaration: function * a ( ) { }",
         &["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
-        "GeneratorDeclaration: function * a (  ) {  }",
+        "GeneratorDeclaration: function * a ( ) { }",
         &[
             "Keyword: function",
             "Punctuator: *",
@@ -193,10 +201,10 @@ fn generator_declaration_test_02() {
     let (node, scanner) =
         check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "GeneratorDeclaration: function * (  ) {  }", &["FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(&*node, "GeneratorDeclaration: function * ( ) { }", &["FormalParameters: ", "GeneratorBody: "]);
     concise_check(
         &*node,
-        "GeneratorDeclaration: function * (  ) {  }",
+        "GeneratorDeclaration: function * ( ) { }",
         &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -379,6 +387,18 @@ mod generator_declaration {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("function *a(){}" => "function * a ( ) { }"; "id only")]
+    #[test_case("function *(){}" => "function * ( ) { }"; "nothing")]
+    #[test_case("function *a(b){}" => "function * a ( b ) { }"; "id + params")]
+    #[test_case("function *(b){}" => "function * ( b ) { }"; "params only")]
+    #[test_case("function *a(){null;}" => "function * a ( ) { null ; }"; "id + body")]
+    #[test_case("function *(){null;}" => "function * ( ) { null ; }"; "body only")]
+    #[test_case("function *a(b){null;}" => "function * a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("function *(b){null;}" => "function * ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).generator_declaration())
+    }
+
     #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
     #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
     #[test_case("function *a(a,a){}", true => sset(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
@@ -423,12 +443,12 @@ fn generator_expression_test_01() {
     chk_scan(&scanner, 15);
     pretty_check(
         &*node,
-        "GeneratorExpression: function * a (  ) {  }",
+        "GeneratorExpression: function * a ( ) { }",
         &["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
     );
     concise_check(
         &*node,
-        "GeneratorExpression: function * a (  ) {  }",
+        "GeneratorExpression: function * a ( ) { }",
         &[
             "Keyword: function",
             "Punctuator: *",
@@ -446,10 +466,10 @@ fn generator_expression_test_01() {
 fn generator_expression_test_02() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *(){}"), Scanner::new()));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "GeneratorExpression: function * (  ) {  }", &["FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(&*node, "GeneratorExpression: function * ( ) { }", &["FormalParameters: ", "GeneratorBody: "]);
     concise_check(
         &*node,
-        "GeneratorExpression: function * (  ) {  }",
+        "GeneratorExpression: function * ( ) { }",
         &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     format!("{node:?}");
@@ -553,6 +573,18 @@ fn generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 mod generator_expression {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("function *a(){}" => "function * a ( ) { }"; "id only")]
+    #[test_case("function *(){}" => "function * ( ) { }"; "nothing")]
+    #[test_case("function *a(b){}" => "function * a ( b ) { }"; "id + params")]
+    #[test_case("function *(b){}" => "function * ( b ) { }"; "params only")]
+    #[test_case("function *a(){null;}" => "function * a ( ) { null ; }"; "id + body")]
+    #[test_case("function *(){null;}" => "function * ( ) { null ; }"; "body only")]
+    #[test_case("function *a(b){null;}" => "function * a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("function *(b){null;}" => "function * ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).generator_expression())
+    }
 
     #[test_case("function *package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
     #[test_case("function *(implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
@@ -669,7 +701,7 @@ mod generator_body {
         Maker::new(src).generator_body().var_declared_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).generator_body().var_scoped_declarations().iter().map(String::from).collect()
     }

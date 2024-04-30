@@ -1642,7 +1642,11 @@ pub struct ClassStaticBlock {
 
 impl fmt::Display for ClassStaticBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "static {{ {} }}", self.block)
+        write!(f, "static {{ ")?;
+        if !matches!(self.block.0.as_ref(), ClassStaticBlockStatementList::Empty(..)) {
+            write!(f, "{} ", self.block)?;
+        }
+        write!(f, "}}")
     }
 }
 

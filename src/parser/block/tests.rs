@@ -543,7 +543,7 @@ mod statement_list {
     }
 
     #[test_case("var rust='bob';" => svec(&["rust = 'bob'"]); "item")]
-    #[test_case("a; function b(){}; var third;" => svec(&["function b (  ) {  }", "third"]); "list")]
+    #[test_case("a; function b(){}; var third;" => svec(&["function b ( ) { }", "third"]); "list")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src)
             .statement_list()
@@ -565,7 +565,7 @@ mod statement_list {
     }
 
     #[test_case("let dragon=xorn;" => svec(&["let dragon = xorn ;"]); "item")]
-    #[test_case("const a=0; function b(){} class c{}" => svec(&["const a = 0 ;", "function b (  ) {  }", "class c { }"]); "list")]
+    #[test_case("const a=0; function b(){} class c{}" => svec(&["const a = 0 ;", "function b ( ) { }", "class c { }"]); "list")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).statement_list().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
@@ -802,7 +802,7 @@ mod statement_list_item {
     }
 
     #[test_case("for(var idx=0; idx<10; idx++){a();}" => svec(&["idx = 0"]); "stmt")]
-    #[test_case("blue: function a(){}" => svec(&["function a (  ) {  }"]); "labelled stmt")]
+    #[test_case("blue: function a(){}" => svec(&["function a ( ) { }"]); "labelled stmt")]
     #[test_case("{blue: function a(){}}" => svec(&[]); "no longer top level")]
     #[test_case("function abcd(efg){hij;}" => svec(&["function abcd ( efg ) { hij ; }"]); "decl")]
     #[test_case("const rust=10;" => svec(&[]); "not hoistable")]
@@ -828,7 +828,7 @@ mod statement_list_item {
 
     #[test_case("var a=27;" => svec(&[]); "statement")]
     #[test_case("class rocket{}" => svec(&["class rocket { }"]); "declaration")]
-    #[test_case("lbl: function x() {}" => svec(&["function x (  ) {  }"]); "labelled function")]
+    #[test_case("lbl: function x() {}" => svec(&["function x ( ) { }"]); "labelled function")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src)
             .statement_list_item()
