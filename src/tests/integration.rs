@@ -563,7 +563,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("Array.isArray([1, 2, 3])" => vok(true); "Array.isArray on an array")]
 #[test_case(
     "Array.isArray((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})())"
-    => panics "not yet implemented";
+    => serr("Thrown: TypeError: Proxy has been revoked");
     "Array.isArray throws"
 )]
 // get Array[@@species]

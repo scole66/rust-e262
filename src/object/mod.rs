@@ -1185,6 +1185,9 @@ pub trait ObjectInterface: Debug {
     fn is_bigint_object(&self) -> bool {
         false
     }
+    fn to_builtin_function_with_revocable_proxy_slot(&self) -> Option<&BuiltinFunctionWithRevokableProxySlot> {
+        None
+    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>>;
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool>;
