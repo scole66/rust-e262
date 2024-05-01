@@ -1370,7 +1370,7 @@ impl BuiltInFunctionObject {
     }
 }
 
-pub trait BuiltinFunctionInterface {
+pub trait BuiltinFunctionInterface: CallableObject {
     fn builtin_function_data(&self) -> &RefCell<BuiltInFunctionData>;
 }
 
