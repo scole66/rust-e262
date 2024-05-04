@@ -939,6 +939,8 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     stack[len - amt..len].rotate_right(1);
                 }
                 Insn::RotateDownList => {
+                    // a 1-arg instruction (N)
+                    // Given a stack, ITEM LIST B C D, move ITEM down past the list plus N more items.
                     let ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let amt = chunk.opcodes[ec.pc] as usize;
                     ec.pc += 1;
@@ -1072,6 +1074,31 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     // 3 l2 l1 l0 6 n5 n4 n3 n2 n1 n0 item
                     // that's a rotate in the (item list_b) sub-slice
                     ec.stack[stack_size - a_len - b_len - 3..stack_size - a_len - 1].rotate_right(1);
+                }
+                Insn::ListToArray => {
+                    // On the stack at the start: N list[N-1] ... list[0]
+                    // Afterward: A
+                    let elements = {
+                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                        let array_len = to_usize(f64::try_from(
+                            ECMAScriptValue::try_from(
+                                ec.stack.pop().expect("stack should not be empty").expect("list len should not be an error"),
+                            )
+                            .expect("list len should be a value"),
+                        )
+                        .expect("length should be a number"))
+                        .expect("length should be a valid integer");
+                        let stack_size = ec.stack.len();
+                        ec.stack
+                            .drain(stack_size - array_len .. stack_size)
+                            .map(|completion| {
+                                ECMAScriptValue::try_from(completion.expect("List element should not be an error"))
+                                    .expect("List element should be a value")
+                            }).collect::<Vec<_>>()
+                    };
+                    let a = create_array_from_list(&elements);
+                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
+                    ec.stack.push(Ok(NormalCompletion::from(a)));
                 }
                 Insn::InitializeReferencedBinding => {
                     let (value, lhs) = {

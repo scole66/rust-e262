@@ -65,6 +65,7 @@ pub enum Insn {
     AppendList,
     SwapDeepList,
     PopOutList,
+    ListToArray,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -225,6 +226,7 @@ impl fmt::Display for Insn {
             Insn::AppendList => "APPEND_LIST",
             Insn::SwapDeepList => "SWAP_DEEP_LIST",
             Insn::PopOutList => "POP_OUT_LIST",
+            Insn::ListToArray => "LIST_TO_ARRAY",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -7738,7 +7740,6 @@ impl ParamSource {
 }
 
 impl FormalParameters {
-    #[allow(unused_variables)]
     pub fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
@@ -7748,15 +7749,25 @@ impl FormalParameters {
     ) -> anyhow::Result<AbruptResult> {
         match self {
             FormalParameters::Empty(_) => Ok(AbruptResult::from(false)),
-            FormalParameters::Rest(frp) => frp.compile_binding_initialization(chunk, strict, text, env),
+            FormalParameters::Rest(frp) => {
+                frp.compile_binding_initialization(chunk, strict, text, env).map(AbruptResult::from)
+            }
             FormalParameters::List(fpl) | FormalParameters::ListComma(fpl, _) => {
                 fpl.compile_binding_initialization(chunk, strict, text, env)
             }
             FormalParameters::ListRest(list, rest) => {
+                // stack: N arg[n-1] ... arg[0]
+                //   <list.compile_binding_initialization(env)>   err/(Q arg[q-1] ... arg[0])
+                //   JUMP_IF_ABRUPT exit
+                //   <rest.compile_binding_initialization(env)>   err/0
+                // exit:
                 let list_status = list.compile_binding_initialization(chunk, strict, text, env)?;
-                todo!()
-                //let rest_status = rest.compile_binding_initialization(chunk, strict, text, has_duplicates)?;
-                //Ok(AbruptResult::from(list_status.maybe_abrupt() || rest_status.maybe_abrupt()))
+                let exit = if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                rest.compile_binding_initialization(chunk, strict, text, env)?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AlwaysAbruptResult.into())
             }
         }
     }
@@ -9191,18 +9202,125 @@ impl BindingRestElement {
             }
         }
     }
-}
 
-impl FunctionRestParameter {
-    #[allow(unused_variables)]
     pub fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
         env: EnvUsage,
-    ) -> anyhow::Result<AbruptResult> {
-        todo!()
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // This is like iterator_binding_initialization, except that the list is on the stack, rather than sitting in an
+        // iterator object somewhere in the heap.
+        match self {
+            BindingRestElement::Identifier(bi, _) => {
+                // BindingRestElement : ... BindingIdentifier
+                //  1. Let lhs be ? ResolveBinding(StringValue of BindingIdentifier, environment).
+                //  2. Let A be ! ArrayCreate(0).
+                //  3. Let n be 0.
+                //  4. Repeat,
+                //      a. If iteratorRecord.[[Done]] is false, then
+                //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+                //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(next).
+                //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+                //      b. If iteratorRecord.[[Done]] is true, then
+                //          i. If environment is undefined, return ? PutValue(lhs, A).
+                //          ii. Return ? InitializeReferencedBinding(lhs, A).
+                //      c. Let nextValue be Completion(IteratorValue(next)).
+                //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      e. ReturnIfAbrupt(nextValue).
+                //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+                //      g. Set n to n + 1.
+                //
+                // Or, in other words: take the args left on the stack, wrap them up into an array, assign that array to
+                // our identifier, and then put a zero-length list back on the stack.
+
+                // start:   N arg[n-1] arg[n-2] ... arg[0]  (aka: 'arglist')
+                //   STRING bindingId               bindingId arglist
+                //   STRICT_RESOLVE/RESOLVE         lhs/err arglist
+                //   JUMP_IF_ABRUPT unwind_list     lhs arglist
+                //   ROTATE_DN_LIST 0               arglist lhs
+                //   LIST_TO_ARRAY                  A lhs
+                //   PUT_VALUE/IRB                  [empty]/err
+                //   JUMP_IF_ABRUPT exit            [empty]
+                //   POP                            <nothing>
+                //   ZERO                           0
+                //   JUMP exit
+                // unwind_list:                     err arglist
+                //   UNWIND_LIST                    err
+                // exit:                            err/0
+                let binding_id_val = bi.string_value();
+                let binding_id = chunk.add_to_string_pool(binding_id_val)?;
+                chunk.op_plus_arg(Insn::String, binding_id);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op_plus_arg(Insn::RotateDownList, 0);
+                chunk.op(Insn::ListToArray);
+                chunk.op(match env {
+                    EnvUsage::UsePutValue => Insn::PutValue,
+                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                });
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::Zero);
+                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind_list).expect("Jump too short to fail");
+                chunk.op(Insn::UnwindList);
+                chunk.fixup(exit1).expect("Jump too short to fail");
+                chunk.fixup(exit2).expect("Jump too short to fail");
+                Ok(AlwaysAbruptResult)
+            }
+            BindingRestElement::Pattern(bp, _) => {
+                // BindingRestElement : ... BindingPattern
+                //  1. Let A be ! ArrayCreate(0).
+                //  2. Let n be 0.
+                //  3. Repeat,
+                //      a. If iteratorRecord.[[Done]] is false, then
+                //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+                //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //          iii. ReturnIfAbrupt(next).
+                //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+                //      b. If iteratorRecord.[[Done]] is true, then
+                //          i. Return ? BindingInitialization of BindingPattern with arguments A and environment.
+                //      c. Let nextValue be Completion(IteratorValue(next)).
+                //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+                //      e. ReturnIfAbrupt(nextValue).
+                //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+                //      g. Set n to n + 1.
+
+                // start:   N arg[n-1] arg[n-2] ... arg[0]  (aka: 'arglist')
+                //   LIST_TO_ARRAY                       A
+                //   <bp.binding_initialization(env)>    err/[empty]
+                //   JUMP_IF_ABRUPT exit
+                //   POP
+                //   ZERO
+                // exit:
+
+                chunk.op(Insn::ListToArray);
+                bp.compile_binding_initialization(chunk, strict, text, env)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                chunk.op(Insn::Zero);
+                chunk.fixup(exit).expect("jump too short to fail");
+
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl FunctionRestParameter {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // This is like iterator_binding_initialization, except that the list is on the stack, rather than sitting in an
+        // iterator object somewhere in the heap.
+        self.element.compile_binding_initialization(chunk, strict, text, env)
     }
 }
 
@@ -9573,7 +9691,6 @@ impl MethodDefinition {
         }
     }
 
-    #[allow(unused_variables)]
     fn method_definition_evaluation(
         &self,
         enumerable: bool,

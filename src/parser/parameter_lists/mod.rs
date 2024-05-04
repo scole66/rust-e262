@@ -616,7 +616,7 @@ impl FormalParameterList {
 //      BindingRestElement[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionRestParameter {
-    element: Rc<BindingRestElement>,
+    pub element: Rc<BindingRestElement>,
 }
 
 impl fmt::Display for FunctionRestParameter {

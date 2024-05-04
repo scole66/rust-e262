@@ -281,6 +281,7 @@ impl Chunk {
             | Insn::EmbellishedIteratorStep
             | Insn::IteratorRest
             | Insn::EnumerateObjectProperties
+            | Insn::ListToArray
             | Insn::SetFunctionName => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump

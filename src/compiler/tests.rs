@@ -6493,9 +6493,9 @@ mod formal_parameters {
     #[test_case("a", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "simple/non-strict/no-dup")]
     #[test_case("a", false, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false, false)); "simple/non-strict/dup")]
     #[test_case("", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&[]), false, false)); "empty/non-strict/no-dup")]
-    #[test_case("...a", true, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "rest/strict/no-dup")]
+    #[test_case("...a", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 10", "ROTATEDOWN_LIST 0", "LIST_TO_ARRAY", "IRB", "JUMP_IF_ABRUPT 5", "POP", "ZERO", "JUMP 1", "UNWIND_LIST"]), true, false)); "rest/strict/no-dup")]
     #[test_case("a,", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false, false)); "comma/strict/no-dup")]
-    #[test_case("a,...b", true, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "list+rest/strict/no-dup")]
+    #[test_case("a,...b", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP", "STRING 1 (b)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 10", "ROTATEDOWN_LIST 0", "LIST_TO_ARRAY", "IRB", "JUMP_IF_ABRUPT 5", "POP", "ZERO", "JUMP 1", "UNWIND_LIST"]), true, false)); "list+rest/strict/no-dup")]
     #[test_case("a,...b", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+rest/string table full")]
     fn compile_binding_initialization(
         src: &str,
@@ -6975,7 +6975,7 @@ mod function_rest_parameter {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("...a", false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "panic")]
+    #[test_case("...a", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "JUMP_IF_ABRUPT 10", "ROTATEDOWN_LIST 0", "LIST_TO_ARRAY", "IRB", "JUMP_IF_ABRUPT 5", "POP", "ZERO", "JUMP 1", "UNWIND_LIST"]), true, false)); "frp")]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,
