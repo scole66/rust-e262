@@ -799,7 +799,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                             let mut eval_context = ExecutionContext::new(None, eval_realm, current_script_or_module());
                             eval_context.variable_environment = Some(var_env.clone());
                             eval_context.lexical_environment = Some(lex_env.clone());
-                            eval_context.private_environment = private_env.clone();
+                            eval_context.private_environment.clone_from(&private_env);
                             push_execution_context(eval_context);
                             let result = match eval_declaration_instantiation(
                                 body,
