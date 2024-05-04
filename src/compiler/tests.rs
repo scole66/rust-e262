@@ -3732,7 +3732,40 @@ mod lexical_binding {
         "FLOAT 0 (0)",
         "IRB"
     ]), true, false)); "literal initializer; non-strict")]
-    #[test_case("{a}=b", true, &[] => panics "not yet implemented"; "pattern binding")]
+    #[test_case(
+        "{a}=b", true, &[]
+        => Ok((
+            svec(&[
+                "STRING 0 (b)",
+                "STRICT_RESOLVE",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 33",
+                "REQ_COER",
+                "JUMP_IF_ABRUPT 30",
+                "STRING 1 (a)",
+                "STRING 1 (a)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 8",
+                "ROTATEDOWN 3",
+                "GETV",
+                "JUMP_IF_ABRUPT 5",
+                "IRB",
+                "JUMP 4",
+                "UNWIND 1",
+                "UNWIND 1",
+                "JUMP_IF_ABRUPT 5",
+                "POP",
+                "STRING 1 (a)",
+                "FLOAT 0 (1)",
+                "JUMP_IF_ABRUPT 2",
+                "POP_LIST",
+                "EMPTY"
+            ]),
+            true,
+            false
+        ));
+        "pattern binding"
+    )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).lexical_binding();
         let mut c = complex_filled_chunk("x", what);

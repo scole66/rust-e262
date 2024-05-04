@@ -5087,7 +5087,35 @@ impl LexicalBinding {
                 }
                 Ok(AlwaysAbruptResult)
             }
-            LexicalBinding::Pattern(_, _) => todo!(),
+            LexicalBinding::Pattern(bp, init) => {
+                // LexicalBinding : BindingPattern Initializer
+                // 1. Let rhs be ? Evaluation of Initializer.
+                // 2. Let value be ? GetValue(rhs).
+                // 3. Let env be the running execution context's LexicalEnvironment.
+                // 4. Return ? BindingInitialization of BindingPattern with arguments value and env.
+
+                // Stack starts empty
+                //   <init>                             err/rhs
+                //   GET_VALUE                          err/value
+                //   JUMP_IF_ABRUPT exit                value
+                //   <bp.binding_initialization(env)>   err/[empty]
+                // exit:                                err/[empty]
+
+                let status = init.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = if status.maybe_ref() || status.maybe_abrupt() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                bp.compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)?;
+                if let Some(exit) = exit {
+                    chunk.fixup(exit)?;
+                }
+                Ok(AlwaysAbruptResult)
+            }
         }
     }
 }
