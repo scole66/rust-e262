@@ -467,7 +467,7 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
         return false;
     }
     let mut p = val.clone();
-    #[allow(clippy::assigning_clones)]  // clippy is actually _wrong_ here.
+    #[allow(clippy::assigning_clones)] // clippy is actually _wrong_ here.
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
