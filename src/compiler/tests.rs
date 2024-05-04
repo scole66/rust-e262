@@ -8650,7 +8650,7 @@ mod for_declaration {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_declaration();
         let mut c = complex_filled_chunk("x", what);
-        node.for_declaration_binding_initialization(&mut c, strict, src)
+        node.for_declaration_binding_initialization(&mut c, strict, src, EnvUsage::UseCurrentLexical)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),

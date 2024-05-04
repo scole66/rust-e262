@@ -6186,7 +6186,7 @@ impl ForInOfStatement {
                 chunk.op(Insn::PushNewLexEnv);
                 lhs.for_declaration_binding_instantiation(chunk)?;
                 if destructuring {
-                    lhs.for_declaration_binding_initialization(chunk, strict, text)?;
+                    lhs.for_declaration_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)?;
                 } else {
                     let mut bn = lhs.bound_names();
                     let name = chunk
@@ -6421,18 +6421,29 @@ impl ForDeclaration {
         Ok(NeverAbruptRefResult)
     }
 
-    #[allow(unused_variables)]
     fn for_declaration_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
+        env: EnvUsage
     ) -> anyhow::Result<AbruptResult> {
-        // For coverage purposes, try and store a big int. (Upon actual implementation, remove this.)
-        let bi = num::BigInt::from(78);
-        chunk.add_to_bigint_pool(Rc::new(bi))?;
-
-        todo!()
+        // Runtime Semantics: ForDeclarationBindingInitialization
+        // The syntax-directed operation ForDeclarationBindingInitialization takes arguments value (an ECMAScript
+        // language value) and environment (an Environment Record or undefined) and returns either a normal completion
+        // containing UNUSED or an abrupt completion.
+        // 
+        // NOTE undefined is passed for environment to indicate that a PutValue operation should be used to assign the
+        // initialization value. This is the case for var statements and the formal parameter lists of some non-strict
+        // functions (see 10.2.11). In those cases a lexical binding is hoisted and preinitialized prior to evaluation
+        // of its initializer.
+        // 
+        // It is defined piecewise over the following productions:
+        // 
+        // ForDeclaration : LetOrConst ForBinding
+        //  1. Return ? BindingInitialization of ForBinding with arguments value and environment.
+        
+        self.binding.binding_initialization(chunk, strict, text, env)
     }
 }
 
