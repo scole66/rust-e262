@@ -8641,8 +8641,7 @@ mod for_declaration {
             .map_err(|e| e.to_string())
     }
 
-    #[test_case("let [a,b,c]", true, &[] => panics "not yet implemented"; "pattern")]
-    #[test_case("let [a]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "temporary coverage hack")]
+    #[test_case("let [a,b,c]", true, &[] => Ok((svec(&["GET_SYNC_ITER", "JUMP_IF_ABRUPT 67", "DUP", "STRING 0 (a)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 13", "SWAP", "ITER_STEP", "JUMP_IF_ABRUPT 9", "SWAP", "ROTATEDOWN 3", "IRB", "JUMP_IF_ABRUPT 3", "POP", "JUMP 2", "UNWIND 1", "JUMP_IF_ABRUPT 20", "STRING 1 (b)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 13", "SWAP", "ITER_STEP", "JUMP_IF_ABRUPT 9", "SWAP", "ROTATEDOWN 3", "IRB", "JUMP_IF_ABRUPT 3", "POP", "JUMP 2", "UNWIND 1", "JUMP_IF_ABRUPT 20", "STRING 2 (c)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 13", "SWAP", "ITER_STEP", "JUMP_IF_ABRUPT 9", "SWAP", "ROTATEDOWN 3", "IRB", "JUMP_IF_ABRUPT 3", "POP", "JUMP 2", "UNWIND 1", "EMPTY_IF_NOT_ERR", "ITER_CLOSE_IF_NOT_DONE"]), true)); "pattern")]
     fn for_declaration_binding_initialization(
         src: &str,
         strict: bool,
@@ -11024,10 +11023,10 @@ mod for_in_of_statement {
             => serr("Out of room for strings in this compilation unit")
             ; "for let item of / binding instantiation fails")]
     #[test_case("let [destructure]", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
-            => panics "not yet implemented"
+            => Ok(svec(&["UNDEFINED", "SWAP", "ITER_NEXT", "JUMP_IF_ABRUPT 67", "IRES_COMPLETE", "JUMP_IF_ABRUPT 62", "JUMPPOP_TRUE 56", "IRES_TOVAL", "JUMP_IF_ABRUPT 59", "PNLE", "CPMLB 0 (destructure)", "GET_SYNC_ITER", "JUMP_IF_ABRUPT 23", "DUP", "STRING 0 (destructure)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 13", "SWAP", "ITER_STEP", "JUMP_IF_ABRUPT 9", "SWAP", "ROTATEDOWN 3", "IRB", "JUMP_IF_ABRUPT 3", "POP", "JUMP 2", "UNWIND 1", "EMPTY_IF_NOT_ERR", "ITER_CLOSE_IF_NOT_DONE", "JUMP_IF_NORMAL 7", "PLE", "ROTATEUP 3", "POP", "ITER_CLOSE", "JUMP 23", "POP", "SWAP", "EMPTY", "PLE", "LOOP_CONT []", "JUMPPOP_FALSE 3", "COALESCE", "JUMP -61", "UPDATE_EMPTY", "ITER_CLOSE", "JUMP 8", "POP", "POP", "JUMP 4", "UNWIND 1", "UNWIND 2"]))
             ; "for let [destructure] of / strict / sync ")]
-    #[test_case("let [destructure]", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::BigInt, 0)]
-            => serr("Out of room for big ints in this compilation unit")
+    #[test_case("let [destructure]", true, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[(Fillable::String, 0)]
+            => serr("Out of room for strings in this compilation unit")
             ; "for let [destructure] of / binding initialization fails ")] //4639
     #[test_case("let item", false, LHSKind::LexicalBinding, ";", IterationKind::Iterate, &[], IteratorKind::Sync, &[]
             => Ok(svec(&[

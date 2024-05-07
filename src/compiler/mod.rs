@@ -6426,23 +6426,23 @@ impl ForDeclaration {
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        env: EnvUsage
+        env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ForDeclarationBindingInitialization
         // The syntax-directed operation ForDeclarationBindingInitialization takes arguments value (an ECMAScript
         // language value) and environment (an Environment Record or undefined) and returns either a normal completion
         // containing UNUSED or an abrupt completion.
-        // 
+        //
         // NOTE undefined is passed for environment to indicate that a PutValue operation should be used to assign the
         // initialization value. This is the case for var statements and the formal parameter lists of some non-strict
         // functions (see 10.2.11). In those cases a lexical binding is hoisted and preinitialized prior to evaluation
         // of its initializer.
-        // 
+        //
         // It is defined piecewise over the following productions:
-        // 
+        //
         // ForDeclaration : LetOrConst ForBinding
         //  1. Return ? BindingInitialization of ForBinding with arguments value and environment.
-        
+
         self.binding.binding_initialization(chunk, strict, text, env)
     }
 }
