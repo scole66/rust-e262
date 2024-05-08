@@ -3612,10 +3612,12 @@ impl AssignmentExpression {
                 Ok(AlwaysAbruptResult.into())
             }
             AssignmentExpression::LandAssignment(lhse, ae) => {
-                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfFalse).map(CompilerStatusFlags::from)
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfFalse)
+                    .map(CompilerStatusFlags::from)
             }
             AssignmentExpression::LorAssignment(lhse, ae) => {
-                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfTrue).map(CompilerStatusFlags::from)
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfTrue)
+                    .map(CompilerStatusFlags::from)
             }
             AssignmentExpression::CoalAssignment(lhse, ae) => {
                 // AssignmentExpression : LeftHandSideExpression ??= AssignmentExpression
@@ -3630,7 +3632,8 @@ impl AssignmentExpression {
                 //      b. Let rval be ? GetValue(rref).
                 //  6. Perform ? PutValue(lref, rval).
                 //  7. Return rval.
-                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfNotNullish).map(CompilerStatusFlags::from)
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfNotNullish)
+                    .map(CompilerStatusFlags::from)
             }
             AssignmentExpression::Destructuring(ap, ae) => {
                 //  2. Let assignmentPattern be the AssignmentPattern that is covered by LeftHandSideExpression.
