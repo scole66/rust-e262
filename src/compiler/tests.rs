@@ -3193,7 +3193,35 @@ mod assignment_expression {
     #[test_case("x => 0", true, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
     #[test_case("yield 1", true, &[] => panics "not yet implemented"; "yield expr")]
     #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
-    #[test_case("a &&= b", true, &[] => panics "not yet implemented"; "logical and assignment")]
+    #[test_case(
+        "a &&= b", true, &[]
+        => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "STRICT_RESOLVE",
+                "JUMP_IF_ABRUPT 24",
+                "DUP",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 18",
+                "JUMP_IF_FALSE 16",
+                "POP",
+                "STRING 1 (b)",
+                "STRICT_RESOLVE",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 9",
+                "DUP",
+                "ROTATEDOWN 3",
+                "PUT_VALUE",
+                "JUMP_IF_ABRUPT 3",
+                "POP",
+                "JUMP 2",
+                "UNWIND 1"
+            ]),
+            true,
+            false,
+        ));
+        "logical and assignment"
+    )]
     #[test_case("a ||= b", true, &[] => panics "not yet implemented"; "logical or assignment")]
     #[test_case("c ??= b", true, &[] => panics "not yet implemented"; "coalesce assignment")]
     #[test_case("{a} = b", true, &[] => Ok((svec(&[
