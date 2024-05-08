@@ -203,6 +203,18 @@ impl ShiftExpression {
             _ => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            ShiftExpression::AdditiveExpression(node) => node.has_call_in_tail_position(call),
+            ShiftExpression::LeftShift(_, _)
+            | ShiftExpression::SignedRightShift(_, _)
+            | ShiftExpression::UnsignedRightShift(_, _) => false,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -291,6 +291,26 @@ impl TryStatement {
         }
         list
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            TryStatement::Catch { catch, .. } => {
+                // TryStatement : try Block Catch
+                //  1. Return HasCallInTailPosition of Catch with argument call.
+                catch.has_call_in_tail_position(call)
+            }
+            TryStatement::Finally { finally, .. } | TryStatement::Full { finally, .. } => {
+                // TryStatement :
+                //      try Block Finally
+                //      try Block Catch Finally
+                //  1. Return HasCallInTailPosition of Finally with argument call.
+                finally.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -454,6 +474,13 @@ impl Catch {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.block.var_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.block.has_call_in_tail_position(call)
+    }
 }
 
 // Finally[Yield, Await, Return] :
@@ -563,6 +590,13 @@ impl Finally {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.block.var_scoped_declarations()
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.block.has_call_in_tail_position(call)
     }
 }
 

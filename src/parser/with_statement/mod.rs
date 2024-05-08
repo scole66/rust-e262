@@ -136,6 +136,17 @@ impl WithStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statement.var_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // WithStatement :
+        //      with ( Expression ) Statement
+        //  1. Return HasCallInTailPosition of Statement with argument call.
+        self.statement.has_call_in_tail_position(call)
+    }
 }
 
 #[cfg(test)]

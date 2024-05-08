@@ -503,6 +503,36 @@ impl AssignmentExpression {
             AssignmentExpression::FallThru(node) => node.is_named_function(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Arrow(_)
+            | AssignmentExpression::AsyncArrow(_)
+            | AssignmentExpression::Assignment(_, _)
+            | AssignmentExpression::OpAssignment(_, _, _)
+            | AssignmentExpression::LandAssignment(_, _)
+            | AssignmentExpression::LorAssignment(_, _)
+            | AssignmentExpression::CoalAssignment(_, _)
+            | AssignmentExpression::Destructuring(_, _) => {
+                // AssignmentExpression :
+                //      YieldExpression
+                //      ArrowFunction
+                //      AsyncArrowFunction
+                //      LeftHandSideExpression = AssignmentExpression
+                //      LeftHandSideExpression AssignmentOperator AssignmentExpression
+                //      LeftHandSideExpression &&= AssignmentExpression
+                //      LeftHandSideExpression ||= AssignmentExpression
+                //      LeftHandSideExpression ??= AssignmentExpression
+                //  1. Return false.
+                false
+            }
+            AssignmentExpression::FallThru(node) => node.has_call_in_tail_position(call),
+        }
+    }
 }
 
 // AssignmentOperator : one of

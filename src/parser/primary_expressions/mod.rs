@@ -492,6 +492,28 @@ impl PrimaryExpression {
             _ => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::ArrayLiteral { .. }
+            | PrimaryExpression::ObjectLiteral { .. }
+            | PrimaryExpression::TemplateLiteral { .. }
+            | PrimaryExpression::Function { .. }
+            | PrimaryExpression::Class { .. }
+            | PrimaryExpression::Generator { .. }
+            | PrimaryExpression::AsyncFunction { .. }
+            | PrimaryExpression::AsyncGenerator { .. }
+            | PrimaryExpression::RegularExpression { .. } => false,
+
+            PrimaryExpression::Parenthesized { node } => node.has_call_in_tail_position(call),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -3304,6 +3326,13 @@ impl ParenthesizedExpression {
 
     pub fn is_named_function(&self) -> bool {
         self.exp.is_named_function()
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.exp.has_call_in_tail_position(call)
     }
 }
 

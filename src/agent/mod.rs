@@ -648,7 +648,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
             let index = agent.execution_context_stack.borrow().len() - 1;
             assert!(index <= RECURSION_LIMIT, "Recursion limit exceeded");
             /* Diagnostics */
-            print!("Stack: [ ");
+            print!("[EC: {index}] Stack: [ ");
             print!(
                 "{}",
                 agent.execution_context_stack.borrow()[index]
@@ -2686,6 +2686,30 @@ fn begin_constructor_evaluation(cstr: ECMAScriptValue, newtgt: ECMAScriptValue, 
     let cstr = Object::try_from(cstr).expect("Must be a constructor");
     let newtgt = Object::try_from(newtgt).expect("Must be an object");
     initiate_construct(&cstr, args, Some(&newtgt));
+}
+
+pub fn prepare_for_tail_call() {
+    // PrepareForTailCall ( )
+    // The abstract operation PrepareForTailCall takes no arguments and returns UNUSED. It performs the
+    // following steps when called:
+    //
+    //  1. Assert: The current execution context will not subsequently be used for the evaluation of any
+    //     ECMAScript code or built-in functions. The invocation of Call subsequent to the invocation of this
+    //     abstract operation will create and push a new execution context before performing any such
+    //     evaluation.
+    //  2. Discard all resources associated with the current execution context.
+    //  3. Return UNUSED.
+    //
+    // A tail position call must either release any transient internal resources associated with the currently
+    // executing function execution context before invoking the target function or reuse those resources in
+    // support of the target function.
+    //
+    // NOTE
+    // For example, a tail position call should only grow an implementation's activation record stack by the
+    // amount that the size of the target function's activation record exceeds the size of the calling
+    // function's activation record. If the target function's activation record is smaller, then the total
+    // size of the stack should decrease.
+    pop_execution_context()
 }
 
 fn prefix_increment(expr: FullCompletion) -> FullCompletion {

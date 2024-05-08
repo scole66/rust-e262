@@ -165,6 +165,17 @@ impl LabelledStatement {
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.item.lexically_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // LabelledStatement :
+        //      LabelIdentifier : LabelledItem
+        //  1. Return HasCallInTailPosition of LabelledItem with argument call.
+        self.item.has_call_in_tail_position(call)
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -390,6 +401,24 @@ impl LabelledItem {
         match self {
             LabelledItem::Statement(_) => vec![],
             LabelledItem::Function(f) => vec![Rc::clone(f).into()],
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            LabelledItem::Statement(node) => {
+                // LabelledItem : Statement
+                //  1. Return HasCallInTailPosition of Statement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            LabelledItem::Function(_) => {
+                // LabelledItem : FunctionDeclaration
+                //  1. Return false.
+                false
+            }
         }
     }
 }

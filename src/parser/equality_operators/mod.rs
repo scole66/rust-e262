@@ -219,6 +219,19 @@ impl EqualityExpression {
             _ => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.has_call_in_tail_position(call),
+            EqualityExpression::Equal(_, _)
+            | EqualityExpression::NotEqual(_, _)
+            | EqualityExpression::StrictEqual(_, _)
+            | EqualityExpression::NotStrictEqual(_, _) => false,
+        }
+    }
 }
 
 #[cfg(test)]

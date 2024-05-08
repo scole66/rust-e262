@@ -112,6 +112,25 @@ impl ReturnStatement {
             ReturnStatement::Expression { exp, .. } => exp.early_errors(errs, strict),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            ReturnStatement::Bare { .. } => {
+                // ReturnStatement : return ;
+                //  1. Return false.
+                false
+            }
+            ReturnStatement::Expression { exp: node, .. } => {
+                // ReturnStatement : return Expression ;
+                //  1. Return HasCallInTailPosition of Expression with argument call.
+                node.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

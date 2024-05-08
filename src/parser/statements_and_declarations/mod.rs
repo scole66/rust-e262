@@ -433,6 +433,68 @@ impl Statement {
             Statement::Try(ts) => ts.var_scoped_declarations(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            Statement::Variable(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Throw(_)
+            | Statement::Debugger(_) => {
+                // Statement :
+                //      VariableStatement
+                //      EmptyStatement
+                //      ExpressionStatement
+                //      ContinueStatement
+                //      BreakStatement
+                //      ThrowStatement
+                //      DebuggerStatement
+                //  1. Return false.
+                false
+            }
+            Statement::Block(node) => {
+                // Statement : BlockStatement
+                //  1. Return HasCallInTailPosition of BlockStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::If(node) => {
+                // Statement : IfStatement
+                //  1. Return HasCallInTailPosition of IfStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::Breakable(node) => {
+                // Statement : BreakableStatement
+                //  1. Return HasCallInTailPosition of BreakableStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::Return(node) => {
+                // Statement : ReturnStatement
+                //  1. Return HasCallInTailPosition of ReturnStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::With(node) => {
+                // Statement : WithStatement
+                //  1. Return HasCallInTailPosition of WithStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::Labelled(node) => {
+                // Statement : LabelledStatement
+                //  1. Return HasCallInTailPosition of LabelledStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            Statement::Try(node) => {
+                // Statement : TryStatement
+                //  1. Return HasCallInTailPosition of TryStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -980,6 +1042,25 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.var_scoped_declarations(),
             BreakableStatement::Switch(node) => node.var_scoped_declarations(),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            BreakableStatement::Iteration(node) => {
+                // Statement : IterationStatement
+                //  1. Return HasCallInTailPosition of IterationStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            BreakableStatement::Switch(node) => {
+                // Statement : SwitchStatement
+                //  1. Return HasCallInTailPosition of SwitchStatement with argument call.
+                node.has_call_in_tail_position(call)
+            }
         }
     }
 }

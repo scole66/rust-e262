@@ -324,6 +324,23 @@ impl UnaryExpression {
             _ => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            UnaryExpression::UpdateExpression(node) => node.has_call_in_tail_position(call),
+            UnaryExpression::Delete { .. }
+            | UnaryExpression::Void { .. }
+            | UnaryExpression::Typeof { .. }
+            | UnaryExpression::NoOp { .. }
+            | UnaryExpression::Negate { .. }
+            | UnaryExpression::Complement { .. }
+            | UnaryExpression::Not { .. }
+            | UnaryExpression::Await(_) => false,
+        }
+    }
 }
 
 #[cfg(test)]

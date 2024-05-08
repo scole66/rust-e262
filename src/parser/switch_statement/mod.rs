@@ -142,6 +142,16 @@ impl SwitchStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.case_block.var_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // SwitchStatement : switch ( Expression ) CaseBlock
+        //  1. Return HasCallInTailPosition of CaseBlock with argument call.
+        self.case_block.has_call_in_tail_position(call)
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -463,6 +473,19 @@ impl CaseBlock {
         }
         list
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        let (before, default, after) = match self {
+            CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(before, def, after, _) => (before.as_ref(), Some(def), after.as_ref()),
+        };
+        before.map_or(false, |cc| cc.has_call_in_tail_position(call))
+            || default.map_or(false, |def| def.has_call_in_tail_position(call))
+            || after.map_or(false, |cc| cc.has_call_in_tail_position(call))
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -669,6 +692,18 @@ impl CaseClauses {
             }
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            CaseClauses::Item(node) => node.has_call_in_tail_position(call),
+            CaseClauses::List(left, right) => {
+                left.has_call_in_tail_position(call) || right.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -832,6 +867,13 @@ impl CaseClause {
             None => vec![],
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.statements.as_ref().map_or(false, |stmt| stmt.has_call_in_tail_position(call))
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -985,6 +1027,13 @@ impl DefaultClause {
             Some(stmt) => stmt.lexically_scoped_declarations(),
             None => vec![],
         }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.0.as_ref().map_or(false, |stmt| stmt.has_call_in_tail_position(call))
     }
 }
 

@@ -192,6 +192,18 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.var_scoped_declarations(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            IterationStatement::DoWhile(node) => node.has_call_in_tail_position(call),
+            IterationStatement::While(node) => node.has_call_in_tail_position(call),
+            IterationStatement::For(node) => node.has_call_in_tail_position(call),
+            IterationStatement::ForInOf(node) => node.has_call_in_tail_position(call),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -318,6 +330,13 @@ impl DoWhileStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.stmt.has_call_in_tail_position(call)
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -437,6 +456,13 @@ impl WhileStatement {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.stmt.has_call_in_tail_position(call)
     }
 }
 
@@ -853,6 +879,17 @@ impl ForStatement {
                 list.extend(s.var_scoped_declarations());
                 list
             }
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            ForStatement::For(_, _, _, stmt, _)
+            | ForStatement::ForVar(_, _, _, stmt, _)
+            | ForStatement::ForLex(_, _, _, stmt, _) => stmt.has_call_in_tail_position(call),
         }
     }
 }
@@ -1530,6 +1567,26 @@ impl ForInOfStatement {
                 list.extend(s.var_scoped_declarations());
                 list
             }
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            ForInOfStatement::In(_, _, s, _)
+            | ForInOfStatement::DestructuringIn(_, _, s, _)
+            | ForInOfStatement::LexIn(_, _, s, _)
+            | ForInOfStatement::Of(_, _, s, _)
+            | ForInOfStatement::DestructuringOf(_, _, s, _)
+            | ForInOfStatement::LexOf(_, _, s, _)
+            | ForInOfStatement::AwaitOf(_, _, s, _)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s, _)
+            | ForInOfStatement::AwaitLexOf(_, _, s, _)
+            | ForInOfStatement::VarIn(_, _, s, _)
+            | ForInOfStatement::VarOf(_, _, s, _)
+            | ForInOfStatement::AwaitVarOf(_, _, s, _) => s.has_call_in_tail_position(call),
         }
     }
 }

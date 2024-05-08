@@ -196,6 +196,22 @@ impl Expression {
             Expression::Comma(..) => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            Expression::FallThru(node) | Expression::Comma(_, node) => {
+                // Expression :
+                //      AssignmentExpression
+                //      Expression , AssignmentExpression
+                //  1. Return HasCallInTailPosition of AssignmentExpression with argument call.
+                node.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

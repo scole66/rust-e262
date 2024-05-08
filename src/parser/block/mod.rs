@@ -120,6 +120,17 @@ impl BlockStatement {
         let BlockStatement::Block(block) = self;
         block.var_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // BlockStatement : Block
+        //  1. Return HasCallInTailPosition of Block with argument call.
+        let BlockStatement::Block(block) = self;
+        block.has_call_in_tail_position(call)
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -313,6 +324,25 @@ impl Block {
         match &self.statements {
             None => vec![],
             Some(sl) => sl.var_scoped_declarations(),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match &self.statements {
+            Some(node) => {
+                // Block : { StatementList }
+                //  1. Return HasCallInTailPosition of StatementList with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            None => {
+                // Block : { }
+                //  1. Return false.
+                false
+            }
         }
     }
 }
@@ -522,6 +552,18 @@ impl StatementList {
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.list.iter().flat_map(|item| item.lexically_scoped_declarations()).collect()
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // StatementList : StatementList StatementListItem
+        //  1. Let has be HasCallInTailPosition of StatementList with argument call.
+        //  2. If has is true, return true.
+        //  3. Return HasCallInTailPosition of StatementListItem with argument call.
+        self.list.iter().any(|item| item.has_call_in_tail_position(call))
     }
 }
 
@@ -762,6 +804,25 @@ impl StatementListItem {
                 _ => vec![],
             },
             StatementListItem::Declaration(d) => vec![d.declaration_part()],
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            StatementListItem::Statement(node) => {
+                // StatementListItem : Statement
+                //  1. Return HasCallInTailPosition of Statement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+            StatementListItem::Declaration(_) => {
+                // StatementListItem : Declaration
+                //  1. Return false.
+                false
+            }
         }
     }
 }

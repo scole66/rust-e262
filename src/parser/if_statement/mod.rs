@@ -225,6 +225,27 @@ impl IfStatement {
             IfStatement::WithoutElse(_, s1, ..) => s1.var_scoped_declarations(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        match self {
+            IfStatement::WithElse(_, node1, node2, _) => {
+                // IfStatement : if ( Expression ) Statement else Statement
+                //  1. Let has be HasCallInTailPosition of the first Statement with argument call.
+                //  2. If has is true, return true.
+                //  3. Return HasCallInTailPosition of the second Statement with argument call.
+                node1.has_call_in_tail_position(call) || node2.has_call_in_tail_position(call)
+            }
+            IfStatement::WithoutElse(_, node, _) => {
+                // IfStatement : if ( Expression ) Statement
+                //  1. Return HasCallInTailPosition of Statement with argument call.
+                node.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

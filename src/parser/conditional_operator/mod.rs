@@ -186,6 +186,22 @@ impl ConditionalExpression {
             ConditionalExpression::FallThru(node) => node.is_named_function(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            ConditionalExpression::FallThru(node) => node.has_call_in_tail_position(call),
+            ConditionalExpression::Conditional(_, ae1, ae2) => {
+                // ConditionalExpression : ShortCircuitExpression ? AssignmentExpression : AssignmentExpression
+                //  1. Let has be HasCallInTailPosition of the first AssignmentExpression with argument call.
+                //  2. If has is true, return true.
+                //  3. Return HasCallInTailPosition of the second AssignmentExpression with argument call.
+                ae1.has_call_in_tail_position(call) || ae2.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

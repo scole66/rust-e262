@@ -303,6 +303,22 @@ impl RelationalExpression {
             _ => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            RelationalExpression::ShiftExpression(node) => node.has_call_in_tail_position(call),
+            RelationalExpression::Less(_, _)
+            | RelationalExpression::Greater(_, _)
+            | RelationalExpression::LessEqual(_, _)
+            | RelationalExpression::GreaterEqual(_, _)
+            | RelationalExpression::InstanceOf(_, _)
+            | RelationalExpression::In(_, _)
+            | RelationalExpression::PrivateIn(_, _, _) => false,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -172,6 +172,16 @@ impl BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(..) => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.has_call_in_tail_position(call),
+            BitwiseANDExpression::BitwiseAND(_, _) => false,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -345,6 +355,16 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseXOR(..) => false,
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_named_function(),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.has_call_in_tail_position(call),
+            BitwiseXORExpression::BitwiseXOR(_, _) => false,
         }
     }
 }
@@ -537,6 +557,16 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseOR(..) => false,
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_named_function(),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.has_call_in_tail_position(call),
+            BitwiseORExpression::BitwiseOR(_, _) => false,
         }
     }
 }

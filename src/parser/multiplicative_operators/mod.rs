@@ -237,6 +237,16 @@ impl MultiplicativeExpression {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.has_call_in_tail_position(call),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_, _, _) => false,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -24,6 +24,13 @@ use std::io::Write;
 // If they're there, build up one of the interior productions and loop.
 
 #[derive(Debug)]
+pub enum CallableExpression {
+    CallExpression(Rc<CallExpression>),
+    MemberExpression(Rc<MemberExpression>),
+    OptionalChain(Rc<OptionalChain>),
+}
+
+#[derive(Debug)]
 pub enum MemberExpression {
     PrimaryExpression(Rc<PrimaryExpression>),
     Expression(Rc<MemberExpression>, Rc<Expression>, Location),
@@ -488,6 +495,29 @@ impl MemberExpression {
                 //      MemberExpression . PrivateIdentifier
                 //  1. Return false.
                 false
+            }
+        }
+    }
+
+    pub fn has_call_in_tail_position(this: &Rc<Self>, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match this.as_ref() {
+            MemberExpression::Expression(_, _, _)
+            | MemberExpression::IdentifierName(_, _, _)
+            | MemberExpression::SuperProperty(_)
+            | MemberExpression::MetaProperty(_)
+            | MemberExpression::NewArguments(_, _, _)
+            | MemberExpression::PrivateId(_, _, _) => false,
+
+            MemberExpression::PrimaryExpression(node) => node.has_call_in_tail_position(call),
+            MemberExpression::TemplateLiteral(_, _) => {
+                if let CallableExpression::MemberExpression(me) = call {
+                    Rc::ptr_eq(this, me)
+                } else {
+                    false
+                }
             }
         }
     }
@@ -1329,6 +1359,16 @@ impl NewExpression {
             }
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            NewExpression::MemberExpression(node) => MemberExpression::has_call_in_tail_position(node, call),
+            NewExpression::NewExpression(_, _) => false,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1908,6 +1948,29 @@ impl CallExpression {
             | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
+
+    pub fn has_call_in_tail_position(this: &Rc<Self>, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match this.as_ref() {
+            CallExpression::SuperCall(_)
+            | CallExpression::ImportCall(_)
+            | CallExpression::CallExpressionExpression(_, _, _)
+            | CallExpression::CallExpressionIdentifierName(_, _, _)
+            | CallExpression::CallExpressionPrivateId(_, _, _) => false,
+
+            CallExpression::CallMemberExpression(_)
+            | CallExpression::CallExpressionArguments(_, _)
+            | CallExpression::CallExpressionTemplateLiteral(_, _) => {
+                if let CallableExpression::CallExpression(call) = call {
+                    Rc::ptr_eq(this, call)
+                } else {
+                    false
+                }
+            }
+        }
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -2125,6 +2188,17 @@ impl LeftHandSideExpression {
             }
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            LeftHandSideExpression::New(node) => node.has_call_in_tail_position(call),
+            LeftHandSideExpression::Call(node) => CallExpression::has_call_in_tail_position(node, call),
+            LeftHandSideExpression::Optional(node) => node.has_call_in_tail_position(call),
+        }
+    }
 }
 
 // OptionalExpression[Yield, Await] :
@@ -2298,6 +2372,17 @@ impl OptionalExpression {
             OptionalExpression::Member(_, chain)
             | OptionalExpression::Call(_, chain)
             | OptionalExpression::Opt(_, chain) => chain.is_strictly_deletable(),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            OptionalExpression::Member(_, oc) | OptionalExpression::Call(_, oc) | OptionalExpression::Opt(_, oc) => {
+                OptionalChain::has_call_in_tail_position(oc, call)
+            }
         }
     }
 }
@@ -2679,6 +2764,31 @@ impl OptionalChain {
 
     pub fn is_strictly_deletable(&self) -> bool {
         !matches!(self, OptionalChain::PrivateId(..) | OptionalChain::PlusPrivateId(..))
+    }
+
+    pub fn has_call_in_tail_position(this: &Rc<Self>, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match this.as_ref() {
+            OptionalChain::Exp(_, _)
+            | OptionalChain::Ident(_, _)
+            | OptionalChain::PrivateId(_, _)
+            | OptionalChain::PlusExp(_, _, _)
+            | OptionalChain::PlusIdent(_, _, _)
+            | OptionalChain::PlusPrivateId(_, _, _) => false,
+
+            OptionalChain::Template(_, _)
+            | OptionalChain::PlusTemplate(_, _)
+            | OptionalChain::Args(_, _)
+            | OptionalChain::PlusArgs(_, _) => {
+                if let CallableExpression::OptionalChain(oc) = call {
+                    Rc::ptr_eq(this, oc)
+                } else {
+                    false
+                }
+            }
+        }
     }
 }
 

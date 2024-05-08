@@ -176,6 +176,17 @@ impl LogicalANDExpression {
             LogicalANDExpression::BitwiseORExpression(node) => node.is_named_function(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) | LogicalANDExpression::LogicalAND(_, node) => {
+                node.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -352,6 +363,20 @@ impl LogicalORExpression {
             LogicalORExpression::LogicalANDExpression(node) => node.is_named_function(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.has_call_in_tail_position(call),
+            LogicalORExpression::LogicalOR(_, right) => {
+                // LogicalORExpression : LogicalORExpression || LogicalANDExpression
+                //  1. Return HasCallInTailPosition of LogicalANDExpression with argument call.
+                right.has_call_in_tail_position(call)
+            }
+        }
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
@@ -476,6 +501,13 @@ impl CoalesceExpression {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.head.early_errors(errs, strict);
         self.tail.early_errors(errs, strict);
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        self.tail.has_call_in_tail_position(call)
     }
 }
 
@@ -735,6 +767,15 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::CoalesceExpression(_) => false,
             ShortCircuitExpression::LogicalORExpression(node) => node.is_named_function(),
+        }
+    }
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
+        // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.has_call_in_tail_position(call),
+            ShortCircuitExpression::CoalesceExpression(node) => node.has_call_in_tail_position(call),
         }
     }
 }
