@@ -302,7 +302,7 @@ impl Chunk {
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
             }
-            Insn::DefineGetter => {
+            Insn::DefineGetter | Insn::DefineSetter => {
                 let arg = self.opcodes[idx] as usize;
                 let flag = self.opcodes[idx + 1] != 0;
                 (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))

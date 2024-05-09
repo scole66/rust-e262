@@ -2542,7 +2542,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     ec_push(Ok(result.into()));
                 }
                 Insn::DefineGetter => {
-                    // Takes one arg: idx into function stash
+                    // Takes two args: idx into function stash and enumerable flag
                     // stack input: propkey object
                     // output: err/empty/PrivateElement
                     let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
@@ -2634,6 +2634,100 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     };
                     ec_push(result.map(NormalCompletion::from));
                 }
+                Insn::DefineSetter => {
+                    // Takes two args: idx into function stash and enumerable flag
+                    // stack input: propkey object
+                    // output: err/empty/PrivateElement
+                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] != 0;
+                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
+                    let info = &chunk.function_object_data[stash_index as usize];
+                    let prop_key = FunctionName::try_from(ec_pop()
+                        .expect("items should be on stack")
+                        .expect("item should not be an error"))
+                        .expect("item should be a function name");
+                    let base_object = Object::try_from(ec_pop()
+                        .expect("items should be on stack")
+                        .expect("item should not be an error"))
+                        .expect("item should be an object");
+
+                    //  2. Let env be the running execution context's LexicalEnvironment.
+                    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                    //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText,
+                    //     PropertySetParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+                    //  6. Perform MakeMethod(closure, object).
+                    //  7. Perform SetFunctionName(closure, propKey, "set").
+                    //  8. If propKey is a Private Name, then
+                    //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined, [[Set]]:
+                    //         closure }.
+                    //  9. Else,
+                    //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable,
+                    //         [[Configurable]]: true }.
+                    //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+                    //      c. Return UNUSED.
+                    let to_compile: Rc<MethodDefinition> =
+                        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
+                    let MethodDefinition::Setter(_, _, fb, _) = to_compile.as_ref() else { unreachable!() };
+                    let prod_text_loc = to_compile.location().span;
+                    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+                    let chunk_name = nameify(prod_text, 50);
+                    let mut compiled = Chunk::new(chunk_name);
+                    let compilation_status = fb.compile_body(&mut compiled, text, info);
+                    if let Err(err) = compilation_status {
+                        AGENT.with(|agent| {
+                            let typeerror = create_type_error(err.to_string());
+                            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
+                            stack.push(Err(typeerror));
+                        });
+                        break;
+                    }
+
+                    for line in compiled.disassemble() {
+                        println!("{line}");
+                    }
+
+                    let env = current_lexical_environment().unwrap();
+                    let private_env = current_private_environment();
+                    let prototype = intrinsic(IntrinsicId::FunctionPrototype);
+                    let closure = ordinary_function_create(
+                        prototype,
+                        &info.source_text,
+                        info.params.clone(),
+                        info.body.clone(),
+                        info.this_mode,
+                        env,
+                        private_env,
+                        info.strict,
+                        Rc::new(compiled),
+                    );
+                    make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+                    set_function_name(&closure, prop_key.clone(), Some("set".into()));
+
+                    let result = match prop_key {
+                        FunctionName::String(_) |
+                        FunctionName::Symbol(_) => {
+                            let desc =
+                                PotentialPropertyDescriptor::new()
+                                    .set(closure)
+                                    .enumerable(enumerable)
+                                    .configurable(true);
+                            let result =
+                                define_property_or_throw(
+                                    &base_object,
+                                    PropertyKey::try_from(prop_key).unwrap(),
+                                    desc
+                                );
+                            result.map(|()| None)
+                        },
+                        FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
+                            key: pn,
+                            kind: PrivateElementKind::Accessor{ set: Some(closure), get: None },
+                        })),
+                    };
+                    ec_push(result.map(NormalCompletion::from));
+                }
+
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
