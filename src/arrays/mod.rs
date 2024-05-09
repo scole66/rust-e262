@@ -89,15 +89,13 @@ impl ObjectInterface for ArrayObject {
         } else if key.is_array_index() {
             let p = JSString::try_from(key).unwrap();
             let old_len_desc = DataDescriptor::try_from(ordinary_get_own_property(self, &length_key).unwrap()).unwrap();
-            let old_len = to_uint32(old_len_desc.value).unwrap();
-            let index = to_uint32(p.clone()).unwrap();
+            let old_len = old_len_desc.value.to_uint32().unwrap();
+            let index = p.to_uint32();
             if index >= old_len && !old_len_desc.writable {
                 Ok(false)
             } else {
                 let succeeded = ordinary_define_own_property(self, PropertyKey::from(p), desc).unwrap();
-                if !succeeded {
-                    Ok(false)
-                } else {
+                if succeeded {
                     if index >= old_len {
                         ordinary_define_own_property(
                             self,
@@ -111,6 +109,8 @@ impl ObjectInterface for ArrayObject {
                         .unwrap();
                     }
                     Ok(true)
+                } else {
+                    Ok(false)
                 }
             }
         } else {
@@ -158,7 +158,7 @@ impl ArrayObject {
     //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     //  7. Return A.
     pub fn create(length: u64, proto: Option<Object>) -> Completion<Object> {
-        if length > 4294967295 {
+        if length > 4_294_967_295 {
             return Err(create_range_error("Array lengths greater than 4294967295 are not allowed"));
         }
         let length: u32 = length.try_into().unwrap();
@@ -228,15 +228,15 @@ impl ArrayObject {
             return ordinary_define_own_property(self, PropertyKey::from("length"), descriptor);
         }
         let mut new_len_desc = descriptor.clone();
-        let new_len = to_uint32(descriptor.value.clone().unwrap())?;
-        let number_len = to_number(descriptor.value.unwrap())?;
-        if !number_same_value_zero(new_len as f64, number_len) {
+        let new_len = descriptor.value.as_ref().unwrap().to_uint32()?;
+        let number_len = descriptor.value.as_ref().unwrap().to_number()?;
+        if !number_same_value_zero(f64::from(new_len), number_len) {
             return Err(create_range_error("Invalid array length"));
         }
         new_len_desc.value = Some(ECMAScriptValue::from(new_len));
         let old_len_desc = ordinary_get_own_property(self, &"length".into()).unwrap();
         let old_len_desc = DataDescriptor::try_from(old_len_desc).unwrap();
-        let old_len = to_uint32(old_len_desc.value).unwrap();
+        let old_len = old_len_desc.value.to_uint32().unwrap();
         if new_len >= old_len {
             return ordinary_define_own_property(self, "length", new_len_desc);
         }
@@ -267,7 +267,7 @@ impl ArrayObject {
         for p in keys.into_iter().rev() {
             let delete_succeeded = self.delete(&p).unwrap();
             if !delete_succeeded {
-                new_len_desc.value = Some(ECMAScriptValue::from(to_uint32(p).unwrap() + 1));
+                new_len_desc.value = Some(ECMAScriptValue::from(ECMAScriptValue::from(p).to_uint32().unwrap() + 1));
                 if !new_writable {
                     new_len_desc.writable = Some(false);
                 }
@@ -339,21 +339,6 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
     }
     let c_obj = Object::try_from(&c).unwrap();
     construct(&c_obj, &[length.into()], None)
-}
-
-// IsArray ( argument )
-//
-// The abstract operation IsArray takes argument argument. It performs the following steps when called:
-//
-//  1. If Type(argument) is not Object, return false.
-//  2. If argument is an Array exotic object, return true.
-//  3. If argument is a Proxy exotic object, then
-//      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
-//      b. Let target be argument.[[ProxyTarget]].
-//      c. Return ? IsArray(target).
-//  4. Return false.
-pub fn is_array(argument: &ECMAScriptValue) -> Completion<bool> {
-    argument.is_array()
 }
 
 pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
@@ -614,7 +599,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn array_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -654,7 +639,7 @@ fn array_constructor_function(
         None => active_function_object().expect("we should be inside a function (the array constructor, actually)"),
     };
     let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
-    let number_of_args = arguments.len() as u64;
+    let number_of_args = arguments.len();
     match number_of_args {
         0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
         1 => {
@@ -662,8 +647,8 @@ fn array_constructor_function(
             let array = array_create(0, Some(proto)).expect("Array creation with zero length should succeed");
             let int_len = match len {
                 ECMAScriptValue::Number(len) => {
-                    let int_len = to_uint32(len).expect("number to uint32 should not fail");
-                    if !number_same_value_zero(int_len as f64, len) {
+                    let int_len = to_uint32_f64(len);
+                    if !number_same_value_zero(f64::from(int_len), len) {
                         return Err(create_range_error("Bad length in array construction"));
                     }
                     int_len
@@ -677,13 +662,13 @@ fn array_constructor_function(
             Ok(array.into())
         }
         _ => {
-            let array = array_create(number_of_args, Some(proto))
-                .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
-            for k in 0..number_of_args {
-                let pk = format!("{k}");
-                array
-                    .create_data_property_or_throw(pk, arguments[k as usize].clone())
-                    .expect("property creation should succeed");
+            let array = array_create(
+                u64::try_from(number_of_args).expect("number of array elements should fit in a usize"),
+                Some(proto),
+            )
+            .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
+            for (k, arg) in arguments.iter().enumerate().take(number_of_args) {
+                array.create_data_property_or_throw(k, arg.clone()).expect("property creation should succeed");
             }
             Ok(array.into())
         }
@@ -691,140 +676,154 @@ fn array_constructor_function(
 }
 
 fn array_from(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_is_array(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.isArray ( arg )
+    // This function performs the following steps when called:
+    //
+    //  1. Return ? IsArray(arg).
+    let mut args = FuncArgs::from(arguments);
+    let arg = args.next_arg();
+    arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[allow(clippy::unnecessary_wraps)]
 fn array_species(
-    _this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // get Array [ @@species ]
+    // Array[@@species] is an accessor property whose set accessor function is undefined. Its get accessor
+    // function performs the following steps when called:
+    //
+    //  1. Return the this value.
+    Ok(this_value.clone())
 }
+
 fn array_prototype_at(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_concat(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_copy_within(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_entries(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_every(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_fill(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_filter(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_index(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_last(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_find_last_index(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_flat(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_flat_map(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_for_each(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_includes(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_index_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -852,13 +851,13 @@ fn array_prototype_index_of(
 //      e. Set k to k + 1.
 //  8. Return R.
 fn array_prototype_join(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let separator = args.next_arg();
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)?;
 
     let sep = if separator.is_undefined() { JSString::from(",") } else { to_string(separator)? };
@@ -868,7 +867,7 @@ fn array_prototype_join(
         if k > 0 {
             r = r.concat(sep.clone());
         }
-        let element = o.get(&to_string(k).expect("numbers should be string-able").into())?;
+        let element = o.get(&JSString::from(k).into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
         k += 1;
@@ -877,119 +876,248 @@ fn array_prototype_join(
 }
 
 fn array_prototype_keys(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_last_index_of(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn array_prototype_map(
-    _this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.map ( callbackfn [ , thisArg ] )
+    //
+    // NOTE 1
+    // callbackfn should be a function that accepts three arguments. map calls callbackfn once for each
+    // element in the array, in ascending order, and constructs a new Array from the results. callbackfn is
+    // called only for elements of the array which actually exist; it is not called for missing elements of
+    // the array.
+    //
+    // If a thisArg parameter is provided, it will be used as the this value for each invocation of
+    // callbackfn. If it is not provided, undefined is used instead.
+    //
+    // callbackfn is called with three arguments: the value of the element, the index of the element, and the
+    // object being traversed.
+    //
+    // map does not directly mutate the object on which it is called but the object may be mutated by the
+    // calls to callbackfn.
+    //
+    // The range of elements processed by map is set before the first call to callbackfn. Elements which are
+    // appended to the array after the call to map begins will not be visited by callbackfn. If existing
+    // elements of the array are changed, their value as passed to callbackfn will be the value at the time
+    // map visits them; elements that are deleted after the call to map begins and before being visited are
+    // not visited.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    //  4. Let A be ? ArraySpeciesCreate(O, len).
+    //  5. Let k be 0.
+    //  6. Repeat, while k < len,
+    //      a. Let Pk be ! ToString(𝔽(k)).
+    //      b. Let kPresent be ? HasProperty(O, Pk).
+    //      c. If kPresent is true, then
+    //          i. Let kValue be ? Get(O, Pk).
+    //          ii. Let mappedValue be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
+    //          iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    //      d. Set k to k + 1.
+    //  7. Return A.
+    //
+    // NOTE 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callbackfn = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = u64::try_from(length_of_array_like(&o)?).expect("length should be >= 0");
+    if !is_callable(&callbackfn) {
+        return Err(create_type_error("Array.prototype.map: callback function was not callable"));
+    }
+    let a = to_object(array_species_create(&o, len)?).expect("array creation should make object");
+    for k in 0..len {
+        let pk = PropertyKey::from(k);
+        let k_present = has_property(&o, &pk)?;
+        if k_present {
+            let k_value = o.get(&pk)?;
+            let mapped_value = call(&callbackfn, &this_arg, &[k_value, k.into(), o.clone().into()])?;
+            a.create_data_property_or_throw(pk, mapped_value)?;
+        }
+    }
+
+    Ok(a.into())
 }
+
 fn array_prototype_pop(
-    _this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.pop ( )
+    // NOTE 1 This method removes the last element of the array and returns it.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If len = 0, then
+    //      a. Perform ? Set(O, "length", +0𝔽, true).
+    //      b. Return undefined.
+    //  4. Else,
+    //      a. Assert: len > 0.
+    //      b. Let newLen be 𝔽(len - 1).
+    //      c. Let index be ! ToString(newLen).
+    //      d. Let element be ? Get(O, index).
+    //      e. Perform ? DeletePropertyOrThrow(O, index).
+    //      f. Perform ? Set(O, "length", newLen, true).
+    //      g. Return element.
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    if len == 0 {
+        o.set("length", 0.0, true)?;
+        Ok(ECMAScriptValue::Undefined)
+    } else {
+        let newlen = len - 1;
+        let index = PropertyKey::from(format!("{newlen}"));
+        let element = o.get(&index)?;
+        o.delete_property_or_throw(&index)?;
+        o.set("length", newlen, true)?;
+        Ok(element)
+    }
 }
+
 fn array_prototype_push(
-    _this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.push ( ...items )
+    // NOTE 1 This method appends the arguments to the end of the array, in the order in which they appear. It
+    // returns the new length of the array.
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. Let argCount be the number of elements in items.
+    //  4. If len + argCount > 2^53 - 1, throw a TypeError exception.
+    //  5. For each element E of items, do
+    //      a. Perform ? Set(O, ! ToString(𝔽(len)), E, true).
+    //      b. Set len to len + 1.
+    //  6. Perform ? Set(O, "length", 𝔽(len), true).
+    //  7. Return 𝔽(len).
+    // The "length" property of this method is 1𝔽.
+    //
+    // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
+    // Therefore it can be transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value.clone())?;
+    let len = u64::try_from(length_of_array_like(&o)?).expect("Array lengths should be positive and fit in 64 bits");
+    let arg_count = arguments.len() as u64;
+    let new_len = len + arg_count;
+    if new_len >= 1 << 53 {
+        return Err(create_type_error("Array too large"));
+    }
+    for (idx, e) in arguments.iter().cloned().enumerate() {
+        o.set(len + idx as u64, e, true)?;
+    }
+    o.set("length", new_len, true)?;
+    Ok(new_len.into())
 }
+
 fn array_prototype_reduce(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_reduce_right(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_reverse(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_shift(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_slice(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_some(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_sort(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_splice(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_locale_string(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_reversed(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_sorted(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn array_prototype_to_spliced(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1005,11 +1133,11 @@ fn array_prototype_to_spliced(
 //  3. If IsCallable(func) is false, set func to the intrinsic function %Object.prototype.toString%.
 //  4. Return ? Call(func, array).
 fn array_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let array = to_object(this_value)?;
+    let array = to_object(this_value.clone())?;
     let mut func = array.get(&"join".into())?;
     if !is_callable(&func) {
         func = ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototypeToString));
@@ -1018,7 +1146,7 @@ fn array_prototype_to_string(
 }
 
 fn array_prototype_unshift(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1032,16 +1160,16 @@ fn array_prototype_unshift(
 //  1. Let O be ? ToObject(this value).
 //  2. Return CreateArrayIterator(O, value).
 fn array_prototype_values(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let o = to_object(this_value)?;
+    let o = to_object(this_value.clone())?;
     Ok(ECMAScriptValue::from(create_array_iterator(o, KeyValueKind::Value)))
 }
 
 fn array_prototype_with(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1054,7 +1182,7 @@ fn array_prototype_with(
 // created by calling certain methods of Array instance objects.
 
 fn array_iterator_prototype_next(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1104,8 +1232,8 @@ async fn array_iterator(
             let res = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(index), false));
             generator_yield(&co, res).await?;
         } else {
-            let element_key = to_string(index).expect("numbers should always have string representations");
-            let element_value = array.get(&element_key.into())?;
+            let element_key = PropertyKey::from(index);
+            let element_value = array.get(&element_key)?;
             if kind == KeyValueKind::Value {
                 let res = ECMAScriptValue::from(create_iter_result_object(element_value, false));
                 generator_yield(&co, res).await?;

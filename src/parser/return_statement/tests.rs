@@ -10,33 +10,33 @@ use test_case::test_case;
 fn return_statement_test_01() {
     let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "ReturnStatement: return ;", vec![]);
-    concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ReturnStatement: return ;", &[]);
+    concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn return_statement_test_02() {
     let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return null;"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
-    pretty_check(&*node, "ReturnStatement: return null ;", vec!["Expression: null"]);
-    concise_check(&*node, "ReturnStatement: return null ;", vec!["Keyword: return", "Keyword: null", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ReturnStatement: return null ;", &["Expression: null"]);
+    concise_check(&*node, "ReturnStatement: return null ;", &["Keyword: return", "Keyword: null", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn return_statement_test_asi_01() {
     let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "ReturnStatement: return ;", vec![]);
-    concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ReturnStatement: return ;", &[]);
+    concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn return_statement_test_asi_02() {
     let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return null"), Scanner::new(), false, false));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "ReturnStatement: return null ;", vec!["Expression: null"]);
-    concise_check(&*node, "ReturnStatement: return null ;", vec!["Keyword: return", "Keyword: null", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ReturnStatement: return null ;", &["Expression: null"]);
+    concise_check(&*node, "ReturnStatement: return null ;", &["Keyword: return", "Keyword: null", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn return_statement_test_err_01() {
@@ -107,7 +107,7 @@ mod return_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).return_statement().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("return;" => false; "no exp")]

@@ -24,7 +24,7 @@ mod agent {
         assert!(agent.execution_context_stack.borrow().is_empty());
 
         // All well-known symbols initialized, and different from one another.
-        let symbols = vec![
+        let symbols = [
             agent.symbols.async_iterator_,
             agent.symbols.has_instance_,
             agent.symbols.is_concat_spreadable_,
@@ -67,7 +67,7 @@ mod agent {
         AGENT.with(|agent| {
             let r = &agent.execution_context_stack.borrow()[agent.execution_context_stack.borrow().len() - 1];
             assert!(r.script_or_module.is_none());
-        })
+        });
     }
     #[test]
     fn push_execution_context() {
@@ -93,7 +93,7 @@ mod agent {
     #[test]
     fn active_function_object() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // no Running Execution Context, so this should be None.
         let afo = super::active_function_object();
         assert!(afo.is_none());
@@ -115,7 +115,7 @@ mod agent {
     #[test]
     fn next_object_id() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // Starts at something, and then increases monotonically.
         let first = super::next_object_id();
         for x in 1..10 {
@@ -125,7 +125,7 @@ mod agent {
     #[test]
     fn next_symbol_id() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         // Starts at something, and then increases monotonically.
         let first = super::next_symbol_id();
         for x in 1..10 {
@@ -140,7 +140,7 @@ mod agent {
     #[test]
     fn global_symbol_registry() {
         setup_test_agent();
-        AGENT.with(|agent| agent.reset());
+        AGENT.with(Agent::reset);
         let registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| agent.set_global_symbol_registry(registry.clone()));
         let gsr = super::global_symbol_registry();
@@ -153,7 +153,7 @@ mod agent {
         #[test]
         fn empty_ec_stack() {
             setup_test_agent();
-            AGENT.with(|agent| agent.reset());
+            AGENT.with(Agent::reset);
             assert!(current_realm_record().is_none());
         }
 
@@ -216,6 +216,7 @@ mod agent {
         super::typeof_operator(expr).map_err(unwind_any_error)
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn superproperty() -> FullCompletion {
         // For example: ({method() { delete super.test_property; }}).method()
         // 1. Let F be OrdinaryFunctionCreate(intrinsics.[[%FunctionPrototype%]], source_text, ParameterList, Body, thisMode, env, privateenv).
@@ -230,6 +231,7 @@ mod agent {
         Ok(NormalCompletion::from(myref))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn bool_proto_ref(strict: bool) -> FullCompletion {
         let bool_obj = intrinsic(IntrinsicId::Boolean);
         let myref = Reference::new(Base::Value(bool_obj.into()), "prototype", strict, None);
@@ -241,14 +243,17 @@ mod agent {
     fn nonstrict_proto_ref() -> FullCompletion {
         bool_proto_ref(false)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn dead_ref() -> FullCompletion {
         let dead = DeadObject::object();
         Ok(NormalCompletion::from(Reference::new(Base::Value(dead.into()), "anything", true, None)))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn ref_to_undefined() -> FullCompletion {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "undefined", true, None)))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn dead_env() -> FullCompletion {
         let outer = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let dead = DeadObject::object();
@@ -357,7 +362,7 @@ mod agent {
     #[test_case(|| ECMAScriptValue::from(-16.0),
                 || ECMAScriptValue::from(3.0),
                 BinOp::UnsignedRightShift
-                => Ok(NormalCompletion::from(536870910)); "unsigned right shift (negative)")]
+                => Ok(NormalCompletion::from(536_870_910)); "unsigned right shift (negative)")]
     #[test_case(|| ECMAScriptValue::from(2.0),
                 || ECMAScriptValue::from(3.0),
                 BinOp::BitwiseAnd
@@ -447,14 +452,14 @@ mod agent {
                 BinOp::Remainder
                 =>serr("TypeError: Cannot mix BigInt and other types, use explicit conversions"); "bigint type mix (right)")]
     fn apply_string_or_numeric_binary_operator(
-        make_lval: fn() -> ECMAScriptValue,
-        make_rval: fn() -> ECMAScriptValue,
+        make_left: fn() -> ECMAScriptValue,
+        make_right: fn() -> ECMAScriptValue,
         op: BinOp,
     ) -> Result<NormalCompletion, String> {
         setup_test_agent();
-        let lval = make_lval();
-        let rval = make_rval();
-        super::apply_string_or_numeric_binary_operator(lval, rval, op).map_err(unwind_any_error)
+        let left = make_left();
+        let right = make_right();
+        super::apply_string_or_numeric_binary_operator(left, right, op).map_err(unwind_any_error)
     }
 
     #[test_case(WksId::AsyncIterator => "Symbol.asyncIterator"; "Symbol.asyncIterator")]
@@ -527,7 +532,7 @@ mod agent {
     #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(2.3e87), true => Ok(Some(true)); "right big vs BigInt")]
     #[test_case(|| ECMAScriptValue::from(BigInt::from(388)), || ECMAScriptValue::from(-2.3e87), true => Ok(Some(false)); "right small vs BigInt")]
     #[test_case(|| ECMAScriptValue::from(BigInt::from(100)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(true)); "bigints: left smaller")]
-    #[test_case(|| ECMAScriptValue::from(BigInt::from(100999)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::from(100_999)), || ECMAScriptValue::from(BigInt::from(7880)), true => Ok(Some(false)); "bigints: right smaller")]
     fn is_less_than(
         make_x: fn() -> ECMAScriptValue,
         make_y: fn() -> ECMAScriptValue,
@@ -548,7 +553,7 @@ mod agent {
         #[test_case(&[88.into()]; "one arg")]
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
@@ -572,7 +577,7 @@ mod agent {
                 assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
                 for (idx, val) in values.iter().enumerate() {
                     assert_eq!(
-                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        stack[stack_size - 2 - num_values + idx].as_ref().unwrap(),
                         &NormalCompletion::from(val.clone())
                     );
                 }
@@ -642,7 +647,7 @@ mod agent {
 
             let func_obj = ordinary_object_create(None, &[]);
 
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -665,7 +670,7 @@ mod agent {
                 assert_eq!(stack[stack_size - 2].as_ref().unwrap(), &NormalCompletion::from(num_values));
                 for (idx, val) in values.iter().enumerate() {
                     assert_eq!(
-                        stack[stack_size - 2 - num_values as usize + idx].as_ref().unwrap(),
+                        stack[stack_size - 2 - num_values + idx].as_ref().unwrap(),
                         &NormalCompletion::from(val.clone())
                     );
                 }
@@ -724,7 +729,7 @@ mod agent {
             let realm = current_realm_record().unwrap();
             let ge = realm.borrow().global_env.as_ref().unwrap().clone();
             let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
-            let num_values = values.len() as u32;
+            let num_values = values.len();
             let index = AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
@@ -763,9 +768,9 @@ mod agent {
             for (idx, (name, value)) in zip(names, values).enumerate() {
                 let val = ao.get(&idx.into()).unwrap();
                 assert_eq!(&val, value);
-                ao.set(idx, idx as u32, true).unwrap();
+                ao.set(idx, idx, true).unwrap();
                 let val = lex.get_binding_value(name, true).unwrap();
-                assert_eq!(val, ECMAScriptValue::from(idx as u32));
+                assert_eq!(val, ECMAScriptValue::from(idx));
             }
         }
 
@@ -790,7 +795,7 @@ fn prepare_for_execution() {
         assert_eq!(agent.execution_context_stack.borrow()[0].pc, 0);
         assert!(agent.execution_context_stack.borrow()[0].stack.is_empty());
         assert_eq!(agent.execution_context_stack.borrow()[0].chunk.as_ref().unwrap().name, "test sentinel");
-    })
+    });
 }
 
 type ValueMaker = fn() -> ECMAScriptValue;
@@ -815,7 +820,7 @@ fn dead_object() -> ECMAScriptValue {
     ECMAScriptValue::from(DeadObject::object())
 }
 fn test_has_instance(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -866,7 +871,7 @@ fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<EC
     let v = make_v();
     let target = make_target();
 
-    super::instanceof_operator(v, target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
+    super::instanceof_operator(v, &target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
 }
 
 #[test]
@@ -915,10 +920,10 @@ mod parse_script {
         let ScriptRecord { realm, ecmascript_code, compiled, text } =
             super::parse_script(src, starting_realm.clone()).unwrap();
         assert!(Rc::ptr_eq(&realm, &starting_realm));
-        assert_eq!(format!("{}", ecmascript_code), "'hello world' ;");
+        assert_eq!(format!("{ecmascript_code}"), "'hello world' ;");
         assert_eq!(compiled.name, "top level script");
         assert_eq!(
-            compiled.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+            compiled.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
             svec(&["STRING 0 (hello world)",])
         );
         assert_eq!(text, src);
@@ -930,7 +935,7 @@ mod parse_script {
         setup_test_agent();
         let starting_realm = current_realm_record().unwrap();
         let errs = super::parse_script(src, starting_realm).unwrap_err();
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 }
 
@@ -956,9 +961,9 @@ mod top_level_lex_decl {
     #[test_case(make_lex_decl => Ok((false, true)); "lexical")]
     #[test_case(make_func_decl => serr("Not a top-level lexical decl"); "function")]
     fn try_from(maker: fn() -> MakerResult) -> Result<(bool, bool), String> {
-        let (maybe_cd, maybe_ld, dp) = maker();
+        let (maybe_class_declaration, maybe_lexical_declaration, dp) = maker();
         TopLevelLexDecl::try_from(dp)
-            .map(|tlld| match (tlld, maybe_cd, maybe_ld) {
+            .map(|tlld| match (tlld, maybe_class_declaration, maybe_lexical_declaration) {
                 (TopLevelLexDecl::Class(cd1), Some(cd2), _) => (Rc::ptr_eq(&cd1, &cd2), false),
                 (TopLevelLexDecl::Lex(ld1), _, Some(ld2)) => (false, Rc::ptr_eq(&ld1, &ld2)),
                 _ => (false, false),
@@ -1030,9 +1035,9 @@ mod fcn_def {
     #[test_case(make_var_decl => serr("Not a function def"); "Var decl")]
     #[test_case(make_for_binding => serr("Not a function def"); "for binding")]
     fn try_from(maker: fn() -> MakerResult) -> Result<bool, String> {
-        let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, vsd) = maker();
+        let (opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl, vsd) = maker();
         FcnDef::try_from(vsd)
-            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+            .map(|fd| match (fd, opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl) {
                 (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
                 (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
                 (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
@@ -1080,9 +1085,9 @@ mod fcn_def {
     #[test_case(decl_class => serr("Not a function def"); "Class decl")]
     #[test_case(decl_lex => serr("Not a function def"); "Lex decl")]
     fn try_from_declpart(maker: fn() -> MakerDeclResult) -> Result<bool, String> {
-        let (maybe_fd, maybe_gd, maybe_afd, maybe_agd, dp) = maker();
+        let (opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl, dp) = maker();
         FcnDef::try_from(dp)
-            .map(|fd| match (fd, maybe_fd, maybe_gd, maybe_afd, maybe_agd) {
+            .map(|fd| match (fd, opt_func_decl, opt_gen_decl, opt_async_func_decl, opt_async_gen_decl) {
                 (FcnDef::Function(fd1), Some(fd2), _, _, _) => Rc::ptr_eq(&fd1, &fd2),
                 (FcnDef::Generator(gd1), _, Some(gd2), _, _) => Rc::ptr_eq(&gd1, &gd2),
                 (FcnDef::AsyncFun(afd1), _, _, Some(afd2), _) => Rc::ptr_eq(&afd1, &afd2),
@@ -1092,11 +1097,11 @@ mod fcn_def {
             .map_err(|err| err.to_string())
     }
 
-    #[test_case(FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => "fcn"; "function decl")]
-    #[test_case(FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => "fcn"; "generator decl")]
-    #[test_case(FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => "fcn"; "async function decl")]
-    #[test_case(FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => "fcn"; "async generator decl")]
-    fn bound_name(part: FcnDef) -> String {
+    #[test_case(&FcnDef::Function(Maker::new("function fcn(){}").function_declaration()) => "fcn"; "function decl")]
+    #[test_case(&FcnDef::Generator(Maker::new("function *fcn(){}").generator_declaration()) => "fcn"; "generator decl")]
+    #[test_case(&FcnDef::AsyncFun(Maker::new("async function fcn(){}").async_function_declaration()) => "fcn"; "async function decl")]
+    #[test_case(&FcnDef::AsyncGen(Maker::new("async function *fcn(){}").async_generator_declaration()) => "fcn"; "async generator decl")]
+    fn bound_name(part: &FcnDef) -> String {
         part.bound_name().to_string()
     }
 
@@ -1190,14 +1195,16 @@ mod global_declaration_instantiation {
         let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
         let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        let result = super::global_declaration_instantiation(script, global_env.clone(), false, src);
+        let result = super::global_declaration_instantiation(&script, &global_env.clone(), false, src);
 
-        result.map_err(unwind_any_error).map(|_| {
+        result.map_err(unwind_any_error).map(|()| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
             let after_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-            let new_vardecl = after_vardecl.difference(&prior_vardecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
-            let new_lexdecl = after_lexdecl.difference(&prior_lexdecl).map(|s| s.to_string()).collect::<AHashSet<_>>();
+            let new_vardecl =
+                after_vardecl.difference(&prior_vardecl).map(ToString::to_string).collect::<AHashSet<_>>();
+            let new_lexdecl =
+                after_lexdecl.difference(&prior_lexdecl).map(ToString::to_string).collect::<AHashSet<_>>();
             (new_vardecl, new_lexdecl)
         })
     }
@@ -1245,6 +1252,7 @@ mod process_error {
         let error = ordinary_object_create(None, &[]).into();
         ProcessError::RuntimeError { error }
     }
+    #[allow(clippy::needless_pass_by_value)]
     fn matches_object(s: String) {
         lazy_static! {
             static ref MATCH: Regex = Regex::new("^Thrown: <Object [0-9]+>$").expect("Valid regex");
@@ -1292,19 +1300,19 @@ mod process_ecmascript {
     }
 }
 
-#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
-fn bigint_leftshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
-    super::bigint_leftshift(&left, &right).map_err(|e| e.to_string())
+#[test_case(&BigInt::from(10), &BigInt::from(-2) => Ok(BigInt::from(2)); "negative shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(4) => Ok(BigInt::from(160)); "positive shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(0xFFFF_FFFF_FFFF_u64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, String> {
+    super::bigint_leftshift(left, right).map_err(|e| e.to_string())
 }
 
-#[test_case(BigInt::from(10), BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
-#[test_case(BigInt::from(10), BigInt::from(0xFFFFFFFFFF_u64) => Ok(BigInt::from(0)); "underflow")]
-#[test_case(BigInt::from(10), BigInt::from(-0xFFFFFFFFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
-fn bigint_rightshift(left: BigInt, right: BigInt) -> Result<BigInt, String> {
-    super::bigint_rightshift(&left, &right).map_err(|e| e.to_string())
+#[test_case(&BigInt::from(10), &BigInt::from(-2) => Ok(BigInt::from(40)); "negative shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(2) => Ok(BigInt::from(2)); "positive shift amt")]
+#[test_case(&BigInt::from(10), &BigInt::from(0xFF_FFFF_FFFF_u64) => Ok(BigInt::from(0)); "underflow")]
+#[test_case(&BigInt::from(10), &BigInt::from(-0xFF_FFFF_FFFF_i64) => serr("out of range conversion regarding big integer attempted"); "overflow")]
+fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, String> {
+    super::bigint_rightshift(left, right).map_err(|e| e.to_string())
 }
 
 mod current_script_or_module {
@@ -1443,25 +1451,22 @@ mod create_per_iteration_environment {
             .collect::<Vec<_>>();
         bindings.sort_unstable();
 
-        let outer = current_lexical_env.get_outer_env().as_ref().cloned();
-        let outer_name = outer.as_ref().map(|e| e.name()).unwrap_or_else(String::new);
-        let mut outer_bindings = outer
-            .map(|e| {
-                e.binding_names()
-                    .into_iter()
-                    .map(|name| {
-                        let value = String::from(
-                            JSString::try_from(
-                                e.get_binding_value(&name, true)
-                                    .unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
-                            )
-                            .unwrap(),
-                        );
-                        (String::from(name), value)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_else(Vec::new);
+        let outer = current_lexical_env.get_outer_env().clone();
+        let outer_name = outer.as_ref().map_or_else(String::new, |e| e.name());
+        let mut outer_bindings = outer.map_or_else(Vec::new, |e| {
+            e.binding_names()
+                .into_iter()
+                .map(|name| {
+                    let value = String::from(
+                        JSString::try_from(
+                            e.get_binding_value(&name, true).unwrap_or_else(|_| ECMAScriptValue::from("error on get")),
+                        )
+                        .unwrap(),
+                    );
+                    (String::from(name), value)
+                })
+                .collect::<Vec<_>>()
+        });
         outer_bindings.sort_unstable();
 
         let prior_name = prior.name();
@@ -1501,7 +1506,10 @@ mod ec_pop_list {
     fn call(setup: fn() -> ()) -> Result<Vec<String>, String> {
         setup();
 
-        ec_pop_list().map(|v| v.into_iter().map(|r| format!("{r}")).collect::<Vec<_>>()).map_err(|e| format!("{e:?}"))
+        ec_pop_list()
+            .as_ref()
+            .map(|v| v.iter().map(ToString::to_string).collect::<Vec<_>>())
+            .map_err(ToString::to_string)
     }
 }
 
@@ -1509,14 +1517,15 @@ mod begin_call_evaluation {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn test_reporter(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _new_target: Option<&Object>,
         arguments: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let my_this = match this_value {
             ECMAScriptValue::Object(o) => o.get(&"marker".into()).unwrap(),
-            _ => this_value,
+            _ => this_value.clone(),
         };
         let this_repr = String::from(to_string(my_this).unwrap());
         let args_repr = arguments.iter().cloned().map(|val| String::from(to_string(val).unwrap())).join(",");
@@ -1572,9 +1581,9 @@ mod begin_call_evaluation {
         setup_test_agent();
         let func = make_func();
         let reference = make_this();
-        begin_call_evaluation(func, reference, &[ECMAScriptValue::from("sentinel")]);
+        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")]);
 
-        ec_pop().map(|v| v.map_err(unwind_any_error).map(|nc| format!("{nc}")).unwrap_or_else(|err| err))
+        ec_pop().map(|v| v.map_err(unwind_any_error).map_or_else(|err| err, |nc| format!("{nc}")))
     }
 }
 
@@ -1624,6 +1633,7 @@ mod for_in_iterator_object {
     default_id_test!();
     false_function!(is_arguments_object);
     false_function!(is_array_object);
+    false_function!(is_bigint_object);
     false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
@@ -1637,6 +1647,7 @@ mod for_in_iterator_object {
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_array_object);
+    none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
@@ -1645,6 +1656,7 @@ mod for_in_iterator_object {
     none_function!(to_function_obj);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
+    none_function!(to_proxy_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 }
@@ -1707,11 +1719,12 @@ mod for_in_iterator_prototype_next {
         object.create_data_property_or_throw("masked", 99).unwrap();
         crate::agent::create_for_in_iterator(object).into()
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys() -> ECMAScriptValue {
-        let o = AdaptableObject::object(AdaptableMethods {
+        let o = AdaptableObject::object(&AdaptableMethods {
             own_property_keys_override: Some(lying_ownprops),
             ..Default::default()
         });
@@ -1725,7 +1738,7 @@ mod for_in_iterator_prototype_next {
         }
     }
     fn get_own_property_failure() -> ECMAScriptValue {
-        let o = AdaptableObject::object(AdaptableMethods {
+        let o = AdaptableObject::object(&AdaptableMethods {
             get_own_property_override: Some(gop_failure),
             ..Default::default()
         });
@@ -1745,7 +1758,7 @@ mod for_in_iterator_prototype_next {
         let this = make_this();
         let mut result = vec![];
         loop {
-            let ir = for_in_iterator_prototype_next(this.clone(), None, &[]).map_err(unwind_any_error)?;
+            let ir = for_in_iterator_prototype_next(&this, None, &[]).map_err(unwind_any_error)?;
             let iro = Object::try_from(ir).unwrap();
             if iterator_complete(&iro).unwrap() {
                 return Ok(result);
@@ -1810,4 +1823,337 @@ mod evaluate_initialized_class_field_definition {
         let res = evaluate_initialized_class_field_definition(&info, home.clone(), name, src);
         assert!(res.is_err());
     }
+}
+
+mod define_method_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[derive(Debug, PartialEq)]
+    enum TestResult {
+        PrivateLike { obj_desc: String, name: String, func: String },
+        PropertyLike { obj_desc: String, writable: bool, enumerable: bool, configurable: bool },
+    }
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: true,
+            configurable: true
+        };
+        "typical-enumerable"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PropertyKey::from("bob")), || intrinsic(IntrinsicId::IsNaN), false
+        => TestResult::PropertyLike {
+            obj_desc: "bob:function isNaN".to_string(),
+            writable: true,
+            enumerable: false,
+            configurable: true
+        };
+        "typical-hidden"
+    )]
+    #[test_case(
+        ordinary, FunctionName::from(PrivateName::new("private")), || intrinsic(IntrinsicId::IsNaN), true
+        => TestResult::PrivateLike {
+            obj_desc: String::new(),
+            name: "private".to_string(),
+            func: "length:1,name:isNaN".to_string()
+        };
+        "private"
+    )]
+    fn f(
+        make_home_object: impl FnOnce() -> Object,
+        key: FunctionName,
+        make_closure: impl FnOnce() -> Object,
+        enumerable: bool,
+    ) -> TestResult {
+        setup_test_agent();
+        let home_object = make_home_object();
+        let closure = make_closure();
+        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable);
+        match opt_pe {
+            None => {
+                let pk = PropertyKey::try_from(key).unwrap();
+                let desc = DataDescriptor::try_from(home_object.o.get_own_property(&pk).unwrap().unwrap()).unwrap();
+                TestResult::PropertyLike {
+                    obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                    writable: desc.writable,
+                    enumerable: desc.enumerable,
+                    configurable: desc.configurable,
+                }
+            }
+            Some(pe) => {
+                if let PrivateElement {
+                    key: PrivateName { description, .. },
+                    kind: PrivateElementKind::Method { value },
+                } = pe
+                {
+                    TestResult::PrivateLike {
+                        obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
+                        name: String::from(description),
+                        func: value.test_result_string(),
+                    }
+                } else {
+                    panic!("Bad PE came back");
+                }
+            }
+        }
+    }
+}
+
+mod define_method {
+    use super::*;
+    use test_case::test_case;
+
+    fn ordinary() -> Object {
+        ordinary_object_create(None, &[])
+    }
+    fn std_data() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn fcn_too_big() -> (StashedFunctionData, String) {
+        let source = String::from("bob() {while (true) {@@@;}}");
+        let md = Maker::new(&source).method_definition();
+        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(params.clone()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+    fn not_named_method() -> (StashedFunctionData, String) {
+        let source = String::from("get bob() {}");
+        let md = Maker::new(&source).method_definition();
+        let MethodDefinition::Getter(_name, body, _) = md.as_ref() else { panic!() };
+        let data = StashedFunctionData {
+            source_text: source.clone(),
+            params: ParamSource::from(Maker::new("").unique_formal_parameters()),
+            body: BodySource::from(body.clone()),
+            to_compile: FunctionSource::from(md.clone()),
+            strict: false,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        (data, source)
+    }
+
+    #[test_case(ordinary, || None, std_data => sok("length:0"); "typical")]
+    #[test_case(ordinary, || None, fcn_too_big => serr("out of range integral type conversion attempted"); "function compilation fails")]
+    #[test_case(ordinary, || None, not_named_method => panics "entered unreachable code"; "reach the unreachable")]
+    fn f(
+        make_object: impl FnOnce() -> Object,
+        make_proto: impl FnOnce() -> Option<Object>,
+        make_info: impl FnOnce() -> (StashedFunctionData, String),
+    ) -> Result<String, String> {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        set_lexical_environment(Some(env));
+
+        let object = make_object();
+        let prototype = make_proto();
+        let (info, src) = make_info();
+        define_method(object, prototype, &info, &src)
+            .map_err(|e| e.to_string())
+            .map(|obj| ECMAScriptValue::from(obj).test_result_string())
+    }
+}
+
+mod ec_peek {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| (), 1 => None; "stack shorter than lookback")]
+    #[test_case(|| ec_push(Ok(NormalCompletion::from("blue"))), 0 => Some(sok("\"blue\"")); "successful peek")]
+    #[test_case(
+        || {
+            ec_push(Ok(NormalCompletion::from("green")));
+            ec_push(Ok(NormalCompletion::from("blue")));
+        },
+        1
+        => Some(sok("\"green\""));
+        "peek > 0"
+    )]
+    #[test_case(
+        || AGENT.with(|agent| agent.execution_context_stack.borrow_mut().clear()),
+        1
+        => None;
+        "No execution contexts"
+    )]
+    fn ec_peek(make_stack: impl FnOnce(), from_end: usize) -> Option<Result<String, String>> {
+        setup_test_agent();
+        make_stack();
+        super::ec_peek(from_end).map(|item| item.map_err(unwind_any_error).map(|nc| nc.to_string()))
+    }
+}
+
+#[test]
+fn set_default_global_bindings() {
+    setup_test_agent();
+    // Coverage is easy here, all we need to is create the test agent. So let's validate, instead.
+
+    let globj = get_global_object().unwrap();
+
+    macro_rules! validate_obj_data_property {
+        ( $name:expr, $obj:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            let key = PropertyKey::from($name);
+            let item = $obj.o.get_own_property(&key).unwrap();
+            let expected = ECMAScriptValue::from($value);
+            if let Some(PropertyDescriptor {
+                property: PropertyKind::Data(DataProperty { value, writable: $writable }),
+                enumerable: $enumerable,
+                configurable: $configurable,
+                spot: _,
+            }) = item
+            {
+                assert!(
+                    value.same_value(&expected),
+                    "{}: Data value was incorrect: {} should have been {}",
+                    $name,
+                    value,
+                    expected
+                );
+            } else {
+                panic!(
+                    "Incorrect property descriptor for {}:\ndesired: {:?}\nactual: {:?}",
+                    $name,
+                    PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { value: expected, writable: $writable }),
+                        enumerable: $enumerable,
+                        configurable: $configurable,
+                        spot: 0
+                    },
+                    item
+                );
+            }
+        };
+    }
+
+    macro_rules! validate_data_property {
+        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            validate_obj_data_property!($name, globj, $value, $writable, $enumerable, $configurable);
+        };
+    }
+
+    let global_this = {
+        let rc_realm = current_realm_record().unwrap();
+        let realm_ref = rc_realm.borrow();
+        realm_ref.global_env.as_ref().unwrap().get_this_binding().unwrap()
+    };
+    validate_data_property!("globalThis", global_this, true, false, true);
+    validate_data_property!("Infinity", f64::INFINITY, false, false, false);
+    validate_data_property!("NaN", f64::NAN, false, false, false);
+    validate_data_property!("undefined", ECMAScriptValue::Undefined, false, false, false);
+
+    macro_rules! validate_intrinsic_function {
+        ( $name:expr, $id:ident, $length:expr ) => {
+            let value = intrinsic(IntrinsicId::$id);
+            validate_data_property!($name, value.clone(), true, false, true);
+            validate_obj_data_property!("name", value, $name, false, false, true);
+            validate_obj_data_property!("length", value, $length, false, false, true);
+        };
+    }
+
+    validate_intrinsic_function!("eval", Eval, 1);
+    validate_intrinsic_function!("isFinite", IsFinite, 1);
+    validate_intrinsic_function!("isNaN", IsNaN, 1);
+    validate_intrinsic_function!("parseFloat", ParseFloat, 1);
+    validate_intrinsic_function!("parseInt", ParseInt, 2);
+    validate_intrinsic_function!("decodeURI", DecodeURI, 1);
+    validate_intrinsic_function!("decodeURIComponent", DecodeURIComponent, 1);
+    validate_intrinsic_function!("encodeURI", EncodeURI, 1);
+    validate_intrinsic_function!("encodeURIComponent", EncodeURIComponent, 1);
+
+    macro_rules! validate_intrinsic_constructor {
+        ( $name:expr, $id:ident, $length:expr ) => {
+            validate_intrinsic_function!($name, $id, $length);
+        };
+    }
+
+    //validate_intrinsic_constructor!("AggregateError", AggregateError, 2);
+    validate_intrinsic_constructor!("Array", Array, 1);
+    //validate_intrinsic_constructor!("ArrayBuffer", ArrayBuffer, 1);
+    validate_intrinsic_constructor!("BigInt", BigInt, 1);
+    //validate_intrinsic_constructor!("BigInt64Array", BigInt64Array, 3);
+    //validate_intrinsic_constructor!("BigUint64Array", BigUint64Array, 3);
+    validate_intrinsic_constructor!("Boolean", Boolean, 1);
+    //validate_intrinsic_constructor!("DataView", DataView, 1);
+    //validate_intrinsic_constructor!("Date", Date, 7);
+    validate_intrinsic_constructor!("Error", Error, 1);
+    validate_intrinsic_constructor!("EvalError", EvalError, 1);
+    //validate_intrinsic_constructor!("FinalizationRegistry", FinalizationRegistry, 1);
+    //validate_intrinsic_constructor!("Float32Array", Float32Array, 3);
+    //validate_intrinsic_constructor!("Float64Array", Float64Array, 3);
+    validate_intrinsic_constructor!("Function", Function, 1);
+    //validate_intrinsic_constructor!("Int8Array", Int8Array, 3);
+    //validate_intrinsic_constructor!("Int16Array", Int16Array, 3);
+    //validate_intrinsic_constructor!("Int32Array", Int32Array, 3);
+    //validate_intrinsic_constructor!("Map", Map, 0);
+    validate_intrinsic_constructor!("Number", Number, 1);
+    validate_intrinsic_constructor!("Object", Object, 1);
+    //validate_intrinsic_constructor!("Promise", Promise, 1);
+    validate_intrinsic_constructor!("Proxy", Proxy, 2);
+    validate_intrinsic_constructor!("RangeError", RangeError, 1);
+    validate_intrinsic_constructor!("ReferenceError", ReferenceError, 1);
+    //validate_intrinsic_constructor!("RegExp", RegExp, 2);
+    //validate_intrinsic_constructor!("Set", Set, 0);
+    //validate_intrinsic_constructor!("SharedArrayBuffer", SharedArrayBuffer, 1);
+    validate_intrinsic_constructor!("String", String, 1);
+    validate_intrinsic_constructor!("Symbol", Symbol, 0);
+    validate_intrinsic_constructor!("SyntaxError", SyntaxError, 1);
+    validate_intrinsic_constructor!("TypeError", TypeError, 1);
+    //validate_intrinsic_constructor!("Uint8Array", Uint8Array, 3);
+    //validate_intrinsic_constructor!("Uint8ClampedArray", Uint8ClampedArray, 3);
+    //validate_intrinsic_constructor!("Uint16Array", Uint16Array, 3);
+    //validate_intrinsic_constructor!("Uint32Array", Uint32Array, 3);
+    validate_intrinsic_constructor!("URIError", URIError, 1);
+    //validate_intrinsic_constructor!("WeakMap", WeakMap, 0);
+    //validate_intrinsic_constructor!("WeakRef", WeakRef, 1);
+    //validate_intrinsic_constructor!("WeakSet", WeakSet, 0);
+
+    macro_rules! validate_intrinsic_data {
+        ( $name:expr, $id:ident ) => {
+            let value = intrinsic(IntrinsicId::$id);
+            validate_data_property!($name, value, true, false, true);
+        };
+    }
+
+    //validate_intrinsic_data!("Atomics", Atomics);
+    //validate_intrinsic_data!("JSON", Json);
+    validate_intrinsic_data!("Math", Math);
+    validate_intrinsic_data!("Reflect", Reflect);
+}
+
+#[test_case(setup_test_agent => 1; "nothing happening yet")]
+#[test_case(
+    || {
+        setup_test_agent();
+        push_execution_context(ExecutionContext::new(None, current_realm_record().unwrap(), None));
+    }
+    => 2;
+    "Something more on stack"
+)]
+fn execution_context_stack_len(setup: impl FnOnce()) -> usize {
+    setup();
+    super::execution_context_stack_len()
 }

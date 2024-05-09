@@ -12,9 +12,9 @@ const A_ALREADY_DEFINED: &str = "‘a’ already defined";
 fn unique_formal_parameters_test_01() {
     let (node, scanner) = UniqueFormalParameters::parse(&mut newparser("a"), Scanner::new(), false, false);
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "UniqueFormalParameters: a", vec!["FormalParameters: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "UniqueFormalParameters: a", &["FormalParameters: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn unique_formal_parameters_test_prettyerrors_1() {
@@ -61,7 +61,7 @@ mod unique_formal_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).unique_formal_parameters().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
@@ -103,45 +103,45 @@ mod unique_formal_parameters {
 fn formal_parameters_test_01() {
     let (node, scanner) = FormalParameters::parse(&mut newparser(""), Scanner::new(), false, false);
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "FormalParameters: ", vec![]);
-    concise_check(&*node, "", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FormalParameters: ", &[]);
+    concise_check(&*node, "", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameters_test_02() {
     let (node, scanner) = FormalParameters::parse(&mut newparser("...a"), Scanner::new(), false, false);
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "FormalParameters: ... a", vec!["FunctionRestParameter: ... a"]);
-    concise_check(&*node, "BindingRestElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FormalParameters: ... a", &["FunctionRestParameter: ... a"]);
+    concise_check(&*node, "BindingRestElement: ... a", &["Punctuator: ...", "IdentifierName: a"]);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameters_test_03() {
     let (node, scanner) = FormalParameters::parse(&mut newparser("a"), Scanner::new(), false, false);
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "FormalParameters: a", vec!["FormalParameterList: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FormalParameters: a", &["FormalParameterList: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameters_test_04() {
     let (node, scanner) = FormalParameters::parse(&mut newparser("a,"), Scanner::new(), false, false);
     chk_scan(&scanner, 2);
-    pretty_check(&*node, "FormalParameters: a ,", vec!["FormalParameterList: a"]);
-    concise_check(&*node, "FormalParameters: a ,", vec!["IdentifierName: a", "Punctuator: ,"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FormalParameters: a ,", &["FormalParameterList: a"]);
+    concise_check(&*node, "FormalParameters: a ,", &["IdentifierName: a", "Punctuator: ,"]);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameters_test_05() {
     let (node, scanner) = FormalParameters::parse(&mut newparser("a,...a"), Scanner::new(), false, false);
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "FormalParameters: a , ... a", vec!["FormalParameterList: a", "FunctionRestParameter: ... a"]);
+    pretty_check(&*node, "FormalParameters: a , ... a", &["FormalParameterList: a", "FunctionRestParameter: ... a"]);
     concise_check(
         &*node,
         "FormalParameters: a , ... a",
-        vec!["IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... a"],
+        &["IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... a"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameters_test_prettyerrors_1() {
@@ -313,7 +313,7 @@ mod formal_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameters().early_errors(&mut errs, strict, dups_already_checked);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => false; "empty")]
@@ -368,9 +368,9 @@ mod formal_parameters {
 fn formal_parameter_list_test_01() {
     let (node, scanner) = check(FormalParameterList::parse(&mut newparser("formal"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "FormalParameterList: formal", vec!["FormalParameter: formal"]);
-    concise_check(&*node, "IdentifierName: formal", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FormalParameterList: formal", &["FormalParameter: formal"]);
+    concise_check(&*node, "IdentifierName: formal", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameter_list_test_02() {
@@ -380,14 +380,14 @@ fn formal_parameter_list_test_02() {
     pretty_check(
         &*node,
         "FormalParameterList: formal , playful",
-        vec!["FormalParameterList: formal", "FormalParameter: playful"],
+        &["FormalParameterList: formal", "FormalParameter: playful"],
     );
     concise_check(
         &*node,
         "FormalParameterList: formal , playful",
-        vec!["IdentifierName: formal", "Punctuator: ,", "IdentifierName: playful"],
+        &["IdentifierName: formal", "Punctuator: ,", "IdentifierName: playful"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn formal_parameter_list_test_err_01() {
@@ -480,7 +480,7 @@ mod formal_parameter_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameter_list().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a=arguments" => true; "Item (yes)")]
@@ -532,9 +532,9 @@ fn function_rest_parameter_test_01() {
     let (node, scanner) =
         check(FunctionRestParameter::parse(&mut newparser("...formal"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "FunctionRestParameter: ... formal", vec!["BindingRestElement: ... formal"]);
-    concise_check(&*node, "BindingRestElement: ... formal", vec!["Punctuator: ...", "IdentifierName: formal"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FunctionRestParameter: ... formal", &["BindingRestElement: ... formal"]);
+    concise_check(&*node, "BindingRestElement: ... formal", &["Punctuator: ...", "IdentifierName: formal"]);
+    format!("{node:?}");
 }
 #[test]
 fn function_rest_parameter_test_err_01() {
@@ -582,7 +582,7 @@ mod function_rest_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_rest_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("...{a=arguments}" => true; "yes")]
@@ -612,9 +612,9 @@ mod formal_parameter {
     fn formal_parameter_test_01() {
         let (node, scanner) = check(FormalParameter::parse(&mut newparser("formal"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
-        pretty_check(&*node, "FormalParameter: formal", vec!["BindingElement: formal"]);
-        concise_check(&*node, "IdentifierName: formal", vec![]);
-        format!("{:?}", node);
+        pretty_check(&*node, "FormalParameter: formal", &["BindingElement: formal"]);
+        concise_check(&*node, "IdentifierName: formal", &[]);
+        format!("{node:?}");
     }
     #[test]
     fn formal_parameter_test_err_01() {
@@ -678,7 +678,7 @@ mod formal_parameter {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).formal_parameter().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a=arguments" => true; "yes")]

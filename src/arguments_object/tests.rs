@@ -12,7 +12,7 @@ mod parameter_map {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let pmap = ParameterMap { env, properties: vec![] };
 
-        assert_ne!(format!("{:?}", pmap), "");
+        assert_ne!(format!("{pmap:?}"), "");
     }
 
     #[test]
@@ -23,7 +23,7 @@ mod parameter_map {
         let map = ParameterMap::new(env.clone());
 
         assert!(map.properties.is_empty());
-        assert_eq!(map.env.name(), env.name())
+        assert_eq!(map.env.name(), env.name());
     }
 
     #[test_case(|| PropertyKey::from("blue") => None; "Not a numeric key")]
@@ -91,7 +91,7 @@ mod parameter_map {
         for (idx, name) in
             before.iter().enumerate().filter_map(|(idx, os)| os.as_ref().map(|&s| (idx, JSString::from(s))))
         {
-            let value = ECMAScriptValue::from(format!("{}+{}", name, idx));
+            let value = ECMAScriptValue::from(format!("{name}+{idx}"));
             env.create_mutable_binding(name.clone(), false).unwrap();
             env.initialize_binding(&name, value).unwrap();
         }
@@ -109,7 +109,7 @@ mod parameter_map {
         for (idx, name) in
             before.iter().enumerate().filter_map(|(idx, os)| os.as_ref().map(|&s| (idx, JSString::from(s))))
         {
-            let value = ECMAScriptValue::from(format!("{}+{}", name, idx));
+            let value = ECMAScriptValue::from(format!("{name}+{idx}"));
             env.create_mutable_binding(name.clone(), false).unwrap();
             env.initialize_binding(&name, value).unwrap();
         }
@@ -269,11 +269,25 @@ mod arguments_object {
     }
 
     #[test]
+    fn to_proxy_object() {
+        setup_test_agent();
+        let ao = test_ao();
+        assert!(ao.o.to_proxy_object().is_none());
+    }
+
+    #[test]
+    fn is_proxy_object() {
+        setup_test_agent();
+        let ao = test_ao();
+        assert!(!ao.o.is_proxy_object());
+    }
+
+    #[test]
     fn debug() {
         setup_test_agent();
         let obj = test_ao();
         let ao = obj.o.to_arguments_object().unwrap();
-        assert_ne!(format!("{:?}", ao), "");
+        assert_ne!(format!("{ao:?}"), "");
     }
 
     #[test_case(test_ao, "0" => Ok(ECMAScriptValue::from("value of 'from'")); "index was there")]
@@ -347,7 +361,7 @@ mod arguments_object {
     ) -> AHashMap<String, (ECMAScriptValue, ECMAScriptValue)> {
         input
             .iter()
-            .map(|(name, obj_value, env_value)| (name.to_string(), (obj_value.clone(), env_value.clone())))
+            .map(|(name, obj_value, env_value)| ((*name).to_string(), (obj_value.clone(), env_value.clone())))
             .collect()
     }
     fn test_v(input: &[Option<&str>]) -> Vec<Option<String>> {
@@ -416,7 +430,7 @@ mod arguments_object {
 
     fn prop_checker(expected: PotentialPropertyDescriptor) -> impl Fn(Option<PropertyDescriptor>) {
         move |actual: Option<PropertyDescriptor>| match &actual {
-            None => panic!("{:?} should not have been None", actual),
+            None => panic!("{actual:?} should not have been None"),
             Some(pd) => {
                 if let Some(enumerable) = expected.enumerable {
                     assert_eq!(pd.enumerable, enumerable);
@@ -462,7 +476,7 @@ mod arguments_object {
     type DefineOwnPropertyTestResult =
         Result<(bool, AHashMap<String, ECMAScriptValue>, AHashMap<String, ECMAScriptValue>), String>;
     fn hm(data: &[(&str, ECMAScriptValue)]) -> AHashMap<String, ECMAScriptValue> {
-        data.iter().map(|(s, v)| (s.to_string(), v.clone())).collect()
+        data.iter().map(|(s, v)| ((*s).to_string(), v.clone())).collect()
     }
     #[test_case(test_ao, "10", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
         ("0", "value of 'from'".into()),

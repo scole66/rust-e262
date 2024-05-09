@@ -11,13 +11,13 @@ fn labelled_statement_test_01() {
     let (node, scanner) =
         check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "LabelledStatement: blue : orange ;", vec!["LabelIdentifier: blue", "LabelledItem: orange ;"]);
+    pretty_check(&*node, "LabelledStatement: blue : orange ;", &["LabelIdentifier: blue", "LabelledItem: orange ;"]);
     concise_check(
         &*node,
         "LabelledStatement: blue : orange ;",
-        vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
+        &["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_statement_test_err_01() {
@@ -144,7 +144,7 @@ mod labelled_statement {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).labelled_statement().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -160,7 +160,7 @@ mod labelled_statement {
         Maker::new(src).labelled_statement().contains_arguments()
     }
 
-    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:function b(){}" => svec(&["function b ( ) { }"]); "function")]
     #[test_case("a:{ function b(){} }" => svec(&[]); "too deep")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src)
@@ -177,7 +177,7 @@ mod labelled_statement {
         Maker::new(src).labelled_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 
-    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:function b(){}" => svec(&["function b ( ) { }"]); "function")]
     #[test_case("a:var u;" => svec(&[]); "not a function")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_statement().lexically_scoped_declarations().iter().map(String::from).collect()
@@ -194,29 +194,22 @@ mod labelled_statement {
 fn labelled_item_test_01() {
     let (node, scanner) = check(LabelledItem::parse(&mut newparser("orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "LabelledItem: orange ;", vec!["Statement: orange ;"]);
-    concise_check(&*node, "ExpressionStatement: orange ;", vec!["IdentifierName: orange", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "LabelledItem: orange ;", &["Statement: orange ;"]);
+    concise_check(&*node, "ExpressionStatement: orange ;", &["IdentifierName: orange", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_02() {
     let (node, scanner) =
         check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "LabelledItem: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
+    pretty_check(&*node, "LabelledItem: function a ( ) { }", &["FunctionDeclaration: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function a (  ) {  }",
-        vec![
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        "FunctionDeclaration: function a ( ) { }",
+        &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn labelled_item_test_err_01() {
@@ -365,7 +358,7 @@ mod labelled_item {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).labelled_item().early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function alice(){}" => true; "direct labelled function")]
@@ -382,8 +375,8 @@ mod labelled_item {
         Maker::new(src).labelled_item().contains_arguments()
     }
 
-    #[test_case("function b(){}" => svec(&["function b (  ) {  }"]); "function")]
-    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "labelled function")]
+    #[test_case("function b(){}" => svec(&["function b ( ) { }"]); "function")]
+    #[test_case("a:function b(){}" => svec(&["function b ( ) { }"]); "labelled function")]
     #[test_case("var a;" => svec(&["a"]); "statement")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
@@ -401,7 +394,7 @@ mod labelled_item {
     }
 
     #[test_case("10;" => svec(&[]); "statement")]
-    #[test_case("function blue(){}" => svec(&["function blue (  ) {  }"]); "function")]
+    #[test_case("function blue(){}" => svec(&["function blue ( ) { }"]); "function")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_item().lexically_scoped_declarations().iter().map(String::from).collect()
     }

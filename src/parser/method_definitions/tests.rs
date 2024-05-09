@@ -30,12 +30,12 @@ fn method_definition_test_01() {
     pretty_check(
         &*pn,
         "MethodDefinition: a ( b ) { c ; }",
-        vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"],
+        &["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"],
     );
     concise_check(
         &*pn,
         "MethodDefinition: a ( b ) { c ; }",
-        vec![
+        &[
             "IdentifierName: a",
             "Punctuator: (",
             "IdentifierName: b",
@@ -45,7 +45,7 @@ fn method_definition_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_02() {
@@ -56,12 +56,12 @@ fn method_definition_test_02() {
     pretty_check(
         &*pn,
         "MethodDefinition: get a ( ) { return 1 ; }",
-        vec!["ClassElementName: a", "FunctionBody: return 1 ;"],
+        &["ClassElementName: a", "FunctionBody: return 1 ;"],
     );
     concise_check(
         &*pn,
         "MethodDefinition: get a ( ) { return 1 ; }",
-        vec![
+        &[
             "Keyword: get",
             "IdentifierName: a",
             "Punctuator: (",
@@ -71,7 +71,7 @@ fn method_definition_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_03() {
@@ -82,12 +82,12 @@ fn method_definition_test_03() {
     pretty_check(
         &*pn,
         "MethodDefinition: set a ( blue ) { this . a = blue ; }",
-        vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"],
+        &["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"],
     );
     concise_check(
         &*pn,
         "MethodDefinition: set a ( blue ) { this . a = blue ; }",
-        vec![
+        &[
             "Keyword: set",
             "IdentifierName: a",
             "Punctuator: (",
@@ -98,7 +98,7 @@ fn method_definition_test_03() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_04() {
@@ -109,12 +109,12 @@ fn method_definition_test_04() {
     pretty_check(
         &*pn,
         "MethodDefinition: * a ( blue ) { this . a = blue ; }",
-        vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"],
+        &["GeneratorMethod: * a ( blue ) { this . a = blue ; }"],
     );
     concise_check(
         &*pn,
         "GeneratorMethod: * a ( blue ) { this . a = blue ; }",
-        vec![
+        &[
             "Punctuator: *",
             "IdentifierName: a",
             "Punctuator: (",
@@ -125,7 +125,7 @@ fn method_definition_test_04() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_05() {
@@ -136,12 +136,12 @@ fn method_definition_test_05() {
     pretty_check(
         &*pn,
         "MethodDefinition: async a ( blue ) { this . a = blue ; }",
-        vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"],
+        &["AsyncMethod: async a ( blue ) { this . a = blue ; }"],
     );
     concise_check(
         &*pn,
         "AsyncMethod: async a ( blue ) { this . a = blue ; }",
-        vec![
+        &[
             "Keyword: async",
             "IdentifierName: a",
             "Punctuator: (",
@@ -152,7 +152,7 @@ fn method_definition_test_05() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_06() {
@@ -163,12 +163,12 @@ fn method_definition_test_06() {
     pretty_check(
         &*pn,
         "MethodDefinition: async * a ( blue ) { this . a = blue ; }",
-        vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"],
+        &["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"],
     );
     concise_check(
         &*pn,
         "AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }",
-        vec![
+        &[
             "Keyword: async",
             "Punctuator: *",
             "IdentifierName: a",
@@ -180,7 +180,7 @@ fn method_definition_test_06() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", pn);
+    format!("{pn:?}");
 }
 #[test]
 fn method_definition_test_errs_01() {
@@ -532,6 +532,18 @@ mod method_definition {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("a(){}" => "a ( ) { }"; "named: id only")]
+    #[test_case("a(b){}" => "a ( b ) { }"; "named: id + params")]
+    #[test_case("a(){null;}" => "a ( ) { null ; }"; "named: id + body")]
+    #[test_case("a(b){null;}" => "a ( b ) { null ; }"; "named: id + params + body")]
+    #[test_case("get a(){}" => "get a ( ) { }"; "getter: empty")]
+    #[test_case("get a(){null;}" => "get a ( ) { null ; }"; "getter: body")]
+    #[test_case("set a(x){}" => "set a ( x ) { }"; "setter: empty")]
+    #[test_case("set a(x){null;}" => "set a ( x ) { null ; }"; "setter: body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).method_definition())
+    }
+
     #[test_case("a(){}" => false; "method without")]
     #[test_case("a(b=super(undefined)){}" => true; "method params with")]
     #[test_case("a(){super(a);}" => true; "method body with")]
@@ -568,7 +580,7 @@ mod method_definition {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).method_definition().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
@@ -642,9 +654,9 @@ mod property_set_parameter_list {
     fn parse() {
         let (pn, scanner) = check(PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()));
         chk_scan(&scanner, 1);
-        pretty_check(&*pn, "PropertySetParameterList: a", vec!["FormalParameter: a"]);
-        concise_check(&*pn, "IdentifierName: a", vec![]);
-        format!("{:?}", pn);
+        pretty_check(&*pn, "PropertySetParameterList: a", &["FormalParameter: a"]);
+        concise_check(&*pn, "IdentifierName: a", &[]);
+        format!("{pn:?}");
     }
 
     #[test]
@@ -678,7 +690,7 @@ mod property_set_parameter_list {
         setup_test_agent();
         let mut errs = vec![];
         PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => vec!["a"]; "FormalParameter")]

@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
 use regex::Regex;
@@ -98,6 +98,22 @@ impl ECMAScriptValue {
             ECMAScriptValue::Object(o) => o.concise(f),
         }
     }
+
+    pub fn to_obj_or_undefined(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Undefined
+        }
+    }
+
+    pub fn to_obj_or_null(from: Option<Object>) -> Self {
+        if let Some(obj) = from {
+            Self::Object(obj)
+        } else {
+            Self::Null
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {
@@ -157,17 +173,18 @@ impl From<f64> for ECMAScriptValue {
 
 impl From<u32> for ECMAScriptValue {
     fn from(source: u32) -> Self {
-        Self::Number(source as f64)
+        Self::Number(f64::from(source))
     }
 }
 
 impl From<i32> for ECMAScriptValue {
     fn from(source: i32) -> Self {
-        Self::Number(source as f64)
+        Self::Number(f64::from(source))
     }
 }
 
 impl From<u64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: u64) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -178,6 +195,7 @@ impl From<u64> for ECMAScriptValue {
 }
 
 impl From<usize> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: usize) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -187,6 +205,7 @@ impl From<usize> for ECMAScriptValue {
     }
 }
 impl From<i64> for ECMAScriptValue {
+    #[allow(clippy::cast_precision_loss)]
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
             Self::from(val as f64)
@@ -295,9 +314,9 @@ impl PropertyKey {
         match self {
             PropertyKey::Symbol(_) => false,
             PropertyKey::String(s) => {
-                let as_u32 = to_uint32_agentless(s).expect("strings always convert to numbers");
-                let restrung = to_string_agentless(as_u32).expect("numbers always convert to strings");
-                as_u32 != 0xFFFFFFFF && restrung == *s
+                let as_u32 = s.to_uint32();
+                let restrung = JSString::from(as_u32);
+                as_u32 != 0xFFFF_FFFF && restrung == *s
             }
         }
     }
@@ -344,6 +363,24 @@ impl From<String> for PropertyKey {
 
 impl From<usize> for PropertyKey {
     fn from(num: usize) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<u64> for PropertyKey {
+    fn from(num: u64) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<i32> for PropertyKey {
+    fn from(num: i32) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
+impl From<i64> for PropertyKey {
+    fn from(num: i64) -> Self {
         Self::from(num.to_string())
     }
 }
@@ -399,13 +436,13 @@ impl TryFrom<ECMAScriptValue> for Option<Object> {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
 pub struct ArrayIndex(u32);
 
 impl TryFrom<u32> for ArrayIndex {
     type Error = &'static str;
     fn try_from(val: u32) -> Result<ArrayIndex, Self::Error> {
-        if val < 0xFFFFFFFF {
+        if val < 0xFFFF_FFFF {
             Ok(ArrayIndex(val))
         } else {
             Err("The maximum array index is 4294967294")
@@ -465,7 +502,7 @@ impl Symbol {
         Self(Rc::new(SymbolInternals { id: next_symbol_id(), description }))
     }
     pub fn description(&self) -> Option<JSString> {
-        self.0.description.as_ref().cloned()
+        self.0.description.clone()
     }
     pub fn descriptive_string(&self) -> JSString {
         let desc = self.description().unwrap_or_else(|| JSString::from(""));
@@ -479,7 +516,7 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueKind {
     Undefined,
     Null,
@@ -521,7 +558,7 @@ impl PartialEq for PrivateName {
 impl Hash for PrivateName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // No need to hash the description; the id is unique already.
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 
@@ -559,16 +596,48 @@ impl PrivateName {
 // +------------+------------------+-------------------------------+---------------------------------------------+
 // | [[Set]]    | accessor         | Function or Undefined         | The setter for a private accessor.          |
 // +------------+------------------+-------------------------------+---------------------------------------------+
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrivateElementKind {
     Field { value: RefCell<ECMAScriptValue> },
     Method { value: ECMAScriptValue },
     Accessor { get: Option<Object>, set: Option<Object> },
 }
-#[derive(Debug, Clone)]
+impl fmt::Display for PrivateElementKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PrivateElementKind::Field { value } => write!(f, "Field({})", value.borrow()),
+            PrivateElementKind::Method { value } => write!(f, "Method({value})"),
+            PrivateElementKind::Accessor { get, set } => match (get.as_ref(), set.as_ref()) {
+                (None, None) => write!(f, "Accessor(-,-)"),
+                (None, Some(set)) => write!(
+                    f,
+                    "Accessor(-,{})",
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), None) => write!(
+                    f,
+                    "Accessor({},-)",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+                (Some(get), Some(set)) => write!(
+                    f,
+                    "Accessor({},{})",
+                    get.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed")),
+                    set.get(&"name".into()).unwrap_or_else(|_| ECMAScriptValue::from("unnamed"))
+                ),
+            },
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct PrivateElement {
     pub key: PrivateName,
     pub kind: PrivateElementKind,
+}
+impl fmt::Display for PrivateElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PrivateElement{{{}: {}}}", self.key, self.kind)
+    }
 }
 impl PrivateElement {}
 
@@ -591,13 +660,14 @@ where
     }
     let info = dtoa(value);
 
-    let k = info.chars.find('\u{0}').unwrap() as i64;
-    let n = info.decpt as i64;
+    let k = i64::try_from(info.chars.find('\u{0}').expect("a NUL shoul exist"))
+        .expect("number string representation isn't as large as an i64");
+    let n = i64::from(info.decpt);
     let mut iter = info.chars.chars();
     if k <= n && n <= 21 {
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         let zeros = n - k;
         for _ in 0..zeros {
@@ -608,12 +678,12 @@ where
     if 0 < n && n <= 21 {
         for _ in 0..n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         write!(writer, ".")?;
         for _ in 0..k - n {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
@@ -624,17 +694,17 @@ where
         }
         for _ in 0..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
         return Ok(());
     }
     let ch = iter.next().unwrap();
-    write!(writer, "{}", ch)?;
+    write!(writer, "{ch}")?;
     if k > 1 {
         write!(writer, ".")?;
         for _ in 1..k {
             let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
     }
     write!(writer, "e")?;
@@ -659,6 +729,7 @@ where
 //          i. Let result be ? Call(method, O).
 //          ii. If Type(result) is not Object, return result.
 //  6. Throw a TypeError exception.
+#[derive(Copy, Clone)]
 pub enum ConversionHint {
     String,
     Number,
@@ -672,7 +743,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
             vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")]
         }
     };
-    for name in method_names.iter() {
+    for name in &method_names {
         let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
@@ -710,23 +781,28 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
 //          objects may over-ride this behaviour by defining a @@toPrimitive method. Of the objects defined in this
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
-pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
-    if let ECMAScriptValue::Object(obj) = &input {
-        let exotic_to_prim = input.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
+impl Object {
+    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+        let exotic_to_prim = self.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
                 Some(ConversionHint::Number) => "number",
                 Some(ConversionHint::String) => "string",
             });
-            let result = call(&exotic_to_prim, &input, &[hint])?;
+            let result = call(&exotic_to_prim, &ECMAScriptValue::Object(self.clone()), &[hint])?;
             if !result.is_object() {
                 return Ok(result);
             }
             return Err(create_type_error("Cannot convert object to primitive value"));
         }
         let pt = preferred_type.unwrap_or(ConversionHint::Number);
-        ordinary_to_primitive(obj, pt)
+        ordinary_to_primitive(self, pt)
+    }
+}
+pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+    if let ECMAScriptValue::Object(obj) = &input {
+        obj.to_primitive(preferred_type)
     } else {
         Ok(input)
     }
@@ -758,9 +834,8 @@ impl From<ECMAScriptValue> for bool {
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
             ECMAScriptValue::String(s) => !s.is_empty(),
-            ECMAScriptValue::Symbol(_) => true,
+            ECMAScriptValue::Symbol(_) | ECMAScriptValue::Object(_) => true,
             ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
-            ECMAScriptValue::Object(_) => true,
         }
     }
 }
@@ -786,7 +861,7 @@ pub fn to_numeric(value: ECMAScriptValue) -> Completion<Numeric> {
     if let ECMAScriptValue::BigInt(bi) = prim_value {
         Ok(Numeric::BigInt(bi))
     } else {
-        Ok(Numeric::Number(to_number(prim_value)?))
+        Ok(Numeric::Number(prim_value.to_number()?))
     }
 }
 
@@ -817,83 +892,76 @@ pub fn to_numeric(value: ECMAScriptValue) -> Completion<Numeric> {
 // |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
 // |               |     2. Return ? ToNumber(primValue).                              |
 // +---------------+-------------------------------------------------------------------+
-pub fn to_number(value: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    match value.into() {
-        ECMAScriptValue::Undefined => Ok(f64::NAN),
-        ECMAScriptValue::Null => Ok(0_f64),
-        ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
-        ECMAScriptValue::Number(n) => Ok(n),
-        ECMAScriptValue::String(s) => Ok(string_to_number(s)),
-        ECMAScriptValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
-        ECMAScriptValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
-        ECMAScriptValue::Object(o) => {
-            let prim_value = to_primitive(ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
-            to_number(prim_value)
+impl ECMAScriptValue {
+    pub fn to_number(&self) -> Completion<f64> {
+        match self {
+            ECMAScriptValue::Undefined => Ok(f64::NAN),
+            ECMAScriptValue::Null => Ok(0_f64),
+            ECMAScriptValue::Boolean(b) => Ok(if *b { 1_f64 } else { 0_f64 }),
+            ECMAScriptValue::Number(n) => Ok(*n),
+            ECMAScriptValue::String(s) => Ok(s.to_number()),
+            ECMAScriptValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
+            ECMAScriptValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
+            ECMAScriptValue::Object(o) => {
+                to_primitive(ECMAScriptValue::from(o), Some(ConversionHint::Number))?.to_number()
+            }
         }
     }
 }
-pub fn to_number_agentless(value: impl Into<ECMAScriptValue>) -> anyhow::Result<f64> {
-    match value.into() {
-        ECMAScriptValue::Undefined => Ok(f64::NAN),
-        ECMAScriptValue::Null => Ok(0_f64),
-        ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
-        ECMAScriptValue::Number(n) => Ok(n),
-        ECMAScriptValue::String(s) => Ok(string_to_number(s)),
-        ECMAScriptValue::BigInt(_) => Err(anyhow!("BigInt values cannot be converted to Number values")),
-        ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbol values cannot be converted to Number values")),
-        ECMAScriptValue::Object(_) => Err(anyhow!("Number conversion from objects requires an agent")),
-    }
-}
 
-fn string_to_number(string: JSString) -> f64 {
-    lazy_static! {
-        static ref STR_WHITE_SPACE: &'static str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
-        static ref DECIMAL_DIGITS: &'static str = "(?:[0-9]+)";
-        static ref EXPONENT_PART: &'static str = "(?:[eE][-+]?[0-9]+)";
-        static ref STR_UNSIGNED_DECIMAL_LITERAL: String = format!(
-            r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)",
-            *DECIMAL_DIGITS,
-            *DECIMAL_DIGITS,
-            *EXPONENT_PART,
-            *DECIMAL_DIGITS,
-            *EXPONENT_PART,
-            *DECIMAL_DIGITS,
-            *EXPONENT_PART
-        );
-        static ref STR_DECIMAL_LITERAL: String = format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL);
-        static ref BINARY_INTEGER_LITERAL: &'static str = "(?:0[bB](?P<binary>[01]+))";
-        static ref OCTAL_INTEGER_LITERAL: &'static str = "(?:0[oO](?P<octal>[0-7]+))";
-        static ref HEX_INTEGER_LITERAL: &'static str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
-        static ref NONDECIMAL_INTEGER_LITERAL: String =
-            format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
-        static ref STR_NUMERIC_LITERAL: String =
-            format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
-        static ref STRING_NUMERIC_LITERAL: String =
-            format!("^(?:{}?|{}?{}{}?)$", *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE);
-        static ref MATCHER: Regex = Regex::new(&STRING_NUMERIC_LITERAL).unwrap();
-    }
+impl JSString {
+    pub fn to_number(&self) -> f64 {
+        lazy_static! {
+            static ref STR_WHITE_SPACE: &'static str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
+            static ref DECIMAL_DIGITS: &'static str = "(?:[0-9]+)";
+            static ref EXPONENT_PART: &'static str = "(?:[eE][-+]?[0-9]+)";
+            static ref STR_UNSIGNED_DECIMAL_LITERAL: String = format!(
+                r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)",
+                *DECIMAL_DIGITS,
+                *DECIMAL_DIGITS,
+                *EXPONENT_PART,
+                *DECIMAL_DIGITS,
+                *EXPONENT_PART,
+                *DECIMAL_DIGITS,
+                *EXPONENT_PART
+            );
+            static ref STR_DECIMAL_LITERAL: String = format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL);
+            static ref BINARY_INTEGER_LITERAL: &'static str = "(?:0[bB](?P<binary>[01]+))";
+            static ref OCTAL_INTEGER_LITERAL: &'static str = "(?:0[oO](?P<octal>[0-7]+))";
+            static ref HEX_INTEGER_LITERAL: &'static str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
+            static ref NONDECIMAL_INTEGER_LITERAL: String =
+                format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
+            static ref STR_NUMERIC_LITERAL: String =
+                format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
+            static ref STRING_NUMERIC_LITERAL: String = format!(
+                "^(?:{}?|{}?{}{}?)$",
+                *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE
+            );
+            static ref MATCHER: Regex = Regex::new(&STRING_NUMERIC_LITERAL).unwrap();
+        }
 
-    let number_string = String::from(string);
-    match MATCHER.captures(&number_string) {
-        None => f64::NAN,
-        Some(captures) => captures.name("decimal").map_or_else(
-            || {
-                captures.name("binary").map_or_else(
-                    || {
-                        captures.name("octal").map_or_else(
-                            || {
-                                captures.name("hex").map_or(0.0, |hex| {
-                                    BigUint::from_str_radix(hex.as_str(), 16).unwrap().to_f64().unwrap()
-                                })
-                            },
-                            |octal| BigUint::from_str_radix(octal.as_str(), 8).unwrap().to_f64().unwrap(),
-                        )
-                    },
-                    |binary| BigUint::from_str_radix(binary.as_str(), 2).unwrap().to_f64().unwrap(),
-                )
-            },
-            |s| s.as_str().parse::<f64>().unwrap(),
-        ),
+        let number_string = String::from(self);
+        match MATCHER.captures(&number_string) {
+            None => f64::NAN,
+            Some(captures) => captures.name("decimal").map_or_else(
+                || {
+                    captures.name("binary").map_or_else(
+                        || {
+                            captures.name("octal").map_or_else(
+                                || {
+                                    captures.name("hex").map_or(0.0, |hex| {
+                                        BigUint::from_str_radix(hex.as_str(), 16).unwrap().to_f64().unwrap()
+                                    })
+                                },
+                                |octal| BigUint::from_str_radix(octal.as_str(), 8).unwrap().to_f64().unwrap(),
+                            )
+                        },
+                        |binary| BigUint::from_str_radix(binary.as_str(), 2).unwrap().to_f64().unwrap(),
+                    )
+                },
+                |s| s.as_str().parse::<f64>().unwrap(),
+            ),
+        }
     }
 }
 
@@ -910,19 +978,43 @@ fn string_to_number(string: JSString) -> f64 {
 //  5. Let integer be floor(abs(ℝ(number))).
 //  6. If number < +0𝔽, set integer to -integer.
 //  7. Return integer.
-pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    let number = to_number(argument)?;
+impl ECMAScriptValue {
+    pub fn to_integer_or_infinity(&self) -> Completion<f64> {
+        Ok(to_integer_or_infinity(self.to_number()?))
+    }
+}
+pub fn to_integer_or_infinity(number: f64) -> f64 {
     if number.is_nan() || number == 0.0 {
-        Ok(0.0)
+        0.0
     } else if number.is_infinite() {
-        Ok(number)
+        number
     } else {
         let integer = number.abs().floor();
         if number < 0.0 {
-            Ok(-integer)
+            -integer
         } else {
-            Ok(integer)
+            integer
         }
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_sign_loss)]
+pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
+    if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
+        Ok(arg as usize)
+    } else {
+        Err(anyhow!("invalid conversion of {arg} to usize"))
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+pub fn to_f64(arg: usize) -> anyhow::Result<f64> {
+    if arg <= 1 << 53 {
+        Ok(arg as f64)
+    } else {
+        bail!("invalid conversion of {arg} to f64");
     }
 }
 
@@ -944,38 +1036,46 @@ pub fn to_integer_or_infinity(argument: impl Into<ECMAScriptValue>) -> Completio
 //      | * ToInt32(ToUint32(x)) is the same value as ToInt32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToInt32 maps -0𝔽 to +0𝔽.
-fn to_core_int(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    Ok({
-        let number = to_number(argument)?;
-        if !number.is_finite() || number == 0.0 {
-            0.0
-        } else {
-            let i = number.signum() * number.abs().floor();
-            i % modulo
-        }
-    })
-}
-fn to_core_int_agentless(modulo: f64, argument: impl Into<ECMAScriptValue>) -> anyhow::Result<f64> {
-    let number = to_number_agentless(argument)?;
+fn to_core_int_f64(modulo: f64, number: f64) -> f64 {
     if !number.is_finite() || number == 0.0 {
-        Ok(0.0)
+        0.0
     } else {
         let i = number.signum() * number.abs().floor();
-        Ok(i % modulo)
+        i % modulo
     }
 }
-fn to_core_signed(modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
-    Ok({
-        let intval = to_core_int(modulo, argument)?;
-        if intval >= modulo / 2.0 {
-            intval - modulo
-        } else {
-            intval
-        }
-    })
+impl ECMAScriptValue {
+    fn to_core_int(&self, modulo: f64) -> Completion<f64> {
+        Ok(to_core_int_f64(modulo, self.to_number()?))
+    }
 }
-pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
-    Ok(to_core_signed(4294967296.0, argument)? as i32)
+impl JSString {
+    pub fn to_core_int(&self, modulo: f64) -> f64 {
+        let number = self.to_number();
+        to_core_int_f64(modulo, number)
+    }
+}
+fn to_core_signed_f64(modulo: f64, number: f64) -> f64 {
+    let intval = to_core_int_f64(modulo, number);
+    if intval >= modulo / 2.0 {
+        intval - modulo
+    } else {
+        intval
+    }
+}
+impl ECMAScriptValue {
+    fn to_core_signed(&self, modulo: f64) -> Completion<f64> {
+        Ok(to_core_signed_f64(modulo, self.to_number()?))
+    }
+}
+#[allow(clippy::cast_possible_truncation)]
+pub fn to_int32_f64(number: f64) -> i32 {
+    to_core_signed_f64(4_294_967_296.0, number) as i32
+}
+impl ECMAScriptValue {
+    pub fn to_int32(&self) -> Completion<i32> {
+        Ok(to_int32_f64(self.to_number()?))
+    }
 }
 
 // ToUint32 ( argument )
@@ -997,13 +1097,20 @@ pub fn to_int32(argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
-pub fn to_uint32(argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
-    let i = to_core_int(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+#[allow(clippy::cast_possible_truncation)]
+pub fn to_uint32_f64(number: f64) -> u32 {
+    let i = to_core_int_f64(4_294_967_296.0, number) as i64;
+    (if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation")
 }
-pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Result<u32> {
-    let i = to_core_int_agentless(4294967296.0, argument)? as i64;
-    Ok((if i < 0 { i + 4294967296 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+impl ECMAScriptValue {
+    pub fn to_uint32(&self) -> Completion<u32> {
+        Ok(to_uint32_f64(self.to_number()?))
+    }
+}
+impl JSString {
+    pub fn to_uint32(&self) -> u32 {
+        to_uint32_f64(self.to_number())
+    }
 }
 
 // ToInt16 ( argument )
@@ -1016,8 +1123,14 @@ pub fn to_uint32_agentless(argument: impl Into<ECMAScriptValue>) -> anyhow::Resu
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
-pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
-    Ok(to_core_signed(65536.0, argument)? as i16)
+#[allow(clippy::cast_possible_truncation)]
+pub fn to_int16_f64(number: f64) -> i16 {
+    to_core_signed_f64(65536.0, number) as i16
+}
+impl ECMAScriptValue {
+    pub fn to_int16(&self) -> Completion<i16> {
+        Ok(to_int16_f64(self.to_number()?))
+    }
 }
 
 // ToUint16 ( argument )
@@ -1035,9 +1148,15 @@ pub fn to_int16(argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
-pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
-    let i = to_core_int(65536.0, argument)? as i64;
-    Ok((if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+#[allow(clippy::cast_possible_truncation)]
+pub fn to_uint16_f64(number: f64) -> u16 {
+    let i = to_core_int_f64(65536.0, number) as i64;
+    (if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation")
+}
+impl ECMAScriptValue {
+    pub fn to_uint16(&self) -> Completion<u16> {
+        Ok(to_uint16_f64(self.to_number()?))
+    }
 }
 
 // ToInt8 ( argument )
@@ -1050,8 +1169,11 @@ pub fn to_uint16(argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
-pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
-    Ok(to_core_signed(256.0, argument)? as i8)
+impl ECMAScriptValue {
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn to_int8(&self) -> Completion<i8> {
+        Ok(self.to_core_signed(256.0)? as i8)
+    }
 }
 
 // ToUint8 ( argument )
@@ -1064,9 +1186,12 @@ pub fn to_int8(argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
-pub fn to_uint8(argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
-    let i = to_core_int(256.0, argument)? as i64;
-    Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+impl ECMAScriptValue {
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn to_uint8(&self) -> Completion<u8> {
+        let i = self.to_core_int(256.0)? as i64;
+        Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+    }
 }
 
 // ToString ( argument )
@@ -1097,8 +1222,13 @@ pub fn to_uint8(argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
 // |               |      1. Let primValue be ? ToPrimitive(argument, string). |
 // |               |      2. Return ? ToString(primValue).                     |
 // +---------------+-----------------------------------------------------------+
-pub fn to_string(val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
-    let val = val.into();
+impl Object {
+    pub fn to_string(&self) -> Completion<JSString> {
+        let prim_value = self.to_primitive(Some(ConversionHint::String))?;
+        to_string(prim_value)
+    }
+}
+pub fn to_string(val: ECMAScriptValue) -> Completion<JSString> {
     if val.is_object() {
         let prim_value = to_primitive(val, Some(ConversionHint::String))?;
         to_string(prim_value)
@@ -1107,8 +1237,22 @@ pub fn to_string(val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
     }
 }
 
-pub fn to_string_agentless(val: impl Into<ECMAScriptValue>) -> anyhow::Result<JSString> {
-    JSString::try_from(val.into())
+impl From<f64> for JSString {
+    fn from(n: f64) -> Self {
+        let mut s = Vec::new();
+        number_to_string(&mut s, n).unwrap();
+        JSString::from(s)
+    }
+}
+impl From<u32> for JSString {
+    fn from(n: u32) -> Self {
+        Self::from(f64::from(n))
+    }
+}
+impl From<i64> for JSString {
+    fn from(n: i64) -> Self {
+        Self::from(n.to_string())
+    }
 }
 
 impl TryFrom<ECMAScriptValue> for JSString {
@@ -1119,16 +1263,16 @@ impl TryFrom<ECMAScriptValue> for JSString {
             ECMAScriptValue::Null => Ok(JSString::from("null")),
             ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
             ECMAScriptValue::String(s) => Ok(s),
-            ECMAScriptValue::Number(n) => {
-                let mut s = Vec::new();
-                number_to_string(&mut s, n).unwrap();
-                Ok(JSString::from(s))
-            }
-            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
+            ECMAScriptValue::Number(n) => Ok(JSString::from(n)),
+            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(bi)),
             ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
             ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
         }
     }
+}
+
+pub fn bigint_to_string_radix(bi: &Rc<BigInt>, radix: u32) -> JSString {
+    bi.to_str_radix(radix).into()
 }
 
 // ToObject ( argument )
@@ -1149,16 +1293,16 @@ impl TryFrom<ECMAScriptValue> for JSString {
 // | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
 // | Object        | Return argument.                                                                    |
 // +---------------+-------------------------------------------------------------------------------------+
-pub fn to_object(val: impl Into<ECMAScriptValue>) -> Completion<Object> {
-    match val.into() {
+pub fn to_object(val: ECMAScriptValue) -> Completion<Object> {
+    match val {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => {
             Err(create_type_error("Undefined and null cannot be converted to objects"))
         }
-        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(b)),
-        ECMAScriptValue::Number(n) => Ok(create_number_object(n)),
-        ECMAScriptValue::String(s) => Ok(create_string_object(s)),
-        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(s)),
-        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(b)),
+        ECMAScriptValue::Boolean(b) => Ok(Object::from(b)),
+        ECMAScriptValue::Number(n) => Ok(Object::from(n)),
+        ECMAScriptValue::String(s) => Ok(Object::from(s)),
+        ECMAScriptValue::Symbol(s) => Ok(Object::from(s)),
+        ECMAScriptValue::BigInt(b) => Ok(Object::from(b)),
         ECMAScriptValue::Object(o) => Ok(o),
     }
 }
@@ -1188,9 +1332,15 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
+#[allow(clippy::cast_possible_truncation)]
+impl ECMAScriptValue {
+    pub fn to_length(&self) -> Completion<i64> {
+        let len = self.to_integer_or_infinity()?;
+        Ok(len.clamp(0.0, 9_007_199_254_740_991.0) as i64)
+    }
+}
 pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
-    let len = to_integer_or_infinity(argument)?;
-    Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
+    argument.into().to_length()
 }
 
 // CanonicalNumericIndexString ( argument )
@@ -1206,12 +1356,12 @@ pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
 //
 // A canonical numeric string is any String value for which the CanonicalNumericIndexString abstract operation does not
 // return undefined.
-pub fn canonical_numeric_index_string(argument: JSString) -> Option<f64> {
-    if argument == "-0" {
+pub fn canonical_numeric_index_string(argument: &JSString) -> Option<f64> {
+    if *argument == "-0" {
         Some(-0.0)
     } else {
-        let n = to_number_agentless(argument.clone()).unwrap();
-        if argument == to_string_agentless(n).unwrap() {
+        let n = argument.to_number();
+        if *argument == JSString::from(n) {
             Some(n)
         } else {
             None
@@ -1238,12 +1388,13 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     if value == ECMAScriptValue::Undefined {
         Ok(0)
     } else {
-        let integer = to_integer_or_infinity(value)?;
+        let integer = value.to_integer_or_infinity()?;
         let clamped = to_length(integer).unwrap();
-        if clamped as f64 != integer {
-            Err(create_range_error(format!("{} out of range for index", integer).as_str()))
-        } else {
+        #[allow(clippy::cast_precision_loss)]
+        if clamped as f64 == integer {
             Ok(clamped)
+        } else {
+            Err(create_range_error(format!("{integer} out of range for index").as_str()))
         }
     }
 }
@@ -1280,11 +1431,20 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
 }
 
 impl ECMAScriptValue {
+    pub fn as_constructor(&self) -> Option<&Object> {
+        if let Self::Object(o) = self {
+            if o.is_constructor() {
+                return Some(o);
+            }
+        }
+        None
+    }
+
     #[inline]
     pub fn same_value_non_numeric(&self, other: &ECMAScriptValue) -> bool {
         match (self, other) {
-            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => true,
-            (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
+            (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+            | (ECMAScriptValue::Null, ECMAScriptValue::Null) => true,
             (ECMAScriptValue::String(a), ECMAScriptValue::String(b)) => a == b,
             (ECMAScriptValue::Boolean(a), ECMAScriptValue::Boolean(b)) => a == b,
             (ECMAScriptValue::Symbol(a), ECMAScriptValue::Symbol(b)) => a == b,
@@ -1363,11 +1523,11 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
             Ok(true)
         }
         (ECMAScriptValue::Number(_), ECMAScriptValue::String(y)) => {
-            let new_y = ECMAScriptValue::from(to_number(y).expect("Strings are always convertable to numbers"));
+            let new_y = ECMAScriptValue::from(y.to_number());
             is_loosely_equal(x, &new_y)
         }
         (ECMAScriptValue::String(x), ECMAScriptValue::Number(_)) => {
-            let new_x = ECMAScriptValue::from(to_number(x).expect("Strings are always convertable to numbers"));
+            let new_x = ECMAScriptValue::from(x.to_number());
             is_loosely_equal(&new_x, y)
         }
         (ECMAScriptValue::BigInt(_), ECMAScriptValue::String(y)) => {
@@ -1379,26 +1539,30 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
         }
         (ECMAScriptValue::String(_), ECMAScriptValue::BigInt(_)) => is_loosely_equal(y, x),
         (ECMAScriptValue::Boolean(_), _) => {
-            let new_x =
-                ECMAScriptValue::from(to_number(x.clone()).expect("Booleans are always convertable to numbers"));
+            let new_x = ECMAScriptValue::from(x.to_number().expect("Booleans are always convertable to numbers"));
             is_loosely_equal(&new_x, y)
         }
         (_, ECMAScriptValue::Boolean(_)) => {
-            let new_y =
-                ECMAScriptValue::from(to_number(y.clone()).expect("Booleans are always convertable to numbers"));
+            let new_y = ECMAScriptValue::from(y.to_number().expect("Booleans are always convertable to numbers"));
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::String(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Number(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::BigInt(_), ECMAScriptValue::Object(_))
-        | (ECMAScriptValue::Symbol(_), ECMAScriptValue::Object(_)) => {
+        (
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+            ECMAScriptValue::Object(_),
+        ) => {
             let new_y = to_primitive(y.clone(), None)?;
             is_loosely_equal(x, &new_y)
         }
-        (ECMAScriptValue::Object(_), ECMAScriptValue::String(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Number(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::BigInt(_))
-        | (ECMAScriptValue::Object(_), ECMAScriptValue::Symbol(_)) => {
+        (
+            ECMAScriptValue::Object(_),
+            ECMAScriptValue::String(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Symbol(_),
+        ) => {
             let new_x = to_primitive(x.clone(), None)?;
             is_loosely_equal(&new_x, y)
         }
@@ -1406,12 +1570,79 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
         | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
             Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
         }
-        (ECMAScriptValue::Undefined, _)
-        | (ECMAScriptValue::Null, _)
-        | (ECMAScriptValue::Symbol(_), _)
-        | (_, ECMAScriptValue::Undefined)
-        | (_, ECMAScriptValue::Null)
-        | (_, ECMAScriptValue::Symbol(_)) => Ok(false),
+        (ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_), _)
+        | (_, ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_)) => Ok(false),
+    }
+}
+
+pub fn exponentiate(base: f64, exponent: f64) -> f64 {
+    // Number::exponentiate ( base, exponent )
+    // The abstract operation Number::exponentiate takes arguments base (a Number) and exponent (a Number) and returns a
+    // Number. It returns an implementation-approximated value representing the result of raising base to the exponent
+    // power. It performs the following steps when called:
+    //
+    //  1. If exponent is NaN, return NaN.
+    //  2. If exponent is either +0𝔽 or -0𝔽, return 1𝔽.
+    //  3. If base is NaN, return NaN.
+    //  4. If base is +∞𝔽, then
+    //      a. If exponent > +0𝔽, return +∞𝔽. Otherwise, return +0𝔽.
+    //  5. If base is -∞𝔽, then
+    //      a. If exponent > +0𝔽, then
+    //          i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+    //      b. Else,
+    //          i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+    //  6. If base is +0𝔽, then
+    //      a. If exponent > +0𝔽, return +0𝔽. Otherwise, return +∞𝔽.
+    //  7. If base is -0𝔽, then
+    //      a. If exponent > +0𝔽, then
+    //          i. If exponent is an odd integral Number, return -0𝔽. Otherwise, return +0𝔽.
+    //      b. Else,
+    //          i. If exponent is an odd integral Number, return -∞𝔽. Otherwise, return +∞𝔽.
+    //  8. Assert: base is finite and is neither +0𝔽 nor -0𝔽.
+    //  9. If exponent is +∞𝔽, then
+    //      a. If abs(ℝ(base)) > 1, return +∞𝔽.
+    //      b. If abs(ℝ(base)) = 1, return NaN.
+    //      c. If abs(ℝ(base)) < 1, return +0𝔽.
+    //  10. If exponent is -∞𝔽, then
+    //      a. If abs(ℝ(base)) > 1, return +0𝔽.
+    //      b. If abs(ℝ(base)) = 1, return NaN.
+    //      c. If abs(ℝ(base)) < 1, return +∞𝔽.
+    //  11. Assert: exponent is finite and is neither +0𝔽 nor -0𝔽.
+    //  12. If base < -0𝔽 and exponent is not an integral Number, return NaN.
+    //  13. Return an implementation-approximated Number value representing the result of raising ℝ(base) to the
+    //      ℝ(exponent) power.
+    // NOTE The result of base ** exponent when base is 1𝔽 or -1𝔽 and exponent is +∞𝔽 or -∞𝔽, or when base is 1𝔽
+    // and exponent is NaN, differs from IEEE 754-2019. The first edition of ECMAScript specified a result of NaN for
+    // this operation, whereas later revisions of IEEE 754 specified 1𝔽. The historical ECMAScript behaviour is
+    // preserved for compatibility reasons.
+    if exponent.is_nan() {
+        return f64::NAN;
+    }
+    if exponent == 0.0 {
+        return 1.0;
+    }
+    if base.is_nan() {
+        return f64::NAN;
+    }
+    if base.is_infinite() || base == 0.0 || exponent.is_finite() {
+        return base.powf(exponent);
+    }
+
+    let b = base.abs();
+    if exponent > 0.0 {
+        if b > 1.0 {
+            f64::INFINITY
+        } else if b < 1.0 {
+            0.0
+        } else {
+            f64::NAN
+        }
+    } else if b > 1.0 {
+        0.0
+    } else if b < 1.0 {
+        f64::INFINITY
+    } else {
+        f64::NAN
     }
 }
 

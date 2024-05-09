@@ -111,20 +111,20 @@ mod provision_generator_function_intrinsics {
     }
 }
 
-#[test_case("a value".into(), true; "is done")]
-#[test_case(ECMAScriptValue::Undefined, false; "not done")]
-fn create_iter_result_object(value: ECMAScriptValue, done: bool) {
+#[test_case(&"a value".into(), true; "is done")]
+#[test_case(&ECMAScriptValue::Undefined, false; "not done")]
+fn create_iter_result_object(value: &ECMAScriptValue, done: bool) {
     setup_test_agent();
     let obj = super::create_iter_result_object(value.clone(), done);
     let value_res = obj.get(&"value".into()).unwrap();
     let done_res = obj.get(&"done".into()).unwrap();
 
-    assert_eq!(value_res, value);
+    assert_eq!(value_res, value.clone());
     assert_eq!(done_res, ECMAScriptValue::from(done));
 }
 
 #[test_case(|| ECMAScriptValue::Undefined, "" => serr("TypeError: Generator required"); "not an object")]
-#[test_case(|| create_string_object("blue".into()).into(), "" => serr("TypeError: Generator required"); "not a generator")]
+#[test_case(|| Object::from("blue").into(), "" => serr("TypeError: Generator required"); "not a generator")]
 #[test_case(|| {
         let proto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
         GeneratorObject::object(Some(proto), GeneratorState::SuspendedStart, "TestingBrand").into()
@@ -143,7 +143,7 @@ fn generator_validate(
 ) -> Result<GeneratorState, String> {
     setup_test_agent();
     let value = make_value();
-    super::generator_validate(value, desired_brand).map_err(unwind_any_error)
+    super::generator_validate(&value, desired_brand).map_err(unwind_any_error)
 }
 
 #[test_case(|| ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined); "pass-thru/undefined")]
@@ -151,7 +151,7 @@ fn generator_validate(
 fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::iterator_prototype_iterator(this_value, None, &[]).map_err(unwind_any_error)
+    super::iterator_prototype_iterator(&this_value, None, &[]).map_err(unwind_any_error)
 }
 
 tbd_function!(generator_function);
@@ -173,7 +173,7 @@ mod generator_prototype_next {
         setup_test_agent();
         let (this_value, arguments) = make_params();
         let result_obj =
-            super::generator_prototype_next(this_value, None, arguments.as_slice()).map_err(unwind_any_error)?;
+            super::generator_prototype_next(&this_value, None, arguments.as_slice()).map_err(unwind_any_error)?;
         result_obj.get(&"value".into()).map_err(unwind_any_error)
     }
 
@@ -183,7 +183,7 @@ mod generator_prototype_next {
         let (this_value, _) = list_iterator_sample();
         let mut results = vec![];
         loop {
-            let it_obj = super::generator_prototype_next(this_value.clone(), None, &[]).unwrap();
+            let it_obj = super::generator_prototype_next(&this_value.clone(), None, &[]).unwrap();
             let done = it_obj.get(&"done".into()).unwrap();
             if bool::from(done) {
                 break;
@@ -206,7 +206,7 @@ mod list_iterator {
 
     #[test]
     fn happypath() {
-        generator_prototype_next::multi()
+        generator_prototype_next::multi();
     }
 
     #[test]
@@ -215,8 +215,8 @@ mod list_iterator {
         let ir = super::super::create_list_iterator_record(vec![ECMAScriptValue::from(10), ECMAScriptValue::from(2)]);
         let this_value = ECMAScriptValue::from(ir.iterator);
         let ac = AbruptCompletion::Return { value: ECMAScriptValue::from("return token") };
-        generator_resume(this_value.clone(), ECMAScriptValue::Undefined, "").unwrap();
-        let res = generator_resume_abrupt(this_value, ac, "").unwrap();
+        generator_resume(&this_value, ECMAScriptValue::Undefined, "").unwrap();
+        let res = generator_resume_abrupt(&this_value, ac, "").unwrap();
         let val = res.get(&"value".into()).unwrap();
         assert_eq!(val, "return token".into());
     }
@@ -238,7 +238,7 @@ fn create_list_iterator_record() {
     assert!(ir.iterator.o.to_generator_object().is_some());
     let mut results = vec![];
     loop {
-        let item = generator_resume(ir.iterator.clone().into(), ECMAScriptValue::Undefined, "").unwrap();
+        let item = generator_resume(&ir.iterator.clone().into(), ECMAScriptValue::Undefined, "").unwrap();
         let done = item.get(&"done".into()).unwrap();
         if bool::from(done) {
             break;
@@ -286,7 +286,7 @@ mod generator_data {
             generator_context: None,
             generator_brand: "Testerino".to_owned(),
         };
-        assert_ne!(format!("{:?}", item), "");
+        assert_ne!(format!("{item:?}"), "");
     }
 }
 
@@ -310,6 +310,14 @@ mod generator_error {
     #[test_case(GeneratorError::NotAGenerator, GeneratorError::BrandMismatch => false; "not equal")]
     fn eq(left: GeneratorError, right: GeneratorError) -> bool {
         left == right
+    }
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn clone() {
+        let item = GeneratorError::AlreadyActive;
+        let copy = item.clone();
+        assert_eq!(copy, GeneratorError::AlreadyActive);
     }
 }
 
@@ -342,36 +350,40 @@ mod generator_object {
         GeneratorObject::object(Some(gp), GeneratorState::Undefined, "TestingBrand")
     }
 
-    false_function!(is_boolean_object);
-    false_function!(is_string_object);
-    false_function!(is_proxy_object);
-    false_function!(is_symbol_object);
-    false_function!(is_date_object);
-    false_function!(is_plain_object);
     false_function!(is_arguments_object);
+    false_function!(is_array_object);
+    false_function!(is_bigint_object);
+    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
+    false_function!(is_date_object);
     false_function!(is_error_object);
     false_function!(is_number_object);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_array_object);
-    none_function!(to_number_obj);
-    none_function!(to_error_obj);
-    none_function!(to_symbol_obj);
-    none_function!(to_function_obj);
+    false_function!(is_string_object);
+    false_function!(is_symbol_object);
+    none_function!(to_arguments_object);
+    none_function!(to_array_object);
+    none_function!(to_bigint_object);
+    none_function!(to_boolean_obj);
+    none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_builtin_function_obj);
-    none_function!(to_arguments_object);
+    none_function!(to_error_obj);
+    none_function!(to_for_in_iterator);
+    none_function!(to_function_obj);
+    none_function!(to_number_obj);
+    none_function!(to_proxy_object);
     none_function!(to_string_obj);
-    none_function!(to_array_object);
-    none_function!(to_boolean_obj);
+    none_function!(to_symbol_obj);
 
     #[test]
     fn debug() {
         setup_test_agent();
         let obj = make();
         let go = obj.o.to_generator_object().unwrap();
-        assert_ne!(format!("{:?}", go), "");
+        assert_ne!(format!("{go:?}"), "");
     }
 
     #[test]
@@ -449,7 +461,7 @@ mod create_iterator_from_closure {
         let mut results = vec![];
         let mut iter_index = 1;
         loop {
-            let item = generator_resume(iter.clone(), ECMAScriptValue::from(iter_index), "").unwrap();
+            let item = generator_resume(&iter.clone(), ECMAScriptValue::from(iter_index), "").unwrap();
             iter_index += 1;
             let done = item.get(&"done".into()).unwrap();
             let value = item.get(&"value".into()).unwrap();
@@ -482,7 +494,7 @@ mod generator_resume {
     fn invalid() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        let item = generator_resume(iter, ECMAScriptValue::from(632), "bogus").unwrap_err();
+        let item = generator_resume(&iter, ECMAScriptValue::from(632), "bogus").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("TypeError: Generator brand mismatch"));
     }
 
@@ -490,7 +502,7 @@ mod generator_resume {
     fn suspended_start() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        let item = generator_resume(iter, ECMAScriptValue::from(987), "").unwrap();
+        let item = generator_resume(&iter, ECMAScriptValue::from(987), "").unwrap();
 
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 1"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
@@ -500,8 +512,8 @@ mod generator_resume {
     fn suspended_yield() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(813), "").unwrap();
-        let item = generator_resume(iter, ECMAScriptValue::from(123), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(813), "").unwrap();
+        let item = generator_resume(&iter, ECMAScriptValue::from(123), "").unwrap();
 
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 2: [123]"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
@@ -511,9 +523,9 @@ mod generator_resume {
     fn first_completion() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(81), "").unwrap();
-        let item = generator_resume(iter, ECMAScriptValue::from(6581), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(81), "").unwrap();
+        let item = generator_resume(&iter, ECMAScriptValue::from(6581), "").unwrap();
 
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::Undefined);
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
@@ -523,10 +535,10 @@ mod generator_resume {
     fn second_completion() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(81), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(6581), "").unwrap();
-        let item = generator_resume(iter, ECMAScriptValue::from(3), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(81), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(6581), "").unwrap();
+        let item = generator_resume(&iter, ECMAScriptValue::from(3), "").unwrap();
 
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::Undefined);
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
@@ -563,7 +575,7 @@ mod generator_resume_abrupt {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
         let ac = AbruptCompletion::Throw { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter, ac, "bogus").unwrap_err();
+        let item = generator_resume_abrupt(&iter, ac, "bogus").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("TypeError: Generator brand mismatch"));
     }
 
@@ -572,7 +584,7 @@ mod generator_resume_abrupt {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
         let ac = AbruptCompletion::Throw { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter.clone(), ac, "").unwrap_err();
+        let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
         let gen = obj.o.to_generator_object().unwrap();
@@ -584,7 +596,7 @@ mod generator_resume_abrupt {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
         let ac = AbruptCompletion::Return { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter.clone(), ac, "").unwrap();
+        let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap();
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Testing Sentinel"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
         let obj = Object::try_from(iter).unwrap();
@@ -596,12 +608,12 @@ mod generator_resume_abrupt {
     fn completed_throw() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(81), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(711), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(81), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(711), "").unwrap();
 
         let ac = AbruptCompletion::Throw { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter, ac, "").unwrap_err();
+        let item = generator_resume_abrupt(&iter, ac, "").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
     }
 
@@ -609,12 +621,12 @@ mod generator_resume_abrupt {
     fn completed_return() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(81), "").unwrap();
-        generator_resume(iter.clone(), ECMAScriptValue::from(711), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(81), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(711), "").unwrap();
 
         let ac = AbruptCompletion::Return { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter, ac, "").unwrap();
+        let item = generator_resume_abrupt(&iter, ac, "").unwrap();
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Testing Sentinel"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
     }
@@ -623,9 +635,9 @@ mod generator_resume_abrupt {
     fn suspended_yield_rethrows() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
         let ac = AbruptCompletion::Throw { value: ECMAScriptValue::from("Testing Sentinel") };
-        let item = generator_resume_abrupt(iter.clone(), ac, "").unwrap_err();
+        let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
         let gen = obj.o.to_generator_object().unwrap();
@@ -636,9 +648,9 @@ mod generator_resume_abrupt {
     fn suspended_yield_handled() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
         let ac = AbruptCompletion::Throw { value: ECMAScriptValue::from("special") };
-        let item = generator_resume_abrupt(iter.clone(), ac, "").unwrap();
+        let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap();
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 2: [special]"));
         let obj = Object::try_from(iter).unwrap();
@@ -677,8 +689,8 @@ mod generator_yield {
     fn normal() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        let item = generator_resume(iter, ECMAScriptValue::from(732), "").unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        let item = generator_resume(&iter, ECMAScriptValue::from(732), "").unwrap();
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("732"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
     }
@@ -687,9 +699,10 @@ mod generator_yield {
     fn abrupt_return() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(gen_vals), "", None));
-        generator_resume(iter.clone(), ECMAScriptValue::from(523), "").unwrap();
-        let item = generator_resume_abrupt(iter, AbruptCompletion::Throw { value: ECMAScriptValue::from("olive") }, "")
-            .unwrap();
+        generator_resume(&iter.clone(), ECMAScriptValue::from(523), "").unwrap();
+        let item =
+            generator_resume_abrupt(&iter, AbruptCompletion::Throw { value: ECMAScriptValue::from("olive") }, "")
+                .unwrap();
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Throw(olive)"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
     }
@@ -731,7 +744,7 @@ mod gen_caller {
     fn normal() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(returns_normal), "", None));
-        let val = generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap();
+        let val = generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap();
         assert_eq!(val.get(&"value".into()).unwrap(), ECMAScriptValue::Undefined);
         assert_eq!(val.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
     }
@@ -740,10 +753,10 @@ mod gen_caller {
     fn multiple() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(multi), "", None));
-        let val = generator_resume(iter.clone(), ECMAScriptValue::Undefined, "").unwrap();
+        let val = generator_resume(&iter.clone(), ECMAScriptValue::Undefined, "").unwrap();
         assert_eq!(val.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 1"));
         assert_eq!(val.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
-        let val = generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap();
+        let val = generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap();
         assert_eq!(val.get(&"value".into()).unwrap(), ECMAScriptValue::Undefined);
         assert_eq!(val.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
     }
@@ -752,7 +765,7 @@ mod gen_caller {
     fn r_return() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(returns_return), "", None));
-        let val = generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap();
+        let val = generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap();
         assert_eq!(val.get(&"value".into()).unwrap(), ECMAScriptValue::Null);
         assert_eq!(val.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
     }
@@ -761,20 +774,20 @@ mod gen_caller {
     fn r_continue() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(returns_continue), "", None));
-        generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap();
+        generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap();
     }
     #[test]
     #[should_panic(expected = "Invalid generator return value")]
     fn r_break() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(returns_break), "", None));
-        generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap();
+        generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap();
     }
     #[test]
     fn r_throw() {
         setup_test_agent();
         let iter = ECMAScriptValue::from(create_iterator_from_closure(asyncfn_wrap(returns_throw), "", None));
-        let ac = generator_resume(iter, ECMAScriptValue::Undefined, "").unwrap_err();
+        let ac = generator_resume(&iter, ECMAScriptValue::Undefined, "").unwrap_err();
         assert_eq!(unwind_any_error(ac), String::from("throw"));
     }
 }
@@ -817,8 +830,9 @@ mod get_iterator_from_method {
     fn object() -> ECMAScriptValue {
         ECMAScriptValue::from(intrinsic(IntrinsicId::Object))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn create_dead_object(
-        _: ECMAScriptValue,
+        _: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -836,8 +850,9 @@ mod get_iterator_from_method {
             None,
         ))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -927,8 +942,9 @@ mod get_iterator {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1014,8 +1030,9 @@ mod iterator_record {
     use super::*;
     use test_case::test_case;
 
+    #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1048,9 +1065,10 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn iterator_next(
-        this_value: ECMAScriptValue,
-        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        this_value: &ECMAScriptValue,
+        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj = ordinary_object_create(Some(iter_proto), &[]);
@@ -1081,8 +1099,9 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn ok_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         args: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1093,17 +1112,18 @@ mod iterator_record {
         Ok(obj.into())
     }
     fn iterator_ok_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         iterator_next(this_value, ok_next)
     }
-    fn bad_next(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn bad_next(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
     fn iterator_bad_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1124,6 +1144,7 @@ mod iterator_record {
         .unwrap();
         ECMAScriptValue::from(obj)
     }
+    #[derive(Copy, Clone)]
     enum IRKind {
         NextNotFunction,
         NextReturnsNonObject,
@@ -1163,9 +1184,11 @@ mod iterator_record {
     fn no_value() -> Option<ECMAScriptValue> {
         None
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn undefined() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::Undefined)
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn argument() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::from("Argument"))
     }
@@ -1191,7 +1214,7 @@ mod iterator_record {
     }
 
     fn next_returns_broken_iter_result(
-        _: ECMAScriptValue,
+        _: &ECMAScriptValue,
         _: Option<&Object>,
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1238,7 +1261,8 @@ mod iterator_record {
             .map_err(unwind_any_error)
     }
 
-    fn tracker(this_value: ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn tracker(this_value: &ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
         let result = crate::create_iter_result_object(ECMAScriptValue::from(""), true);
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
         let report = ECMAScriptValue::from(format!("{name}({arg})"));
@@ -1248,14 +1272,14 @@ mod iterator_record {
         Ok(result.into())
     }
     fn tracking_next(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         args: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         tracker(this_value, args, "next")
     }
     fn tracking_return(
-        this_value: ECMAScriptValue,
+        this_value: &ECMAScriptValue,
         _: Option<&Object>,
         args: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
@@ -1277,7 +1301,8 @@ mod iterator_record {
         let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
-    fn invalid_return(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn invalid_return(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Null)
     }
     fn create_iterator_with_broken_return() -> Object {
@@ -1306,10 +1331,10 @@ mod iterator_record {
             return Ok((r.try_into().unwrap(), vec![]));
         }
         let tracker = tracker.unwrap();
-        let tracker_len = to_number(tracker.get(&"length".into()).unwrap()).unwrap() as u64;
+        let tracker_len = to_usize(tracker.get(&"length".into()).unwrap().to_number().unwrap()).unwrap();
         let mut tracks = vec![];
         for idx in 0..tracker_len {
-            let item = tracker.get(&format!("{idx}").into()).unwrap();
+            let item = tracker.get(&idx.into()).unwrap();
             tracks.push(format!("{item}"));
         }
         Ok((r.try_into().unwrap(), tracks))

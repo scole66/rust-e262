@@ -10,9 +10,9 @@ use test_case::test_case;
 fn arrow_function_test_01() {
     let (node, scanner) = check(ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "ArrowFunction: a => a", vec!["ArrowParameters: a", "ConciseBody: a"]);
-    concise_check(&*node, "ArrowFunction: a => a", vec!["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ArrowFunction: a => a", &["ArrowParameters: a", "ConciseBody: a"]);
+    concise_check(&*node, "ArrowFunction: a => a", &["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
+    format!("{node:?}");
 }
 #[test]
 fn arrow_function_test_02() {
@@ -128,7 +128,7 @@ mod arrow_function {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).arrow_function().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("(a=arguments) => a" => true; "left")]
@@ -150,9 +150,9 @@ fn arrow_parameters_test_01() {
     let (node, scanner) = check(ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, ArrowParameters::Identifier(..)));
-    pretty_check(&*node, "ArrowParameters: a", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ArrowParameters: a", &["BindingIdentifier: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn arrow_parameters_test_02() {
@@ -160,9 +160,9 @@ fn arrow_parameters_test_02() {
     let (node, scanner) = check(r);
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, ArrowParameters::Formals(..)));
-    pretty_check(&*node, "ArrowParameters: ( a )", vec!["ArrowFormalParameters: ( a )"]);
-    concise_check(&*node, "ArrowFormalParameters: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ArrowParameters: ( a )", &["ArrowFormalParameters: ( a )"]);
+    concise_check(&*node, "ArrowFormalParameters: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
+    format!("{node:?}");
 }
 #[test]
 fn arrow_parameters_test_err_01() {
@@ -256,7 +256,7 @@ mod arrow_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).arrow_parameters().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "id")]
@@ -274,6 +274,7 @@ mod arrow_parameters {
 
     #[test_case("a" => 1.0; "identifier")]
     #[test_case("(a, b, c)" => 3.0; "formals")]
+    #[test_case("(a, b=33, c)" => 1.0; "formals with initializer")]
     fn expected_argument_count(src: &str) -> f64 {
         Maker::new(src).arrow_parameters().expected_argument_count()
     }
@@ -292,19 +293,19 @@ fn concise_body_test_01() {
     let (node, scanner) = check(ConciseBody::parse(&mut newparser("a"), Scanner::new(), true));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, ConciseBody::Expression(..)));
-    pretty_check(&*node, "ConciseBody: a", vec!["ExpressionBody: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ConciseBody: a", &["ExpressionBody: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn concise_body_test_02() {
     let (node, scanner) = check(ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true));
-    println!("node = {:?}", node);
+    println!("node = {node:?}");
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, ConciseBody::Function { .. }));
-    pretty_check(&*node, "ConciseBody: { q ; }", vec!["FunctionBody: q ;"]);
-    concise_check(&*node, "ConciseBody: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ConciseBody: { q ; }", &["FunctionBody: q ;"]);
+    concise_check(&*node, "ConciseBody: { q ; }", &["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn concise_body_test_err_01() {
@@ -386,7 +387,7 @@ mod concise_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).concise_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -410,7 +411,7 @@ mod concise_body {
     }
 
     #[test_case("x + 3" => svec(&[]); "expression body")]
-    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("{ let a; const b=0; var c; function d() {} }" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).concise_body().var_scoped_declarations().iter().map(String::from).collect()
     }
@@ -427,9 +428,9 @@ mod concise_body {
 fn expression_body_test_01() {
     let (node, scanner) = check(ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "ExpressionBody: a", vec!["AssignmentExpression: a"]);
-    concise_check(&*node, "IdentifierName: a", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "ExpressionBody: a", &["AssignmentExpression: a"]);
+    concise_check(&*node, "IdentifierName: a", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn expression_body_test_cache_01() {
@@ -483,7 +484,7 @@ mod expression_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).expression_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments" => true; "yes")]
@@ -503,13 +504,13 @@ mod expression_body {
 fn arrow_formal_parameters_test_01() {
     let (node, scanner) = check(ArrowFormalParameters::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    pretty_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["UniqueFormalParameters: a , b"]);
+    pretty_check(&*node, "ArrowFormalParameters: ( a , b )", &["UniqueFormalParameters: a , b"]);
     concise_check(
         &*node,
         "ArrowFormalParameters: ( a , b )",
-        vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"],
+        &["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn arrow_formal_parameters_test_cache_01() {
@@ -574,7 +575,7 @@ mod arrow_formal_parameters {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).arrow_formal_parameters().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("(a=arguments)" => true; "yes")]
@@ -597,5 +598,11 @@ mod arrow_formal_parameters {
     #[test_case("(a=0)" => true; "present")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).arrow_formal_parameters().contains_expression()
+    }
+
+    #[test_case("(a=0)" => "( a = 0 )"; "has args")]
+    #[test_case("()" => "( )"; "no args")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).arrow_formal_parameters())
     }
 }

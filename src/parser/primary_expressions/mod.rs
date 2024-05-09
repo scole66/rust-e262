@@ -62,9 +62,9 @@ impl PrettyPrint for PrimaryExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
+        writeln!(writer, "{first}PrimaryExpression: {self}")?;
         match self {
-            PrimaryExpression::This { .. } => Ok(()),
+            PrimaryExpression::This { .. } | PrimaryExpression::RegularExpression { .. } => Ok(()),
             PrimaryExpression::IdentifierReference { node } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -78,7 +78,6 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpression::Generator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::AsyncFunction { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::AsyncGenerator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::RegularExpression { .. } => Ok(()),
         }
     }
 
@@ -108,7 +107,10 @@ impl PrettyPrint for PrimaryExpression {
 
 impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
-        use PrimaryExpression::*;
+        use PrimaryExpression::{
+            ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
+            ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
+        };
         match self {
             This { .. }
             | IdentifierReference { .. }
@@ -349,9 +351,10 @@ impl PrimaryExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            PrimaryExpression::This { .. } => true,
-            PrimaryExpression::IdentifierReference { .. } => true,
-            PrimaryExpression::Literal { .. } => true,
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::RegularExpression { .. } => true,
             PrimaryExpression::ArrayLiteral { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::ObjectLiteral { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::Parenthesized { node } => node.all_private_identifiers_valid(names),
@@ -361,7 +364,6 @@ impl PrimaryExpression {
             PrimaryExpression::Generator { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::AsyncFunction { node } => node.all_private_identifiers_valid(names),
             PrimaryExpression::AsyncGenerator { node } => node.all_private_identifiers_valid(names),
-            PrimaryExpression::RegularExpression { .. } => true,
         }
     }
 
@@ -434,7 +436,10 @@ impl PrimaryExpression {
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        use PrimaryExpression::*;
+        use PrimaryExpression::{
+            ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
+            ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
+        };
         match self {
             This { .. }
             | Literal { .. }
@@ -512,7 +517,7 @@ impl PrettyPrint for Elisions {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}Elisions: {}", first, self)
+        writeln!(writer, "{first}Elisions: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -589,7 +594,7 @@ impl PrettyPrint for SpreadElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SpreadElement: {}", first, self)?;
+        writeln!(writer, "{first}SpreadElement: {self}")?;
         self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -597,7 +602,7 @@ impl PrettyPrint for SpreadElement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SpreadElement: {}", first, self)?;
+        writeln!(writer, "{first}SpreadElement: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.ae.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -671,20 +676,20 @@ impl fmt::Display for ElementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ElementList::AssignmentExpression { elision, ae } => match elision {
-                None => write!(f, "{}", ae),
-                Some(commas) => write!(f, "{} {}", commas, ae),
+                None => write!(f, "{ae}"),
+                Some(commas) => write!(f, "{commas} {ae}"),
             },
             ElementList::SpreadElement { elision, se } => match elision {
-                None => write!(f, "{}", se),
-                Some(commas) => write!(f, "{} {}", commas, se),
+                None => write!(f, "{se}"),
+                Some(commas) => write!(f, "{commas} {se}"),
             },
             ElementList::ElementListAssignmentExpression { el, elision, ae } => match elision {
-                None => write!(f, "{} , {}", el, ae),
-                Some(commas) => write!(f, "{} , {} {}", el, commas, ae),
+                None => write!(f, "{el} , {ae}"),
+                Some(commas) => write!(f, "{el} , {commas} {ae}"),
             },
             ElementList::ElementListSpreadElement { el, elision, se } => match elision {
-                None => write!(f, "{} , {}", el, se),
-                Some(commas) => write!(f, "{} , {} {}", el, commas, se),
+                None => write!(f, "{el} , {se}"),
+                Some(commas) => write!(f, "{el} , {commas} {se}"),
             },
         }
     }
@@ -696,7 +701,7 @@ impl PrettyPrint for ElementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ElementList: {}", first, self)?;
+        writeln!(writer, "{first}ElementList: {self}")?;
         match self {
             ElementList::AssignmentExpression { elision, ae } => match elision {
                 None => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -744,37 +749,37 @@ impl PrettyPrint for ElementList {
         match self {
             ElementList::AssignmentExpression { elision: None, ae } => ae.concise_with_leftpad(writer, pad, state),
             ElementList::AssignmentExpression { elision: Some(commas), ae } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::SpreadElement { elision: None, se } => se.concise_with_leftpad(writer, pad, state),
             ElementList::SpreadElement { elision: Some(commas), se } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListAssignmentExpression { el, elision: None, ae } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListAssignmentExpression { el, elision: Some(commas), ae } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListSpreadElement { el, elision: None, se } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListSpreadElement { el, elision: Some(commas), se } => {
-                writeln!(writer, "{}ElementList: {}", first, self)?;
+                writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -960,11 +965,11 @@ impl fmt::Display for ArrayLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ArrayLiteral::Empty { elision: None, .. } => write!(f, "[ ]"),
-            ArrayLiteral::Empty { elision: Some(elision), .. } => write!(f, "[ {} ]", elision),
-            ArrayLiteral::ElementList { el: boxed, .. } => write!(f, "[ {} ]", boxed),
-            ArrayLiteral::ElementListElision { el: boxed, elision: None, .. } => write!(f, "[ {} , ]", boxed),
+            ArrayLiteral::Empty { elision: Some(elision), .. } => write!(f, "[ {elision} ]"),
+            ArrayLiteral::ElementList { el: boxed, .. } => write!(f, "[ {boxed} ]"),
+            ArrayLiteral::ElementListElision { el: boxed, elision: None, .. } => write!(f, "[ {boxed} , ]"),
             ArrayLiteral::ElementListElision { el: boxed, elision: Some(elision), .. } => {
-                write!(f, "[ {} , {} ]", boxed, elision)
+                write!(f, "[ {boxed} , {elision} ]")
             }
         }
     }
@@ -976,7 +981,7 @@ impl PrettyPrint for ArrayLiteral {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
+        writeln!(writer, "{first}ArrayLiteral: {self}")?;
         match self {
             ArrayLiteral::Empty { elision: None, .. } => Ok(()),
             ArrayLiteral::Empty { elision: Some(elision), .. } => {
@@ -997,7 +1002,7 @@ impl PrettyPrint for ArrayLiteral {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
+        writeln!(writer, "{first}ArrayLiteral: {self}")?;
         match self {
             ArrayLiteral::Empty { elision: None, .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -1144,7 +1149,7 @@ impl ArrayLiteral {
         match self {
             ArrayLiteral::Empty { .. } => {}
             ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
         }
     }
@@ -1170,7 +1175,7 @@ impl PrettyPrint for Initializer {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Initializer: {}", first, self)?;
+        writeln!(writer, "{first}Initializer: {self}")?;
         self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1178,7 +1183,7 @@ impl PrettyPrint for Initializer {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Initializer: {}", first, self)?;
+        writeln!(writer, "{first}Initializer: {self}")?;
         pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.ae.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1280,7 +1285,7 @@ pub enum CoverInitializedName {
 impl fmt::Display for CoverInitializedName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let CoverInitializedName::InitializedName(idref, izer) = self;
-        write!(f, "{} {}", idref, izer)
+        write!(f, "{idref} {izer}")
     }
 }
 
@@ -1290,7 +1295,7 @@ impl PrettyPrint for CoverInitializedName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverInitializedName: {}", first, self)?;
+        writeln!(writer, "{first}CoverInitializedName: {self}")?;
         let CoverInitializedName::InitializedName(idref, izer) = self;
         idref.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         izer.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1300,7 +1305,7 @@ impl PrettyPrint for CoverInitializedName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverInitializedName: {}", first, self)?;
+        writeln!(writer, "{first}CoverInitializedName: {self}")?;
         let CoverInitializedName::InitializedName(idref, izer) = self;
         idref.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         izer.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1369,7 +1374,7 @@ impl PrettyPrint for ComputedPropertyName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
+        writeln!(writer, "{first}ComputedPropertyName: {self}")?;
         self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1377,7 +1382,7 @@ impl PrettyPrint for ComputedPropertyName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
+        writeln!(writer, "{first}ComputedPropertyName: {self}")?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.ae.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
@@ -1452,15 +1457,15 @@ pub enum LiteralPropertyName {
 impl fmt::Display for LiteralPropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LiteralPropertyName::IdentifierName { data: id, .. } => write!(f, "{}", id),
-            LiteralPropertyName::StringLiteral { data: s, .. } => write!(f, "{}", s),
+            LiteralPropertyName::IdentifierName { data: id, .. } => write!(f, "{id}"),
+            LiteralPropertyName::StringLiteral { data: s, .. } => write!(f, "{s}"),
             LiteralPropertyName::NumericLiteral { data: Numeric::Number(n), .. } => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
             LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(b), .. } => {
-                write!(f, "{}", b)
+                write!(f, "{b}")
             }
         }
     }
@@ -1472,7 +1477,7 @@ impl PrettyPrint for LiteralPropertyName {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}LiteralPropertyName: {}", first, self)
+        writeln!(writer, "{first}LiteralPropertyName: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -1572,8 +1577,8 @@ pub enum PropertyName {
 impl fmt::Display for PropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            PropertyName::LiteralPropertyName(lpn) => write!(f, "{}", lpn),
-            PropertyName::ComputedPropertyName(cpn) => write!(f, "{}", cpn),
+            PropertyName::LiteralPropertyName(lpn) => write!(f, "{lpn}"),
+            PropertyName::ComputedPropertyName(cpn) => write!(f, "{cpn}"),
         }
     }
 }
@@ -1584,7 +1589,7 @@ impl PrettyPrint for PropertyName {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PropertyName: {}", first, self)?;
+        writeln!(writer, "{first}PropertyName: {self}")?;
         match &self {
             PropertyName::LiteralPropertyName(lpn) => lpn.pprint_with_leftpad(writer, &successive, Spot::Final),
             PropertyName::ComputedPropertyName(cpn) => cpn.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -1722,13 +1727,13 @@ pub enum PropertyDefinition {
 impl fmt::Display for PropertyDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            PropertyDefinition::IdentifierReference(idref) => write!(f, "{}", idref),
-            PropertyDefinition::CoverInitializedName(cin) => write!(f, "{}", cin),
+            PropertyDefinition::IdentifierReference(idref) => write!(f, "{idref}"),
+            PropertyDefinition::CoverInitializedName(cin) => write!(f, "{cin}"),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
-                write!(f, "{} : {}", pn, ae)
+                write!(f, "{pn} : {ae}")
             }
-            PropertyDefinition::MethodDefinition(md) => write!(f, "{}", md),
-            PropertyDefinition::AssignmentExpression(ae, _) => write!(f, "... {}", ae),
+            PropertyDefinition::MethodDefinition(md) => write!(f, "{md}"),
+            PropertyDefinition::AssignmentExpression(ae, _) => write!(f, "... {ae}"),
         }
     }
 }
@@ -1739,7 +1744,7 @@ impl PrettyPrint for PropertyDefinition {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
+        writeln!(writer, "{first}PropertyDefinition: {self}")?;
         match self {
             PropertyDefinition::IdentifierReference(idref) => {
                 idref.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1763,14 +1768,14 @@ impl PrettyPrint for PropertyDefinition {
             PropertyDefinition::MethodDefinition(node) => node.concise_with_leftpad(writer, pad, state),
             PropertyDefinition::PropertyNameAssignmentExpression(left, right) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
+                writeln!(writer, "{first}PropertyDefinition: {self}")?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             PropertyDefinition::AssignmentExpression(node, _) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
+                writeln!(writer, "{first}PropertyDefinition: {self}")?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1985,9 +1990,9 @@ pub enum PropertyDefinitionList {
 impl fmt::Display for PropertyDefinitionList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            PropertyDefinitionList::OneDef(pd) => write!(f, "{}", pd),
+            PropertyDefinitionList::OneDef(pd) => write!(f, "{pd}"),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
-                write!(f, "{} , {}", pdl, pd)
+                write!(f, "{pdl} , {pd}")
             }
         }
     }
@@ -1999,7 +2004,7 @@ impl PrettyPrint for PropertyDefinitionList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PropertyDefinitionList: {}", first, self)?;
+        writeln!(writer, "{first}PropertyDefinitionList: {self}")?;
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.pprint_with_leftpad(writer, &successive, Spot::Final),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
@@ -2016,7 +2021,7 @@ impl PrettyPrint for PropertyDefinitionList {
             PropertyDefinitionList::OneDef(node) => node.concise_with_leftpad(writer, pad, state),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}PropertyDefinitionList: {}", first, self)?;
+                writeln!(writer, "{first}PropertyDefinitionList: {self}")?;
                 pdl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pd.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -2120,8 +2125,8 @@ impl fmt::Display for ObjectLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ObjectLiteral::Empty { .. } => write!(f, "{{ }}"),
-            ObjectLiteral::Normal { pdl, .. } => write!(f, "{{ {} }}", pdl),
-            ObjectLiteral::TrailingComma { pdl, .. } => write!(f, "{{ {} , }}", pdl),
+            ObjectLiteral::Normal { pdl, .. } => write!(f, "{{ {pdl} }}"),
+            ObjectLiteral::TrailingComma { pdl, .. } => write!(f, "{{ {pdl} , }}"),
         }
     }
 }
@@ -2132,7 +2137,7 @@ impl PrettyPrint for ObjectLiteral {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
+        writeln!(writer, "{first}ObjectLiteral: {self}")?;
         match self {
             ObjectLiteral::Empty { .. } => Ok(()),
             ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
@@ -2145,7 +2150,7 @@ impl PrettyPrint for ObjectLiteral {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
+        writeln!(writer, "{first}ObjectLiteral: {self}")?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ObjectLiteral::Empty { .. } => {}
@@ -2296,13 +2301,14 @@ impl fmt::Display for Numeric {
 }
 
 impl Numeric {
+    #[allow(clippy::unused_self)]
     fn has_legacy_octal_syntax(&self) -> bool {
         // Need to actually implement legacy octal before this makes any sense at all
         false
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DebugKind {
     Char(char),
     Number(i64),
@@ -2355,7 +2361,7 @@ impl PrettyPrint for Literal {
         T: Write,
     {
         let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}Literal: {}", first, self)
+        writeln!(writer, "{first}Literal: {self}")
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -2462,8 +2468,8 @@ pub enum TemplateLiteral {
 impl fmt::Display for TemplateLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate { data: td, .. } => write!(f, "`{}`", td),
-            TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{}", boxed),
+            TemplateLiteral::NoSubstitutionTemplate { data: td, .. } => write!(f, "`{td}`"),
+            TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{boxed}"),
         }
     }
 }
@@ -2474,7 +2480,7 @@ impl PrettyPrint for TemplateLiteral {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TemplateLiteral: {}", first, self)?;
+        writeln!(writer, "{first}TemplateLiteral: {self}")?;
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => Ok(()),
             TemplateLiteral::SubstitutionTemplate(st) => st.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2612,7 +2618,7 @@ impl TemplateLiteral {
                 //    TemplateStrings of TemplateLiteral with argument false is greater
                 //    than 2^32 - 1.
                 if self.template_strings(false).len() > ts_limit {
-                    errs.push(create_syntax_error_object("Template literal too complex", Some(st.location())))
+                    errs.push(create_syntax_error_object("Template literal too complex", Some(st.location())));
                 }
                 st.early_errors(errs, strict);
             }
@@ -2632,9 +2638,10 @@ impl TemplateLiteral {
                 //  2. Else,
                 //      a. Let string be the TRV of NoSubstitutionTemplate.
                 //  3. Return « string ».
-                match raw {
-                    false => vec![nst.tv.clone()],
-                    true => vec![Some(nst.trv.clone())],
+                if raw {
+                    vec![Some(nst.trv.clone())]
+                } else {
+                    vec![nst.tv.clone()]
                 }
             }
             TemplateLiteral::SubstitutionTemplate(st) => {
@@ -2669,7 +2676,7 @@ impl PrettyPrint for SubstitutionTemplate {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
+        writeln!(writer, "{first}SubstitutionTemplate: {self}")?;
         self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.template_spans.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -2678,7 +2685,7 @@ impl PrettyPrint for SubstitutionTemplate {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
+        writeln!(writer, "{first}SubstitutionTemplate: {self}")?;
         pprint_token(
             writer,
             &format!("`{}${{", self.template_head),
@@ -2778,10 +2785,8 @@ impl SubstitutionTemplate {
         //      a. Let head be the TRV of TemplateHead.
         //  3. Let tail be TemplateStrings of TemplateSpans with argument raw.
         //  4. Return the list-concatenation of « head » and tail.
-        let mut head = match raw {
-            false => vec![self.template_head.tv.clone()],
-            true => vec![Some(self.template_head.trv.clone())],
-        };
+        let mut head =
+            if raw { vec![Some(self.template_head.trv.clone())] } else { vec![self.template_head.tv.clone()] };
         let tail = self.template_spans.template_strings(raw);
         head.extend(tail);
         head
@@ -2816,7 +2821,7 @@ impl PrettyPrint for TemplateSpans {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TemplateSpans: {}", first, self)?;
+        writeln!(writer, "{first}TemplateSpans: {self}")?;
         match self {
             TemplateSpans::Tail { .. } => Ok(()),
             TemplateSpans::List { tml, .. } => tml.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -2833,9 +2838,9 @@ impl PrettyPrint for TemplateSpans {
             }
             TemplateSpans::List { tml, data: td, .. } => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}TemplateSpans: {}", first, self)?;
+                writeln!(writer, "{first}TemplateSpans: {self}")?;
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{}`", td), TokenType::TemplateTail, &successive, Spot::Final)
+                pprint_token(writer, &format!("}}{td}`"), TokenType::TemplateTail, &successive, Spot::Final)
             }
         }
     }
@@ -2962,9 +2967,10 @@ impl TemplateSpans {
                 //  2. Else,
                 //      a. Let tail be the TRV of TemplateTail.
                 //  3. Return « tail ».
-                match raw {
-                    false => vec![tail.tv.clone()],
-                    true => vec![Some(tail.trv.clone())],
+                if raw {
+                    vec![Some(tail.trv.clone())]
+                } else {
+                    vec![tail.tv.clone()]
                 }
             }
             TemplateSpans::List { tml: template_middle_list, data: template_tail, .. } => {
@@ -2976,10 +2982,7 @@ impl TemplateSpans {
                 //      a. Let tail be the TRV of TemplateTail.
                 //  4. Return the list-concatenation of middle and « tail ».
                 let mut middle = template_middle_list.template_strings(raw);
-                let tail = match raw {
-                    false => template_tail.tv.clone(),
-                    true => Some(template_tail.trv.clone()),
-                };
+                let tail = if raw { Some(template_tail.trv.clone()) } else { template_tail.tv.clone() };
                 middle.push(tail);
                 middle
             }
@@ -3015,7 +3018,7 @@ impl PrettyPrint for TemplateMiddleList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
+        writeln!(writer, "{first}TemplateMiddleList: {self}")?;
         match self {
             TemplateMiddleList::ListHead { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
             TemplateMiddleList::ListMid(tml, _, exp, _) => {
@@ -3029,15 +3032,15 @@ impl PrettyPrint for TemplateMiddleList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
+        writeln!(writer, "{first}TemplateMiddleList: {self}")?;
         match self {
             TemplateMiddleList::ListHead { data: td, exp, .. } => {
-                pprint_token(writer, &format!("}}{}${{", td), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             TemplateMiddleList::ListMid(tml, td, exp, _) => {
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{}${{", td), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -3177,9 +3180,10 @@ impl TemplateMiddleList {
                 //  2. Else,
                 //      a. Let string be the TRV of TemplateMiddle.
                 //  3. Return « string ».
-                match raw {
-                    false => vec![template_middle.tv.clone()],
-                    true => vec![Some(template_middle.trv.clone())],
+                if raw {
+                    vec![Some(template_middle.trv.clone())]
+                } else {
+                    vec![template_middle.tv.clone()]
                 }
             }
             TemplateMiddleList::ListMid(template_middle_list, template_middle, _, _) => {
@@ -3191,10 +3195,7 @@ impl TemplateMiddleList {
                 //      a. Let last be the TRV of TemplateMiddle.
                 //  4. Return the list-concatenation of front and « last ».
                 let mut front = template_middle_list.template_strings(raw);
-                let last = match raw {
-                    false => template_middle.tv.clone(),
-                    true => Some(template_middle.trv.clone()),
-                };
+                let last = if raw { Some(template_middle.trv.clone()) } else { template_middle.tv.clone() };
                 front.push(last);
                 front
             }
@@ -3222,7 +3223,7 @@ impl PrettyPrint for ParenthesizedExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
+        writeln!(writer, "{first}ParenthesizedExpression: {self}")?;
         self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -3231,7 +3232,7 @@ impl PrettyPrint for ParenthesizedExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
+        writeln!(writer, "{first}ParenthesizedExpression: {self}")?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
@@ -3287,7 +3288,7 @@ impl ParenthesizedExpression {
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        self.exp.early_errors(errs, strict)
+        self.exp.early_errors(errs, strict);
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -3329,25 +3330,25 @@ impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
-                write!(f, "( {} )", node)
+                write!(f, "( {node} )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
-                write!(f, "( {} , )", node)
+                write!(f, "( {node} , )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {
                 write!(f, "( )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
-                write!(f, "( ... {} )", node)
+                write!(f, "( ... {node} )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
-                write!(f, "( ... {} )", node)
+                write!(f, "( ... {node} )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
-                write!(f, "( {} , ... {} )", exp, id)
+                write!(f, "( {exp} , ... {id} )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
-                write!(f, "( {} , ... {} )", exp, pat)
+                write!(f, "( {exp} , ... {pat} )")
             }
         }
     }
@@ -3359,13 +3360,11 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
+        writeln!(writer, "{first}CoverParenthesizedExpressionAndArrowParameterList: {self}")?;
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => Ok(()),
-            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
-                node.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
@@ -3390,7 +3389,7 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
+        writeln!(writer, "{first}CoverParenthesizedExpressionAndArrowParameterList: {self}")?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
@@ -3616,14 +3615,14 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
             | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
-                node.early_errors(errs, strict)
+                node.early_errors(errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 exp.early_errors(errs, strict);

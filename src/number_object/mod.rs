@@ -250,7 +250,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The value of Number.MAX_SAFE_INTEGER is 9007199254740991𝔽 (𝔽(2**53 - 1)).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data!(9007199254740991.0, "MAX_SAFE_INTEGER");
+    constructor_data!(9_007_199_254_740_991.0, "MAX_SAFE_INTEGER");
 
     // Number.MAX_VALUE
     //
@@ -268,7 +268,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The value of Number.MIN_SAFE_INTEGER is -9007199254740991𝔽 (𝔽(-(2**53 - 1))).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data!(-9007199254740991.0, "MIN_SAFE_INTEGER");
+    constructor_data!(-9_007_199_254_740_991.0, "MIN_SAFE_INTEGER");
 
     // Number.MIN_VALUE
     //
@@ -380,13 +380,15 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
 // 5. Set O.[[NumberData]] to n.
 // 6. Return O.
-pub fn create_number_object(n: f64) -> Object {
-    let constructor = intrinsic(IntrinsicId::Number);
-    let o = constructor
-        .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-        .unwrap();
-    *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
-    o
+impl From<f64> for Object {
+    fn from(n: f64) -> Self {
+        let constructor = intrinsic(IntrinsicId::Number);
+        let o = constructor
+            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
+            .unwrap();
+        *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
+        o
+    }
 }
 
 // Number ( value )
@@ -404,7 +406,7 @@ pub fn create_number_object(n: f64) -> Object {
 //      5. Set O.[[NumberData]] to n.
 //      6. Return O.
 fn number_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -438,8 +440,9 @@ fn number_constructor_function(
 //      1. If Type(number) is not Number, return false.
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
+#[allow(clippy::unnecessary_wraps)]
 fn number_is_finite(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -456,8 +459,9 @@ fn number_is_finite(
 // When Number.isInteger is called with one argument number, the following steps are taken:
 //
 //      1. Return ! IsIntegralNumber(number).
+#[allow(clippy::unnecessary_wraps)]
 fn number_is_integer(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -476,8 +480,9 @@ fn number_is_integer(
 //
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
+#[allow(clippy::unnecessary_wraps)]
 fn number_is_nan(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -496,15 +501,16 @@ fn number_is_nan(
 //      1. If ! IsIntegralNumber(number) is true, then
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
+#[allow(clippy::unnecessary_wraps)]
 fn number_is_safe_integer(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
-        ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9007199254740991.0,
+        ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9_007_199_254_740_991.0,
         _ => false,
     }))
 }
@@ -520,9 +526,9 @@ fn number_is_safe_integer(
 //
 // The phrase “this Number value” within the specification of a method refers to the result returned by calling the
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
-fn this_number_value(value: ECMAScriptValue) -> Completion<f64> {
+fn this_number_value(value: &ECMAScriptValue) -> Completion<f64> {
     match value {
-        ECMAScriptValue::Number(x) => Ok(x),
+        ECMAScriptValue::Number(x) => Ok(*x),
         ECMAScriptValue::Object(o) if o.o.is_number_object() => {
             let no = o.o.to_number_obj().unwrap();
             let n = *no.number_data().borrow();
@@ -591,34 +597,47 @@ fn this_number_value(value: ECMAScriptValue) -> Completion<f64> {
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
 fn number_prototype_to_exponential(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
 
-    let value = this_number_value(this_value)?;
-    let fraction = to_integer_or_infinity(fraction_digits.clone())?;
+    let value = this_number_value(&this_value.clone())?;
+    let fraction = fraction_digits.to_integer_or_infinity()?;
     if !value.is_finite() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
     if !(0.0..=100.0).contains(&fraction) {
         let fd_str = to_string(fraction_digits).unwrap();
-        return Err(create_range_error(format!("FractionDigits ‘{}’ must lie within the range 0..100", fd_str)));
+        return Err(create_range_error(format!("FractionDigits ‘{fd_str}’ must lie within the range 0..100")));
     }
-    let fraction = fraction as i32;
+    let fraction = to_int32_f64(fraction);
 
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
     let digits;
-    if !fraction_digits.is_undefined() {
+    if fraction_digits.is_undefined() {
+        info = dtoa(value);
+        let strbuf = info.chars.as_bytes();
+        // Find the first null
+        let mut null_idx: Option<usize> = None;
+        for (idx, ch) in strbuf.iter().enumerate() {
+            if *ch == 0 {
+                null_idx = Some(idx);
+                break;
+            }
+        }
+        digits = &strbuf[0..null_idx.unwrap()];
+    } else {
         info = dtoa_precise(value, fraction + 1);
+        let ufract = usize::try_from(fraction).expect("fraction should be >= 0");
         // We need fraction +1 digits to come out of this.
         let strbuf = info.chars.as_bytes();
         // copy digits out of that, right-padding with '0', until we get p chars.
         let mut out_of_chars = false;
-        for idx in 0..(fraction + 1) as usize {
+        for idx in 0..=ufract {
             workbuf[idx] = if out_of_chars {
                 b'0'
             } else {
@@ -631,19 +650,7 @@ fn number_prototype_to_exponential(
                 }
             };
         }
-        digits = &workbuf[0..(fraction + 1) as usize];
-    } else {
-        info = dtoa(value);
-        let strbuf = info.chars.as_bytes();
-        // Find the first null
-        let mut null_idx: Option<usize> = None;
-        for (idx, ch) in strbuf.iter().enumerate() {
-            if *ch == 0 {
-                null_idx = Some(idx);
-                break;
-            }
-        }
-        digits = &strbuf[0..null_idx.unwrap()];
+        digits = &workbuf[0..=ufract];
     }
     let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };
@@ -700,14 +707,14 @@ fn number_prototype_to_exponential(
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
 fn number_prototype_to_fixed(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let fraction_digits = args.next_arg();
-    let value = this_number_value(this_value)?;
-    let fraction = to_integer_or_infinity(fraction_digits)?;
+    let value = this_number_value(&this_value.clone())?;
+    let fraction = fraction_digits.to_integer_or_infinity()?;
     if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
         return Err(create_range_error("Argument for Number.toFixed must be in the range 0..100"));
     }
@@ -718,24 +725,24 @@ fn number_prototype_to_fixed(
 
     Ok(ECMAScriptValue::from({
         let sign = if value < 0.0 { "-" } else { "" };
-        let f = fraction as i32;
+        let f = to_int32_f64(fraction);
         let mut workbuf: [u8; 101] = [b'0'; 101];
         let info = dtoa_fixed(magnitude, f);
         let mut k = info.decpt + f;
         if f == 0 {
+            let ku = usize::try_from(k).expect("k should be >= 0");
             // sign + the k digits from dtoa.
             let strbuf = info.chars.as_bytes();
-            for idx in 0..k as usize {
+            for idx in 0..ku {
                 workbuf[idx] = {
                     let ch = strbuf[idx];
                     if ch == 0 {
                         break;
-                    } else {
-                        ch
                     }
+                    ch
                 };
             }
-            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
+            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..ku.max(1)]))
         } else {
             let mut write_offset = 0;
             if k <= f {
@@ -744,20 +751,23 @@ fn number_prototype_to_fixed(
             }
             let strbuf = info.chars.as_bytes();
             // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
-            for read_idx in 0..(info.decpt + f - write_offset) as usize {
-                workbuf[read_idx + write_offset as usize] = {
+            let limit = usize::try_from(info.decpt + f - write_offset).unwrap_or(usize::MAX);
+            let wo_u = usize::try_from(write_offset).expect("write_offset should be >= 0");
+            for read_idx in 0..limit {
+                workbuf[read_idx + wo_u] = {
                     let ch = strbuf[read_idx];
                     if ch == 0 {
                         break;
-                    } else {
-                        ch
                     }
+                    ch
                 };
             }
-            let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
-            let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
+            let delta = usize::try_from(k - f).expect("k should be >= f");
+            let end = usize::try_from(k).expect("k should be >= 0");
+            let before_point = String::from_utf8_lossy(&workbuf[0..delta]);
+            let after_point = String::from_utf8_lossy(&workbuf[delta..end]);
 
-            format!("{}{}.{}", sign, before_point, after_point)
+            format!("{sign}{before_point}.{after_point}")
         }
     }))
 }
@@ -775,7 +785,7 @@ fn number_prototype_to_fixed(
 // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
 // that do not include ECMA-402 support must not use those parameter positions for anything else.
 fn number_prototype_to_locale_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -831,27 +841,27 @@ fn number_prototype_to_locale_string(
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
 fn number_prototype_to_precision(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let precision = args.next_arg();
-    let value = this_number_value(this_value)?;
+    let value = this_number_value(&this_value.clone())?;
     if precision.is_undefined() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
-    let prec = to_integer_or_infinity(precision.clone())?;
+    let prec = precision.to_integer_or_infinity()?;
     if !value.is_finite() {
         return Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(value)).unwrap()));
     }
     if !(1.0..=100.0).contains(&prec) {
         let precision_str = to_string(precision).unwrap();
-        return Err(create_range_error(format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
+        return Err(create_range_error(format!("Precision ‘{precision_str}’ must lie within the range 1..100")));
     }
 
-    let p_size = prec as usize;
-    let p_val = prec as i32;
+    let p_size = to_usize(prec).expect("vals 0..100 should convert just fine");
+    let p_val = i32::try_from(p_size).expect("vals 0..100 should convert just fine");
     let info = dtoa_precise(value, p_val);
     let strbuf = info.chars.as_bytes();
     // copy digits out of that, right-padding with '0', until we get p chars.
@@ -878,22 +888,22 @@ fn number_prototype_to_precision(
         // exponential form
         if e < -6 || e >= p_val {
             let before_pt = String::from_utf8_lossy(&digits[0..1]);
-            let decpt = if p_val != 1 { "." } else { "" };
+            let decpt = if p_val == 1 { "" } else { "." };
             let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
-            format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
+            format!("{sign}{before_pt}{decpt}{after_pt}e{e}")
         } else if e == p_val - 1 {
             // No decimal point
             format!("{}{}", sign, String::from_utf8_lossy(digits))
         } else if e >= 0 {
             // No leading zeroes
-            let e_us: usize = e as usize + 1;
+            let e_us: usize = usize::try_from(e).expect("e should be >= 0") + 1;
             let a = &digits[0..e_us];
             let b = &digits[e_us..p_size];
             format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
         } else {
             // Leading zeroes
             let digit_str = String::from_utf8_lossy(digits);
-            let num_zeroes: usize = (-e - 1) as usize;
+            let num_zeroes: usize = usize::try_from(-e - 1).expect("e should be < 0");
             format!("{}0.{:0>width$}", sign, digit_str, width = num_zeroes + digit_str.len())
         },
     ))
@@ -952,7 +962,9 @@ fn double_exponent(dbl: f64) -> i32 {
 #[allow(clippy::float_cmp)]
 #[allow(unused_assignments)] // Remove this when the Condition B panic is removed
 #[allow(unreachable_code)] // Remove this when the Condition B panic is removed
-pub fn double_to_radix_string(val: f64, radix: i32) -> String {
+pub fn double_to_radix_string(val: f64, radix: u32) -> String {
+    const KBUFFERSIZE: usize = 2200;
+
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
     // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
 
@@ -964,7 +976,6 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
     // fractional part. 1024 characters for the exponent and 52 for the mantissa
     // either way, with additional space for sign, decimal point and string
     // termination should be sufficient.
-    const KBUFFERSIZE: usize = 2200;
     let mut buffer: [u8; KBUFFERSIZE] = [0; KBUFFERSIZE];
     let mut integer_cursor = KBUFFERSIZE / 2;
     let mut fraction_cursor = integer_cursor;
@@ -984,20 +995,19 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
         fraction_cursor += 1;
         while fraction >= delta {
             // Shift up by one digit.
-            fraction *= radix as f64;
-            delta *= radix as f64;
+            fraction *= f64::from(radix);
+            delta *= f64::from(radix);
             // Write digit.
-            let digit = fraction as usize;
+            let digit_f = fraction.floor();
+            let digit = to_usize(digit_f).expect("one digit should fit");
             buffer[fraction_cursor] = chars[digit];
             fraction_cursor += 1;
             // Calculate remainder.
-            fraction -= digit as f64;
+            fraction -= digit_f;
             // Round to even.
             assert!(
                 !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),
-                "Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.",
-                radix,
-                val
+                "Condition A met with radix {radix} and input val {val}: Please add this to coverage and remove this panic."
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
@@ -1007,19 +1017,18 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                     if fraction_cursor == KBUFFERSIZE / 2 {
                         // Carry over to the integer part.
                         integer += 1.0;
-                        panic!("Condition B met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
+                        panic!("Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                         break;
                     }
-                    let c = buffer[fraction_cursor] as i32;
+                    let c = u32::from(buffer[fraction_cursor]);
                     // Reconstruct digit.
-                    let digit = if c > '9' as i32 { c - 'a' as i32 + 10 } else { c - '0' as i32 };
+                    let digit = if c > '9' as u32 { c - 'a' as u32 + 10 } else { c - '0' as u32 };
                     if digit + 1 < radix {
                         buffer[fraction_cursor] = chars[digit as usize + 1];
                         fraction_cursor += 1;
                         break;
-                    } else {
-                        panic!("Condition C met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
                     }
+                    panic!("Condition C met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
                 }
                 break;
             }
@@ -1027,16 +1036,16 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
     }
 
     // Compute integer digits. Fill unrepresented digits with zero.
-    while double_exponent(integer / radix as f64) > 0 {
-        integer /= radix as f64;
+    while double_exponent(integer / f64::from(radix)) > 0 {
+        integer /= f64::from(radix);
         integer_cursor -= 1;
         buffer[integer_cursor] = b'0';
     }
     loop {
-        let remainder = integer % radix as f64;
+        let remainder = integer % f64::from(radix);
         integer_cursor -= 1;
-        buffer[integer_cursor] = chars[remainder as usize];
-        integer = (integer - remainder) / radix as f64;
+        buffer[integer_cursor] = chars[to_usize(remainder).expect("remainder should fit")];
+        integer = (integer - remainder) / f64::from(radix);
         if integer <= 0.0 {
             break;
         }
@@ -1072,34 +1081,34 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
 //
 // The "length" property of the toString method is 1𝔽.
 fn number_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let mut args = FuncArgs::from(arguments);
     let radix = args.next_arg();
-    let x = this_number_value(this_value)?;
-    let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(radix)? };
-    if !(2.0..=36.0).contains(&radix_mv) {
-        Err(create_range_error(format!("Radix {} out of range (must be in 2..36)", radix_mv)))
-    } else {
-        let iradix = radix_mv as i32;
-        if iradix == 10 {
+    let x = this_number_value(&this_value.clone())?;
+    let radix_mv = if radix.is_undefined() { 10.0 } else { radix.to_integer_or_infinity()? };
+    if (2.0..=36.0).contains(&radix_mv) {
+        let int_radix = to_uint32_f64(radix_mv);
+        if int_radix == 10 {
             Ok(ECMAScriptValue::from(to_string(ECMAScriptValue::from(x)).unwrap()))
         } else {
-            Ok(ECMAScriptValue::from(double_to_radix_string(x, iradix)))
+            Ok(ECMAScriptValue::from(double_to_radix_string(x, int_radix)))
         }
+    } else {
+        Err(create_range_error(format!("Radix {radix_mv} out of range (must be in 2..36)")))
     }
 }
 
 // Number.prototype.valueOf ( )
 //  1. Return ? thisNumberValue(this value).
 fn number_prototype_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    this_number_value(this_value).map(ECMAScriptValue::Number)
+    this_number_value(&this_value.clone()).map(ECMAScriptValue::Number)
 }
 
 #[cfg(test)]

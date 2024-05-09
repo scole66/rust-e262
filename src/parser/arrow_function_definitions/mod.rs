@@ -23,7 +23,7 @@ impl PrettyPrint for ArrowFunction {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrowFunction: {}", first, self)?;
+        writeln!(writer, "{first}ArrowFunction: {self}")?;
         self.parameters.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -33,7 +33,7 @@ impl PrettyPrint for ArrowFunction {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrowFunction: {}", first, self)?;
+        writeln!(writer, "{first}ArrowFunction: {self}")?;
         self.parameters.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "=>", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.body.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -124,7 +124,7 @@ impl ArrowFunction {
         let bn = self.parameters.bound_names();
         let ldn = self.body.lexically_declared_names();
         for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(self.body.location())));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(self.body.location())));
         }
 
         let strict_function = strict || self.body.concise_body_contains_use_strict();
@@ -157,7 +157,7 @@ impl PrettyPrint for ArrowParameters {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrowParameters: {}", first, self)?;
+        writeln!(writer, "{first}ArrowParameters: {self}")?;
         match self {
             ArrowParameters::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ArrowParameters::Formals(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -304,7 +304,11 @@ pub struct ArrowFormalParameters {
 
 impl fmt::Display for ArrowFormalParameters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "( {} )", self.params)
+        write!(f, "( ")?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ")")
     }
 }
 
@@ -314,7 +318,7 @@ impl PrettyPrint for ArrowFormalParameters {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
+        writeln!(writer, "{first}ArrowFormalParameters: {self}")?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -323,7 +327,7 @@ impl PrettyPrint for ArrowFormalParameters {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
+        writeln!(writer, "{first}ArrowFormalParameters: {self}")?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.params.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
@@ -427,7 +431,7 @@ impl fmt::Display for ConciseBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ConciseBody::Expression(node) => node.fmt(f),
-            ConciseBody::Function { body, .. } => write!(f, "{{ {} }}", body),
+            ConciseBody::Function { body, .. } => write!(f, "{{ {body} }}"),
         }
     }
 }
@@ -438,7 +442,7 @@ impl PrettyPrint for ConciseBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ConciseBody: {}", first, self)?;
+        writeln!(writer, "{first}ConciseBody: {self}")?;
         match self {
             ConciseBody::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ConciseBody::Function { body, .. } => body.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -453,7 +457,7 @@ impl PrettyPrint for ConciseBody {
             ConciseBody::Expression(node) => node.concise_with_leftpad(writer, pad, state),
             ConciseBody::Function { body, .. } => {
                 let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}ConciseBody: {}", first, self)?;
+                writeln!(writer, "{first}ConciseBody: {self}")?;
                 pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 body.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
@@ -616,7 +620,7 @@ impl PrettyPrint for ExpressionBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ExpressionBody: {}", first, self)?;
+        writeln!(writer, "{first}ExpressionBody: {self}")?;
         self.expression.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 

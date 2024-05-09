@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::{anyhow, bail};
 use std::fmt;
+use std::ptr::addr_of;
 
 #[derive(Clone, Debug)]
 pub enum NormalCompletion {
@@ -10,27 +11,33 @@ pub enum NormalCompletion {
     Environment(Rc<dyn EnvironmentRecord>),
     IteratorRecord(Rc<IteratorRecord>),
     PrivateName(PrivateName),
+    PrivateElement(Box<PrivateElement>),
 }
 impl PartialEq for NormalCompletion {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Value(left), Self::Value(right)) => left == right,
-            (Self::Value(_), _) => false,
             (Self::Reference(left), Self::Reference(right)) => left == right,
-            (Self::Reference(_), _) => false,
             (Self::Environment(left), Self::Environment(right)) => {
                 //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
-                let left = &**left as *const dyn EnvironmentRecord as *const u8;
-                let right = &**right as *const dyn EnvironmentRecord as *const u8;
+                let left = addr_of!(**left).cast::<u8>();
+                let right = addr_of!(**right).cast::<u8>();
                 std::ptr::eq(left, right)
             }
-            (Self::Environment(_), _) => false,
             (Self::Empty, Self::Empty) => true,
-            (Self::Empty, _) => false,
             (Self::IteratorRecord(left), Self::IteratorRecord(right)) => Rc::ptr_eq(left, right),
-            (Self::IteratorRecord(_), _) => false,
             (Self::PrivateName(left), Self::PrivateName(right)) => left == right,
-            (Self::PrivateName(_), _) => false,
+            (Self::PrivateElement(left), Self::PrivateElement(right)) => *left == *right,
+            (
+                Self::Value(_)
+                | Self::Reference(_)
+                | Self::Environment(_)
+                | Self::Empty
+                | Self::IteratorRecord(_)
+                | Self::PrivateName(_)
+                | Self::PrivateElement(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -42,9 +49,10 @@ impl fmt::Display for NormalCompletion {
             NormalCompletion::Reference(r) => {
                 write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name)
             }
-            NormalCompletion::Environment(x) => write!(f, "{:?}", x),
+            NormalCompletion::Environment(x) => write!(f, "{x:?}"),
             NormalCompletion::IteratorRecord(ir) => f.write_str(&ir.concise()),
-            NormalCompletion::PrivateName(pn) => write!(f, "{}", pn),
+            NormalCompletion::PrivateName(pn) => write!(f, "{pn}"),
+            NormalCompletion::PrivateElement(pe) => write!(f, "{pe}"),
         }
     }
 }
@@ -78,6 +86,11 @@ impl fmt::Display for AbruptCompletion {
         }
     }
 }
+impl From<AbruptCompletion> for String {
+    fn from(value: AbruptCompletion) -> Self {
+        unwind_any_error(value)
+    }
+}
 
 pub type Completion<T> = Result<T, AbruptCompletion>;
 pub type FullCompletion = Completion<NormalCompletion>;
@@ -98,7 +111,7 @@ impl From<Reference> for NormalCompletion {
 }
 
 impl From<()> for NormalCompletion {
-    fn from(_: ()) -> Self {
+    fn from((): ()) -> Self {
         Self::Empty
     }
 }
@@ -121,6 +134,21 @@ impl From<PrivateName> for NormalCompletion {
     }
 }
 
+impl From<PrivateElement> for NormalCompletion {
+    fn from(value: PrivateElement) -> Self {
+        Self::PrivateElement(Box::new(value))
+    }
+}
+
+impl From<Option<PrivateElement>> for NormalCompletion {
+    fn from(value: Option<PrivateElement>) -> Self {
+        match value {
+            Some(pe) => Self::from(pe),
+            None => Self::Empty,
+        }
+    }
+}
+
 impl TryFrom<NormalCompletion> for ECMAScriptValue {
     type Error = anyhow::Error;
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
@@ -130,7 +158,8 @@ impl TryFrom<NormalCompletion> for ECMAScriptValue {
             | NormalCompletion::Reference(_)
             | NormalCompletion::Empty
             | NormalCompletion::Environment(..)
-            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -144,7 +173,8 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
             NormalCompletion::IteratorRecord(_)
             | NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
-            | NormalCompletion::PrivateName(_) => Err(anyhow!("Not a language value!")),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -237,10 +267,12 @@ pub fn update_empty(completion_record: FullCompletion, old_value: NormalCompleti
             Err(AbruptCompletion::Continue { value: old_value, target })
         }
         Ok(_)
-        | Err(AbruptCompletion::Return { .. })
-        | Err(AbruptCompletion::Throw { .. })
-        | Err(AbruptCompletion::Break { .. })
-        | Err(AbruptCompletion::Continue { .. }) => completion_record,
+        | Err(
+            AbruptCompletion::Return { .. }
+            | AbruptCompletion::Throw { .. }
+            | AbruptCompletion::Break { .. }
+            | AbruptCompletion::Continue { .. },
+        ) => completion_record,
     }
 }
 

@@ -25,7 +25,7 @@ mod proxy_object {
         proxy_handler.set("marker", "testcase proxy handler", true).unwrap();
         ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-            proxy_items: RefCell::new(Some(ProxyItems{proxy_target, proxy_handler}))
+            proxy_items: RefCell::new(Some(ProxyItems { proxy_handler, proxy_target }))
         }
     } => Ok(("marker:testcase proxy target".to_string(), "marker:testcase proxy handler".to_string())); "valid")]
     fn validate_non_revoked(make_po: impl FnOnce() -> ProxyObject) -> Result<(String, String), String> {
@@ -37,7 +37,7 @@ mod proxy_object {
     }
 
     fn cbf(
-        behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
             behavior,
@@ -58,8 +58,9 @@ mod proxy_object {
 
     // Behaviors
     fn fn_returning_null() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
             _args: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -68,8 +69,9 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_string() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
             _args: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -78,8 +80,9 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_alternate_object() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
             _args: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -91,8 +94,9 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_target_proto() -> Object {
+        #[allow(clippy::unnecessary_wraps)]
         fn behavior(
-            _this_value: ECMAScriptValue,
+            _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
             arguments: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
@@ -236,18 +240,20 @@ mod proxy_object {
         use test_case::test_case;
 
         // SetPrototypeOf argument makers
+        #[allow(clippy::unnecessary_wraps)]
         fn proto_with_name() -> Option<Object> {
             let proto = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             let ppd = PotentialPropertyDescriptor::new().value("proto-in-argument");
             define_property_or_throw(&proto, "test_prop", ppd).unwrap();
             Some(proto)
         }
+        #[allow(clippy::unnecessary_wraps)]
         fn proto_is_intrinsic() -> Option<Object> {
             Some(intrinsic(IntrinsicId::ObjectPrototype))
         }
 
         // Handler behaviors
-        fn check_arg(this_value: ECMAScriptValue, arguments: &[ECMAScriptValue]) {
+        fn check_arg(this_value: &ECMAScriptValue, arguments: &[ECMAScriptValue]) {
             let mut args = FuncArgs::from(arguments);
             assert!(args.next_arg().is_object());
             let proto = args.next_arg();
@@ -267,8 +273,9 @@ mod proxy_object {
         }
 
         fn fn_checks_arg_returns_true() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -278,8 +285,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_checks_arg_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -373,12 +381,13 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 Ok(false.into())
@@ -387,8 +396,9 @@ mod proxy_object {
         }
 
         fn fn_returns_false_no_checks() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 _: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -472,12 +482,13 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 Ok(false.into())
@@ -486,12 +497,13 @@ mod proxy_object {
         }
 
         fn fn_returns_true() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_true called", true).unwrap();
                 Ok(true.into())
@@ -499,8 +511,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_no_checks() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 _arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -591,12 +604,13 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_new_value() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let ppd = PotentialPropertyDescriptor::new().value("new-value").writable(true).configurable(true);
                 let rval = match from_property_descriptor(Some(ppd)) {
                     None => ECMAScriptValue::Null,
@@ -609,8 +623,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_new_value_no_checks() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 _arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -626,12 +641,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_invalid_pd() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let ppd =
                     PotentialPropertyDescriptor::new().value("new-value").writable(true).configurable(true).set(false);
                 let rval = match from_property_descriptor(Some(ppd)) {
@@ -645,12 +661,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_string() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 Ok(ECMAScriptValue::from("a string"))
             }
             cbf(behavior)
@@ -659,12 +676,13 @@ mod proxy_object {
             cbf(|_, _, _| Ok(ECMAScriptValue::Undefined))
         }
         fn fn_returns_undef() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_undef called", true).unwrap();
                 Ok(ECMAScriptValue::Undefined)
@@ -672,12 +690,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_nonconfig() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_nonconfig called", true).unwrap();
                 let ppd = PotentialPropertyDescriptor::new().value("unconfig").writable(true).configurable(false);
@@ -690,12 +709,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_nonconfig_nonwrite() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_nonconfig_nonwrite called", true).unwrap();
                 let ppd = PotentialPropertyDescriptor::new().value("unconfig").writable(false).configurable(false);
@@ -783,7 +803,7 @@ mod proxy_object {
                     Err(create_type_error("test case throws error"))
                 }
             }
-            let target = AdaptableObject::object(AdaptableMethods {
+            let target = AdaptableObject::object(&AdaptableMethods {
                 is_extensible_override: Some(is_extensible_override),
                 ..Default::default()
             });
@@ -861,8 +881,7 @@ mod proxy_object {
             po.o.get_own_property(&key).map_err(unwind_any_error).map(|pd| {
                 (
                     from_property_descriptor(pd)
-                        .map(|pd| ECMAScriptValue::from(pd).test_result_string())
-                        .unwrap_or_else(|| "undefined".to_string()),
+                        .map_or_else(|| "undefined".to_string(), |pd| ECMAScriptValue::from(pd).test_result_string()),
                     {
                         let handler =
                             po.o.to_proxy_object()
@@ -915,12 +934,13 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_true() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_true called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
@@ -938,8 +958,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_no_checks() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                _this_value: ECMAScriptValue,
+                _this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 _arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -948,12 +969,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_false called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
@@ -967,12 +989,13 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_without_setting() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
-                check_arg(&this_value, arguments);
+                check_arg(this_value, arguments);
                 let handler = Object::try_from(this_value).unwrap();
                 handler.set("callback_message", "fn_returns_true_without_setting called", true).unwrap();
                 let mut args = FuncArgs::from(arguments);
@@ -1185,8 +1208,9 @@ mod proxy_object {
         use test_case::test_case;
 
         fn fn_only_watches() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1201,8 +1225,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1213,7 +1238,8 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false_no_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::from(false))
             }
             cbf(behavior)
@@ -1271,7 +1297,7 @@ mod proxy_object {
                     Err(create_type_error("test case throws error"))
                 }
             }
-            let target = AdaptableObject::object(AdaptableMethods {
+            let target = AdaptableObject::object(&AdaptableMethods {
                 is_extensible_override: Some(is_extensible_override),
                 ..Default::default()
             });
@@ -1374,8 +1400,9 @@ mod proxy_object {
         use test_case::test_case;
 
         fn fn_only_watches() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1391,20 +1418,23 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_undefined_no_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::Undefined)
             }
             cbf(behavior)
         }
         fn fn_returns_val_no_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::from(100))
             }
             cbf(behavior)
         }
         fn fn_returns_val() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1480,6 +1510,7 @@ mod proxy_object {
             ProxyObject::object(Some((target, handler)))
         }
 
+        #[allow(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
             let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             let ppd = PotentialPropertyDescriptor::new()
@@ -1505,7 +1536,7 @@ mod proxy_object {
             => Ok((
                 "undefined".to_string(),
                 "fn_only_watches called".to_string(),
-                vec!["test_marker:target object".to_string(), "test_key".to_string(), "".to_string()]
+                vec!["test_marker:target object".to_string(), "test_key".to_string(), String::new()]
             ));
             "reading not-present")]
         #[test_case(target_get_own_prop_throws, || None
@@ -1523,7 +1554,7 @@ mod proxy_object {
                 vec![
                     "test_marker:target object,test_key:nonconfig/nonwrite".to_string(),
                     "test_key".to_string(),
-                    "".to_string()
+                    String::new()
                     ]
                 ));
             "target non-config and non-write; handler returns same")]
@@ -1581,14 +1612,16 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_true_without_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(true.into())
             }
             cbf(behavior)
         }
         fn fn_returns_true() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behaviour(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1599,8 +1632,9 @@ mod proxy_object {
             cbf(behaviour)
         }
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behaviour(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1627,6 +1661,7 @@ mod proxy_object {
             target
         }
 
+        #[allow(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
             let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             let ppd = PotentialPropertyDescriptor::new()
@@ -1711,7 +1746,7 @@ mod proxy_object {
                     "test_marker:target object".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string(),
+                    String::new(),
                     ]
                 ));
             "handler returns false, recording")]
@@ -1723,7 +1758,7 @@ mod proxy_object {
                     "test_marker:target object,test_key:test_value".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string()
+                    String::new()
                     ]
                 ));
             "target nonconfig/nonwrite, handler true but same value")]
@@ -1735,7 +1770,7 @@ mod proxy_object {
                     "test_marker:target object".to_string(),
                     "test_key".to_string(),
                     "test_value".to_string(),
-                    "".to_string(),
+                    String::new(),
                     ]
                 ));
             "set seems to function simply")]
@@ -1790,14 +1825,16 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_true_without_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(true.into())
             }
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1808,8 +1845,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -1876,7 +1914,7 @@ mod proxy_object {
                     }
                 }
             }
-            let target = AdaptableObject::object(AdaptableMethods {
+            let target = AdaptableObject::object(&AdaptableMethods {
                 is_extensible_override: Some(helper),
                 ..Default::default()
             });
@@ -1974,25 +2012,29 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_invalid_pks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[ECMAScriptValue::Null, ECMAScriptValue::from("blue")]).into())
             }
             cbf(behavior)
         }
         fn fn_returns_duplicate_pks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[ECMAScriptValue::from("blue"), ECMAScriptValue::from("blue")]).into())
             }
             cbf(behavior)
         }
         fn fn_returns_empty_no_checks() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(array_create(0, None).expect("creation works").into())
             }
             cbf(behavior)
         }
         fn fn_returns_test_marker_plus_more() -> Object {
-            fn behavior(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+            #[allow(clippy::unnecessary_wraps)]
+            fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[
                     ECMAScriptValue::from("test_marker"),
                     ECMAScriptValue::from("blue"),
@@ -2003,8 +2045,9 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_recording_list() -> Object {
+            #[allow(clippy::unnecessary_wraps)]
             fn behavior(
-                this_value: ECMAScriptValue,
+                this_value: &ECMAScriptValue,
                 _: Option<&Object>,
                 arguments: &[ECMAScriptValue],
             ) -> Completion<ECMAScriptValue> {
@@ -2116,7 +2159,7 @@ mod proxy_object {
                             Ok(ordinary_get_own_property(obj, key))
                         }
                     }
-                    let target = AdaptableObject::object(AdaptableMethods {
+                    let target = AdaptableObject::object(&AdaptableMethods {
                         get_own_property_override: Some(helper),
                         ..Default::default()
                     });
@@ -2172,7 +2215,7 @@ mod proxy_object {
                     all the keys of the own properties of the target object and no other values.");
             "target not extensible; but the handler adds some keys, without dropping others")]
         #[test_case(target_get_prop_throws
-            => serr("TypeError: [[GetOwnProperty]] fails"); 
+            => serr("TypeError: [[GetOwnProperty]] fails");
             "target [[GetOwnProperty]] fails")]
         #[test_case(no_overrides
             => Ok((
@@ -2251,6 +2294,7 @@ mod proxy_object {
     false_function!(is_boolean_object);
     false_function!(is_date_object);
     false_function!(uses_ordinary_get_prototype_of);
+    false_function!(is_bigint_object);
 
     none_function!(to_number_obj);
     none_function!(to_array_object);
@@ -2265,6 +2309,7 @@ mod proxy_object {
     none_function!(to_function_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_string_obj);
+    none_function!(to_bigint_object);
 
     default_id_test!();
 
@@ -2309,5 +2354,101 @@ mod proxy_items {
             proxy_target: ordinary_object_create(None, &[]),
         };
         assert_ne!(format!("{items:?}"), "");
+    }
+}
+
+mod proxy_constructor_function {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| (None, vec![]) => serr("TypeError: Proxy may not be called as a function"); "called as func")]
+    #[test_case(
+        || (Some(intrinsic(IntrinsicId::Proxy)), vec![])
+        => serr("TypeError: Proxy target and handler must be objects");
+        "called with bad args"
+    )]
+    #[test_case(
+        || (
+            Some(intrinsic(IntrinsicId::Proxy)),
+            vec![
+                ECMAScriptValue::Object({
+                    let o = ordinary_object_create(None, &[]);
+                    o.create_data_property_or_throw("name", "target").unwrap();
+                    o
+                }),
+                ECMAScriptValue::Object({
+                    let o = ordinary_object_create(None, &[]);
+                    o.create_data_property_or_throw("name", "handler").unwrap();
+                    o
+                })
+            ]
+        )
+        => sok("target: target; handler: handler");
+        "called with empty objects"
+    )]
+    fn f(make_items: impl FnOnce() -> (Option<Object>, Vec<ECMAScriptValue>)) -> Result<String, String> {
+        setup_test_agent();
+        let (nt, args) = make_items();
+        let o = Object::try_from(
+            super::proxy_constructor_function(&ECMAScriptValue::Undefined, nt.as_ref(), &args)
+                .map_err(unwind_any_error)?,
+        )
+        .unwrap();
+        let proxy = o.o.to_proxy_object().unwrap();
+        let target_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_target.get(&PropertyKey::from("name")).unwrap();
+        let handler_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_handler.get(&PropertyKey::from("name")).unwrap();
+
+        Ok(format!("target: {target_name}; handler: {handler_name}"))
+    }
+}
+
+mod proxy_create {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined)
+        => serr("TypeError: Proxy target and handler must be objects");
+        "no objects"
+    )]
+    #[test_case(
+        || (ECMAScriptValue::Object(ordinary_object_create(None, &[])), ECMAScriptValue::Undefined)
+        => serr("TypeError: Proxy handler must be an object");
+        "handler not obj"
+    )]
+    #[test_case(
+        || (ECMAScriptValue::Undefined, ECMAScriptValue::Object(ordinary_object_create(None, &[])))
+        => serr("TypeError: Proxy target must be an object");
+        "target not obj"
+    )]
+    #[test_case(
+        || (
+            ECMAScriptValue::Object({
+                let o = ordinary_object_create(None, &[]);
+                o.create_data_property_or_throw("name", "target").unwrap();
+                o
+            }),
+            ECMAScriptValue::Object({
+                let o = ordinary_object_create(None, &[]);
+                o.create_data_property_or_throw("name", "handler").unwrap();
+                o
+            })
+        )
+        => sok("target: target; handler: handler");
+        "called with objects"
+    )]
+    fn f(make_items: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue)) -> Result<String, String> {
+        setup_test_agent();
+        let (target, handler) = make_items();
+        let o = Object::try_from(super::proxy_create(target, handler).map_err(unwind_any_error)?).unwrap();
+        let proxy = o.o.to_proxy_object().unwrap();
+        let target_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_target.get(&PropertyKey::from("name")).unwrap();
+        let handler_name =
+            proxy.proxy_items.borrow().as_ref().unwrap().proxy_handler.get(&PropertyKey::from("name")).unwrap();
+
+        Ok(format!("target: {target_name}; handler: {handler_name}"))
     }
 }

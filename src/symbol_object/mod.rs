@@ -172,11 +172,13 @@ impl SymbolObject {
     }
 }
 
-pub fn create_symbol_object(sym: Symbol) -> Object {
-    let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
-    let obj = SymbolObject::object(Some(symbol_proto));
-    *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
-    obj
+impl From<Symbol> for Object {
+    fn from(sym: Symbol) -> Self {
+        let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
+        let obj = SymbolObject::object(Some(symbol_proto));
+        *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
+        obj
+    }
 }
 
 pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
@@ -382,7 +384,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
 /// can be found in the global Symbol registry, that Symbol is returned. Otherwise, a new Symbol is created, added to
 /// the global Symbol registry under the given key, and returned.
 fn symbol_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -428,7 +430,7 @@ pub fn global_symbol(key: JSString) -> Symbol {
 ///
 /// See [Symbol.for](https://tc39.es/ecma262/#sec-symbol.for) in ECMA-262.
 fn symbol_for(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -467,7 +469,7 @@ fn symbol_for(
 ///
 /// See [Symbol.keyFor](https://tc39.es/ecma262/#sec-symbol.keyfor) in ECMA-262.
 fn symbol_key_for(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -506,29 +508,29 @@ fn this_symbol_value(this_value: ECMAScriptValue) -> Completion<Symbol> {
 }
 
 fn symbol_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(this_value)?;
+    let sym = this_symbol_value(this_value.clone())?;
     Ok(sym.descriptive_string().into())
 }
 
 fn symbol_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Ok(this_symbol_value(this_value)?.into())
+    Ok(this_symbol_value(this_value.clone())?.into())
 }
 
 fn symbol_description(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(this_value)?;
-    Ok(sym.description().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined))
+    let sym = this_symbol_value(this_value.clone())?;
+    Ok(sym.description().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from))
 }
 
 #[derive(Debug, Default)]

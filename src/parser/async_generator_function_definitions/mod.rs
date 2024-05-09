@@ -15,7 +15,15 @@ pub struct AsyncGeneratorMethod {
 
 impl fmt::Display for AsyncGeneratorMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "async * {} ( {} ) {{ {} }}", self.name, self.params, self.body)
+        write!(f, "async * {} ( ", self.name)?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -25,7 +33,7 @@ impl PrettyPrint for AsyncGeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorMethod: {self}")?;
         self.name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -36,7 +44,7 @@ impl PrettyPrint for AsyncGeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorMethod: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -190,12 +198,19 @@ pub struct AsyncGeneratorDeclaration {
 
 impl fmt::Display for AsyncGeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => {
-                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
-            }
-            Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
+        write!(f, "async function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -205,7 +220,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -218,7 +233,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorDeclaration: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -372,12 +387,19 @@ pub struct AsyncGeneratorExpression {
 
 impl fmt::Display for AsyncGeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
-            None => {
-                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
-            }
+        write!(f, "async function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -387,7 +409,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -400,7 +422,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorExpression: {self}")?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -494,7 +516,7 @@ impl AsyncGeneratorExpression {
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncGeneratorBody Contains SuperCall is true.
-        let strict_function = function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
                 "Yield expressions can't be parameter initializers in generators",
@@ -508,11 +530,7 @@ impl AsyncGeneratorExpression {
             ));
         }
 
-        if let Some(bi) = &self.ident {
-            bi.early_errors(errs, strict_function);
-        }
-        self.params.early_errors(errs, strict_function, strict_function);
-        self.body.early_errors(errs, strict_function);
+        // Don't need to check the child nodes, as function_early_errors, above, already did.
     }
 
     pub fn is_named_function(&self) -> bool {
@@ -537,7 +555,7 @@ impl PrettyPrint for AsyncGeneratorBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncGeneratorBody: {}", first, self)?;
+        writeln!(writer, "{first}AsyncGeneratorBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 

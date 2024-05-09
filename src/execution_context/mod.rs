@@ -37,6 +37,16 @@ pub enum ScriptOrModule {
     Module(Rc<ModuleRecord>),
 }
 
+impl PartialEq for ScriptOrModule {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Script(l0), Self::Script(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::Module(l0), Self::Module(r0)) => Rc::ptr_eq(l0, r0),
+            _ => false,
+        }
+    }
+}
+
 impl ScriptOrModule {
     pub fn source_text(&self) -> &String {
         match self {

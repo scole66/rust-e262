@@ -19,12 +19,12 @@ fn async_function_declaration_test_01() {
     pretty_check(
         &*node,
         "AsyncFunctionDeclaration: async function bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "AsyncFunctionDeclaration: async function bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "IdentifierName: bob",
@@ -36,7 +36,7 @@ fn async_function_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_function_declaration_test_02() {
@@ -51,12 +51,12 @@ fn async_function_declaration_test_02() {
     pretty_check(
         &*node,
         "AsyncFunctionDeclaration: async function ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        &["FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "AsyncFunctionDeclaration: async function ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: (",
@@ -67,7 +67,7 @@ fn async_function_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_function_declaration_test_err_01() {
@@ -241,6 +241,18 @@ mod async_function_declaration {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "id only")]
+    #[test_case("async function (){}" => "async function ( ) { }"; "nothing")]
+    #[test_case("async function a(b){}" => "async function a ( b ) { }"; "id + params")]
+    #[test_case("async function (b){}" => "async function ( b ) { }"; "params only")]
+    #[test_case("async function a(){null;}" => "async function a ( ) { null ; }"; "id + body")]
+    #[test_case("async function (){null;}" => "async function ( ) { null ; }"; "body only")]
+    #[test_case("async function a(b){null;}" => "async function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function (b){null;}" => "async function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_function_declaration())
+    }
+
     #[test_case("async function a(arg=item.#valid){}" => true; "Params valid")]
     #[test_case("async function a(arg) {return item.#valid;}" => true; "Body valid")]
     #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
@@ -270,7 +282,7 @@ mod async_function_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   async function abc() {}" => Location{ starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 23 } }; "typical")]
@@ -301,12 +313,12 @@ fn async_function_expression_test_01() {
     pretty_check(
         &*node,
         "AsyncFunctionExpression: async function bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "AsyncFunctionExpression: async function bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "IdentifierName: bob",
@@ -318,7 +330,7 @@ fn async_function_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -331,12 +343,12 @@ fn async_function_expression_test_02() {
     pretty_check(
         &*node,
         "AsyncFunctionExpression: async function ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        &["FormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "AsyncFunctionExpression: async function ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: (",
@@ -347,7 +359,7 @@ fn async_function_expression_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -459,6 +471,18 @@ mod async_function_expression {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "id only")]
+    #[test_case("async function (){}" => "async function ( ) { }"; "nothing")]
+    #[test_case("async function a(b){}" => "async function a ( b ) { }"; "id + params")]
+    #[test_case("async function (b){}" => "async function ( b ) { }"; "params only")]
+    #[test_case("async function a(){null;}" => "async function a ( ) { null ; }"; "id + body")]
+    #[test_case("async function (){null;}" => "async function ( ) { null ; }"; "body only")]
+    #[test_case("async function a(b){null;}" => "async function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function (b){null;}" => "async function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_function_expression())
+    }
+
     #[test_case("async function([a]=b){'use strict';}", false => sset(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
     #[test_case("async function(a=await b()){}", false => sset(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => sset(&[A_ALREADY_DEFN]); "duplicate; strict body")]
@@ -474,7 +498,7 @@ mod async_function_expression {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_function_expression().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async function a(){}" => true; "named")]
@@ -502,16 +526,12 @@ fn async_method_test_01() {
     pretty_check(
         &*node,
         "AsyncMethod: async bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
-            "ClassElementName: bob",
-            "UniqueFormalParameters: a , b",
-            "AsyncFunctionBody: return await foo ( a + b ) ;",
-        ],
+        &["ClassElementName: bob", "UniqueFormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "AsyncMethod: async bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: async",
             "IdentifierName: bob",
             "Punctuator: (",
@@ -522,7 +542,7 @@ fn async_method_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_method_test_err_01() {
@@ -620,6 +640,14 @@ mod async_method {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async a(){}" => "async a ( ) { }"; "id only")]
+    #[test_case("async a(b){}" => "async a ( b ) { }"; "id + params")]
+    #[test_case("async a(){null;}" => "async a ( ) { null ; }"; "id + body")]
+    #[test_case("async a(b){null;}" => "async a ( b ) { null ; }"; "id + params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_method())
+    }
+
     #[test_case("async #blue() {}" => Some("#blue".to_string()); "pid there")]
     #[test_case("async blue(){}" => None; "nothing private")]
     fn private_bound_identifier(src: &str) -> Option<String> {
@@ -651,7 +679,7 @@ mod async_method {
         setup_test_agent();
         let mut errs = vec![];
         AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async [arguments](){}" => true; "yes")]
@@ -666,17 +694,17 @@ mod async_method {
 fn async_function_body_test_01() {
     let (node, scanner) = AsyncFunctionBody::parse(&mut newparser("yield = 3;"), Scanner::new());
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "AsyncFunctionBody: yield = 3 ;", vec!["FunctionBody: yield = 3 ;"]);
-    concise_check(&*node, "ExpressionStatement: yield = 3 ;", vec!["AssignmentExpression: yield = 3", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "AsyncFunctionBody: yield = 3 ;", &["FunctionBody: yield = 3 ;"]);
+    concise_check(&*node, "ExpressionStatement: yield = 3 ;", &["AssignmentExpression: yield = 3", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn async_function_body_test_02() {
     let (node, scanner) = AsyncFunctionBody::parse(&mut newparser("await = 3;"), Scanner::new());
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "AsyncFunctionBody: ", vec!["FunctionBody: "]);
-    concise_check(&*node, "", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "AsyncFunctionBody: ", &["FunctionBody: "]);
+    concise_check(&*node, "", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn async_function_body_test_cache_01() {
@@ -732,7 +760,7 @@ mod async_function_body {
         setup_test_agent();
         let mut errs = vec![];
         AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -752,7 +780,7 @@ mod async_function_body {
         Maker::new(src).async_function_body().var_declared_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_function_body().var_scoped_declarations().iter().map(String::from).collect()
     }
@@ -768,9 +796,9 @@ mod async_function_body {
 fn await_expression_test_01() {
     let (node, scanner) = check(AwaitExpression::parse(&mut newparser("await a()"), Scanner::new(), false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "AwaitExpression: await a ( )", vec!["UnaryExpression: a ( )"]);
-    concise_check(&*node, "AwaitExpression: await a ( )", vec!["Keyword: await", "CallMemberExpression: a ( )"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "AwaitExpression: await a ( )", &["UnaryExpression: a ( )"]);
+    concise_check(&*node, "AwaitExpression: await a ( )", &["Keyword: await", "CallMemberExpression: a ( )"]);
+    format!("{node:?}");
 }
 #[test]
 fn await_expression_test_err_01() {
@@ -820,7 +848,7 @@ mod await_expression {
         setup_test_agent();
         let mut errs = vec![];
         AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("await arguments" => true; "yes")]

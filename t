@@ -18,6 +18,7 @@ declare -A test_defs
 
 test_defs[PrivateName]="PrivateName private_name:: values"
 test_defs[ECMAScriptValue]="ECMAScriptValue ecmascript_value:: values"
+test_defs[ECMAScriptValue_to_integer_or_infinity]="ECMAScriptValue::to_integer_or_infinity ecmascript_value::to_integer_or_infinity values"
 test_defs[PropertyKey]="PropertyKey property_key values"
 test_defs[SymbolInternals]="SymbolInternals symbol_internals values"
 test_defs[Symbol]="Symbol symbol values"
@@ -26,6 +27,9 @@ test_defs[PrivateElement]="PrivateElement private_element:: values"
 test_defs[Numeric]="Numeric numeric values"
 test_defs[ArrayIndex]="ArrayIndex array_index values"
 test_defs[ValuesJSString]="strings::JSString jsstring values"
+test_defs[ValuesJSString_to_number]="strings::JSString::to_number jsstring::to_number values"
+test_defs[ValuesJSString_to_core_int]="strings::JSString::to_core_int jsstring::to_core_int values"
+test_defs[ValuesJSString_to_uint32]="strings::JSString::to_uint32 jsstring::to_uint32 values"
 test_defs[ValuesOption]="core::option::Option option_object values"
 test_defs[Valuesf64]="f64 f64ish values"
 test_defs[ValuesRc]="alloc::rc::Rc bigintish values"
@@ -35,13 +39,16 @@ test_defs[same_value]="ECMAScriptValue::same_value ecmascript_value::same_value:
 test_defs[is_strictly_equal]="ECMAScriptValue::is_strictly_equal ecmascript_value::is_strictly_equal values"
 test_defs[is_loosely_equal]="is_loosely_equal agent::is_loosely_equal values"
 test_defs[PropertyKey_is_array_index]="PropertyKey::is_array_index property_key::is_array_index values"
-test_defs[to_number_agentless]="to_number_agentless to_number_agentless values"
-test_defs[to_core_int_agentless]="to_core_int_agentless to_core_int_agentless values"
-test_defs[to_uint32_agentless]="to_uint32_agentless to_uint32_agentless values"
-test_defs[to_string_agentless]="to_string_agentless to_string_agentless values"
 test_defs[to_object]="to_object to_object values"
 test_defs[canonical_numeric_index_string]="canonical_numeric_index_string canonical_numeric_index_string values"
 test_defs[ValueKind]="ValueKind value_kind values"
+test_defs[JSString_try_from_value]="strings::JSString@try_from jsstring::try_from values"
+test_defs[bigint_to_string_radix]="bigint_to_string_radix bigint_to_string_radix values"
+test_defs[ConversionHint]="ConversionHint conversion_hint values"
+test_defs[to_f64]="to_f64 to_f64 values"
+test_defs[to_usize]="to_usize to_usize values"
+test_defs[exponentiate]="exponentiate exponentiate values"
+test_defs[to_integer_or_infinity]="to_integer_or_infinity to_integer_or_infinity values"
 
 test_defs[SymbolObject]="SymbolObject symbol_object symbol_object"
 test_defs[SymbolRegistry]="SymbolRegistry symbol_registry symbol_object"
@@ -84,6 +91,7 @@ test_defs[CompilerMultiplicativeExpression]="parser::multiplicative_operators::M
 test_defs[CompilerAdditiveExpression]="parser::additive_operators::AdditiveExpression additive_expression compiler"
 test_defs[CompilerShiftExpression]="parser::bitwise_shift_operators::ShiftExpression shift_expression compiler"
 test_defs[CompilerRelationalExpression]="parser::relational_operators::RelationalExpression relational_expression compiler"
+test_defs[CompilerRelationalExpression_insn]="parser::relational_operators::RelationalExpression::insn relational_expression::insn compiler"
 test_defs[CompilerEqualityExpression]="parser::equality_operators::EqualityExpression equality_expression compiler"
 test_defs[CompilerBitwiseANDExpression]="parser::binary_bitwise_operators::BitwiseANDExpression bitwise_and_expression compiler"
 test_defs[CompilerBitwiseXORExpression]="parser::binary_bitwise_operators::BitwiseXORExpression bitwise_xor_expression compiler"
@@ -208,6 +216,17 @@ test_defs[CompilerForDeclaration]="parser::iteration_statements::ForDeclaration 
 test_defs[CompilerAssignmentPattern]="parser::assignment_operators::AssignmentPattern assignment_pattern compiler"
 test_defs[CompilerForInOfStatement_for_in_of_evaluation]="parser::iteration_statements::ForInOfStatement::for_in_of_evaluation for_in_of_statement::for_in_of_evaluation compiler"
 test_defs[CompilerForInOfStatement_for_in_of_body_evaluation]="parser::iteration_statements::ForInOfStatement::for_in_of_body_evaluation for_in_of_statement::for_in_of_body_evaluation compiler"
+test_defs[CompilerOptionalExpression]="parser::left_hand_side_expressions::OptionalExpression optional_expression compiler"
+test_defs[CompilerOptionalChain]="parser::left_hand_side_expressions::OptionalChain optional_chain compiler"
+test_defs[block_declaration_instantiation]="block_declaration_instantiation block:: compiler"
+test_defs[CompilerSwitchStatement]="parser::switch_statement::SwitchStatement switch_statement compiler"
+test_defs[CompilerCaseBlock]="parser::switch_statement::CaseBlock case_block compiler"
+test_defs[CompilerDefaultClause]="parser::switch_statement::DefaultClause default_clause compiler"
+test_defs[CompilerCaseClause]="parser::switch_statement::CaseClause case_clause compiler"
+test_defs[CompilerMethodDefinition]="parser::method_definitions::MethodDefinition method_definition compiler"
+test_defs[CompilerMethodDefinition_define_method]="parser::method_definitions::MethodDefinition::define_method method_definition::define_method compiler"
+test_defs[CompilerMethodDefinition_method_definition_evaluation]="parser::method_definitions::MethodDefinition::method_definition_evaluation method_definition::method_definition_evaluation compiler"
+test_defs[NameLoc]="NameLoc name_loc compiler"
 
 test_defs[ArrowParameters]="ArrowParameters arrow_parameters parser::arrow_function_definitions"
 test_defs[ExpressionBody]="ExpressionBody expression_body parser::arrow_function_definitions"
@@ -233,6 +252,7 @@ test_defs[AsyncConciseBody]="AsyncConciseBody async_concise_body parser::async_a
 test_defs[AsyncArrowBindingIdentifier]="AsyncArrowBindingIdentifier async_arrow_binding_identifier parser::async_arrow_function_definitions"
 test_defs[CoverCallExpressionAndAsyncArrowHead]="CoverCallExpressionAndAsyncArrowHead cceaaah parser::async_arrow_function_definitions"
 test_defs[AsyncFunctionDeclaration]="AsyncFunctionDeclaration async_function_declaration parser::async_function_definitions"
+test_defs[AsyncFunctionDeclaration_display]="AsyncFunctionDeclaration@fmt::Display async_function_declaration::display parser::async_function_definitions"
 test_defs[AsyncFunctionExpression]="AsyncFunctionExpression async_function_expression parser::async_function_definitions"
 test_defs[AsyncMethod]="AsyncMethod async_method parser::async_function_definitions"
 test_defs[AsyncFunctionBody]="AsyncFunctionBody async_function_body parser::async_function_definitions"
@@ -382,6 +402,12 @@ test_defs[CatchParameter]="CatchParameter catch_parameter parser::try_statement"
 test_defs[UnaryExpression]="UnaryExpression unary_expression parser::unary_operators"
 test_defs[UpdateExpression]="UpdateExpression update_expression parser::update_expressions"
 test_defs[WithStatement]="WithStatement with_statement parser::with_statement"
+test_defs[ParsedText]="ParsedText parsed_text parser"
+test_defs[ParsedItem]="ParsedItem parsed_item parser"
+test_defs[direct_parse]="direct_parse direct_parse parser"
+test_defs[parse_text]="parse_text parse_text parser"
+test_defs[ParsedText_TryFrom]="core::result::Result@convert::TryFrom parsed_text::try_from parser"
+test_defs[ParsedText_thing]="core::result::Result@alloc::rc::Rc@scripts::Script@vec::Vec@object::Object@convert::TryFrom@ParsedText@try_from parsed_text::try_from parser"
 
 test_defs[Agent]="Agent agent agent"
 test_defs[global_symbol_registry]="global_symbol_registry agent::global_symbol_registry agent"
@@ -435,6 +461,11 @@ test_defs[create_for_in_iterator]="create_for_in_iterator create_for_in_iterator
 test_defs[provision_for_in_iterator_prototype]="provision_for_in_iterator_prototype provision_for_in_iterator_prototype agent"
 test_defs[for_in_iterator_prototype_next]="for_in_iterator_prototype_next for_in_iterator_prototype_next agent"
 test_defs[evaluate_initialized_class_field_definition]="evaluate_initialized_class_field_definition evaluate_initialized_class_field_definition agent"
+test_defs[define_method]="define_method define_method:: agent"
+test_defs[define_method_property]="define_method_property define_method_property agent"
+test_defs[ec_peek]="ec_peek ec_peek agent"
+test_defs[set_default_global_bindings]="set_default_global_bindings set_default_global_bindings agent"
+test_defs[execution_context_stack_len]="execution_context_stack_len execution_context_stack_len agent"
 
 test_defs[Removability]="Removability removability environment_record"
 test_defs[Strictness]="Strictness strictness environment_record"
@@ -555,6 +586,7 @@ test_defs[ordinary_delete]="ordinary_delete ordinary_delete object"
 test_defs[ordinary_delete_internal]="ordinary_delete_internal ordinary_delete object"
 test_defs[ordinary_prevent_extensions]="ordinary_prevent_extensions ordinary_prevent_extensions object"
 test_defs[has_own_property]="Object::has_own_property has_own_property object"
+test_defs[delete_property_or_throw]="Object::delete_property_or_throw delete_property_or_throw object"
 
 test_defs[Chunk]="Chunk chunk chunk"
 test_defs[Chunk_add_to_func_stash]="Chunk::add_to_func_stash chunk::add_to_func_stash chunk"
@@ -570,9 +602,11 @@ test_defs[ArgumentsObject_get]="ArgumentsObject@object::ObjectInterface::get arg
 test_defs[ArgumentsObject_delete]="ArgumentsObject@object::ObjectInterface::delete arguments_object::delete arguments_object"
 test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInterface::own_property_keys arguments_object::own_property_keys arguments_object"
 
-test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
 test_defs[Realm]="Realm realm realm"
+test_defs[is_nan]="is_nan is_nan realm"
+test_defs[is_finite]="is_finite is_finite realm"
+test_defs[perform_eval]="perform_eval perform_eval realm"
 
 test_defs[ArrayObject_own_property_keys]="ArrayObject@object::ObjectInterface::own_property_keys array_object::own_property_keys arrays"
 test_defs[ArrayObject_define_own_property]="ArrayObject@object::ObjectInterface::define_own_property array_object::define_own_property arrays"
@@ -587,6 +621,40 @@ test_defs[array_iterator]="array_iterator array_iterator arrays"
 test_defs[create_array_iterator]="create_array_iterator array_iterator::standard arrays"
 test_defs[array_constructor_function]="array_constructor_function array_constructor_function arrays"
 test_defs[array_species_create]="array_species_create array_species_create arrays"
+test_defs[array_is_array]="array_is_array array_is_array arrays"
+test_defs[array_species]="array_species array_species:: arrays"
+test_defs[array_prototype_pop]="array_prototype_pop array_prototype_pop arrays"
+test_defs[array_prototype_push]="array_prototype_push array_prototype_push arrays"
+test_defs[array_prototype_map]="array_prototype_map array_prototype_map arrays"
+test_defs[ArrayObject]="ArrayObject array_object arrays"
+
+test_defs[provision_big_int_intrinsic]="provision_big_int_intrinsic provision_big_int_intrinsic bigint_object"
+test_defs[bigint_constructor_function]="bigint_constructor_function bigint_constructor_function bigint_object"
+test_defs[bigint_as_int_n]="bigint_as_int_n bigint_as_int_n bigint_object"
+test_defs[bigint_as_uint_n]="bigint_as_uint_n bigint_as_uint_n bigint_object"
+test_defs[bigint_to_locale_string]="bigint_to_locale_string bigint_to_locale_string bigint_object"
+test_defs[bigint_to_string]="bigint_to_string bigint_to_string bigint_object"
+test_defs[bigint_value_of]="bigint_value_of bigint_value_of bigint_object"
+test_defs[BigIntObject]="BigIntObject big_int_object bigint_object"
+test_defs[create_bigint_object]="create_bigint_object create_bigint_object bigint_object"
+test_defs[this_bigint_value]="this_bigint_value this_bigint_value bigint_object"
+test_defs[number_to_big_int]="number_to_big_int number_to_big_int bigint_object"
+test_defs[to_big_int]="to_big_int to_big_int bigint_object"
+
+test_defs[provision_reflect_intrinsic]="provision_reflect_intrinsic provision_reflect_intrinsic reflect"
+test_defs[reflect_apply]="reflect_apply reflect_apply reflect"
+test_defs[reflect_construct]="reflect_construct reflect_construct reflect"
+test_defs[reflect_define_property]="reflect_define_property reflect_define_property reflect"
+test_defs[reflect_delete_property]="reflect_delete_property reflect_delete_property reflect"
+test_defs[reflect_get]="reflect_get reflect_get reflect"
+test_defs[reflect_get_own_property_descriptor]="reflect_get_own_property_descriptor reflect_get_own_property_descriptor reflect"
+test_defs[reflect_get_prototype_of]="reflect_get_prototype_of reflect_get_prototype_of reflect"
+test_defs[reflect_has]="reflect_has reflect_has reflect"
+test_defs[reflect_is_extensible]="reflect_is_extensible reflect_is_extensible reflect"
+test_defs[reflect_own_keys]="reflect_own_keys reflect_own_keys reflect"
+test_defs[reflect_prevent_extensions]="reflect_prevent_extensions reflect_prevent_extensions reflect"
+test_defs[reflect_set]="reflect_set reflect_set reflect"
+test_defs[reflect_set_prototype_of]="reflect_set_prototype_of reflect_set_prototype_of reflect"
 
 test_defs[BooleanObject_own_property_keys]="BooleanObject@object::ObjectInterface::own_property_keys own_keys_01 boolean_object"
 test_defs[BooleanObject]="BooleanObject boolean_object boolean_object"
@@ -596,6 +664,10 @@ test_defs[boolean_prototype_to_string]="boolean_prototype_to_string boolean_prot
 test_defs[boolean_prototype_value_of]="boolean_prototype_value_of boolean_prototype_value_of boolean_object"
 
 test_defs[ErrorObject_own_property_keys]="ErrorObject@object::ObjectInterface::own_property_keys error_object_own_property_keys errors"
+test_defs[ErrorObject]="ErrorObject error_object errors"
+test_defs[create_native_error_object]="create_native_error_object create_native_error_object errors"
+test_defs[create_native_error_object_internal]="create_native_error_object_internal create_native_error_object errors"
+test_defs[unwind_any_error_object]="unwind_any_error_object unwind_any_error_object errors"
 
 test_defs[NumberObject_own_property_keys]="NumberObject@object::ObjectInterface::own_property_keys number_object_own_property_keys number_object"
 
@@ -609,16 +681,22 @@ test_defs[ConstructorKind]="ConstructorKind constructor_kind function_object"
 test_defs[ordinary_function_create]="ordinary_function_create ordinary_function_create function_object"
 test_defs[make_constructor]="make_constructor make_constructor function_object"
 test_defs[ClassName]="ClassName class_name function_object"
+test_defs[FunctionName]="FunctionName function_name function_object"
+test_defs[FunctionName_display]="FunctionName@core::fmt::Display::fmt function_name::fmt_display function_object"
 test_defs[ClassFieldDefinitionRecord]="ClassFieldDefinitionRecord class_field_definition_record function_object"
 test_defs[BodySource]="BodySource body_source function_object"
 test_defs[ParamSource]="ParamSource param_source function_object"
+test_defs[ParamSource_eq]="ParamSource@eq param_source::eq:: function_object"
+test_defs[ParamSource_from]="ParamSource@from param_source::from:: function_object"
 test_defs[FunctionSource]="FunctionSource function_source function_object"
+test_defs[FunctionSource_display]="FunctionSource@core::fmt::Display function_source::display_fmt function_object"
 test_defs[FunctionObjectData]="FunctionObjectData function_object_data function_object"
+test_defs[FunctionObject]="FunctionObject function_object function_object"
 test_defs[FunctionObject_call]="FunctionObject@CallableObject::call function_object::call function_object"
 test_defs[FunctionObject_construct]="FunctionObject@CallableObject::construct function_object::construct function_object"
 test_defs[FunctionObject_object]="FunctionObject::object function_object::object function_object"
 test_defs[prepare_for_ordinary_call]="prepare_for_ordinary_call prepare_for_ordinary_call function_object"
-test_defs[FunctionObject_ordinary_call_bind_this]="ordinary_call_bind_this ordinary_call_bind_this function_object"
+test_defs[ordinary_call_bind_this]="ordinary_call_bind_this ordinary_call_bind_this function_object"
 test_defs[ordinary_call_evaluate_body]="ordinary_call_evaluate_body ordinary_call_evaluate_body function_object"
 test_defs[nameify]="nameify nameify function_object"
 test_defs[BuiltInFunctionObject]="BuiltInFunctionObject built_in_function_object function_object"
@@ -628,11 +706,34 @@ test_defs[FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object]=
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
 test_defs[FunctionObject_own_property_keys]="FunctionObject@ObjectInterface::own_property_keys function_object::own_property_keys function_object"
 test_defs[BuiltInFunctionObject_own_property_keys]="BuiltInFunctionObject@ObjectInterface::own_property_keys built_in_function_object::own_property_keys function_object"
+test_defs[BuiltInFunctionObject_define_own_property]="BuiltInFunctionObject@ObjectInterface::define_own_property built_in_function_object::define_own_property function_object"
 test_defs[ConciseBodySource]="ConciseBodySource concise_body_source function_object"
 test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_object"
 test_defs[make_method]="make_method make_method function_object"
+test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
+test_defs[provision_function_intrinsic]="provision_function_intrinsic provision_function_intrinsic function_object"
+test_defs[function_constructor_function]="function_constructor_function todo::function_constructor_function function_object"
+test_defs[function_prototype_apply]="function_prototype_apply todo::function_prototype_apply function_object"
+test_defs[function_prototype_bind]="function_prototype_bind todo::function_prototype_bind function_object"
+test_defs[function_prototype_to_string]="function_prototype_to_string function_prototype_to_string function_object"
+test_defs[function_prototype_has_instance]="function_prototype_has_instance function_prototype_has_instance function_object"
+test_defs[FunctionObject_Rc_TryFrom]="alloc::rc::Rc@core::convert::TryFrom rc_try_from function_object"
+test_defs[BuiltInFunctionObject_end_evaluation]="BuiltInFunctionObject@CallableObject::end_evaluation built_in_function_object::end_evaluation function_object"
+test_defs[BuiltInFunctionObject_complete_call]="BuiltInFunctionObject@CallableObject::complete_call built_in_function_object::complete_call function_object"
+test_defs[BuiltInFunctionObject_call]="BuiltInFunctionObject@CallableObject::call built_in_function_object::call function_object"
+test_defs[BuiltInFunctionObject_construct]="BuiltInFunctionObject@CallableObject::construct built_in_function_object::construct function_object"
+test_defs[NormalCompletion_function_object]="cr::NormalCompletion normal_completion function_object"
+test_defs[PropertyKey_function_object]="values::PropertyKey property_key function_object"
+test_defs[BuiltInFunctionData]="BuiltInFunctionData built_in_function_data function_object"
+test_defs[make_constructor]="make_constructor make_constructor function_object"
+test_defs[set_function_name]="set_function_name set_function_name function_object"
+test_defs[initialize_instance_elements]="initialize_instance_elements initialize_instance_elements function_object"
+test_defs[create_dynamic_function]="create_dynamic_function create_dynamic_function function_object"
 
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
+test_defs[is_str_whitespace]="is_str_whitespace is_str_whitespace strings"
+test_defs[string_to_bigint]="JSString::to_bigint string_to_bigint strings"
+test_defs[JSString_from]="JSString@from from:: strings"
 
 test_defs[StringObject]="StringObject string_object string_object"
 test_defs[StringObject_string_get_own_property]="StringObject::string_get_own_property string_object::string_get_own_property string_object"
@@ -711,6 +812,10 @@ test_defs[object_prevent_extensions]="object_prevent_extensions constructor::pre
 test_defs[object_seal]="object_seal constructor::seal object_object"
 test_defs[object_set_prototype_of]="object_set_prototype_of constructor::set_prototype_of object_object"
 test_defs[object_values]="object_values constructor::values object_object"
+test_defs[object_prototype_has_own_property]="object_prototype_has_own_property prototype::has_own_property object_object"
+test_defs[object_prototype_is_prototype_of]="object_prototype_is_prototype_of prototype::is_prototype_of object_object"
+test_defs[object_prototype_property_is_enumerable]="object_prototype_property_is_enumerable prototype::property_is_enumerable object_object"
+test_defs[object_prototype_to_locale_string]="object_prototype_to_locale_string prototype::to_locale_string object_object"
 
 test_defs[provision_iterator_prototype]="provision_iterator_prototype provision_iterator_prototype control_abstraction"
 test_defs[iterator_prototype_iterator]="iterator_prototype_iterator iterator_prototype_iterator control_abstraction"
@@ -778,6 +883,7 @@ test_defs[get_value]="get_value get_value reference"
 test_defs[put_value]="put_value put_value reference"
 
 test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
+test_defs[NormalCompletion_from]="NormalCompletion@from normal_completion::from:: cr"
 
 test_defs[Token]="Token token scanner"
 test_defs[debug_token]="debug_token debug_token scanner"
@@ -794,6 +900,8 @@ test_defs[ProxyObject_get]="ProxyObject@ObjectInterface::get proxy_object::get::
 test_defs[ProxyObject_set]="ProxyObject@ObjectInterface::set proxy_object::set:: proxy_object"
 test_defs[ProxyObject_delete]="ProxyObject@ObjectInterface::delete proxy_object::delete proxy_object"
 test_defs[ProxyObject_own_property_keys]="ProxyObject@ObjectInterface::own_property_keys proxy_object::own_property_keys proxy_object"
+test_defs[proxy_constructor_function]="proxy_constructor_function proxy_constructor_function proxy_object"
+test_defs[proxy_create]="proxy_create proxy_create proxy_object"
 
 if $everything; then
   names=("${!test_defs[@]}")
@@ -821,28 +929,23 @@ for name in ${names[@]}; do
     f64)
       regex="_3res${filemangled}d"
       ;;
-    *@*)
-      front_back=($(echo $typename | tr @ ' '))
-      frontparts=($(echo ${front_back[0]} | tr : ' '))
+    *)
+      chunks=($(echo $typename | tr @ ' '))
+      frontparts=($(echo ${chunks[0]} | tr : ' '))
       frontmangled=
       for part in ${frontparts[@]}; do
         frontmangled=${frontmangled}${#part}${part}
       done
-      backparts=($(echo ${front_back[1]} | tr : ' '))
-      backmangled=
-      for part in ${backparts[@]}; do
-        backmangled=${backmangled}${#part}${part}
+      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}"
+      backchunks=($(first=true; for x in ${chunks[@]}; do if $first; then first=false; else echo $x; fi; done))
+      for chunk in ${backchunks[@]}; do
+        backparts=($(echo ${chunk} | tr : ' '))
+        backmangled=
+        for part in ${backparts[@]}; do
+          backmangled=${backmangled}${#part}${part}
+        done
+        regex="${regex}.*${backmangled}"
       done
-      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}.*${backmangled}"
-      ;;
-    *)
-      typeparts=($(echo $typename | tr : ' '))
-      mangled=
-      for part in ${typeparts[@]}; do
-        mangled=${mangled}${#part}${part}
-      done
-
-      regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
       ;;
   esac
 
@@ -873,6 +976,9 @@ for d in ${results[@]}; do
   else
     echo "Rendering:"
     rustfilt < $namelist | sed "s/allowlist_fun:/  * /"
+    # echo --------
+    # cat $namelist
+    # echo --------
     report --name-allowlist=$namelist $uncovered --demangled --profile=${d}/coverage.profdata | tee ${d}/lines.txt
     if [ $(wc -l < ${d}/lines.txt) -gt 0 ]; then
       has_uncovered=("${has_uncovered[@]}" "$(< ${d}/name.txt)")

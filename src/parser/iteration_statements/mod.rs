@@ -33,7 +33,7 @@ impl PrettyPrint for IterationStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}IterationStatement: {}", first, self)?;
+        writeln!(writer, "{first}IterationStatement: {self}")?;
         match self {
             IterationStatement::DoWhile(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             IterationStatement::While(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -215,7 +215,7 @@ impl PrettyPrint for DoWhileStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}DoWhileStatement: {}", first, self)?;
+        writeln!(w, "{first}DoWhileStatement: {self}")?;
         pp_two(w, &suc, &self.stmt, &self.exp)
     }
 
@@ -224,7 +224,7 @@ impl PrettyPrint for DoWhileStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(writer, "{}DoWhileStatement: {}", first, self)?;
+        writeln!(writer, "{first}DoWhileStatement: {self}")?;
         pprint_token(writer, "do", TokenType::Keyword, &suc, Spot::NotFinal)?;
         self.stmt.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
         pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
@@ -341,7 +341,7 @@ impl PrettyPrint for WhileStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}WhileStatement: {}", first, self)?;
+        writeln!(w, "{first}WhileStatement: {self}")?;
         pp_two(w, &suc, &self.exp, &self.stmt)
     }
 
@@ -350,7 +350,7 @@ impl PrettyPrint for WhileStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(writer, "{}WhileStatement: {}", first, self)?;
+        writeln!(writer, "{first}WhileStatement: {self}")?;
         pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         self.exp.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
@@ -455,50 +455,50 @@ impl fmt::Display for ForStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ForStatement::For(Some(e1), Some(e2), Some(e3), s, ..) => {
-                write!(f, "for ( {} ; {} ; {} ) {}", e1, e2, e3, s)
+                write!(f, "for ( {e1} ; {e2} ; {e3} ) {s}")
             }
             ForStatement::For(Some(e1), Some(e2), None, s, ..) => {
-                write!(f, "for ( {} ; {} ; ) {}", e1, e2, s)
+                write!(f, "for ( {e1} ; {e2} ; ) {s}")
             }
             ForStatement::For(Some(e1), None, Some(e3), s, ..) => {
-                write!(f, "for ( {} ; ; {} ) {}", e1, e3, s)
+                write!(f, "for ( {e1} ; ; {e3} ) {s}")
             }
             ForStatement::For(Some(e1), None, None, s, ..) => {
-                write!(f, "for ( {} ; ; ) {}", e1, s)
+                write!(f, "for ( {e1} ; ; ) {s}")
             }
             ForStatement::For(None, Some(e2), Some(e3), s, ..) => {
-                write!(f, "for ( ; {} ; {} ) {}", e2, e3, s)
+                write!(f, "for ( ; {e2} ; {e3} ) {s}")
             }
             ForStatement::For(None, Some(e2), None, s, ..) => {
-                write!(f, "for ( ; {} ; ) {}", e2, s)
+                write!(f, "for ( ; {e2} ; ) {s}")
             }
             ForStatement::For(None, None, Some(e3), s, ..) => {
-                write!(f, "for ( ; ; {} ) {}", e3, s)
+                write!(f, "for ( ; ; {e3} ) {s}")
             }
-            ForStatement::For(None, None, None, s, ..) => write!(f, "for ( ; ; ) {}", s),
+            ForStatement::For(None, None, None, s, ..) => write!(f, "for ( ; ; ) {s}"),
             ForStatement::ForVar(v, Some(e1), Some(e2), s, ..) => {
-                write!(f, "for ( var {} ; {} ; {} ) {}", v, e1, e2, s)
+                write!(f, "for ( var {v} ; {e1} ; {e2} ) {s}")
             }
             ForStatement::ForVar(v, Some(e1), None, s, ..) => {
-                write!(f, "for ( var {} ; {} ; ) {}", v, e1, s)
+                write!(f, "for ( var {v} ; {e1} ; ) {s}")
             }
             ForStatement::ForVar(v, None, Some(e2), s, ..) => {
-                write!(f, "for ( var {} ; ; {} ) {}", v, e2, s)
+                write!(f, "for ( var {v} ; ; {e2} ) {s}")
             }
             ForStatement::ForVar(v, None, None, s, ..) => {
-                write!(f, "for ( var {} ; ; ) {}", v, s)
+                write!(f, "for ( var {v} ; ; ) {s}")
             }
             ForStatement::ForLex(lex, Some(e1), Some(e2), s, ..) => {
-                write!(f, "for ( {} {} ; {} ) {}", lex, e1, e2, s)
+                write!(f, "for ( {lex} {e1} ; {e2} ) {s}")
             }
             ForStatement::ForLex(lex, Some(e1), None, s, ..) => {
-                write!(f, "for ( {} {} ; ) {}", lex, e1, s)
+                write!(f, "for ( {lex} {e1} ; ) {s}")
             }
             ForStatement::ForLex(lex, None, Some(e2), s, ..) => {
-                write!(f, "for ( {} ; {} ) {}", lex, e2, s)
+                write!(f, "for ( {lex} ; {e2} ) {s}")
             }
             ForStatement::ForLex(lex, None, None, s, ..) => {
-                write!(f, "for ( {} ; ) {}", lex, s)
+                write!(f, "for ( {lex} ; ) {s}")
             }
         }
     }
@@ -510,7 +510,7 @@ impl PrettyPrint for ForStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}ForStatement: {}", first, self)?;
+        writeln!(w, "{first}ForStatement: {self}")?;
         match self {
             ForStatement::For(Some(e1), Some(e2), Some(e3), s, ..) => pp_four(w, &suc, e1, e2, e3, s),
             ForStatement::For(Some(e1), Some(e2), None, s, ..) => pp_three(w, &suc, e1, e2, s),
@@ -536,7 +536,7 @@ impl PrettyPrint for ForStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}ForStatement: {}", first, self)?;
+        writeln!(w, "{first}ForStatement: {self}")?;
         pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(w, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         let maybeprint = |w: &mut T, e: &Option<Rc<Expression>>| {
@@ -679,13 +679,12 @@ impl ForStatement {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            ForStatement::For(_, _, _, s, _) => s.var_declared_names(),
             ForStatement::ForVar(v, _, _, s, _) => {
                 let mut names = v.bound_names();
                 names.extend(s.var_declared_names());
                 names
             }
-            ForStatement::ForLex(_, _, _, s, _) => s.var_declared_names(),
+            ForStatement::For(_, _, _, s, _) | ForStatement::ForLex(_, _, _, s, _) => s.var_declared_names(),
         }
     }
 
@@ -808,7 +807,7 @@ impl ForStatement {
             let bn = lex.bound_names();
             for name in bn.iter().filter(|&n| vdn.contains(n)) {
                 errs.push(create_syntax_error_object(
-                    format!("‘{}’ may not be declared both lexically and var-style", name),
+                    format!("‘{name}’ may not be declared both lexically and var-style"),
                     Some(stmt.location()),
                 ));
             }
@@ -888,40 +887,40 @@ impl fmt::Display for ForInOfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ForInOfStatement::In(lhs, e, s, _) => {
-                write!(f, "for ( {} in {} ) {}", lhs, e, s)
+                write!(f, "for ( {lhs} in {e} ) {s}")
             }
             ForInOfStatement::DestructuringIn(pat, e, s, _) => {
-                write!(f, "for ( {} in {} ) {}", pat, e, s)
+                write!(f, "for ( {pat} in {e} ) {s}")
             }
             ForInOfStatement::VarIn(v, e, s, _) => {
-                write!(f, "for ( var {} in {} ) {}", v, e, s)
+                write!(f, "for ( var {v} in {e} ) {s}")
             }
             ForInOfStatement::LexIn(lex, e, s, _) => {
-                write!(f, "for ( {} in {} ) {}", lex, e, s)
+                write!(f, "for ( {lex} in {e} ) {s}")
             }
             ForInOfStatement::Of(lhs, e, s, _) => {
-                write!(f, "for ( {} of {} ) {}", lhs, e, s)
+                write!(f, "for ( {lhs} of {e} ) {s}")
             }
             ForInOfStatement::DestructuringOf(pat, e, s, _) => {
-                write!(f, "for ( {} of {} ) {}", pat, e, s)
+                write!(f, "for ( {pat} of {e} ) {s}")
             }
             ForInOfStatement::VarOf(v, e, s, _) => {
-                write!(f, "for ( var {} of {} ) {}", v, e, s)
+                write!(f, "for ( var {v} of {e} ) {s}")
             }
             ForInOfStatement::LexOf(lex, e, s, _) => {
-                write!(f, "for ( {} of {} ) {}", lex, e, s)
+                write!(f, "for ( {lex} of {e} ) {s}")
             }
             ForInOfStatement::AwaitOf(lhs, e, s, _) => {
-                write!(f, "for await ( {} of {} ) {}", lhs, e, s)
+                write!(f, "for await ( {lhs} of {e} ) {s}")
             }
             ForInOfStatement::DestructuringAwaitOf(pat, e, s, _) => {
-                write!(f, "for await ( {} of {} ) {}", pat, e, s)
+                write!(f, "for await ( {pat} of {e} ) {s}")
             }
             ForInOfStatement::AwaitVarOf(v, e, s, _) => {
-                write!(f, "for await ( var {} of {} ) {}", v, e, s)
+                write!(f, "for await ( var {v} of {e} ) {s}")
             }
             ForInOfStatement::AwaitLexOf(lex, e, s, _) => {
-                write!(f, "for await ( {} of {} ) {}", lex, e, s)
+                write!(f, "for await ( {lex} of {e} ) {s}")
             }
         }
     }
@@ -933,20 +932,24 @@ impl PrettyPrint for ForInOfStatement {
         T: Write,
     {
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}ForInOfStatement: {}", first, self)?;
+        writeln!(w, "{first}ForInOfStatement: {self}")?;
         match self {
             ForInOfStatement::In(lhs, e, s, _) => pp_three(w, &suc, lhs, e, s),
             ForInOfStatement::DestructuringIn(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
             ForInOfStatement::VarIn(v, e, s, _) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::LexIn(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::Of(lhs, e, s, _) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::DestructuringOf(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
-            ForInOfStatement::VarOf(v, e, s, _) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::LexOf(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::AwaitOf(lhs, e, s, _) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::DestructuringAwaitOf(pat, e, s, _) => pp_three(w, &suc, pat, e, s),
-            ForInOfStatement::AwaitVarOf(v, e, s, _) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::AwaitLexOf(lex, e, s, _) => pp_three(w, &suc, lex, e, s),
+            ForInOfStatement::Of(lhs, e, s, _) | ForInOfStatement::AwaitOf(lhs, e, s, _) => {
+                pp_three(w, &suc, lhs, e, s)
+            }
+            ForInOfStatement::DestructuringOf(pat, e, s, _) | ForInOfStatement::DestructuringAwaitOf(pat, e, s, _) => {
+                pp_three(w, &suc, pat, e, s)
+            }
+            ForInOfStatement::VarOf(v, e, s, _) | ForInOfStatement::AwaitVarOf(v, e, s, _) => {
+                pp_three(w, &suc, v, e, s)
+            }
+            ForInOfStatement::LexOf(lex, e, s, _) | ForInOfStatement::AwaitLexOf(lex, e, s, _) => {
+                pp_three(w, &suc, lex, e, s)
+            }
         }
     }
 
@@ -963,7 +966,7 @@ impl PrettyPrint for ForInOfStatement {
             || matches!(self, ForInOfStatement::AwaitVarOf(..));
 
         let (first, suc) = prettypad(pad, state);
-        writeln!(w, "{}ForInOfStatement: {}", first, self)?;
+        writeln!(w, "{first}ForInOfStatement: {self}")?;
         pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
 
         if await_present {
@@ -1041,12 +1044,13 @@ impl ForInOfStatement {
     ) -> ParseResult<Self> {
         let (for_loc, after_for) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
-        let (await_seen, after_await) = match await_flag {
-            true => match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
+        let (await_seen, after_await) = if await_flag {
+            match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
                 Ok((_, scan)) => (true, scan),
                 Err(_) => (false, after_for),
-            },
-            false => (false, after_for),
+            }
+        } else {
+            (false, after_for)
         };
         let (_, after_open) =
             scan_for_punct(after_await, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
@@ -1437,9 +1441,9 @@ impl ForInOfStatement {
                 let bn = fd.bound_names();
                 let vdn = stmt.var_declared_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(stmt.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(stmt.location())));
                 }
-                for name in bn.iter() {
+                for name in &bn {
                     if name == &JSString::from("let") {
                         errs.push(create_syntax_error_object(
                             "‘let’ is not a valid binding identifier",
@@ -1448,7 +1452,7 @@ impl ForInOfStatement {
                     }
                     if vdn.contains(name) {
                         errs.push(create_syntax_error_object(
-                            format!("‘{}’ may not be declared both lexically and var-style", name),
+                            format!("‘{name}’ may not be declared both lexically and var-style"),
                             Some(stmt.location()),
                         ));
                     }
@@ -1596,7 +1600,7 @@ impl PrettyPrint for ForDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ForDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}ForDeclaration: {self}")?;
         self.loc.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.binding.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1606,7 +1610,7 @@ impl PrettyPrint for ForDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ForDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}ForDeclaration: {self}")?;
         self.loc.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.binding.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1700,7 +1704,7 @@ impl PrettyPrint for ForBinding {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ForBinding: {}", first, self)?;
+        writeln!(writer, "{first}ForBinding: {self}")?;
         match self {
             ForBinding::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ForBinding::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),

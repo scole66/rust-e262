@@ -23,12 +23,12 @@ fn function_declaration_test_01() {
     pretty_check(
         &*node,
         "FunctionDeclaration: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "FunctionDeclaration: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: function",
             "IdentifierName: bob",
             "Punctuator: (",
@@ -39,27 +39,20 @@ fn function_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn function_declaration_test_02() {
     let (node, scanner) =
         check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
+    pretty_check(&*node, "FunctionDeclaration: function ( z ) { }", &["FormalParameters: z", "FunctionBody: "]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function ( z ) {  }",
-        vec![
-            "Keyword: function",
-            "Punctuator: (",
-            "IdentifierName: z",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        "FunctionDeclaration: function ( z ) { }",
+        &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn function_declaration_test_err_01() {
@@ -210,6 +203,18 @@ mod function_declaration {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("function a(){}" => "function a ( ) { }"; "id only")]
+    #[test_case("function (){}" => "function ( ) { }"; "nothing")]
+    #[test_case("function a(b){}" => "function a ( b ) { }"; "id + params")]
+    #[test_case("function (b){}" => "function ( b ) { }"; "params only")]
+    #[test_case("function a(){null;}" => "function a ( ) { null ; }"; "id + body")]
+    #[test_case("function (){null;}" => "function ( ) { null ; }"; "body only")]
+    #[test_case("function a(b){null;}" => "function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("function (b){null;}" => "function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).function_declaration())
+    }
+
     #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
     #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
     #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
@@ -229,7 +234,7 @@ mod function_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   function a(){}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 } }; "typical")]
@@ -258,12 +263,12 @@ fn function_expression_test_01() {
     pretty_check(
         &*node,
         "FunctionExpression: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec!["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
+        &["BindingIdentifier: bob", "FormalParameters: a , b", "FunctionBody: return foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
         "FunctionExpression: function bob ( a , b ) { return foo ( a + b ) ; }",
-        vec![
+        &[
             "Keyword: function",
             "IdentifierName: bob",
             "Punctuator: (",
@@ -274,27 +279,20 @@ fn function_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
 fn function_expression_test_02() {
     let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function (z) {}"), Scanner::new()));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
+    pretty_check(&*node, "FunctionExpression: function ( z ) { }", &["FormalParameters: z", "FunctionBody: "]);
     concise_check(
         &*node,
-        "FunctionExpression: function ( z ) {  }",
-        vec![
-            "Keyword: function",
-            "Punctuator: (",
-            "IdentifierName: z",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        "FunctionExpression: function ( z ) { }",
+        &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -362,6 +360,17 @@ mod function_expression {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("function a(){}" => "function a ( ) { }"; "id only")]
+    #[test_case("function (){}" => "function ( ) { }"; "nothing")]
+    #[test_case("function a(b){}" => "function a ( b ) { }"; "id + params")]
+    #[test_case("function (b){}" => "function ( b ) { }"; "params only")]
+    #[test_case("function a(){null;}" => "function a ( ) { null ; }"; "id + body")]
+    #[test_case("function (){null;}" => "function ( ) { null ; }"; "body only")]
+    #[test_case("function a(b){null;}" => "function a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("function (b){null;}" => "function ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).function_expression())
+    }
     #[test_case("function package(implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
     #[test_case("function (implements) {interface;}", true => sset(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
     #[test_case("function a(b,b){}", true => sset(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
@@ -378,7 +387,7 @@ mod function_expression {
         setup_test_agent();
         let mut errs = vec![];
         FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function a(){}" => true; "named")]
@@ -398,9 +407,9 @@ mod function_expression {
 fn function_body_test_01() {
     let (node, scanner) = FunctionBody::parse(&mut newparser(""), Scanner::new(), false, false);
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "FunctionBody: ", vec!["FunctionStatementList: "]);
-    concise_check(&*node, "", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FunctionBody: ", &["FunctionStatementList: "]);
+    concise_check(&*node, "", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn function_body_test_prettyerrors_1() {
@@ -473,7 +482,7 @@ mod function_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -492,7 +501,7 @@ mod function_body {
         Maker::new(src).function_body().var_declared_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).function_body().var_scoped_declarations().iter().map(String::from).collect()
     }
@@ -508,9 +517,9 @@ mod function_body {
 fn function_statement_list_test_01() {
     let (node, scanner) = FunctionStatementList::parse(&mut newparser(""), Scanner::new(), false, false);
     chk_scan(&scanner, 0);
-    pretty_check(&*node, "FunctionStatementList: ", vec![]);
-    concise_check(&*node, "", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "FunctionStatementList: ", &[]);
+    concise_check(&*node, "", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn function_statement_list_test_prettyerrors_1() {
@@ -605,7 +614,7 @@ mod function_statement_list {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).function_statement_list().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("" => false; "empty")]

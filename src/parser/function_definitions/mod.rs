@@ -16,12 +16,19 @@ pub struct FunctionDeclaration {
 
 impl fmt::Display for FunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -31,7 +38,7 @@ impl PrettyPrint for FunctionDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}FunctionDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -44,7 +51,7 @@ impl PrettyPrint for FunctionDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}FunctionDeclaration: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
             id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -179,7 +186,7 @@ pub fn function_early_errors(
 
     if strict_function {
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(params.location())));
+            errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(params.location())));
         }
     }
 
@@ -193,7 +200,7 @@ pub fn function_early_errors(
     let lexnames = body.lexically_declared_names();
     for lexname in lexnames {
         if bn.contains(&lexname) {
-            errs.push(create_syntax_error_object(format!("‘{}’ already defined", lexname), Some(body.location())));
+            errs.push(create_syntax_error_object(format!("‘{lexname}’ already defined"), Some(body.location())));
         }
     }
 
@@ -226,12 +233,19 @@ pub struct FunctionExpression {
 
 impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -241,7 +255,7 @@ impl PrettyPrint for FunctionExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionExpression: {}", first, self)?;
+        writeln!(writer, "{first}FunctionExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -254,7 +268,7 @@ impl PrettyPrint for FunctionExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionExpression: {}", first, self)?;
+        writeln!(writer, "{first}FunctionExpression: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
             id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -341,7 +355,7 @@ impl PrettyPrint for FunctionBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionBody: {}", first, self)?;
+        writeln!(writer, "{first}FunctionBody: {self}")?;
         self.statements.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -437,7 +451,7 @@ impl FunctionBody {
         let ldn = self.statements.lexically_declared_names();
         for name in duplicates(&ldn) {
             errs.push(create_syntax_error_object(
-                format!("‘{}’ already defined", name),
+                format!("‘{name}’ already defined"),
                 Some(self.statements.location()),
             ));
         }
@@ -445,7 +459,7 @@ impl FunctionBody {
         for name in vdn {
             if ldn.contains(&name) {
                 errs.push(create_syntax_error_object(
-                    format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name),
+                    format!("‘{name}’ cannot be used in a var statement, as it is also lexically declared"),
                     Some(self.statements.location()),
                 ));
             }
@@ -511,7 +525,7 @@ impl PrettyPrint for FunctionStatementList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionStatementList: {}", first, self)?;
+        writeln!(writer, "{first}FunctionStatementList: {self}")?;
         match self {
             FunctionStatementList::Empty(_) => Ok(()),
             FunctionStatementList::Statements(s) => s.pprint_with_leftpad(writer, &successive, Spot::Final),

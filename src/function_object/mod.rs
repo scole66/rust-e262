@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt;
@@ -58,9 +58,10 @@ impl TryFrom<NormalCompletion> for ClassName {
                 | ECMAScriptValue::BigInt(_)
                 | ECMAScriptValue::Object(_) => Err(anyhow::anyhow!("Not a class name")),
             },
-            NormalCompletion::Reference(_) | NormalCompletion::Environment(_) | NormalCompletion::IteratorRecord(_) => {
-                Err(anyhow::anyhow!("Not a class name"))
-            }
+            NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => Err(anyhow::anyhow!("Not a class name")),
         }
     }
 }
@@ -147,7 +148,19 @@ impl PartialEq for BodySource {
             (Self::AsyncGenerator(l0), Self::AsyncGenerator(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ConciseBody(l0), Self::ConciseBody(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncConciseBody(l0), Self::AsyncConciseBody(r0)) => Rc::ptr_eq(l0, r0),
-            _ => false,
+            (Self::Initializer(l0), Self::Initializer(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::ClassStaticBlockBody(l0), Self::ClassStaticBlockBody(r0)) => Rc::ptr_eq(l0, r0),
+            (
+                Self::Function(_)
+                | Self::Generator(_)
+                | Self::AsyncFunction(_)
+                | Self::AsyncGenerator(_)
+                | Self::ConciseBody(_)
+                | Self::AsyncConciseBody(_)
+                | Self::Initializer(_)
+                | Self::ClassStaticBlockBody(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -254,6 +267,8 @@ pub enum ParamSource {
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
+    UniqueFormalParameters(Rc<UniqueFormalParameters>),
+    PropertySetParameterList(Rc<PropertySetParameterList>),
 }
 
 pub struct ConciseParamSource<'a>(&'a ParamSource);
@@ -270,6 +285,8 @@ impl fmt::Display for ParamSource {
             ParamSource::ArrowParameters(node) => node.fmt(f),
             ParamSource::AsyncArrowBinding(node) => node.fmt(f),
             ParamSource::ArrowFormals(node) => node.fmt(f),
+            ParamSource::UniqueFormalParameters(node) => node.fmt(f),
+            ParamSource::PropertySetParameterList(node) => node.fmt(f),
         }
     }
 }
@@ -281,7 +298,17 @@ impl PartialEq for ParamSource {
             (Self::ArrowParameters(l0), Self::ArrowParameters(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
-            _ => false,
+            (Self::UniqueFormalParameters(l0), Self::UniqueFormalParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::PropertySetParameterList(l0), Self::PropertySetParameterList(r0)) => Rc::ptr_eq(l0, r0),
+            (
+                Self::UniqueFormalParameters(_)
+                | Self::FormalParameters(_)
+                | Self::ArrowParameters(_)
+                | Self::AsyncArrowBinding(_)
+                | Self::ArrowFormals(_)
+                | Self::PropertySetParameterList(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -306,6 +333,16 @@ impl From<Rc<ArrowFormalParameters>> for ParamSource {
         Self::ArrowFormals(src)
     }
 }
+impl From<Rc<UniqueFormalParameters>> for ParamSource {
+    fn from(value: Rc<UniqueFormalParameters>) -> Self {
+        Self::UniqueFormalParameters(value)
+    }
+}
+impl From<Rc<PropertySetParameterList>> for ParamSource {
+    fn from(value: Rc<PropertySetParameterList>) -> Self {
+        Self::PropertySetParameterList(value)
+    }
+}
 impl TryFrom<ParamSource> for Rc<FormalParameters> {
     type Error = anyhow::Error;
     fn try_from(value: ParamSource) -> Result<Self, Self::Error> {
@@ -322,6 +359,8 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.expected_argument_count(),
             ParamSource::AsyncArrowBinding(node) => node.expected_argument_count(),
             ParamSource::ArrowFormals(node) => node.expected_argument_count(),
+            ParamSource::UniqueFormalParameters(node) => node.expected_argument_count(),
+            ParamSource::PropertySetParameterList(node) => node.expected_argument_count(),
         }
     }
 
@@ -331,6 +370,8 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.bound_names(),
             ParamSource::AsyncArrowBinding(node) => node.bound_names(),
             ParamSource::ArrowFormals(node) => node.bound_names(),
+            ParamSource::UniqueFormalParameters(node) => node.bound_names(),
+            ParamSource::PropertySetParameterList(node) => node.bound_names(),
         }
     }
 
@@ -340,6 +381,8 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.is_simple_parameter_list(),
             ParamSource::AsyncArrowBinding(node) => node.is_simple_parameter_list(),
             ParamSource::ArrowFormals(node) => node.is_simple_parameter_list(),
+            ParamSource::UniqueFormalParameters(node) => node.is_simple_parameter_list(),
+            ParamSource::PropertySetParameterList(node) => node.is_simple_parameter_list(),
         }
     }
 
@@ -349,6 +392,8 @@ impl ParamSource {
             ParamSource::ArrowParameters(arrow) => arrow.contains_expression(),
             ParamSource::AsyncArrowBinding(node) => node.contains_expression(),
             ParamSource::ArrowFormals(node) => node.contains_expression(),
+            ParamSource::UniqueFormalParameters(node) => node.contains_expression(),
+            ParamSource::PropertySetParameterList(node) => node.contains_expression(),
         }
     }
 }
@@ -366,6 +411,24 @@ pub enum FunctionSource {
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
+}
+
+impl fmt::Display for FunctionSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionSource::FunctionExpression(node) => node.fmt(f),
+            FunctionSource::GeneratorExpression(node) => node.fmt(f),
+            FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
+            FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
+            FunctionSource::ArrowFunction(node) => node.fmt(f),
+            FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
+            FunctionSource::MethodDefinition(node) => node.fmt(f),
+            FunctionSource::HoistableDeclaration(node) => node.fmt(f),
+            FunctionSource::FieldDefinition(node) => node.fmt(f),
+            FunctionSource::ClassStaticBlock(node) => node.fmt(f),
+            FunctionSource::FunctionDeclaration(node) => node.fmt(f),
+        }
+    }
 }
 
 impl PartialEq for FunctionSource {
@@ -414,6 +477,11 @@ impl From<Rc<FieldDefinition>> for FunctionSource {
 impl From<Rc<ClassStaticBlock>> for FunctionSource {
     fn from(value: Rc<ClassStaticBlock>) -> Self {
         Self::ClassStaticBlock(value)
+    }
+}
+impl From<Rc<MethodDefinition>> for FunctionSource {
+    fn from(value: Rc<MethodDefinition>) -> Self {
+        Self::MethodDefinition(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -476,6 +544,16 @@ impl TryFrom<FunctionSource> for Rc<ClassStaticBlock> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::MethodDefinition(md) => Ok(md),
+            _ => bail!("MethodDefinition expected"),
+        }
+    }
+}
 
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
@@ -483,13 +561,13 @@ pub struct FunctionObjectData {
     formal_parameters: ParamSource,
     ecmascript_code: BodySource,
     compiled: Rc<Chunk>,
-    constructor_kind: ConstructorKind,
+    pub constructor_kind: ConstructorKind,
     pub realm: Rc<RefCell<Realm>>,
     script_or_module: Option<ScriptOrModule>,
     pub this_mode: ThisMode,
     strict: bool,
     pub home_object: Option<Object>,
-    source_text: String,
+    pub source_text: String,
     fields: Vec<ClassFieldDefinitionRecord>,
     private_methods: Vec<Rc<PrivateElement>>,
     pub class_field_initializer_name: ClassName,
@@ -710,7 +788,7 @@ impl CallableObject for FunctionObject {
                 return;
             }
             let this_binding = constructor_env.get_this_binding();
-            ec_push(this_binding.map(NormalCompletion::from))
+            ec_push(this_binding.map(NormalCompletion::from));
         }
     }
 
@@ -783,7 +861,9 @@ impl CallableObject for FunctionObject {
 
 pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object) -> Completion<()> {
     // InitializeInstanceElements ( O, constructor )
-    // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript function object) and returns either a normal completion containing unused or a throw completion. It performs the following steps when called:
+    // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript
+    // function object) and returns either a normal completion containing unused or a throw completion. It performs the
+    // following steps when called:
     //
     //  1. Let methods be the value of constructor.[[PrivateMethods]].
     //  2. For each PrivateElement method of methods, do
@@ -793,10 +873,10 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
     //      a. Perform ? DefineField(O, fieldRecord).
     //  5. Return unused.
     let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-    for method in data.private_methods.iter() {
+    for method in &data.private_methods {
         private_method_or_accessor_add(this_argument, method.clone())?;
     }
-    for field_record in data.fields.iter() {
+    for field_record in &data.fields {
         define_field(this_argument, field_record)?;
     }
     Ok(())
@@ -902,7 +982,7 @@ impl FunctionObject {
 /// The function being called is `func`, and any target for New expressions is in `new_target`.
 ///
 /// See [PrepareForOrdinaryCall](https://tc39.es/ecma262/#sec-prepareforordinarycall) from ECMA-262.
-fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
+pub fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
     // PrepareForOrdinaryCall ( F, newTarget )
     //
     // The abstract operation PrepareForOrdinaryCall takes arguments F (a function object) and newTarget (an Object
@@ -1036,10 +1116,10 @@ fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
     let chunk = Rc::clone(&data.compiled);
     prepare_running_ec_for_execution(chunk);
     ec_push(Ok(func_val));
-    for item in args.iter() {
+    for item in args {
         ec_push(Ok(item.clone().into()));
     }
-    ec_push(Ok((args.len() as u32).into()));
+    ec_push(Ok(args.len().into()));
 }
 
 pub fn nameify(src: &str, limit: usize) -> String {
@@ -1114,7 +1194,7 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
             .enumerable(false)
             .configurable(true),
     )
-    .unwrap()
+    .unwrap();
 }
 
 // SetFunctionLength ( F, length )
@@ -1134,9 +1214,9 @@ pub fn set_function_length(func: &Object, length: f64) {
     .unwrap();
 }
 
-///////////////////////////////////////////////////////////////////
-/// BUILT IN FUNCTIONS
-///////////////////////////////////////////////////////////////////
+//#############################################
+//# BUILT IN FUNCTIONS
+//#############################################
 
 // A small little arguments iterator, useful for built-in functions.
 // When you have
@@ -1169,11 +1249,23 @@ impl<'a> FuncArgs<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionName {
     String(JSString),
     Symbol(Symbol),
     PrivateName(PrivateName),
+}
+
+impl fmt::Display for FunctionName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionName::String(s) => write!(f, "{s}"),
+            FunctionName::Symbol(sym) => {
+                write!(f, "[Symbol({})]", sym.description().unwrap_or_else(|| JSString::from("")))
+            }
+            FunctionName::PrivateName(pn) => write!(f, "#{}", pn.description),
+        }
+    }
 }
 
 impl From<PropertyKey> for FunctionName {
@@ -1196,10 +1288,46 @@ impl From<JSString> for FunctionName {
     }
 }
 
+impl From<&str> for FunctionName {
+    fn from(source: &str) -> Self {
+        Self::String(JSString::from(source))
+    }
+}
+
+impl TryFrom<FunctionName> for PropertyKey {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionName) -> Result<Self, Self::Error> {
+        match value {
+            FunctionName::String(s) => Ok(PropertyKey::from(s)),
+            FunctionName::Symbol(s) => Ok(PropertyKey::from(s)),
+            FunctionName::PrivateName(_) => Err(anyhow!("PrivateName can't be converted to PropertyKey")),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for FunctionName {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Value(ECMAScriptValue::String(s)) => Ok(FunctionName::String(s)),
+            NormalCompletion::Value(ECMAScriptValue::Symbol(s)) => Ok(FunctionName::Symbol(s)),
+            NormalCompletion::PrivateName(pn) => Ok(FunctionName::PrivateName(pn)),
+            NormalCompletion::Value(_)
+            | NormalCompletion::Empty
+            | NormalCompletion::Reference(_)
+            | NormalCompletion::Environment(_)
+            | NormalCompletion::IteratorRecord(_)
+            | NormalCompletion::PrivateElement(_) => bail!("Completion type not valid for FunctionName"),
+        }
+    }
+}
+
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    pub steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     pub is_constructor: bool,
 }
 
@@ -1208,6 +1336,8 @@ impl fmt::Debug for BuiltInFunctionData {
         f.debug_struct("BuiltInFunctionData")
             .field("realm", &self.realm)
             .field("initial_name", &self.initial_name)
+            .field("steps", &"<steps>")
+            .field("is_constructor", &self.is_constructor)
             .finish()
     }
 }
@@ -1216,7 +1346,7 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self { realm, initial_name, steps, is_constructor }
@@ -1247,7 +1377,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self {
@@ -1261,14 +1391,14 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
         Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor)) }
     }
 }
 
-pub trait BuiltinFunctionInterface {
+pub trait BuiltinFunctionInterface: CallableObject {
     fn builtin_function_data(&self) -> &RefCell<BuiltInFunctionData>;
 }
 
@@ -1363,14 +1493,14 @@ impl CallableObject for BuiltInFunctionObject {
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
     fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(this_argument.clone(), None, arguments_list);
+        let result = (self.builtin_data.borrow().steps)(this_argument, None, arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     // [[Construct]] ( argumentsList, newTarget )
@@ -1383,18 +1513,18 @@ impl CallableObject for BuiltInFunctionObject {
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
     fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) {
-        assert_eq!(self.id(), self_object.o.id());
+        assert_eq!(self.id(), self_object.o.id(), "self and self_object must refer to the same object");
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        let result = (self.builtin_data.borrow().steps)(&ECMAScriptValue::Undefined, Some(new_target), arguments_list);
         pop_execution_context();
 
-        ec_push(result.map(NormalCompletion::from))
+        ec_push(result.map(NormalCompletion::from));
     }
 
     fn end_evaluation(&self, _: FullCompletion) {
-        unreachable!("end_evaluation called for builtin callable")
+        panic!("end_evaluation called for builtin callable")
     }
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {
@@ -1436,7 +1566,7 @@ impl CallableObject for BuiltInFunctionObject {
 // operation.
 #[allow(clippy::too_many_arguments)]
 pub fn create_builtin_function(
-    behavior: fn(ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     is_constructor: bool,
     length: f64,
     name: PropertyKey,
@@ -1538,7 +1668,7 @@ impl FunctionDeclaration {
 }
 
 impl GeneratorDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
         env: Rc<dyn EnvironmentRecord>,
@@ -1552,7 +1682,7 @@ impl GeneratorDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1567,7 +1697,7 @@ impl AsyncFunctionDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1631,10 +1761,13 @@ pub fn ordinary_function_create(
     //  23. Return F.
     let this_mode = match this_mode {
         ThisLexicality::LexicalThis => ThisMode::Lexical,
-        ThisLexicality::NonLexicalThis => match strict {
-            true => ThisMode::Strict,
-            false => ThisMode::Global,
-        },
+        ThisLexicality::NonLexicalThis => {
+            if strict {
+                ThisMode::Strict
+            } else {
+                ThisMode::Global
+            }
+        }
     };
     let script_or_module = get_active_script_or_module();
     let realm = current_realm_record().unwrap();
@@ -1745,7 +1878,7 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
 }
 
 fn function_prototype_call(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -1765,12 +1898,12 @@ fn function_prototype_call(
     // NOTE 2: If func is an arrow function or a bound function exotic object then the thisArg will be ignored by the
     // function [[Call]] in step 4.
     let (first_arg, remaining): (_, &[ECMAScriptValue]) =
-        if arguments.is_empty() { (ECMAScriptValue::Undefined, &[]) } else { (arguments[0].clone(), &arguments[1..]) };
+        if arguments.is_empty() { (&ECMAScriptValue::Undefined, &[]) } else { (&arguments[0], &arguments[1..]) };
     let func = this_value;
-    if is_callable(&func) {
-        call(&func, &first_arg, remaining)
+    if is_callable(func) {
+        call(func, first_arg, remaining)
     } else {
-        Err(create_type_error("this isn't a function"))
+        Err(create_type_error("Function.prototype.call requires that 'this' be a function"))
     }
 }
 
@@ -1778,14 +1911,57 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    // Prototype Function Properties
+    // The Function constructor:
+    //
+    // * is %Function%.
+    // * is the initial value of the "Function" property of the global object.
+    // * creates and initializes a new function object when called as a function rather than as a constructor.
+    //   Thus the function call Function(…) is equivalent to the object creation expression new Function(…)
+    //   with the same arguments.
+    // * may be used as the value of an extends clause of a class definition. Subclass constructors that
+    //   intend to inherit the specified Function behaviour must include a super call to the Function
+    //   constructor to create and initialize a subclass instance with the internal slots necessary for
+    //   built-in function behaviour. All ECMAScript syntactic forms for defining function objects create
+    //   instances of Function. There is no syntactic means to create instances of Function subclasses except
+    //   for the built-in GeneratorFunction, AsyncFunction, and AsyncGeneratorFunction subclasses.
+
+    // The Function constructor:
+    //
+    // * is itself a built-in function object.
+    // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+    // * has a "length" property whose value is 1𝔽.
+    let function_constructor = create_builtin_function(
+        function_constructor_function,
+        true,
+        1.0,
+        PropertyKey::from("Function"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+
+    // Function.prototype
+    // The value of Function.prototype is the Function prototype object.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false
+    // }.
+    let ppd = PotentialPropertyDescriptor::new()
+        .value(function_prototype.clone())
+        .clone()
+        .writable(false)
+        .enumerable(false)
+        .configurable(false);
+    define_property_or_throw(&function_constructor, "prototype", ppd).unwrap();
+
+    // Properties of the Function Prototype Object
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
                 false,
-                $length,
+                $length as f64,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
                 Some(realm.clone()),
@@ -1804,7 +1980,356 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
             .unwrap();
         };
     }
-    prototype_function!(function_prototype_call, "call", 1.0);
+    prototype_function!(function_prototype_apply, "apply", 2);
+    prototype_function!(function_prototype_bind, "bind", 1);
+    prototype_function!(function_prototype_call, "call", 1);
+    prototype_function!(function_prototype_to_string, "toString", 0);
+
+    // Function.prototype.constructor
+    // The initial value of Function.prototype.constructor is %Function%.
+    let ppd = PotentialPropertyDescriptor::new()
+        .value(function_constructor.clone())
+        .writable(true)
+        .enumerable(false)
+        .configurable(true);
+    define_property_or_throw(&function_prototype, "constructor", ppd).unwrap();
+
+    let has_instance = create_builtin_function(
+        function_prototype_has_instance,
+        false,
+        1.0,
+        "[Symbol.hasInstance]".into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    let ppd =
+        PotentialPropertyDescriptor::new().value(has_instance).writable(false).enumerable(false).configurable(false);
+    define_property_or_throw(&function_prototype, wks(WksId::HasInstance), ppd).unwrap();
+
+    realm.borrow_mut().intrinsics.function = function_constructor;
+}
+
+fn function_constructor_function(
+    _this_value: &ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function ( ...parameterArgs, bodyArg )
+    // The last argument (if any) specifies the body (executable code) of a function; any preceding arguments
+    // specify formal parameters.
+    //
+    // This function performs the following steps when called:
+    //
+    //  1. Let C be the active function object.
+    //  2. If bodyArg is not present, set bodyArg to the empty String.
+    //  3. Return ? CreateDynamicFunction(C, NewTarget, NORMAL, parameterArgs, bodyArg).
+    let empty = ECMAScriptValue::from("");
+    let (parameter_args, body_arg): (_, _) =
+        if let [rest @ .., last] = arguments { (rest, last) } else { (&[], &empty) };
+    let c = active_function_object().expect("A function should be running");
+    create_dynamic_function(&c, new_target, FunctionKind::Normal, parameter_args, body_arg).map(ECMAScriptValue::Object)
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum FunctionKind {
+    Normal,
+    Generator,
+    Async,
+    AsyncGenerator,
+}
+
+fn create_dynamic_function(
+    constructor: &Object,
+    new_target: Option<&Object>,
+    kind: FunctionKind,
+    parameter_args: &[ECMAScriptValue],
+    body_arg: &ECMAScriptValue,
+) -> Completion<Object> {
+    let new_target = new_target.unwrap_or(constructor);
+    let (prefix, fallback_proto) = match kind {
+        FunctionKind::Normal => ("function", IntrinsicId::FunctionPrototype),
+        FunctionKind::Generator => ("function*", IntrinsicId::GeneratorFunctionPrototype),
+        FunctionKind::Async => ("async function", IntrinsicId::AsyncFunctionPrototype),
+        FunctionKind::AsyncGenerator => ("async function*", IntrinsicId::AsyncGeneratorFunctionPrototype),
+    };
+    let parameter_strings = parameter_args.iter().map(|v| to_string(v.clone())).collect::<Result<Vec<_>, _>>()?;
+    let body_string = to_string(body_arg.clone())?;
+    let current_realm = current_realm_record().expect("A realm should exist");
+    let p = if parameter_strings.is_empty() {
+        String::new()
+    } else {
+        let mut parts = parameter_strings[0].to_string();
+        let mut strings = &parameter_strings[1..];
+        while let [item, rest @ ..] = strings {
+            parts.push(',');
+            parts.push_str(&item.to_string());
+            strings = rest;
+        }
+        parts
+    };
+    let body_parse_string = JSString::from("\n").concat(body_string).concat("\n");
+    let source_string = JSString::from(prefix)
+        .concat(" anonymous(")
+        .concat(p.clone())
+        .concat("\n) {")
+        .concat(body_parse_string.clone())
+        .concat("}");
+    let source_text = String::from(source_string);
+    let parameters = parse_text(
+        &p,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::No),
+            FunctionKind::Generator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::No),
+            FunctionKind::Async => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::Yes),
+            FunctionKind::AsyncGenerator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::Yes),
+        },
+        false,
+        false,
+    );
+    let parameters = match parameters {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FormalParameters(fp) => fp,
+        _ => unreachable!(),
+    };
+    let body_parse_string = String::from(body_parse_string);
+    let body = parse_text(
+        &body_parse_string,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FunctionBody(YieldAllowed::No, AwaitAllowed::No),
+            FunctionKind::Generator => ParseGoal::GeneratorBody,
+            FunctionKind::Async => ParseGoal::AsyncFunctionBody,
+            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorBody,
+        },
+        false,
+        false,
+    );
+    let body = match body {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FunctionBody(fb) => BodySource::from(fb),
+        ParsedText::GeneratorBody(gb) => BodySource::from(gb),
+        ParsedText::AsyncFunctionBody(afb) => BodySource::from(afb),
+        ParsedText::AsyncGeneratorBody(agb) => BodySource::from(agb),
+        _ => unreachable!(),
+    };
+    let body_contains_use_strict = body.contains_use_strict();
+    let function_source = match parse_text(
+        &source_text,
+        match kind {
+            FunctionKind::Normal => ParseGoal::FunctionExpression,
+            FunctionKind::Generator => ParseGoal::GeneratorExpression,
+            FunctionKind::Async => ParseGoal::AsyncFunctionExpression,
+            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorExpression,
+        },
+        body_contains_use_strict,
+        false,
+    ) {
+        ParsedText::Errors(mut errs) => {
+            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+        }
+        ParsedText::FunctionExpression(fe) => FunctionSource::FunctionExpression(fe),
+        ParsedText::GeneratorExpression(ge) => FunctionSource::GeneratorExpression(ge),
+        ParsedText::AsyncFunctionExpression(afe) => FunctionSource::AsyncFunctionExpression(afe),
+        ParsedText::AsyncGeneratorExpression(age) => FunctionSource::AsyncGeneratorExpression(age),
+        _ => unreachable!(),
+    };
+    let proto = new_target.get_prototype_from_constructor(fallback_proto)?;
+    let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
+
+    let chunk_name = nameify(&source_text, 50);
+    let mut compiled = Chunk::new(chunk_name);
+    let function_data = StashedFunctionData {
+        source_text: source_text.clone(),
+        params: ParamSource::from(parameters.clone()),
+        body: body.clone(),
+        strict: body_contains_use_strict,
+        to_compile: function_source,
+        this_mode: ThisLexicality::NonLexicalThis,
+    };
+    let compilation_status = match &body {
+        BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
+        BodySource::Generator(_) => todo!(),
+        BodySource::AsyncFunction(_) => todo!(),
+        BodySource::AsyncGenerator(_) => todo!(),
+        _ => unreachable!(),
+    };
+    if let Err(err) = compilation_status {
+        let typeerror = create_type_error(err.to_string());
+        return Err(typeerror);
+    }
+    for line in compiled.disassemble() {
+        println!("{line}");
+    }
+
+    let f = ordinary_function_create(
+        proto,
+        &source_text,
+        ParamSource::from(parameters),
+        body,
+        ThisLexicality::NonLexicalThis,
+        env,
+        None,
+        false,
+        Rc::new(compiled),
+    );
+    set_function_name(&f, FunctionName::from("anonymous"), None);
+    match kind {
+        FunctionKind::Normal => {
+            make_constructor(&f, None);
+        }
+        FunctionKind::Generator => {
+            let prototype =
+                ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)), &[]);
+            define_property_or_throw(
+                &f,
+                "prototype",
+                PotentialPropertyDescriptor::new()
+                    .value(prototype)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(false),
+            )
+            .unwrap();
+        }
+        FunctionKind::Async => {}
+        FunctionKind::AsyncGenerator => {
+            let prototype =
+                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)), &[]);
+            define_property_or_throw(
+                &f,
+                "prototype",
+                PotentialPropertyDescriptor::new()
+                    .value(prototype)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(false),
+            )
+            .unwrap();
+        }
+    }
+    Ok(f)
+}
+
+fn function_prototype_apply(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype.apply ( thisArg, argArray )
+    // This method performs the following steps when called:
+    //
+    //  1. Let func be the this value.
+    //  2. If IsCallable(func) is false, throw a TypeError exception.
+    //  3. If argArray is either undefined or null, then
+    //      a. Perform PrepareForTailCall().
+    //      b. Return ? Call(func, thisArg).
+    //  4. Let argList be ? CreateListFromArrayLike(argArray).
+    //  5. Perform PrepareForTailCall().
+    //  6. Return ? Call(func, thisArg, argList).
+    let mut args = FuncArgs::from(arguments);
+    let this_arg = args.next_arg();
+    let arg_array = args.next_arg();
+
+    let func = this_value;
+    if is_callable(func) {
+        let arg_list = if arg_array == ECMAScriptValue::Undefined || arg_array == ECMAScriptValue::Null {
+            vec![]
+        } else {
+            create_list_from_array_like(arg_array, None)?
+        };
+        call(func, &this_arg, &arg_list)
+    } else {
+        Err(create_type_error("Function.prototype.apply requires that 'this' be callable"))
+    }
+}
+
+fn function_prototype_bind(
+    _this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    todo!()
+}
+
+fn function_prototype_to_string(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype.toString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let func be the this value.
+    //  2. If func is an Object, func has a [[SourceText]] internal slot, func.[[SourceText]] is a sequence of
+    //     Unicode code points, and HostHasSourceTextAvailable(func) is true, then
+    //      a. Return CodePointsToString(func.[[SourceText]]).
+    //  3. If func is a built-in function object, return an implementation-defined String source code
+    //     representation of func. The representation must have the syntax of a NativeFunction. Additionally,
+    //     if func has an [[InitialName]] internal slot and func.[[InitialName]] is a String, the portion of
+    //     the returned String that would be matched by NativeFunctionAccessoropt PropertyName must be the
+    //     value of func.[[InitialName]].
+    //  4. If func is an Object and IsCallable(func) is true, return an implementation-defined String source
+    //     code representation of func. The representation must have the syntax of a NativeFunction.
+    //  5. Throw a TypeError exception.
+    //
+    // NativeFunction :
+    //  function NativeFunctionAccessor[opt] PropertyName[~Yield, ~Await]opt
+    //      ( FormalParameters[~Yield, ~Await] ) { [ native code ] }
+    //
+    // NativeFunctionAccessor :
+    //  get
+    //  set
+
+    const ERRMSG: &str = "Function.prototype.toString requires that 'this' be a Function";
+
+    match this_value {
+        ECMAScriptValue::Object(obj) => {
+            if let Some(func) = obj.o.to_function_obj() {
+                let fdata = func.function_data().borrow();
+                Ok(fdata.source_text.clone().into())
+            } else if let Some(bif) = obj.o.to_builtin_function_obj() {
+                let bif_data = bif.builtin_function_data().borrow();
+                if let Some(initial_name) = &bif_data.initial_name {
+                    Ok(format!("function {initial_name}() {{ [native code] }}").into())
+                } else {
+                    Ok("function () { [native code] }".into())
+                }
+            //} else if is_callable(&obj.into()) {
+            //    Nothing currently does this (maybe bound function objects will?)
+            //    Relying on test-262 to tell me when I finally build something that needs this.
+            //    Ok("function () { [native code] }".into())
+            } else {
+                Err(create_type_error(ERRMSG))
+            }
+        }
+        ECMAScriptValue::Undefined
+        | ECMAScriptValue::Null
+        | ECMAScriptValue::Boolean(_)
+        | ECMAScriptValue::String(_)
+        | ECMAScriptValue::Number(_)
+        | ECMAScriptValue::BigInt(_)
+        | ECMAScriptValue::Symbol(_) => Err(create_type_error(ERRMSG)),
+    }
+}
+
+fn function_prototype_has_instance(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Function.prototype [ @@hasInstance ] ( V )
+    // This method performs the following steps when called:
+    //
+    //  1. Let F be the this value.
+    //  2. Return ? OrdinaryHasInstance(F, V).
+    let mut args = FuncArgs::from(arguments);
+    let v = args.next_arg();
+    ordinary_has_instance(this_value, &v).map(ECMAScriptValue::from)
 }
 
 pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {

@@ -10,134 +10,134 @@ use test_case::test_case;
 fn statement_test_01() {
     let (node, scanner) = check(Statement::parse(&mut newparser("{ a=0; }"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "Statement: { a = 0 ; }", vec!["BlockStatement: { a = 0 ; }"]);
-    concise_check(&*node, "Block: { a = 0 ; }", vec!["Punctuator: {", "ExpressionStatement: a = 0 ;", "Punctuator: }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: { a = 0 ; }", &["BlockStatement: { a = 0 ; }"]);
+    concise_check(&*node, "Block: { a = 0 ; }", &["Punctuator: {", "ExpressionStatement: a = 0 ;", "Punctuator: }"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_02() {
     let (node, scanner) = check(Statement::parse(&mut newparser("var a=0;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "Statement: var a = 0 ;", vec!["VariableStatement: var a = 0 ;"]);
+    pretty_check(&*node, "Statement: var a = 0 ;", &["VariableStatement: var a = 0 ;"]);
     concise_check(
         &*node,
         "VariableStatement: var a = 0 ;",
-        vec!["Keyword: var", "VariableDeclaration: a = 0", "Punctuator: ;"],
+        &["Keyword: var", "VariableDeclaration: a = 0", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_03() {
     let (node, scanner) = check(Statement::parse(&mut newparser(";"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 1);
-    pretty_check(&*node, "Statement: ;", vec!["EmptyStatement: ;"]);
-    concise_check(&*node, "Punctuator: ;", vec![]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: ;", &["EmptyStatement: ;"]);
+    concise_check(&*node, "Punctuator: ;", &[]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_04() {
     let (node, scanner) = check(Statement::parse(&mut newparser("a();"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "Statement: a ( ) ;", vec!["ExpressionStatement: a ( ) ;"]);
-    concise_check(&*node, "ExpressionStatement: a ( ) ;", vec!["CallMemberExpression: a ( )", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: a ( ) ;", &["ExpressionStatement: a ( ) ;"]);
+    concise_check(&*node, "ExpressionStatement: a ( ) ;", &["CallMemberExpression: a ( )", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_05() {
     let (node, scanner) = check(Statement::parse(&mut newparser("if (a) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "Statement: if ( a ) { }", vec!["IfStatement: if ( a ) { }"]);
+    pretty_check(&*node, "Statement: if ( a ) { }", &["IfStatement: if ( a ) { }"]);
     concise_check(
         &*node,
         "IfStatement: if ( a ) { }",
-        vec!["Keyword: if", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Block: { }"],
+        &["Keyword: if", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Block: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_06() {
     let (node, scanner) = check(Statement::parse(&mut newparser("switch (a) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 13);
-    pretty_check(&*node, "Statement: switch ( a ) { }", vec!["BreakableStatement: switch ( a ) { }"]);
+    pretty_check(&*node, "Statement: switch ( a ) { }", &["BreakableStatement: switch ( a ) { }"]);
     concise_check(
         &*node,
         "SwitchStatement: switch ( a ) { }",
-        vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
+        &["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_07() {
     let (node, scanner) = check(Statement::parse(&mut newparser("continue;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "Statement: continue ;", vec!["ContinueStatement: continue ;"]);
-    concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: continue ;", &["ContinueStatement: continue ;"]);
+    concise_check(&*node, "ContinueStatement: continue ;", &["Keyword: continue", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_08() {
     let (node, scanner) = check(Statement::parse(&mut newparser("break;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "Statement: break ;", vec!["BreakStatement: break ;"]);
-    concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: break ;", &["BreakStatement: break ;"]);
+    concise_check(&*node, "BreakStatement: break ;", &["Keyword: break", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_09() {
     let (node, scanner) = check(Statement::parse(&mut newparser("return;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 7);
-    pretty_check(&*node, "Statement: return ;", vec!["ReturnStatement: return ;"]);
-    concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: return ;", &["ReturnStatement: return ;"]);
+    concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_10() {
     let (node, scanner) = check(Statement::parse(&mut newparser("with(a)b;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "Statement: with ( a ) b ;", vec!["WithStatement: with ( a ) b ;"]);
+    pretty_check(&*node, "Statement: with ( a ) b ;", &["WithStatement: with ( a ) b ;"]);
     concise_check(
         &*node,
         "WithStatement: with ( a ) b ;",
-        vec!["Keyword: with", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "ExpressionStatement: b ;"],
+        &["Keyword: with", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "ExpressionStatement: b ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_11() {
     let (node, scanner) = check(Statement::parse(&mut newparser("a:b;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 4);
-    pretty_check(&*node, "Statement: a : b ;", vec!["LabelledStatement: a : b ;"]);
+    pretty_check(&*node, "Statement: a : b ;", &["LabelledStatement: a : b ;"]);
     concise_check(
         &*node,
         "LabelledStatement: a : b ;",
-        vec!["IdentifierName: a", "Punctuator: :", "ExpressionStatement: b ;"],
+        &["IdentifierName: a", "Punctuator: :", "ExpressionStatement: b ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_12() {
     let (node, scanner) = check(Statement::parse(&mut newparser("throw a;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "Statement: throw a ;", vec!["ThrowStatement: throw a ;"]);
-    concise_check(&*node, "ThrowStatement: throw a ;", vec!["Keyword: throw", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: throw a ;", &["ThrowStatement: throw a ;"]);
+    concise_check(&*node, "ThrowStatement: throw a ;", &["Keyword: throw", "IdentifierName: a", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_13() {
     let (node, scanner) =
         check(Statement::parse(&mut newparser("try {} catch {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "Statement: try { } catch { }", vec!["TryStatement: try { } catch { }"]);
-    concise_check(&*node, "TryStatement: try { } catch { }", vec!["Keyword: try", "Block: { }", "Catch: catch { }"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: try { } catch { }", &["TryStatement: try { } catch { }"]);
+    concise_check(&*node, "TryStatement: try { } catch { }", &["Keyword: try", "Block: { }", "Catch: catch { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_14() {
     let (node, scanner) = check(Statement::parse(&mut newparser("debugger;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "Statement: debugger ;", vec!["DebuggerStatement: debugger ;"]);
-    concise_check(&*node, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Statement: debugger ;", &["DebuggerStatement: debugger ;"]);
+    concise_check(&*node, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn statement_test_err_01() {
@@ -526,7 +526,7 @@ mod statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, wi, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("bob: function alice(){}" => true; "direct labelled function")]
@@ -604,12 +604,12 @@ mod hoistable_decl_part {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "Function Decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "Generator Decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "Async Function Decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "Async Generator Decl")]
-    fn debug(part: HoistableDeclPart) -> String {
-        format!("{:?}", part)
+    #[test_case(&HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "Function Decl")]
+    #[test_case(&HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "Generator Decl")]
+    #[test_case(&HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "Async Function Decl")]
+    #[test_case(&HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "Async Generator Decl")]
+    fn debug(part: &HoistableDeclPart) -> String {
+        format!("{part:?}")
     }
 
     #[test]
@@ -620,11 +620,11 @@ mod hoistable_decl_part {
         assert_eq!(hdp.to_string(), my_copy.to_string());
     }
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
-    fn display(part: HoistableDeclPart) -> String {
+    #[test_case(&HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
+    fn display(part: &HoistableDeclPart) -> String {
         part.to_string()
     }
 }
@@ -633,63 +633,63 @@ mod decl_part {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
-    fn debug(part: DeclPart) -> String {
-        format!("{:?}", part)
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
+    fn debug(part: &DeclPart) -> String {
+        format!("{part:?}")
     }
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
     fn from_hoistable(part: HoistableDeclPart) -> String {
         DeclPart::from(part).to_string()
     }
 
-    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
-    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
-    fn display(part: DeclPart) -> String {
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
+    fn display(part: &DeclPart) -> String {
         part.to_string()
     }
 
-    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
-    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
-    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
-    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
-    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
-    fn string_from(part: DeclPart) -> String {
-        String::from(&part)
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana ( ) { }"; "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a ( ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) { }"; "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a ( ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
+    fn string_from(part: &DeclPart) -> String {
+        String::from(part)
     }
 
-    #[test_case(Maker::new("function a(){}").function_declaration() => "function a (  ) {  }"; "function decl")]
+    #[test_case(Maker::new("function a(){}").function_declaration() => "function a ( ) { }"; "function decl")]
     fn from_funcdecl(part: Rc<FunctionDeclaration>) -> String {
         DeclPart::from(part).to_string()
     }
 
-    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => false; "Function Decl")]
-    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => false; "Generator Decl")]
-    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => false; "Async Function Decl")]
-    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => false; "Async Generator Decl")]
-    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => false; "class def")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => true; "const lexical decl")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("let age = 49.0;").lexical_declaration()) => false; "mutable lexical decl")]
-    fn is_constant_declaration(part: DeclPart) -> bool {
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => false; "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => false; "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => false; "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => false; "Async Generator Decl")]
+    #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => false; "class def")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => true; "const lexical decl")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("let age = 49.0;").lexical_declaration()) => false; "mutable lexical decl")]
+    fn is_constant_declaration(part: &DeclPart) -> bool {
         part.is_constant_declaration()
     }
 
-    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => svec(&["banana"]); "Function Decl")]
-    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => svec(&["a"]); "Generator Decl")]
-    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => svec(&["a"]); "Async Function Decl")]
-    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => svec(&["a"]); "Async Generator Decl")]
-    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => svec(&["rust"]); "class def")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => svec(&["PI"]); "const lexical decl")]
-    #[test_case(DeclPart::LexicalDeclaration(Maker::new("let age = 49.0, b, c, elephant;").lexical_declaration()) => svec(&["age", "b", "c", "elephant"]); "many lexical decl")]
-    fn bound_names(part: DeclPart) -> Vec<String> {
+    #[test_case(&DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => svec(&["banana"]); "Function Decl")]
+    #[test_case(&DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => svec(&["a"]); "Generator Decl")]
+    #[test_case(&DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => svec(&["a"]); "Async Function Decl")]
+    #[test_case(&DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => svec(&["a"]); "Async Generator Decl")]
+    #[test_case(&DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => svec(&["rust"]); "class def")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => svec(&["PI"]); "const lexical decl")]
+    #[test_case(&DeclPart::LexicalDeclaration(Maker::new("let age = 49.0, b, c, elephant;").lexical_declaration()) => svec(&["age", "b", "c", "elephant"]); "many lexical decl")]
+    fn bound_names(part: &DeclPart) -> Vec<String> {
         part.bound_names().iter().map(String::from).collect()
     }
 }
@@ -699,40 +699,29 @@ mod decl_part {
 fn declaration_test_01() {
     let (node, scanner) = check(Declaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "Declaration: function a (  ) {  }", vec!["HoistableDeclaration: function a (  ) {  }"]);
+    pretty_check(&*node, "Declaration: function a ( ) { }", &["HoistableDeclaration: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function a (  ) {  }",
-        vec![
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        "FunctionDeclaration: function a ( ) { }",
+        &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_02() {
     let (node, scanner) = check(Declaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    pretty_check(&*node, "Declaration: class a { }", vec!["ClassDeclaration: class a { }"]);
-    concise_check(
-        &*node,
-        "ClassDeclaration: class a { }",
-        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
-    );
-    format!("{:?}", node);
+    pretty_check(&*node, "Declaration: class a { }", &["ClassDeclaration: class a { }"]);
+    concise_check(&*node, "ClassDeclaration: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_03() {
     let (node, scanner) = check(Declaration::parse(&mut newparser("let a;"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "Declaration: let a ;", vec!["LexicalDeclaration: let a ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "Declaration: let a ;", &["LexicalDeclaration: let a ;"]);
+    concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn declaration_test_err_01() {
@@ -811,7 +800,7 @@ mod declaration {
         setup_test_agent();
         let mut errs = vec![];
         Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("function a(){}" => false; "Hoistable")]
@@ -823,7 +812,7 @@ mod declaration {
         Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 
-    #[test_case("function kobold(){}" => "function kobold (  ) {  }"; "hoistable")]
+    #[test_case("function kobold(){}" => "function kobold ( ) { }"; "hoistable")]
     #[test_case("class goblin {}" => "class goblin { }"; "class def")]
     #[test_case("const pixie = bullywug;" => "const pixie = bullywug ;"; "lexical decl")]
     fn declaration_part(src: &str) -> String {
@@ -856,39 +845,24 @@ fn hoistable_declaration_test_01() {
     let (node, scanner) =
         check(HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 14);
-    pretty_check(
-        &*node,
-        "HoistableDeclaration: function a (  ) {  }",
-        vec!["FunctionDeclaration: function a (  ) {  }"],
-    );
+    pretty_check(&*node, "HoistableDeclaration: function a ( ) { }", &["FunctionDeclaration: function a ( ) { }"]);
     concise_check(
         &*node,
-        "FunctionDeclaration: function a (  ) {  }",
-        vec![
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "Punctuator: )",
-            "Punctuator: {",
-            "Punctuator: }",
-        ],
+        "FunctionDeclaration: function a ( ) { }",
+        &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_02() {
     let (node, scanner) =
         check(HoistableDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 15);
-    pretty_check(
-        &*node,
-        "HoistableDeclaration: function * a (  ) {  }",
-        vec!["GeneratorDeclaration: function * a (  ) {  }"],
-    );
+    pretty_check(&*node, "HoistableDeclaration: function * a ( ) { }", &["GeneratorDeclaration: function * a ( ) { }"]);
     concise_check(
         &*node,
-        "GeneratorDeclaration: function * a (  ) {  }",
-        vec![
+        "GeneratorDeclaration: function * a ( ) { }",
+        &[
             "Keyword: function",
             "Punctuator: *",
             "IdentifierName: a",
@@ -898,7 +872,7 @@ fn hoistable_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_03() {
@@ -907,13 +881,13 @@ fn hoistable_declaration_test_03() {
     chk_scan(&scanner, 20);
     pretty_check(
         &*node,
-        "HoistableDeclaration: async function a (  ) {  }",
-        vec!["AsyncFunctionDeclaration: async function a (  ) {  }"],
+        "HoistableDeclaration: async function a ( ) { }",
+        &["AsyncFunctionDeclaration: async function a ( ) { }"],
     );
     concise_check(
         &*node,
-        "AsyncFunctionDeclaration: async function a (  ) {  }",
-        vec![
+        "AsyncFunctionDeclaration: async function a ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "IdentifierName: a",
@@ -923,7 +897,7 @@ fn hoistable_declaration_test_03() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_04() {
@@ -937,13 +911,13 @@ fn hoistable_declaration_test_04() {
     chk_scan(&scanner, 21);
     pretty_check(
         &*node,
-        "HoistableDeclaration: async function * a (  ) {  }",
-        vec!["AsyncGeneratorDeclaration: async function * a (  ) {  }"],
+        "HoistableDeclaration: async function * a ( ) { }",
+        &["AsyncGeneratorDeclaration: async function * a ( ) { }"],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec![
+        "AsyncGeneratorDeclaration: async function * a ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -954,7 +928,7 @@ fn hoistable_declaration_test_04() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn hoistable_declaration_test_err_01() {
@@ -1066,13 +1040,13 @@ mod hoistable_declaration {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
-    #[test_case("function a(){}" => "function a (  ) {  }"; "function def")]
-    #[test_case("function *a(){}" => "function * a (  ) {  }"; "generator def")]
-    #[test_case("async function a(){}" => "async function a (  ) {  }"; "async fcn")]
-    #[test_case("async function *a(){}" => "async function * a (  ) {  }"; "async gen")]
+    #[test_case("function a(){}" => "function a ( ) { }"; "function def")]
+    #[test_case("function *a(){}" => "function * a ( ) { }"; "generator def")]
+    #[test_case("async function a(){}" => "async function a ( ) { }"; "async fcn")]
+    #[test_case("async function *a(){}" => "async function * a ( ) { }"; "async gen")]
     fn declaration_part(src: &str) -> String {
         Maker::new(src).hoistable_declaration().declaration_part().to_string()
     }
@@ -1092,26 +1066,26 @@ fn breakable_statement_test_01() {
     let (node, scanner) =
         check(BreakableStatement::parse(&mut newparser("while (a);"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 10);
-    pretty_check(&*node, "BreakableStatement: while ( a ) ;", vec!["IterationStatement: while ( a ) ;"]);
+    pretty_check(&*node, "BreakableStatement: while ( a ) ;", &["IterationStatement: while ( a ) ;"]);
     concise_check(
         &*node,
         "WhileStatement: while ( a ) ;",
-        vec!["Keyword: while", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Punctuator: ;"],
+        &["Keyword: while", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn breakable_statement_test_02() {
     let (node, scanner) =
         check(BreakableStatement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "BreakableStatement: switch ( a ) { }", vec!["SwitchStatement: switch ( a ) { }"]);
+    pretty_check(&*node, "BreakableStatement: switch ( a ) { }", &["SwitchStatement: switch ( a ) { }"]);
     concise_check(
         &*node,
         "SwitchStatement: switch ( a ) { }",
-        vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
+        &["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn breable_statement_test_err_01() {
@@ -1220,7 +1194,7 @@ mod breakable_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("for(;;)arguments;" => true; "Iteration (yes)")]

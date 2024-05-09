@@ -2,7 +2,7 @@ use super::*;
 use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::rc::Rc;
@@ -71,7 +71,7 @@ where
     }
 }
 
-pub fn unwind_error_object(kind: &str, err: Object) -> String {
+pub fn unwind_error_object(kind: &str, err: &Object) -> String {
     assert!(err.o.to_error_obj().is_some());
     let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
@@ -90,7 +90,7 @@ pub fn unwind_error_object(kind: &str, err: Object) -> String {
 pub fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
     assert!(matches!(completion, AbruptCompletion::Throw { value: ECMAScriptValue::Object(_) }));
     if let AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } = completion {
-        unwind_error_object(kind, err)
+        unwind_error_object(kind, &err)
     } else {
         unreachable!()
     }
@@ -104,7 +104,7 @@ pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
 
-pub fn unwind_syntax_error_object(err: Object) -> String {
+pub fn unwind_syntax_error_object(err: &Object) -> String {
     unwind_error_object("SyntaxError", err)
 }
 
@@ -112,7 +112,7 @@ pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
-pub fn unwind_reference_error_object(err: Object) -> String {
+pub fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
 
@@ -120,14 +120,12 @@ pub fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
-pub fn unwind_range_error_object(err: Object) -> String {
+pub fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }
 
 pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
-    let mut s = factory.build_hasher();
-    t.hash(&mut s);
-    s.finish()
+    factory.hash_one(t)
 }
 
 pub fn setup_test_agent() {
@@ -139,20 +137,45 @@ pub fn setup_test_agent() {
     initialize_host_defined_realm(0, true);
 }
 
+pub fn setup_runnable_state() {
+    setup_test_agent();
+
+    let realm = current_realm_record().unwrap();
+    let global_env = realm.borrow().global_env.clone();
+    let mut context = ExecutionContext::new(None, Rc::clone(&realm), None);
+    context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+    context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ThrowsOrNot {
+    Throws,
+    BehavesNormally,
+}
+impl From<bool> for ThrowsOrNot {
+    fn from(value: bool) -> Self {
+        if value {
+            ThrowsOrNot::Throws
+        } else {
+            ThrowsOrNot::BehavesNormally
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TestObject {
     common: RefCell<CommonObjectData>,
-    get_prototype_of_throws: bool,
-    set_prototype_of_throws: bool,
-    is_extensible_throws: bool,
-    prevent_extensions_throws: bool,
-    get_own_property_throws: (bool, Option<PropertyKey>),
-    define_own_property_throws: (bool, Option<PropertyKey>),
-    has_property_throws: (bool, Option<PropertyKey>),
-    get_throws: (bool, Option<PropertyKey>),
-    set_throws: (bool, Option<PropertyKey>),
-    delete_throws: (bool, Option<PropertyKey>),
-    own_property_keys_throws: bool,
+    get_prototype_of: ThrowsOrNot,
+    set_prototype_of: ThrowsOrNot,
+    is_extensible: ThrowsOrNot,
+    prevent_extensions: ThrowsOrNot,
+    get_own_property: (ThrowsOrNot, Option<PropertyKey>),
+    define_own_property: (ThrowsOrNot, Option<PropertyKey>),
+    has_property: (ThrowsOrNot, Option<PropertyKey>),
+    get: (ThrowsOrNot, Option<PropertyKey>),
+    set: (ThrowsOrNot, Option<PropertyKey>),
+    delete: (ThrowsOrNot, Option<PropertyKey>),
+    own_property_keys: ThrowsOrNot,
 }
 
 impl<'a> From<&'a TestObject> for &'a dyn ObjectInterface {
@@ -166,84 +189,91 @@ impl ObjectInterface for TestObject {
         &self.common
     }
     fn uses_ordinary_get_prototype_of(&self) -> bool {
-        !(self.get_prototype_of_throws || self.set_prototype_of_throws)
+        matches!(
+            (self.get_prototype_of, self.set_prototype_of),
+            (ThrowsOrNot::BehavesNormally, ThrowsOrNot::BehavesNormally)
+        )
     }
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        if self.get_prototype_of_throws {
+        if self.get_prototype_of == ThrowsOrNot::Throws {
             Err(create_type_error("[[GetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_get_prototype_of(self))
         }
     }
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        if self.set_prototype_of_throws {
+        if self.set_prototype_of == ThrowsOrNot::Throws {
             Err(create_type_error("[[SetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_set_prototype_of(self, obj))
         }
     }
     fn is_extensible(&self) -> Completion<bool> {
-        if self.is_extensible_throws {
+        if self.is_extensible == ThrowsOrNot::Throws {
             Err(create_type_error("[[IsExtensible]] called on TestObject"))
         } else {
             Ok(ordinary_is_extensible(self))
         }
     }
     fn prevent_extensions(&self) -> Completion<bool> {
-        if self.prevent_extensions_throws {
+        if self.prevent_extensions == ThrowsOrNot::Throws {
             Err(create_type_error("[[PreventExtensions]] called on TestObject"))
         } else {
             Ok(ordinary_prevent_extensions(self))
         }
     }
     fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        if self.get_own_property_throws.0 && self.get_own_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.get_own_property.0 == ThrowsOrNot::Throws
+            && self.get_own_property.1.as_ref().map_or(true, |k| *k == *key)
+        {
             Err(create_type_error("[[GetOwnProperty]] called on TestObject"))
         } else {
             Ok(ordinary_get_own_property(self, key))
         }
     }
     fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
-        if self.define_own_property_throws.0 && self.define_own_property_throws.1.as_ref().map_or(true, |k| *k == key) {
+        if self.define_own_property.0 == ThrowsOrNot::Throws
+            && self.define_own_property.1.as_ref().map_or(true, |k| *k == key)
+        {
             Err(create_type_error("[[DefineOwnProperty]] called on TestObject"))
         } else {
             ordinary_define_own_property(self, key, desc)
         }
     }
     fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.has_property_throws.0 && self.has_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.has_property.0 == ThrowsOrNot::Throws && self.has_property.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[HasProperty]] called on TestObject"))
         } else {
             ordinary_has_property(self, key)
         }
     }
     fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        if self.get_throws.0 && self.get_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.get.0 == ThrowsOrNot::Throws && self.get.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[Get]] called on TestObject"))
         } else {
             ordinary_get(self, key, receiver)
         }
     }
     fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        if self.set_throws.0 && self.set_throws.1.as_ref().map_or(true, |k| *k == key) {
+        if self.set.0 == ThrowsOrNot::Throws && self.set.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error("[[Set]] called on TestObject"))
         } else {
             ordinary_set(self, key, value, receiver)
         }
     }
     fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.delete_throws.0 && self.delete_throws.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.delete.0 == ThrowsOrNot::Throws && self.delete.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error("[[Delete]] called on TestObject"))
         } else {
             ordinary_delete(self, key)
         }
     }
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        if self.own_property_keys_throws {
+        if self.own_property_keys == ThrowsOrNot::Throws {
             Err(create_type_error("[[OwnPropertyKeys]] called on TestObject"))
         } else {
             Ok(ordinary_own_property_keys(self))
@@ -286,31 +316,31 @@ impl TestObject {
     fn check_for_key(
         matcher: fn(&FunctionId) -> (bool, Option<PropertyKey>),
         throwers: &[FunctionId],
-    ) -> (bool, Option<PropertyKey>) {
+    ) -> (ThrowsOrNot, Option<PropertyKey>) {
         for item in throwers {
             match matcher(item) {
                 (true, rval) => {
-                    return (true, rval);
+                    return (ThrowsOrNot::Throws, rval);
                 }
                 (false, _) => {}
             }
         }
-        (false, None)
+        (ThrowsOrNot::BehavesNormally, None)
     }
     pub fn new(prototype: Option<Object>, throwers: &[FunctionId]) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
-            get_prototype_of_throws: throwers.contains(&FunctionId::GetPrototypeOf),
-            set_prototype_of_throws: throwers.contains(&FunctionId::SetPrototypeOf),
-            is_extensible_throws: throwers.contains(&FunctionId::IsExtensible),
-            prevent_extensions_throws: throwers.contains(&FunctionId::PreventExtensions),
-            get_own_property_throws: TestObject::check_for_key(TestObject::get_own_match, throwers),
-            define_own_property_throws: TestObject::check_for_key(TestObject::define_own_match, throwers),
-            has_property_throws: TestObject::check_for_key(TestObject::has_prop_match, throwers),
-            get_throws: TestObject::check_for_key(TestObject::get_match, throwers),
-            set_throws: TestObject::check_for_key(TestObject::set_match, throwers),
-            delete_throws: TestObject::check_for_key(TestObject::delete_match, throwers),
-            own_property_keys_throws: throwers.contains(&FunctionId::OwnPropertyKeys),
+            get_prototype_of: throwers.contains(&FunctionId::GetPrototypeOf).into(),
+            set_prototype_of: throwers.contains(&FunctionId::SetPrototypeOf).into(),
+            is_extensible: throwers.contains(&FunctionId::IsExtensible).into(),
+            prevent_extensions: throwers.contains(&FunctionId::PreventExtensions).into(),
+            get_own_property: TestObject::check_for_key(TestObject::get_own_match, throwers),
+            define_own_property: TestObject::check_for_key(TestObject::define_own_match, throwers),
+            has_property: TestObject::check_for_key(TestObject::has_prop_match, throwers),
+            get: TestObject::check_for_key(TestObject::get_match, throwers),
+            set: TestObject::check_for_key(TestObject::set_match, throwers),
+            delete: TestObject::check_for_key(TestObject::delete_match, throwers),
+            own_property_keys: throwers.contains(&FunctionId::OwnPropertyKeys).into(),
         }
     }
     pub fn object(throwers: &[FunctionId]) -> Object {
@@ -369,6 +399,7 @@ impl fmt::Debug for AdaptableObject {
             .field("set_override", &self.set_override.and(Some("replacement function")))
             .field("delete_override", &self.delete_override.and(Some("replacement function")))
             .field("own_property_keys_override", &self.own_property_keys_override.and(Some("replacement function")))
+            .field("something", &self.something.get())
             .finish()
     }
 }
@@ -460,6 +491,7 @@ impl ObjectInterface for AdaptableObject {
 }
 
 #[derive(Default)]
+#[allow(clippy::struct_field_names)]
 pub struct AdaptableMethods {
     pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
     pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
@@ -475,7 +507,7 @@ pub struct AdaptableMethods {
 }
 
 impl AdaptableObject {
-    pub fn new(prototype: Option<Object>, methods: AdaptableMethods) -> Self {
+    pub fn new(prototype: Option<Object>, methods: &AdaptableMethods) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
             get_prototype_of_override: methods.get_prototype_of_override,
@@ -492,7 +524,7 @@ impl AdaptableObject {
             something: Cell::new(0),
         }
     }
-    pub fn object(methods: AdaptableMethods) -> Object {
+    pub fn object(methods: &AdaptableMethods) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object { o: Rc::new(Self::new(Some(prototype), methods)) }
     }
@@ -500,7 +532,7 @@ impl AdaptableObject {
 
 // error
 pub fn faux_errors(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -562,19 +594,22 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
     Ok(Some(msg.to_string()))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }
 
-pub fn disasm_filt(s: String) -> Option<String> {
+pub fn disasm_filt(s: &str) -> Option<String> {
     if s.starts_with('=') {
         return None;
     }
@@ -615,7 +650,7 @@ macro_rules! tbd_function {
         #[should_panic(expected = "not yet implemented")]
         fn $name() {
             setup_test_agent();
-            super::$name(ECMAScriptValue::Undefined, None, &[]).unwrap();
+            super::$name(&ECMAScriptValue::Undefined, None, &[]).unwrap();
         }
     };
 }
@@ -1004,13 +1039,33 @@ impl ECMAScriptValue {
                 let mut first = true;
                 for key in keys {
                     let value = o.get(&key);
-                    if !first {
-                        r.push(',');
-                    } else {
+                    if first {
                         first = false;
+                    } else {
+                        r.push(',');
                     }
-                    let value_str = value.map(|val| format!("{val}")).unwrap_or_else(unwind_any_error);
-                    r.push_str(&format!("{key}:{value_str}"));
+                    let named_function_was_added = if let Ok(v) = value.as_ref() {
+                        if is_callable(v) {
+                            let name = to_string(
+                                to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
+                            )
+                            .unwrap_or_else(|_| JSString::from("undefined"));
+                            if name == "undefined" {
+                                false
+                            } else {
+                                r.push_str(&format!("{key}:function {name}"));
+                                true
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    if !named_function_was_added {
+                        let value_str = value.map_or_else(unwind_any_error, |val| format!("{val}"));
+                        r.push_str(&format!("{key}:{value_str}"));
+                    }
                 }
                 r
             }
@@ -1040,9 +1095,9 @@ pub struct PropertyInfo {
 
 impl fmt::Display for PropertyInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:", to_string(&self.name).unwrap())?;
+        write!(f, "{}:", to_string(ECMAScriptValue::from(self.name.clone())).unwrap())?;
         match &self.kind {
-            PropertyInfoKind::Accessor { getter, setter } => write!(f, "[[Get]]: {}, [[Set]]: {} (", getter, setter),
+            PropertyInfoKind::Accessor { getter, setter } => write!(f, "[[Get]]: {getter}, [[Set]]: {setter} ("),
             PropertyInfoKind::Data { value, writable } => write!(f, "{} ({}", value, if *writable { 'w' } else { '-' }),
         }?;
         write!(f, "{}{})", if self.enumerable { 'e' } else { '-' }, if self.configurable { 'c' } else { '-' })
@@ -1074,6 +1129,32 @@ impl CommonObjectData {
         }
         result
     }
+}
+
+mod test_object {
+    use super::*;
+
+    fn make() -> Object {
+        TestObject::object(&[])
+    }
+
+    false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
+    none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
+}
+
+mod adaptable_object {
+    use super::*;
+
+    fn make() -> Object {
+        AdaptableObject::object(&AdaptableMethods::default())
+    }
+
+    false_function!(is_proxy_object);
+    false_function!(is_symbol_object);
+    none_function!(to_proxy_object);
+    none_function!(to_symbol_obj);
 }
 
 mod integration;

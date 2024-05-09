@@ -214,8 +214,9 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.generator_function_prototype_prototype_next = generator_prototype_next_obj;
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn iterator_prototype_iterator(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -224,11 +225,11 @@ fn iterator_prototype_iterator(
     // This function performs the following steps when called:
     //
     //  1. Return the this value.
-    Ok(this_value)
+    Ok(this_value.clone())
 }
 
 fn generator_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -236,7 +237,7 @@ fn generator_function(
 }
 
 fn generator_prototype_next(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -248,7 +249,7 @@ fn generator_prototype_next(
 }
 
 fn generator_prototype_return(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -256,7 +257,7 @@ fn generator_prototype_return(
 }
 
 fn generator_prototype_throw(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -546,7 +547,7 @@ impl ObjectInterface for GeneratorObject {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum GeneratorError {
     BrandMismatch,
     AlreadyActive,
@@ -608,7 +609,7 @@ impl GeneratorObject {
     }
 }
 
-pub fn generator_validate(generator: ECMAScriptValue, generator_brand: &str) -> Completion<GeneratorState> {
+pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) -> Completion<GeneratorState> {
     // GeneratorValidate ( generator, generatorBrand )
     // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
     // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a
@@ -709,7 +710,7 @@ impl FunctionBody {
 }
 
 pub fn generator_resume(
-    generator: ECMAScriptValue,
+    generator: &ECMAScriptValue,
     value: ECMAScriptValue,
     generator_brand: &str,
 ) -> Completion<ECMAScriptValue> {
@@ -731,7 +732,7 @@ pub fn generator_resume(
     //  10. Assert: When we return here, genContext has already been removed from the execution context stack
     //      and methodContext is the currently running execution context.
     //  11. Return ? result.
-    let state = generator_validate(generator.clone(), generator_brand)?;
+    let state = generator_validate(generator, generator_brand)?;
     if state == GeneratorState::Completed {
         return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
     }
@@ -769,7 +770,7 @@ pub fn generator_resume(
 }
 
 pub fn generator_resume_abrupt(
-    generator: ECMAScriptValue,
+    generator: &ECMAScriptValue,
     abrupt_completion: AbruptCompletion,
     generator_brand: &str,
 ) -> Completion<ECMAScriptValue> {
@@ -803,7 +804,7 @@ pub fn generator_resume_abrupt(
     //  11. Assert: When we return here, genContext has already been removed from the execution context stack
     //      and methodContext is the currently running execution context.
     //  12. Return ? result.
-    let state = generator_validate(generator.clone(), generator_brand)?;
+    let state = generator_validate(generator, generator_brand)?;
 
     if state == GeneratorState::SuspendedStart || state == GeneratorState::Completed {
         if state == GeneratorState::SuspendedStart {
@@ -1029,9 +1030,10 @@ impl IteratorRecord {
         //  4. Return result.
         let result = self.next(None)?;
         let done = iterator_complete(&result)?;
-        match done {
-            true => Ok(None),
-            false => Ok(Some(result)),
+        if done {
+            Ok(None)
+        } else {
+            Ok(Some(result))
         }
     }
 

@@ -11,9 +11,9 @@ fn expression_test_01() {
     let (se, scanner) = check(Expression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*se, Expression::FallThru(_)));
-    pretty_check(&*se, "Expression: a", vec!["AssignmentExpression: a"]);
-    concise_check(&*se, "IdentifierName: a", vec![]);
-    format!("{:?}", se);
+    pretty_check(&*se, "Expression: a", &["AssignmentExpression: a"]);
+    concise_check(&*se, "IdentifierName: a", &[]);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -21,9 +21,9 @@ fn expression_test_02() {
     let (se, scanner) = check(Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*se, Expression::Comma(..)));
-    pretty_check(&*se, "Expression: a , b", vec!["Expression: a", "AssignmentExpression: b"]);
-    concise_check(&*se, "Expression: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
-    format!("{:?}", se);
+    pretty_check(&*se, "Expression: a , b", &["Expression: a", "AssignmentExpression: b"]);
+    concise_check(&*se, "Expression: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    format!("{se:?}");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -88,7 +88,7 @@ mod expression {
             .unwrap()
             .0
             .early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("a" => false; "identifier ref")]

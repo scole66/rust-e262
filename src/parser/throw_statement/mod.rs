@@ -23,7 +23,7 @@ impl PrettyPrint for ThrowStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ThrowStatement: {}", first, self)?;
+        writeln!(writer, "{first}ThrowStatement: {self}")?;
         self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -32,7 +32,7 @@ impl PrettyPrint for ThrowStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ThrowStatement: {}", first, self)?;
+        writeln!(writer, "{first}ThrowStatement: {self}")?;
         pprint_token(writer, "throw", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)

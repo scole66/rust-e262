@@ -1,6 +1,18 @@
 #![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::single_match_else)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::doc_markdown)]
+// nursery denies.
+#![deny(clippy::empty_line_after_doc_comments)]
 
 mod agent;
 mod arguments_object;
@@ -18,6 +30,7 @@ mod errors;
 mod execution_context;
 mod function_object;
 mod map;
+mod math;
 mod number_object;
 mod object;
 mod object_object;
@@ -26,6 +39,7 @@ mod prettyprint;
 mod proxy_object;
 mod realm;
 mod reference;
+mod reflect;
 mod scanner;
 mod string_object;
 mod strings;
@@ -48,6 +62,7 @@ pub use crate::errors::*;
 pub use crate::execution_context::*;
 pub use crate::function_object::*;
 pub use crate::map::*;
+pub use crate::math::*;
 pub use crate::number_object::*;
 pub use crate::object::*;
 pub use crate::object_object::*;
@@ -56,6 +71,7 @@ pub use crate::prettyprint::*;
 pub use crate::proxy_object::*;
 pub use crate::realm::*;
 pub use crate::reference::*;
+pub use crate::reflect::*;
 pub use crate::scanner::*;
 pub use crate::string_object::*;
 pub use crate::strings::*;
@@ -88,17 +104,17 @@ impl VM {
     //    Ok(0)
     //}
 
-    fn run(&mut self) -> Result<i32, String> {
-        Ok(0)
-    }
+    //fn run(&mut self) -> Result<i32, String> {
+    //    Ok(0)
+    //}
 }
 
 fn interpret(source: &str) -> Result<i32, String> {
-    let parsed = parse_text(source, ParseGoal::Script);
+    let parsed = parse_text(source, ParseGoal::Script, false, false);
     match parsed {
         ParsedText::Errors(errs) => {
             for err in errs {
-                println!("{}", to_string(err).unwrap());
+                println!("{}", err.to_string().unwrap());
             }
             Err("See above".to_string())
         }
@@ -106,6 +122,7 @@ fn interpret(source: &str) -> Result<i32, String> {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
+        _ => unreachable!(),
     }
 }
 
@@ -122,46 +139,29 @@ fn repl() {
             break;
         }
 
-        println!("You entered the string {:?}", line);
+        println!("You entered the string {line:?}");
         match interpret(&line) {
-            Ok(value) => println!("{}", value),
-            Err(err) => println!("{}", err),
+            Ok(value) => println!("{value}"),
+            Err(err) => println!("{err}"),
         }
     }
 }
 
 fn run_file(fname: &str) {
-    println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
     match potential_file_content {
-        Err(e) => println!("{}", e),
+        Err(e) => println!("{e}"),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
             match process_ecmascript(&script_source) {
-                Ok(value) => println!("{:#?}", value),
-                Err(err) => {
-                    println!("{}", err);
-                    if let ProcessError::RuntimeError { error } = err {
-                        let repr = to_string(error);
-                        if let Ok(err) = repr {
-                            println!("{}", err);
-                        }
-                    }
-                }
+                Ok(value) => println!("{value:?}"),
+                Err(err) => println!("{err}"),
             }
-            //match interpret(vm, &script_source) {
-            //    Ok(value) => println!("{}", value),
-            //    Err(err) => println!("{}", err),
-            //}
         }
     }
 }
 
 fn run_app() -> Result<(), i32> {
-    println!("sizeof(FullCompletion): {}", std::mem::size_of::<FullCompletion>());
-    println!("sizeof(NormalCompletion): {}", std::mem::size_of::<NormalCompletion>());
-    println!("sizeof(AbruptCompletion): {}", std::mem::size_of::<AbruptCompletion>());
-
     VM::new();
     let args: Vec<String> = env::args().collect();
     match args.len() {
@@ -178,7 +178,7 @@ fn run_app() -> Result<(), i32> {
 
 fn main() {
     std::process::exit(match run_app() {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(err) => err,
     });
 }

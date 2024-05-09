@@ -155,7 +155,7 @@ impl ObjectInterface for StringObject {
         let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut extra_numbers: Vec<(PropertyKey, u32)> = Vec::new();
-        for (key, desc) in bindings.iter() {
+        for (key, desc) in bindings {
             if key.is_array_index() {
                 let keyval = array_index_key(key);
                 assert!(keyval as usize >= len); // All lower array indices are part of the string, and no one should have been able to make them independently.
@@ -186,9 +186,16 @@ impl ObjectInterface for StringObject {
 pub fn string_create(value: JSString, prototype: Option<Object>) -> Object {
     StringObject::object(value, prototype)
 }
-pub fn create_string_object(s: JSString) -> Object {
-    let prototype = intrinsic(IntrinsicId::StringPrototype);
-    string_create(s, Some(prototype))
+impl From<JSString> for Object {
+    fn from(s: JSString) -> Self {
+        let prototype = intrinsic(IntrinsicId::StringPrototype);
+        string_create(s, Some(prototype))
+    }
+}
+impl From<&str> for Object {
+    fn from(s: &str) -> Self {
+        Object::from(JSString::from(s))
+    }
 }
 
 impl StringObject {
@@ -216,7 +223,7 @@ impl StringObject {
         // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length),
         //    [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         // 9. Return S.
-        let length = value.len() as f64;
+        let length = value.len();
         let s = Object { o: Rc::new(Self::new(value, prototype)) };
         define_property_or_throw(
             &s,
@@ -248,14 +255,15 @@ impl StringObject {
         //  11. Return the PropertyDescriptor { [[Value]]: resultStr, [[Writable]]: false, [[Enumerable]]:
         //      true, [[Configurable]]: false }.
         if let PropertyKey::String(p) = key {
-            let index = canonical_numeric_index_string(p.clone())?;
+            let index = canonical_numeric_index_string(p)?;
             is_integral_number(&index.into()).then_some(())?;
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
             let string = self.string_data.borrow();
             let len = string.len();
+            #[allow(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
-            let idx = index as usize;
-            let value = JSString::from(&string.as_slice()[idx..idx + 1]);
+            let idx = to_usize(index).expect("index should be a valid integer");
+            let value = JSString::from(&string.as_slice()[idx..=idx]);
             Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: value.into(), writable: false }),
                 enumerable: true,
@@ -289,7 +297,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let string_constructor = create_builtin_function(
         string_constructor_function,
         true,
-        0.0,
+        1.0,
         PropertyKey::from("String"),
         BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
@@ -437,7 +445,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 fn string_constructor_function(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -489,7 +497,7 @@ fn this_string_value(value: ECMAScriptValue, from_where: &str) -> Completion<JSS
 }
 
 fn string_from_char_code(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -505,18 +513,20 @@ fn string_from_char_code(
     //      b. Append nextCU to elements.
     //  3. Return the String value whose code units are the elements in the List elements. If codeUnits is empty, the
     //     empty String is returned.
-    Ok(JSString::from(arguments.iter().map(|v| to_uint16(v.clone())).collect::<Result<Vec<u16>, AbruptCompletion>>()?)
-        .into())
+    Ok(JSString::from(
+        arguments.iter().map(ECMAScriptValue::to_uint16).collect::<Result<Vec<u16>, AbruptCompletion>>()?,
+    )
+    .into())
 }
 fn string_from_code_point(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 fn string_raw(
-    _this_value: ECMAScriptValue,
+    _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -524,12 +534,12 @@ fn string_raw(
 }
 
 // 22.1.3.1 String.prototype.at ( index )
-fn string_prototype_at(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn string_prototype_at(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     todo!()
 }
 // 22.1.3.2 String.prototype.charAt ( pos )
 fn string_prototype_char_at(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -537,7 +547,7 @@ fn string_prototype_char_at(
 }
 // 22.1.3.3 String.prototype.charCodeAt ( pos )
 fn string_prototype_char_code_at(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -545,7 +555,7 @@ fn string_prototype_char_code_at(
 }
 // 22.1.3.4 String.prototype.codePointAt ( pos )
 fn string_prototype_code_point_at(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -553,7 +563,7 @@ fn string_prototype_code_point_at(
 }
 // 22.1.3.5 String.prototype.concat ( ...args )
 fn string_prototype_concat(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -561,7 +571,7 @@ fn string_prototype_concat(
 }
 // 22.1.3.7 String.prototype.endsWith ( searchString [ , endPosition ] )
 fn string_prototype_ends_with(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -569,7 +579,7 @@ fn string_prototype_ends_with(
 }
 // 22.1.3.8 String.prototype.includes ( searchString [ , position ] )
 fn string_prototype_includes(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -577,7 +587,7 @@ fn string_prototype_includes(
 }
 // 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] )
 fn string_prototype_index_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -605,18 +615,20 @@ fn string_prototype_index_of(
     let search_string = args.next_arg();
     let position = args.next_arg();
 
-    require_object_coercible(&this_value)?;
-    let s = to_string(this_value)?;
+    require_object_coercible(this_value)?;
+    let s = to_string(this_value.clone())?;
     let search_str = to_string(search_string)?;
-    let pos = to_integer_or_infinity(position)?;
+    let pos = position.to_integer_or_infinity()?;
     let len = s.len();
-    let start = pos.clamp(0.0, len as f64) as u64;
+    let max = to_f64(len).expect("len should fit within a float");
+    #[allow(clippy::cast_precision_loss)]
+    let start = to_usize(pos.clamp(0.0, max)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
 }
 
 // 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
 fn string_prototype_last_index_of(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -624,7 +636,7 @@ fn string_prototype_last_index_of(
 }
 // 22.1.3.11 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] )
 fn string_prototype_locale_compare(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -632,7 +644,7 @@ fn string_prototype_locale_compare(
 }
 // 22.1.3.12 String.prototype.match ( regexp )
 fn string_prototype_match(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -640,7 +652,7 @@ fn string_prototype_match(
 }
 // 22.1.3.13 String.prototype.matchAll ( regexp )
 fn string_prototype_match_all(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -648,7 +660,7 @@ fn string_prototype_match_all(
 }
 // 22.1.3.14 String.prototype.normalize ( [ form ] )
 fn string_prototype_normalize(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -656,7 +668,7 @@ fn string_prototype_normalize(
 }
 // 22.1.3.15 String.prototype.padEnd ( maxLength [ , fillString ] )
 fn string_prototype_pad_end(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -664,7 +676,7 @@ fn string_prototype_pad_end(
 }
 // 22.1.3.16 String.prototype.padStart ( maxLength [ , fillString ] )
 fn string_prototype_pad_start(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -672,7 +684,7 @@ fn string_prototype_pad_start(
 }
 // 22.1.3.17 String.prototype.repeat ( count )
 fn string_prototype_repeat(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -680,7 +692,7 @@ fn string_prototype_repeat(
 }
 // 22.1.3.18 String.prototype.replace ( searchValue, replaceValue )
 fn string_prototype_replace(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -688,7 +700,7 @@ fn string_prototype_replace(
 }
 // 22.1.3.19 String.prototype.replaceAll ( searchValue, replaceValue )
 fn string_prototype_replace_all(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -696,7 +708,7 @@ fn string_prototype_replace_all(
 }
 // 22.1.3.20 String.prototype.search ( regexp )
 fn string_prototype_search(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -704,7 +716,7 @@ fn string_prototype_search(
 }
 // 22.1.3.21 String.prototype.slice ( start, end )
 fn string_prototype_slice(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -712,7 +724,7 @@ fn string_prototype_slice(
 }
 // 22.1.3.22 String.prototype.split ( separator, limit )
 fn string_prototype_split(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -720,7 +732,7 @@ fn string_prototype_split(
 }
 // 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
 fn string_prototype_starts_with(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -728,7 +740,7 @@ fn string_prototype_starts_with(
 }
 // 22.1.3.24 String.prototype.substring ( start, end )
 fn string_prototype_substring(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -736,7 +748,7 @@ fn string_prototype_substring(
 }
 // 22.1.3.25 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_lower_case(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -744,7 +756,7 @@ fn string_prototype_to_locale_lower_case(
 }
 // 22.1.3.26 String.prototype.toLocaleUpperCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_upper_case(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -752,7 +764,7 @@ fn string_prototype_to_locale_upper_case(
 }
 // 22.1.3.27 String.prototype.toLowerCase ( )
 fn string_prototype_to_lower_case(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -760,7 +772,7 @@ fn string_prototype_to_lower_case(
 }
 // 22.1.3.28 String.prototype.toString ( )
 fn string_prototype_to_string(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -768,24 +780,28 @@ fn string_prototype_to_string(
     // This method performs the following steps when called:
     //
     //  1. Return ? thisStringValue(this value).
-    let s = this_string_value(this_value, "String.prototype.toString")?;
+    let s = this_string_value(this_value.clone(), "String.prototype.toString")?;
     Ok(s.into())
 }
 // 22.1.3.29 String.prototype.toUpperCase ( )
 fn string_prototype_to_upper_case(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
 // 22.1.3.30 String.prototype.trim ( )
-fn string_prototype_trim(_: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn string_prototype_trim(
+    _: &ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
 // 22.1.3.31 String.prototype.trimEnd ( )
 fn string_prototype_trim_end(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -793,7 +809,7 @@ fn string_prototype_trim_end(
 }
 // 22.1.3.32 String.prototype.trimStart ( )
 fn string_prototype_trim_start(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -801,7 +817,7 @@ fn string_prototype_trim_start(
 }
 // 22.1.3.33 String.prototype.valueOf ( )
 fn string_prototype_value_of(
-    this_value: ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
@@ -809,12 +825,12 @@ fn string_prototype_value_of(
     // This method performs the following steps when called:
     //
     //  1. Return ? thisStringValue(this value).
-    let s = this_string_value(this_value, "String.prototype.valueOf")?;
+    let s = this_string_value(this_value.clone(), "String.prototype.valueOf")?;
     Ok(s.into())
 }
 
 fn string_prototype_iterator(
-    _: ECMAScriptValue,
+    _: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {

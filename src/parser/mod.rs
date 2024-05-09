@@ -1,6 +1,7 @@
 use super::*;
 use ahash::AHashMap;
 use ahash::RandomState;
+use anyhow::anyhow;
 use counter::Counter;
 use std::cmp;
 use std::cmp::Ordering;
@@ -8,11 +9,33 @@ use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
+pub enum YieldAllowed {
+    Yes,
+    #[default]
+    No,
+}
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
+pub enum AwaitAllowed {
+    Yes,
+    #[default]
+    No,
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 pub enum ParseGoal {
     #[default]
     Script,
     Module,
+    FormalParameters(YieldAllowed, AwaitAllowed),
+    FunctionBody(YieldAllowed, AwaitAllowed),
+    GeneratorBody,
+    AsyncFunctionBody,
+    AsyncGeneratorBody,
+    FunctionExpression,
+    GeneratorExpression,
+    AsyncFunctionExpression,
+    AsyncGeneratorExpression,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -348,6 +371,7 @@ impl Ord for Location {
 }
 
 impl Location {
+    #[must_use]
     pub fn merge(&self, other: &Self) -> Self {
         assert!(self.span.starting_index <= other.span.starting_index + other.span.length);
         Location {
@@ -402,19 +426,17 @@ impl fmt::Display for PECode {
             PECode::EoFExpected => f.write_str("end-of-file expected"),
             PECode::ImproperNewline => f.write_str("newline not allowed here"),
             PECode::InvalidIdentifier => f.write_str("not an identifier"),
-            PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
+            PECode::KeywordExpected(kwd) => write!(f, "‘{kwd}’ expected"),
             PECode::KeywordUsedAsIdentifier(kwd) => {
-                write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd)
+                write!(f, "‘{kwd}’ is a reserved word and may not be used as an identifier")
             }
-            PECode::OneOfKeywordExpected(kwd_set) => write!(
-                f,
-                "one of [{}] expected",
-                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")
-            ),
+            PECode::OneOfKeywordExpected(kwd_set) => {
+                write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{kwd}’")), ", "))
+            }
             PECode::OneOfPunctuatorExpected(punct_set) => {
-                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", "))
+                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{p}’")), ", "))
             }
-            PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
+            PECode::PunctuatorExpected(p) => write!(f, "‘{p}’ expected"),
             PECode::AssignmentExpressionOrSpreadElementExpected => {
                 f.write_str("AssignmentExpression or SpreadElement expected")
             }
@@ -437,7 +459,7 @@ impl fmt::Display for PECode {
             PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
             PECode::ImproperExpression => f.write_str("Improper Expression"),
             PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
-            PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
+            PECode::ParseNodeExpected(pn) => write!(f, "{pn} expected"),
             PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
             PECode::ForStatementDefinitionError => f.write_str("‘var’, LexicalDeclaration, or Expression expected"),
             PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),
@@ -642,35 +664,197 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 pub enum ParsedText {
     Errors(Vec<Object>),
     Script(Rc<Script>),
+    FormalParameters(Rc<FormalParameters>),
+    FunctionBody(Rc<FunctionBody>),
+    GeneratorBody(Rc<GeneratorBody>),
+    AsyncFunctionBody(Rc<AsyncFunctionBody>),
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+    FunctionExpression(Rc<FunctionExpression>),
+    GeneratorExpression(Rc<GeneratorExpression>),
+    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
     // ... more to come
 }
 
-pub fn parse_text(src: &str, goal_symbol: ParseGoal) -> ParsedText {
-    let mut parser = Parser::new(src, false, goal_symbol);
-    match goal_symbol {
-        ParseGoal::Script => {
-            let potential_script = Script::parse(&mut parser, Scanner::new());
-            match potential_script {
+impl TryFrom<ParsedText> for Result<Rc<Script>, Vec<Object>> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
+        match value {
+            ParsedText::Errors(errs) => Ok(Err(errs)),
+            ParsedText::Script(sr) => Ok(Ok(sr)),
+            _ => Err(anyhow!("Expected a Script or Syntax Errors")),
+        }
+    }
+}
+
+enum ParsedItem {
+    Script(Rc<Script>),
+    FormalParameters(Rc<FormalParameters>),
+    FunctionBody(Rc<FunctionBody>),
+    GeneratorBody(Rc<GeneratorBody>),
+    AsyncFunctionBody(Rc<AsyncFunctionBody>),
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+    FunctionExpression(Rc<FunctionExpression>),
+    GeneratorExpression(Rc<GeneratorExpression>),
+    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+}
+
+impl ParsedItem {
+    fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ParsedItem::Script(s) => s.early_errors(errs, strict),
+            ParsedItem::FormalParameters(fp) => fp.early_errors(errs, strict, false),
+            ParsedItem::FunctionBody(fb) => fb.early_errors(errs, strict),
+            ParsedItem::GeneratorBody(gb) => gb.early_errors(errs, strict),
+            ParsedItem::AsyncFunctionBody(body) => body.early_errors(errs, strict),
+            ParsedItem::AsyncGeneratorBody(body) => body.early_errors(errs, strict),
+            ParsedItem::FunctionExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::GeneratorExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::AsyncFunctionExpression(exp) => exp.early_errors(errs, strict),
+            ParsedItem::AsyncGeneratorExpression(exp) => exp.early_errors(errs, strict),
+        }
+    }
+}
+
+impl From<ParsedItem> for ParsedText {
+    fn from(value: ParsedItem) -> Self {
+        match value {
+            ParsedItem::Script(s) => ParsedText::Script(s),
+            ParsedItem::FormalParameters(fp) => ParsedText::FormalParameters(fp),
+            ParsedItem::FunctionBody(fb) => ParsedText::FunctionBody(fb),
+            ParsedItem::GeneratorBody(gb) => ParsedText::GeneratorBody(gb),
+            ParsedItem::AsyncFunctionBody(body) => ParsedText::AsyncFunctionBody(body),
+            ParsedItem::AsyncGeneratorBody(body) => ParsedText::AsyncGeneratorBody(body),
+            ParsedItem::FunctionExpression(exp) => ParsedText::FunctionExpression(exp),
+            ParsedItem::GeneratorExpression(exp) => ParsedText::GeneratorExpression(exp),
+            ParsedItem::AsyncFunctionExpression(exp) => ParsedText::AsyncFunctionExpression(exp),
+            ParsedItem::AsyncGeneratorExpression(exp) => ParsedText::AsyncGeneratorExpression(exp),
+        }
+    }
+}
+
+type ParseClosure = Box<dyn FnOnce(&mut Parser) -> Result<(ParsedItem, Scanner), ParseError>>;
+
+fn direct_parse(parser: &mut Parser, strict: bool, parse_fn: ParseClosure, name: &str) -> ParsedText {
+    match parse_fn(parser) {
+        Ok((item, scan)) => {
+            // advance scanner past trailing whitespace.
+            let scan = match skip_skippables(&scan, parser.source) {
                 Err(pe) => {
-                    let syntax_error = create_syntax_error_object(
-                        format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
-                        Some(pe.location),
-                    );
-                    ParsedText::Errors(vec![syntax_error])
+                    return ParsedText::Errors(vec![create_syntax_error_object(pe, None)]);
                 }
-                Ok((node, _)) => {
-                    let mut errs = vec![];
-                    node.early_errors(&mut errs);
-                    if errs.is_empty() {
-                        ParsedText::Script(node)
-                    } else {
-                        ParsedText::Errors(errs)
-                    }
+                Ok(scan) => scan,
+            };
+            if scan.start_idx == parser.source.len() {
+                // input text was completely consumed
+                let mut errs = vec![];
+                item.early_errors(&mut errs, strict);
+                if errs.is_empty() {
+                    ParsedText::from(item)
+                } else {
+                    ParsedText::Errors(errs)
                 }
+            } else {
+                ParsedText::Errors(vec![create_syntax_error_object(format!("{name} had unparsed trailing text"), None)])
             }
         }
-        _ => todo!(),
+        Err(pe) => {
+            let syntax_error = create_syntax_error_object(
+                format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
+                Some(pe.location),
+            );
+            ParsedText::Errors(vec![syntax_error])
+        }
     }
+}
+
+pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool) -> ParsedText {
+    let mut parser = Parser::new(src, direct, goal_symbol);
+    let (closure, name): (ParseClosure, &str) = match goal_symbol {
+        ParseGoal::Script => (
+            Box::new(|parser: &mut Parser| {
+                Script::parse(parser, Scanner::new()).map(|(item, scanner)| (ParsedItem::Script(item), scanner))
+            }),
+            "script",
+        ),
+        ParseGoal::Module => todo!(),
+        ParseGoal::FormalParameters(yield_state, await_state) => (
+            Box::new(move |parser: &mut Parser| {
+                let (fp, scan) = FormalParameters::parse(
+                    parser,
+                    Scanner::new(),
+                    yield_state == YieldAllowed::Yes,
+                    await_state == AwaitAllowed::Yes,
+                );
+                Ok((ParsedItem::FormalParameters(fp), scan))
+            }),
+            "parameters",
+        ),
+        ParseGoal::FunctionBody(yield_state, await_state) => (
+            Box::new(move |parser: &mut Parser| {
+                let (body, scanner) = FunctionBody::parse(
+                    parser,
+                    Scanner::new(),
+                    yield_state == YieldAllowed::Yes,
+                    await_state == AwaitAllowed::Yes,
+                );
+                Ok((ParsedItem::FunctionBody(body), scanner))
+            }),
+            "function body",
+        ),
+        ParseGoal::GeneratorBody => (
+            Box::new(|parser: &mut Parser| {
+                let (body, scanner) = GeneratorBody::parse(parser, Scanner::new());
+                Ok((ParsedItem::GeneratorBody(body), scanner))
+            }),
+            "generator body",
+        ),
+        ParseGoal::AsyncFunctionBody => (
+            Box::new(|parser: &mut Parser| {
+                let (body, scanner) = AsyncFunctionBody::parse(parser, Scanner::new());
+                Ok((ParsedItem::AsyncFunctionBody(body), scanner))
+            }),
+            "function body",
+        ),
+        ParseGoal::AsyncGeneratorBody => (
+            Box::new(|parser: &mut Parser| {
+                let (body, scanner) = AsyncGeneratorBody::parse(parser, Scanner::new());
+                Ok((ParsedItem::AsyncGeneratorBody(body), scanner))
+            }),
+            "generator body",
+        ),
+        ParseGoal::FunctionExpression => (
+            Box::new(|parser: &mut Parser| {
+                FunctionExpression::parse(parser, Scanner::new())
+                    .map(|(item, scanner)| (ParsedItem::FunctionExpression(item), scanner))
+            }),
+            "function expression",
+        ),
+        ParseGoal::GeneratorExpression => (
+            Box::new(|parser: &mut Parser| {
+                GeneratorExpression::parse(parser, Scanner::new())
+                    .map(|(item, scanner)| (ParsedItem::GeneratorExpression(item), scanner))
+            }),
+            "generator expression",
+        ),
+        ParseGoal::AsyncFunctionExpression => (
+            Box::new(|parser: &mut Parser| {
+                AsyncFunctionExpression::parse(parser, Scanner::new())
+                    .map(|(item, scanner)| (ParsedItem::AsyncFunctionExpression(item), scanner))
+            }),
+            "function expression",
+        ),
+        ParseGoal::AsyncGeneratorExpression => (
+            Box::new(|parser: &mut Parser| {
+                AsyncGeneratorExpression::parse(parser, Scanner::new())
+                    .map(|(item, scanner)| (ParsedItem::AsyncGeneratorExpression(item), scanner))
+            }),
+            "generator expression",
+        ),
+    };
+    direct_parse(&mut parser, strict, closure, name)
 }
 
 pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {

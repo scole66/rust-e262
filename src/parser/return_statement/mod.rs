@@ -16,7 +16,7 @@ impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ReturnStatement::Bare { .. } => write!(f, "return ;"),
-            ReturnStatement::Expression { exp, .. } => write!(f, "return {} ;", exp),
+            ReturnStatement::Expression { exp, .. } => write!(f, "return {exp} ;"),
         }
     }
 }
@@ -27,7 +27,7 @@ impl PrettyPrint for ReturnStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ReturnStatement: {}", first, self)?;
+        writeln!(writer, "{first}ReturnStatement: {self}")?;
         match self {
             ReturnStatement::Bare { .. } => Ok(()),
             ReturnStatement::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -39,7 +39,7 @@ impl PrettyPrint for ReturnStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}ReturnStatement: {}", first, self)?;
+        writeln!(writer, "{first}ReturnStatement: {self}")?;
         pprint_token(writer, "return", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let ReturnStatement::Expression { exp, .. } = self {
             exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

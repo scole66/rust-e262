@@ -15,7 +15,15 @@ pub struct GeneratorMethod {
 
 impl fmt::Display for GeneratorMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "* {} ( {} ) {{ {} }}", self.name, self.params, self.body)
+        write!(f, "* {} ( ", self.name)?;
+        if !matches!(self.params.formals.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -25,7 +33,7 @@ impl PrettyPrint for GeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorMethod: {self}")?;
         self.name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.params.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -36,7 +44,7 @@ impl PrettyPrint for GeneratorMethod {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorMethod: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorMethod: {self}")?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -186,12 +194,19 @@ pub struct GeneratorDeclaration {
 
 impl fmt::Display for GeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -201,7 +216,7 @@ impl PrettyPrint for GeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorDeclaration: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -214,7 +229,7 @@ impl PrettyPrint for GeneratorDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorDeclaration: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorDeclaration: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -344,12 +359,19 @@ pub struct GeneratorExpression {
 
 impl fmt::Display for GeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.ident {
-            None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => {
-                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
-            }
+        write!(f, "function * ")?;
+        if let Some(id) = &self.ident {
+            write!(f, "{id} ")?;
         }
+        write!(f, "( ")?;
+        if !matches!(self.params.as_ref(), FormalParameters::Empty(..)) {
+            write!(f, "{} ", self.params)?;
+        }
+        write!(f, ") {{ ")?;
+        if !matches!(self.body.0.statements.as_ref(), FunctionStatementList::Empty(..)) {
+            write!(f, "{} ", self.body)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -359,7 +381,7 @@ impl PrettyPrint for GeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorExpression: {self}")?;
         if let Some(id) = &self.ident {
             id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
@@ -372,7 +394,7 @@ impl PrettyPrint for GeneratorExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorExpression: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorExpression: {self}")?;
         pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
@@ -489,7 +511,7 @@ impl PrettyPrint for GeneratorBody {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}GeneratorBody: {}", first, self)?;
+        writeln!(writer, "{first}GeneratorBody: {self}")?;
         self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -595,8 +617,8 @@ impl fmt::Display for YieldExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             YieldExpression::Simple { .. } => f.write_str("yield"),
-            YieldExpression::Expression { exp, .. } => write!(f, "yield {}", exp),
-            YieldExpression::From { exp, .. } => write!(f, "yield * {}", exp),
+            YieldExpression::Expression { exp, .. } => write!(f, "yield {exp}"),
+            YieldExpression::From { exp, .. } => write!(f, "yield * {exp}"),
         }
     }
 }
@@ -607,11 +629,12 @@ impl PrettyPrint for YieldExpression {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}YieldExpression: {}", first, self)?;
+        writeln!(writer, "{first}YieldExpression: {self}")?;
         match self {
             YieldExpression::Simple { .. } => Ok(()),
-            YieldExpression::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
-            YieldExpression::From { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                exp.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -621,7 +644,7 @@ impl PrettyPrint for YieldExpression {
     {
         let head = |writer: &mut T| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}YieldExpression: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}YieldExpression: {self}").and(Ok(successive))
         };
         match self {
             YieldExpression::Simple { .. } => pprint_token(writer, "yield", TokenType::Keyword, pad, state),
@@ -682,8 +705,7 @@ impl YieldExpression {
         kind == ParseNodeKind::YieldExpression
             || match self {
                 YieldExpression::Simple { .. } => false,
-                YieldExpression::Expression { exp, .. } => exp.contains(kind),
-                YieldExpression::From { exp, .. } => exp.contains(kind),
+                YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => exp.contains(kind),
             }
     }
 
@@ -696,8 +718,9 @@ impl YieldExpression {
         //  2. Return true.
         match self {
             YieldExpression::Simple { .. } => true,
-            YieldExpression::Expression { exp, .. } => exp.all_private_identifiers_valid(names),
-            YieldExpression::From { exp, .. } => exp.all_private_identifiers_valid(names),
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                exp.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -731,7 +754,7 @@ impl YieldExpression {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
-                exp.early_errors(errs, strict)
+                exp.early_errors(errs, strict);
             }
             YieldExpression::Simple { .. } => (),
         }

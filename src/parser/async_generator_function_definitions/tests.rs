@@ -13,13 +13,13 @@ fn async_generator_method_test_01() {
     chk_scan(&scanner, 6 + 6);
     pretty_check(
         &*node,
-        "AsyncGeneratorMethod: async * a (  ) {  }",
-        vec!["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "],
+        "AsyncGeneratorMethod: async * a ( ) { }",
+        &["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorMethod: async * a (  ) {  }",
-        vec![
+        "AsyncGeneratorMethod: async * a ( ) { }",
+        &[
             "Keyword: async",
             "Punctuator: *",
             "IdentifierName: a",
@@ -29,7 +29,7 @@ fn async_generator_method_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn async_generator_method_test_025() {
@@ -168,6 +168,14 @@ mod async_generator_method {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async *a(){}" => "async * a ( ) { }"; "id only")]
+    #[test_case("async *a(b){}" => "async * a ( b ) { }"; "id + params")]
+    #[test_case("async *a(){null;}" => "async * a ( ) { null ; }"; "id + body")]
+    #[test_case("async *a(b){null;}" => "async * a ( b ) { null ; }"; "id + params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_generator_method())
+    }
+
     #[test_case("async *a(){}" => false; "without")]
     #[test_case("async *a(b=super(true)){}" => true; "params")]
     #[test_case("async *a(){super(false);}" => true; "body")]
@@ -186,7 +194,7 @@ mod async_generator_method {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_method();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test]
@@ -227,13 +235,13 @@ fn async_generator_declaration_test_01() {
     chk_scan(&scanner, 15 + 6);
     pretty_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+        "AsyncGeneratorDeclaration: async function * a ( ) { }",
+        &["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec![
+        "AsyncGeneratorDeclaration: async function * a ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -244,7 +252,7 @@ fn async_generator_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -259,13 +267,13 @@ fn async_generator_declaration_test_02() {
     chk_scan(&scanner, 14 + 6);
     pretty_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * (  ) {  }",
-        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+        "AsyncGeneratorDeclaration: async function * ( ) { }",
+        &["FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorDeclaration: async function * (  ) {  }",
-        vec![
+        "AsyncGeneratorDeclaration: async function * ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -275,7 +283,7 @@ fn async_generator_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -522,6 +530,18 @@ mod async_generator_declaration {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function *a(){}" => "async function * a ( ) { }"; "id only")]
+    #[test_case("async function *(){}" => "async function * ( ) { }"; "nothing")]
+    #[test_case("async function *a(b){}" => "async function * a ( b ) { }"; "id + params")]
+    #[test_case("async function *(b){}" => "async function * ( b ) { }"; "params only")]
+    #[test_case("async function *a(){null;}" => "async function * a ( ) { null ; }"; "id + body")]
+    #[test_case("async function *(){null;}" => "async function * ( ) { null ; }"; "body only")]
+    #[test_case("async function *a(b){null;}" => "async function * a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function *(b){null;}" => "async function * ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_generator_declaration())
+    }
+
     #[test_case("async function *a(){}", false => sset(&[]); "all good")]
     #[test_case("async function *a(b=super()){}", false => sset(&[UNEXPECTED_SUPER2]); "direct super")]
     #[test_case("async function *a(b=yield 3){}", false => sset(&[YIELD_IN_GENPARAM]); "yield in param")]
@@ -541,7 +561,7 @@ mod async_generator_declaration {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_declaration();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("   async function *a(){}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 21 }})]
@@ -569,13 +589,13 @@ fn async_generator_expression_test_01() {
     chk_scan(&scanner, 15 + 6);
     pretty_check(
         &*node,
-        "AsyncGeneratorExpression: async function * a (  ) {  }",
-        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+        "AsyncGeneratorExpression: async function * a ( ) { }",
+        &["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorExpression: async function * a (  ) {  }",
-        vec![
+        "AsyncGeneratorExpression: async function * a ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -586,7 +606,7 @@ fn async_generator_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -596,13 +616,13 @@ fn async_generator_expression_test_02() {
     chk_scan(&scanner, 14 + 6);
     pretty_check(
         &*node,
-        "AsyncGeneratorExpression: async function * (  ) {  }",
-        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+        "AsyncGeneratorExpression: async function * ( ) { }",
+        &["FormalParameters: ", "AsyncGeneratorBody: "],
     );
     concise_check(
         &*node,
-        "AsyncGeneratorExpression: async function * (  ) {  }",
-        vec![
+        "AsyncGeneratorExpression: async function * ( ) { }",
+        &[
             "Keyword: async",
             "Keyword: function",
             "Punctuator: *",
@@ -612,7 +632,7 @@ fn async_generator_expression_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -766,6 +786,18 @@ mod async_generator_expression {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("async function *a(){}" => "async function * a ( ) { }"; "id only")]
+    #[test_case("async function *(){}" => "async function * ( ) { }"; "nothing")]
+    #[test_case("async function *a(b){}" => "async function * a ( b ) { }"; "id + params")]
+    #[test_case("async function *(b){}" => "async function * ( b ) { }"; "params only")]
+    #[test_case("async function *a(){null;}" => "async function * a ( ) { null ; }"; "id + body")]
+    #[test_case("async function *(){null;}" => "async function * ( ) { null ; }"; "body only")]
+    #[test_case("async function *a(b){null;}" => "async function * a ( b ) { null ; }"; "id + params + body")]
+    #[test_case("async function *(b){null;}" => "async function * ( b ) { null ; }"; "params + body")]
+    fn display(src: &str) -> String {
+        format!("{}", Maker::new(src).async_generator_expression())
+    }
+
     #[test_case("async function *package(a=implements) {interface;}", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "sub exprs (with id)")]
     #[test_case("async function *(a=package) { implements; }", true => sset(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "sub exprs (no id)")]
     #[test_case("async function *foo() { super(); }", false => sset(&[UNEXPECTED_SUPER2]); "body supercall")]
@@ -786,7 +818,7 @@ mod async_generator_expression {
         let mut errs = vec![];
         let node = Maker::new(src).async_generator_expression();
         node.early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("async function *a(){}" => true; "named")]
@@ -795,7 +827,7 @@ mod async_generator_expression {
         Maker::new(src).async_generator_expression().is_named_function()
     }
 
-    #[test_case("   async function *foop(q,r) { return calculate(q, r);}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 52 } })]
+    #[test_case("   async function *foop(q,r) { return calculate(q, r);}" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 52 } }; "normal")]
     fn location(src: &str) -> Location {
         Maker::new(src).async_generator_expression().location()
     }
@@ -806,9 +838,9 @@ mod async_generator_expression {
 fn async_generator_body_test_01() {
     let (node, scanner) = AsyncGeneratorBody::parse(&mut newparser("yield 1;"), Scanner::new());
     chk_scan(&scanner, 8);
-    pretty_check(&*node, "AsyncGeneratorBody: yield 1 ;", vec!["FunctionBody: yield 1 ;"]);
-    concise_check(&*node, "ExpressionStatement: yield 1 ;", vec!["YieldExpression: yield 1", "Punctuator: ;"]);
-    format!("{:?}", node);
+    pretty_check(&*node, "AsyncGeneratorBody: yield 1 ;", &["FunctionBody: yield 1 ;"]);
+    concise_check(&*node, "ExpressionStatement: yield 1 ;", &["YieldExpression: yield 1", "Punctuator: ;"]);
+    format!("{node:?}");
 }
 #[test]
 fn async_generator_body_test_cache_01() {
@@ -853,7 +885,7 @@ mod async_generator_body {
         setup_test_agent();
         let mut errs = vec![];
         Maker::new(src).async_generator_body().early_errors(&mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "d"]); "function body")]
@@ -861,7 +893,7 @@ mod async_generator_body {
         Maker::new(src).async_generator_body().var_declared_names().into_iter().map(String::from).collect()
     }
 
-    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d (  ) {  }"]); "function body")]
+    #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_generator_body().var_scoped_declarations().iter().map(String::from).collect()
     }

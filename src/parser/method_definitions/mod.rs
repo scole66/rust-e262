@@ -24,16 +24,32 @@ impl fmt::Display for MethodDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MethodDefinition::NamedFunction(name, params, body, _) => {
-                write!(f, "{} ( {} ) {{ {} }}", name, params, body)
+                write!(f, "{name} ( ")?;
+                if !matches!(params.formals.as_ref(), FormalParameters::Empty(..)) {
+                    write!(f, "{params} ")?;
+                }
+                write!(f, ") {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
             MethodDefinition::Generator(node) => node.fmt(f),
             MethodDefinition::Async(node) => node.fmt(f),
             MethodDefinition::AsyncGenerator(node) => node.fmt(f),
             MethodDefinition::Getter(name, body, _) => {
-                write!(f, "get {} ( ) {{ {} }}", name, body)
+                write!(f, "get {name} ( ) {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
             MethodDefinition::Setter(name, args, body, _) => {
-                write!(f, "set {} ( {} ) {{ {} }}", name, args, body)
+                write!(f, "set {name} ( {args} ) {{ ")?;
+                if !matches!(body.statements.as_ref(), FunctionStatementList::Empty(..)) {
+                    write!(f, "{body} ")?;
+                }
+                write!(f, "}}")
             }
         }
     }
@@ -45,7 +61,7 @@ impl PrettyPrint for MethodDefinition {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}MethodDefinition: {}", first, self)?;
+        writeln!(writer, "{first}MethodDefinition: {self}")?;
         match self {
             MethodDefinition::NamedFunction(name, args, body, _) => {
                 name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -73,7 +89,7 @@ impl PrettyPrint for MethodDefinition {
     {
         let mut head = |pad, state| {
             let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}MethodDefinition: {}", first, self).and(Ok(successive))
+            writeln!(writer, "{first}MethodDefinition: {self}").and(Ok(successive))
         };
         match self {
             MethodDefinition::NamedFunction(name, args, body, _) => {
@@ -114,7 +130,7 @@ impl PrettyPrint for MethodDefinition {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum MethodType {
     Normal,
     Setter,
@@ -230,8 +246,9 @@ impl MethodDefinition {
             MethodDefinition::Generator(node) => node.computed_property_contains(kind),
             MethodDefinition::Async(node) => node.computed_property_contains(kind),
             MethodDefinition::AsyncGenerator(node) => node.computed_property_contains(kind),
-            MethodDefinition::Getter(name, ..) => name.computed_property_contains(kind),
-            MethodDefinition::Setter(name, ..) => name.computed_property_contains(kind),
+            MethodDefinition::Getter(name, ..) | MethodDefinition::Setter(name, ..) => {
+                name.computed_property_contains(kind)
+            }
         }
     }
 
@@ -355,7 +372,7 @@ impl MethodDefinition {
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(ufp.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(ufp.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(errs, strict_function);
@@ -372,7 +389,7 @@ impl MethodDefinition {
                 //        in the LexicallyDeclaredNames of FunctionBody.
                 let bn = pspl.bound_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(pspl.location())));
                 }
                 if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
                     errs.push(create_syntax_error_object(
@@ -382,7 +399,7 @@ impl MethodDefinition {
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(format!("‘{}’ already defined", name), Some(pspl.location())));
+                    errs.push(create_syntax_error_object(format!("‘{name}’ already defined"), Some(pspl.location())));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(errs, strict_function);
@@ -434,7 +451,7 @@ impl MethodDefinition {
 //      FormalParameter[~Yield, ~Await]
 #[derive(Debug)]
 pub struct PropertySetParameterList {
-    node: Rc<FormalParameter>,
+    pub node: Rc<FormalParameter>,
 }
 
 impl fmt::Display for PropertySetParameterList {
@@ -449,7 +466,7 @@ impl PrettyPrint for PropertySetParameterList {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}PropertySetParameterList: {}", first, self)?;
+        writeln!(writer, "{first}PropertySetParameterList: {self}")?;
         self.node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -495,6 +512,32 @@ impl PropertySetParameterList {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.node.early_errors(errs, strict);
+    }
+
+    /// Reports the number of expected arguments for the parameter list.
+    ///
+    /// The ExpectedArgumentCount of a FormalParameterList is the number of FormalParameters to the left of either the
+    /// rest parameter or the first FormalParameter with an Initializer. A FormalParameter without an initializer is
+    /// allowed after the first parameter with an initializer but such parameters are considered to be optional with
+    /// undefined as their default value.
+    ///
+    /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
+    pub fn expected_argument_count(&self) -> f64 {
+        // PropertySetParameterList : FormalParameter
+        //  1. If HasInitializer of FormalParameter is true, return 0.
+        //  2. Return 1.
+        if self.node.has_initializer() {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.node.contains_expression()
     }
 }
 

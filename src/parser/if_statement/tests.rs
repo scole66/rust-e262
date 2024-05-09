@@ -11,13 +11,13 @@ fn if_statement_test_01() {
     let (node, scanner) =
         check(IfStatement::parse(&mut newparser("if (true) { a; }"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 16);
-    pretty_check(&*node, "IfStatement: if ( true ) { a ; }", vec!["Expression: true", "Statement: { a ; }"]);
+    pretty_check(&*node, "IfStatement: if ( true ) { a ; }", &["Expression: true", "Statement: { a ; }"]);
     concise_check(
         &*node,
         "IfStatement: if ( true ) { a ; }",
-        vec!["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"],
+        &["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn if_statement_test_02() {
@@ -27,12 +27,12 @@ fn if_statement_test_02() {
     pretty_check(
         &*node,
         "IfStatement: if ( 0 ) { a ; } else { b ; }",
-        vec!["Expression: 0", "Statement: { a ; }", "Statement: { b ; }"],
+        &["Expression: 0", "Statement: { a ; }", "Statement: { b ; }"],
     );
     concise_check(
         &*node,
         "IfStatement: if ( 0 ) { a ; } else { b ; }",
-        vec![
+        &[
             "Keyword: if",
             "Punctuator: (",
             "Numeric: 0",
@@ -42,7 +42,7 @@ fn if_statement_test_02() {
             "Block: { b ; }",
         ],
     );
-    format!("{:?}", node);
+    format!("{node:?}");
 }
 #[test]
 fn if_statement_test_err_01() {
@@ -248,7 +248,7 @@ mod if_statement {
             .unwrap()
             .0
             .early_errors(&mut errs, strict, false, false);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(err.clone())))
+        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
     #[test_case("if(arguments);else;" => true; "trinary (left)")]

@@ -23,7 +23,7 @@ mod string_object {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, STRING_OBJECT_SLOTS)),
             string_data: RefCell::new(JSString::from("baloney")),
         };
-        assert_ne!(format!("{:?}", so), "");
+        assert_ne!(format!("{so:?}"), "");
     }
 
     #[test]
@@ -39,18 +39,20 @@ mod string_object {
         assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
     }
 
-    false_function!(is_boolean_object);
-    false_function!(is_date_object);
-    false_function!(is_array_object);
-    false_function!(is_proxy_object);
-    false_function!(is_symbol_object);
-    false_function!(is_number_object);
     false_function!(is_arguments_object);
-    false_function!(is_plain_object);
-    false_function!(is_regexp_object);
-    false_function!(is_error_object);
+    false_function!(is_array_object);
+    false_function!(is_bigint_object);
+    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
+    false_function!(is_date_object);
+    false_function!(is_error_object);
     false_function!(is_generator_object);
+    false_function!(is_number_object);
+    false_function!(is_plain_object);
+    false_function!(is_proxy_object);
+    false_function!(is_regexp_object);
+    false_function!(is_symbol_object);
+    none_function!(to_bigint_object);
 
     #[test]
     fn is_string_object() {
@@ -95,7 +97,7 @@ mod string_object {
     #[test]
     fn get_prototype_of() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let proto = str_obj.o.get_prototype_of().unwrap().unwrap();
         assert_eq!(proto, intrinsic(IntrinsicId::StringPrototype));
     }
@@ -103,7 +105,7 @@ mod string_object {
     #[test]
     fn set_prototype_of() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let res = str_obj.o.set_prototype_of(None).unwrap();
         assert!(res);
         assert!(str_obj.o.get_prototype_of().unwrap().is_none());
@@ -112,7 +114,7 @@ mod string_object {
     #[test]
     fn is_extensible() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let res = str_obj.o.is_extensible().unwrap();
         assert!(res);
     }
@@ -120,7 +122,7 @@ mod string_object {
     #[test]
     fn prevent_extensions() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let res = str_obj.o.prevent_extensions().unwrap();
         assert!(res);
         assert!(!str_obj.o.is_extensible().unwrap());
@@ -181,7 +183,7 @@ mod string_object {
         key: impl Into<PropertyKey>,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
         setup_test_agent();
-        let str_obj = super::create_string_object(value.into());
+        let str_obj = Object::from(value);
         let receiver = ECMAScriptValue::Object(str_obj.clone());
         let success = str_obj.o.set(key.into(), new_val.into(), &receiver).unwrap();
         let properties = str_obj
@@ -198,7 +200,7 @@ mod string_object {
     #[test]
     fn delete() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let res = str_obj.o.delete(&PropertyKey::from("rust")).unwrap();
         assert_eq!(res, true);
     }
@@ -206,15 +208,15 @@ mod string_object {
     #[test]
     fn id() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
-        let str_obj2 = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
+        let str_obj2 = Object::from("orange");
         assert_ne!(str_obj.o.id(), str_obj2.o.id());
     }
 
     #[test]
     fn has_property() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let res = str_obj.o.has_property(&PropertyKey::from("rust")).unwrap();
         assert_eq!(res, false);
         let res2 = str_obj.o.has_property(&PropertyKey::from("length")).unwrap();
@@ -224,7 +226,7 @@ mod string_object {
     #[test]
     fn common_object_data() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
         let cod = str_obj.o.common_object_data().borrow();
 
         assert_eq!(cod.properties.len(), 1);
@@ -254,7 +256,7 @@ mod string_object {
     ) -> Option<IdealizedPropertyDescriptor> {
         setup_test_agent();
         let probe = make_key();
-        let str_obj = super::create_string_object(value.into());
+        let str_obj = Object::from(value);
         str_obj.o.to_string_obj().unwrap().string_get_own_property(&probe).map(IdealizedPropertyDescriptor::from)
     }
 
@@ -263,7 +265,7 @@ mod string_object {
     #[test_case("orange", "color" => None; "key not present")]
     fn get_own_property(value: &str, key: &str) -> Option<IdealizedPropertyDescriptor> {
         setup_test_agent();
-        let str_obj = super::create_string_object(value.into());
+        let str_obj = Object::from(value);
         str_obj.o.get_own_property(&key.into()).unwrap().map(IdealizedPropertyDescriptor::from)
     }
 
@@ -359,7 +361,7 @@ mod string_object {
         key: &str,
     ) -> (bool, AHashMap<PropertyKey, IdealizedPropertyDescriptor>) {
         setup_test_agent();
-        let str_obj = super::create_string_object(value.into());
+        let str_obj = Object::from(value);
 
         let success = str_obj.o.define_own_property(key.into(), new_value).unwrap();
         let properties = str_obj
@@ -377,7 +379,7 @@ mod string_object {
     #[test_case("orange", "friendliness" => ECMAScriptValue::Undefined; "doesn't exist")]
     fn get(value: &str, key: &str) -> ECMAScriptValue {
         setup_test_agent();
-        let str_obj = super::create_string_object(value.into());
+        let str_obj = Object::from(value);
 
         let receiver = ECMAScriptValue::from(str_obj.clone());
         str_obj.o.get(&key.into(), &receiver).unwrap()
@@ -386,7 +388,7 @@ mod string_object {
     #[test]
     fn own_property_keys() {
         setup_test_agent();
-        let str_obj = super::create_string_object("orange".into());
+        let str_obj = Object::from("orange");
 
         let to_prim = wks(WksId::ToPrimitive);
         let species = wks(WksId::Species);
@@ -474,7 +476,7 @@ fn string_create() {
 fn create_string_object_tst() {
     setup_test_agent();
     let string_prototype = intrinsic(IntrinsicId::StringPrototype);
-    let s = super::create_string_object("value".into());
+    let s = Object::from("value");
 
     let cod = s.o.common_object_data().borrow();
     assert_eq!(cod.prototype.as_ref().unwrap(), &string_prototype);
@@ -655,7 +657,7 @@ mod provision_string_intrinsic {
 }
 
 #[test_case(|| ECMAScriptValue::from("blue") => sok("blue"); "string value")]
-#[test_case(|| ECMAScriptValue::from(super::super::create_string_object(JSString::from("red"))) => sok("red"); "string object value")]
+#[test_case(|| ECMAScriptValue::from(Object::from(JSString::from("red"))) => sok("red"); "string object value")]
 #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
 #[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
 fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
@@ -664,7 +666,7 @@ fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<Strin
     super::this_string_value(val, "unit testing").map(String::from).map_err(unwind_any_error)
 }
 
-#[test_case(|| (None, vec![]) => Ok((false, "".to_string())); "AsFunc / no args")]
+#[test_case(|| (None, vec![]) => Ok((false, String::new())); "AsFunc / no args")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(true)]) => Ok((false, "true".to_string())); "AsFunc / stringable")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))]) => Ok((false, "Symbol(Symbol.toPrimitive)".to_string())); "AsFunc / Symbol")]
 #[test_case(|| (None, vec![ECMAScriptValue::from(DeadObject::object())]) => serr("TypeError: get called on DeadObject"); "to_string failure")]
@@ -675,13 +677,13 @@ fn string_constructor_function(
 ) -> Result<(bool, String), String> {
     setup_test_agent();
     let (new_target, arguments) = make_params();
-    super::string_constructor_function(ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
+    super::string_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
             ECMAScriptValue::Object(o) => {
                 (true, String::from(o.o.to_string_obj().unwrap().string_data.borrow().clone()))
             }
-            _ => panic!("Bad value from string_constructor_function: {:?}", val),
+            _ => panic!("Bad value from string_constructor_function: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
@@ -692,17 +694,17 @@ fn string_constructor_function(
 fn string_from_char_code(make_params: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
     setup_test_agent();
     let args = make_params();
-    super::string_from_char_code(ECMAScriptValue::Undefined, None, &args)
+    super::string_from_char_code(&ECMAScriptValue::Undefined, None, &args)
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected String value from String.fromCharCode: {:?}", val),
+            _ => panic!("Expected String value from String.fromCharCode: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
 
 #[test_case(|| (ECMAScriptValue::Undefined, vec![]) => serr("TypeError: Undefined and null are not allowed in this context"); "'this' bad")]
-#[test_case(|| (ECMAScriptValue::from(super::create_string_object("hello".into())), vec![ECMAScriptValue::from("ell")]) => Ok(1.0); "search from zero")]
-#[test_case(|| (ECMAScriptValue::from(super::create_string_object("hello".into())), vec![ECMAScriptValue::from("ell"), ECMAScriptValue::from(2)]) => Ok(-1.0); "search from two")]
+#[test_case(|| (ECMAScriptValue::from(Object::from("hello")), vec![ECMAScriptValue::from("ell")]) => Ok(1.0); "search from zero")]
+#[test_case(|| (ECMAScriptValue::from(Object::from("hello")), vec![ECMAScriptValue::from("ell"), ECMAScriptValue::from(2)]) => Ok(-1.0); "search from two")]
 #[test_case(|| (ECMAScriptValue::from(DeadObject::object()), vec![]) => serr("TypeError: get called on DeadObject"); "unstringable this")]
 #[test_case(|| (ECMAScriptValue::from(""), vec![ECMAScriptValue::from(DeadObject::object())]) => serr("TypeError: get called on DeadObject"); "unstringable search")]
 #[test_case(|| (ECMAScriptValue::from(""), vec![ECMAScriptValue::from(""), ECMAScriptValue::from(DeadObject::object())]) => serr("TypeError: get called on DeadObject"); "unnumberable position")]
@@ -711,36 +713,36 @@ fn string_prototype_index_of(
 ) -> Result<f64, String> {
     setup_test_agent();
     let (this_value, arguments) = make_params();
-    super::string_prototype_index_of(this_value, None, &arguments)
+    super::string_prototype_index_of(&this_value, None, &arguments)
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
-            _ => panic!("Expected number value from String.prototype.indexOf: {:?}", val),
+            _ => panic!("Expected number value from String.prototype.indexOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
 
-#[test_case(|| ECMAScriptValue::from(super::create_string_object("a string".into())) => sok("a string"); "from string object")]
+#[test_case(|| ECMAScriptValue::from(Object::from("a string")) => sok("a string"); "from string object")]
 #[test_case(|| ECMAScriptValue::from(DeadObject::object()) => serr("TypeError: String.prototype.toString requires that 'this' be a String"); "bad this value")]
 fn string_prototype_to_string(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_to_string(this_value, None, &[])
+    super::string_prototype_to_string(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.toString: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.toString: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
 
-#[test_case(|| ECMAScriptValue::from(super::create_string_object("a string".into())) => sok("a string"); "from string object")]
+#[test_case(|| ECMAScriptValue::from(Object::from("a string")) => sok("a string"); "from string object")]
 #[test_case(|| ECMAScriptValue::from(DeadObject::object()) => serr("TypeError: String.prototype.valueOf requires that 'this' be a String"); "bad this value")]
 fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let this_value = make_params();
-    super::string_prototype_value_of(this_value, None, &[])
+    super::string_prototype_value_of(&this_value, None, &[])
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
-            _ => panic!("Expected string value from String.prototype.valueOf: {:?}", val),
+            _ => panic!("Expected string value from String.prototype.valueOf: {val:?}"),
         })
         .map_err(unwind_any_error)
 }

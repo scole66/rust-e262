@@ -125,6 +125,18 @@ pub trait EnvironmentRecord: Debug {
     fn name(&self) -> String;
     fn binding_names(&self) -> Vec<JSString>;
     fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+    fn get_function_object(&self) -> Option<Object> {
+        None
+    }
+    fn as_global_environment_record(&self) -> Option<&GlobalEnvironmentRecord> {
+        None
+    }
+    fn as_object_environment_record(&self) -> Option<&ObjectEnvironmentRecord> {
+        None
+    }
+    fn as_function_environment_record(&self) -> Option<&FunctionEnvironmentRecord> {
+        None
+    }
 }
 
 pub struct ConciselyPrintedEnvironmentRecord(pub Rc<dyn EnvironmentRecord>);
@@ -151,9 +163,10 @@ enum Removability {
 
 impl From<bool> for Removability {
     fn from(source: bool) -> Self {
-        match source {
-            true => Removability::Deletable,
-            false => Removability::Permanent,
+        if source {
+            Removability::Deletable
+        } else {
+            Removability::Permanent
         }
     }
 }
@@ -166,9 +179,10 @@ enum Strictness {
 
 impl From<bool> for Strictness {
     fn from(source: bool) -> Self {
-        match source {
-            true => Strictness::Strict,
-            false => Strictness::Sloppy,
+        if source {
+            Strictness::Strict
+        } else {
+            Strictness::Sloppy
         }
     }
 }
@@ -357,11 +371,11 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn delete_binding(&self, name: &JSString) -> Completion<bool> {
         let mut bindings = self.bindings.borrow_mut();
         let item = bindings.get(name).unwrap();
-        if item.mutability != Mutability::Mutable(Removability::Deletable) {
-            Ok(false)
-        } else {
+        if item.mutability == Mutability::Mutable(Removability::Deletable) {
             bindings.remove(name);
             Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -400,7 +414,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.outer_env.as_ref().cloned()
+        self.outer_env.clone()
     }
 
     fn name(&self) -> String {
@@ -427,7 +441,7 @@ impl DeclarativeEnvironmentRecord {
     //  2. Set env.[[OuterEnv]] to E.
     //  3. Return env.
     pub fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
-        DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: env, name: name.into() }
+        DeclarativeEnvironmentRecord { bindings: RefCell::default(), outer_env: env, name: name.into() }
     }
 }
 
@@ -604,14 +618,12 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let has_prop = has_property(binding_object, &name_key)?;
-        if !has_prop {
-            if !strict {
-                Ok(ECMAScriptValue::Undefined)
-            } else {
-                Err(create_reference_error("Unresolvable reference"))
-            }
-        } else {
+        if has_prop {
             binding_object.get(&name_key)
+        } else if strict {
+            Err(create_reference_error("Unresolvable reference"))
+        } else {
+            Ok(ECMAScriptValue::Undefined)
         }
     }
 
@@ -660,14 +672,15 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //  1. If envRec.[[IsWithEnvironment]] is true, return envRec.[[BindingObject]].
     //  2. Otherwise, return undefined.
     fn with_base_object(&self) -> Option<Object> {
-        match self.is_with_environment {
-            true => Some(self.binding_object.clone()),
-            false => None,
+        if self.is_with_environment {
+            Some(self.binding_object.clone())
+        } else {
+            None
         }
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.outer_env.as_ref().cloned()
+        self.outer_env.clone()
     }
 
     fn name(&self) -> String {
@@ -689,6 +702,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let name = &self.name;
         write!(f, "ObjectEnvironmentRecord({name})")
+    }
+
+    fn as_object_environment_record(&self) -> Option<&ObjectEnvironmentRecord> {
+        Some(self)
     }
 }
 
@@ -827,7 +844,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
-        self.base.outer_env.as_ref().cloned()
+        self.base.outer_env.clone()
     }
 
     // GetThisBinding ( )
@@ -878,6 +895,14 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = &self.name;
         write!(f, "FunctionEnvironmentRecord({name})")
+    }
+
+    fn get_function_object(&self) -> Option<Object> {
+        Some(self.function_object.clone())
+    }
+
+    fn as_function_environment_record(&self) -> Option<&FunctionEnvironmentRecord> {
+        Some(self)
     }
 }
 
@@ -946,7 +971,7 @@ impl FunctionEnvironmentRecord {
 
         FunctionEnvironmentRecord {
             base: DeclarativeEnvironmentRecord {
-                bindings: Default::default(),
+                bindings: RefCell::default(),
                 outer_env: outer,
                 name: format!("{name}-inner"),
             },
@@ -956,6 +981,10 @@ impl FunctionEnvironmentRecord {
             new_target,
             name,
         }
+    }
+
+    pub fn get_new_target(&self) -> Option<&Object> {
+        self.new_target.as_ref()
     }
 }
 
@@ -1300,6 +1329,10 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
         let name = &self.name;
         write!(f, "GlobalEnvironmentRecord({name})")
     }
+
+    fn as_global_environment_record(&self) -> Option<&GlobalEnvironmentRecord> {
+        Some(self)
+    }
 }
 
 impl GlobalEnvironmentRecord {
@@ -1496,7 +1529,7 @@ impl GlobalEnvironmentRecord {
             object_record: obj_rec,
             global_this_value: this_value,
             declarative_record: dcl_rec,
-            var_names: Default::default(),
+            var_names: RefCell::default(),
             name,
         }
     }
@@ -1567,7 +1600,7 @@ pub fn get_identifier_reference(
 // +-----------------------------+-----------------------+-------------------------------------------------------------+
 #[derive(Debug)]
 pub struct PrivateEnvironmentRecord {
-    outer_private_environment: Option<Box<PrivateEnvironmentRecord>>,
+    pub outer_private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     pub names: Vec<PrivateName>,
 }
 
@@ -1579,7 +1612,7 @@ impl PrivateEnvironmentRecord {
     //
     //  1. Let names be a new empty List.
     //  2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
-    pub fn new(outer_priv_env: Option<Box<PrivateEnvironmentRecord>>) -> Self {
+    pub fn new(outer_priv_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) -> Self {
         PrivateEnvironmentRecord { outer_private_environment: outer_priv_env, names: vec![] }
     }
 
@@ -1599,7 +1632,7 @@ impl PrivateEnvironmentRecord {
     pub fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
         match self.names.iter().find(|&item| item.description == *identifier) {
             Some(x) => x.clone(),
-            None => self.outer_private_environment.as_ref().unwrap().resolve_private_identifier(identifier),
+            None => self.outer_private_environment.as_ref().unwrap().borrow().resolve_private_identifier(identifier),
         }
     }
 }

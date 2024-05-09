@@ -17,7 +17,7 @@ mod script_record {
     fn debug() {
         setup_test_agent();
         let sr = ScriptRecord::new_empty(current_realm_record().unwrap());
-        assert_ne!(format!("{:?}", sr), "");
+        assert_ne!(format!("{sr:?}"), "");
     }
 
     #[test]
@@ -39,7 +39,7 @@ mod module_record {
     #[test]
     fn debug() {
         let mr = ModuleRecord {};
-        assert_ne!(format!("{:?}", mr), "");
+        assert_ne!(format!("{mr:?}"), "");
     }
 }
 
@@ -50,7 +50,7 @@ mod script_or_module {
     #[test]
     fn debug() {
         let som = ScriptOrModule::Module(Rc::new(ModuleRecord {}));
-        assert_ne!(format!("{:?}", som), "");
+        assert_ne!(format!("{som:?}"), "");
     }
 
     #[test]
@@ -78,6 +78,62 @@ mod script_or_module {
         let text = som.source_text();
         text.clone()
     }
+
+    #[test_case(
+        || {
+            let mut sr = ScriptRecord::new_empty(current_realm_record().unwrap());
+            sr.text = String::from("I am a walrus");
+            let som = ScriptOrModule::Script(Rc::new(sr));
+            (som.clone(), som)
+        }
+        => true;
+        "a script record match"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap()))),
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap())))
+        )
+        => false;
+        "a script record difference"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap()))),
+            ScriptOrModule::Module(Rc::new(ModuleRecord{}))
+        )
+        => false;
+        "script vs module"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+            ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap())))
+        )
+        => false;
+        "module vs script"
+    )]
+    #[test_case(
+        || {
+            let som = ScriptOrModule::Module(Rc::new(ModuleRecord{}));
+            (som.clone(), som)
+        }
+        => true;
+        "module record match"
+    )]
+    #[test_case(
+        || (
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+            ScriptOrModule::Module(Rc::new(ModuleRecord{})),
+        )
+        => false;
+        "module record mismatch"
+    )]
+    fn eq(make_pair: impl FnOnce() -> (ScriptOrModule, ScriptOrModule)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_pair();
+        left == right
+    }
 }
 
 mod execution_context {
@@ -89,7 +145,7 @@ mod execution_context {
         setup_test_agent();
         let ec = ExecutionContext::new(None, current_realm_record().unwrap(), None);
 
-        assert_ne!(format!("{:?}", ec), "");
+        assert_ne!(format!("{ec:?}"), "");
     }
 
     #[test_case(|| None; "SOM is None")]
@@ -120,7 +176,7 @@ mod execution_context {
 fn get_global_object(reset: bool) -> Option<String> {
     setup_test_agent();
     if reset {
-        AGENT.with(|agent| agent.reset())
+        AGENT.with(Agent::reset);
     }
     let maybe_obj = super::get_global_object();
 
@@ -228,7 +284,8 @@ mod agent {
             | NormalCompletion::Empty
             | NormalCompletion::Value(_)
             | NormalCompletion::Environment(_)
-            | NormalCompletion::PrivateName(_) => Err("improper completion".to_string()),
+            | NormalCompletion::PrivateName(_)
+            | NormalCompletion::PrivateElement(_) => Err("improper completion".to_string()),
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }
