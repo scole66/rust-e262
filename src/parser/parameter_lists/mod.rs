@@ -802,14 +802,14 @@ impl FormalParameter {
     /// Report whether this parameter contains an intializer
     ///
     /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
-    fn has_initializer(&self) -> bool {
+    pub fn has_initializer(&self) -> bool {
         self.element.has_initializer()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    fn contains_expression(&self) -> bool {
+    pub fn contains_expression(&self) -> bool {
         self.element.contains_expression()
     }
 }
