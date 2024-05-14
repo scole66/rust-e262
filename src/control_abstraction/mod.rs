@@ -634,9 +634,7 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
 
 pub fn generator_start_from_function_body(
     generator: &Object,
-    generator_body: Rc<FunctionBody>,
-    strict: bool,
-    text: &str,
+    func: &dyn FunctionInterface
 ) -> anyhow::Result<()> {
     let closure = generator_body.into_closure(strict, text)?;
     generator_start_from_closure(generator, closure);
@@ -698,14 +696,15 @@ pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClos
 
 impl FunctionBody {
     pub fn into_closure(&self, strict: bool, text: &str) -> anyhow::Result<ECMAClosure> {
-        let mut chunk = Chunk::new("some name");
-        let strict = strict || self.function_body_contains_use_strict();
-        self.statements.compile(&mut chunk, strict, text)?;
-
-        let closure = move |co| todo!();
-        let gen_closure = Box::new(Gen::new(|co| gen_caller(generator.clone(), co, closure)));
-
-        Ok(closure)
+        todo!()
+        //let mut chunk = Chunk::new("some name");
+        //let strict = strict || self.function_body_contains_use_strict();
+        //self.statements.compile(&mut chunk, strict, text)?;
+//
+        //let closure = move |co| todo!();
+        //let gen_closure = Box::new(Gen::new(|co| gen_caller(generator.clone(), co, closure)));
+//
+        //Ok(closure)
     }
 }
 

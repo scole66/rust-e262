@@ -2733,7 +2733,27 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     };
                     ec_push(result.map(NormalCompletion::from));
                 }
-
+                Insn::GeneratorStartFromFunction => {
+                    //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject,
+                    //     "%GeneratorFunction.prototype.prototype%", « [[GeneratorState]], [[GeneratorContext]],
+                    //     [[GeneratorBrand]] »).
+                    //  3. Set G.[[GeneratorBrand]] to EMPTY.
+                    //  4. Perform GeneratorStart(G, FunctionBody).
+                    let func = Object::try_from(ECMAScriptValue::try_from(ec_pop().expect("there should be an item on the stack")
+                        .expect("the item should not be an error"))
+                        .expect("the item should be a value"))
+                        .expect("the item should be an object");
+                    //let func_data = func.o.to_function_obj().expect("the item should be a function object").function_data();
+                    //let data = func_data.borrow();
+                    //let body = data.
+                    let g_res = func.ordinary_create_from_constructor(IntrinsicId::GeneratorFunctionPrototypePrototype, GENERATOR_OBJECT_SLOTS);
+                    if let Ok(g_obj) = g_res.as_ref() {
+                        let g = g_obj.o.to_generator_object().expect("obj should be a generator object");
+                        g.generator_data.borrow_mut().generator_brand = String::new();
+                        generator_start_from_function_body(g_obj, func.o.to_function_obj().expect("the item should be a function object")).expect("body should be ok?");
+                    }
+                    ec_push(g_res.map(NormalCompletion::from))
+                }
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -3268,7 +3288,7 @@ pub fn instantiate_generator_function_expression(index: Option<usize>, text: &st
         info.source_text.as_str(),
         info.params.clone(),
         info.body.clone(),
-        ThisLexicality::LexicalThis,
+        ThisLexicality::NonLexicalThis,
         env,
         priv_env,
         info.strict,

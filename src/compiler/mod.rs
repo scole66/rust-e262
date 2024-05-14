@@ -117,6 +117,7 @@ pub enum Insn {
     InstantiateArrowFunctionExpression,
     InstantiateGeneratorFunctionExpression,
     InstantiateOrdinaryFunctionObject,
+    GeneratorStartFromFunction,
     LeftShift,
     SignedRightShift,
     UnsignedRightShift,
@@ -280,6 +281,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
             Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
+            Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
@@ -797,7 +799,7 @@ impl NameableProduction {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
             }
             NameableProduction::Generator(generator) => {
-                generator.named_evaluation(chunk, strict, text, id, generator.clone()).map(CompilerStatusFlags::from)
+                GeneratorExpression::named_evaluation(generator, chunk, strict, text, id).map(CompilerStatusFlags::from)
             }
             NameableProduction::AsyncFunction(_) => todo!(),
             NameableProduction::AsyncGenerator(_) => todo!(),
@@ -10032,12 +10034,11 @@ impl MethodDefinition {
 
 impl GeneratorExpression {
     fn instantiate_generator_function_expression(
-        &self,
+        self_as_rc: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
         id: NameLoc,
-        self_as_rc: Rc<GeneratorExpression>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateGeneratorFunctionExpression
         // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
@@ -10063,17 +10064,17 @@ impl GeneratorExpression {
             chunk.op_plus_arg(Insn::String, name_id);
         }
 
-        let span = self.location().span;
+        let span = self_as_rc.location().span;
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
-        let params = ParamSource::from(Rc::clone(&self.params));
-        let body = BodySource::from(Rc::clone(&self.body));
+        let params = ParamSource::from(Rc::clone(&self_as_rc.params));
+        let body = BodySource::from(Rc::clone(&self_as_rc.body));
         let function_data = StashedFunctionData {
             source_text,
             params,
             body,
             strict,
-            to_compile: FunctionSource::from(self_as_rc),
-            this_mode: ThisLexicality::LexicalThis,
+            to_compile: FunctionSource::from(self_as_rc.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id);
@@ -10081,12 +10082,11 @@ impl GeneratorExpression {
     }
 
     fn named_evaluation(
-        &self,
+        self_as_rc: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
         id: NameLoc,
-        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: NamedEvaluation
         // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
@@ -10095,7 +10095,7 @@ impl GeneratorExpression {
 
         // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
         //  1. Return InstantiateGeneratorFunctionExpression of GeneratorExpression with argument name.
-        self.instantiate_generator_function_expression(chunk, strict, text, id, self_as_rc)
+        Self::instantiate_generator_function_expression(self_as_rc, chunk, strict, text, id)
     }
 }
 
@@ -10120,14 +10120,25 @@ impl GeneratorBody {
         //  4. Perform GeneratorStart(G, FunctionBody).
         //  5. Return Completion Record { [[Type]]: RETURN, [[Value]]: G, [[Target]]: EMPTY }.
 
-        // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+        // start:                   N arg[N-1] ... arg[0] func
+        //   <fdi>                  err/func
+        //   JUMP_IF_ABRUPT exit    func
+        //   GENSTART_FUNC          err/G  (steps 2-4)
+        //   JUMP_IF_ABRUPT exit    G
+        //   RETURN                 Return[G]
+        // exit:
+
         let status = compile_fdi(chunk, text, info)?;
-        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::GeneratorStartFromFunction);
+        let exit_2 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Return);
+        chunk.fixup(exit_2).expect("Jump should be too short to fail");
+        if let Some(exit) = exit_1 {
+            chunk.fixup(exit).expect("Jump should be too short to fail.");
+        }
 
-        // Stack: func ...
-
-        todo!()
-
+        Ok(AbruptResult::Maybe)
     }
 }
 
