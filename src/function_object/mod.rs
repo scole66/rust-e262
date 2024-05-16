@@ -268,6 +268,7 @@ pub enum ParamSource {
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
     ArrowFormals(Rc<ArrowFormalParameters>),
     UniqueFormalParameters(Rc<UniqueFormalParameters>),
+    PropertySetParameterList(Rc<PropertySetParameterList>),
 }
 
 pub struct ConciseParamSource<'a>(&'a ParamSource);
@@ -285,6 +286,7 @@ impl fmt::Display for ParamSource {
             ParamSource::AsyncArrowBinding(node) => node.fmt(f),
             ParamSource::ArrowFormals(node) => node.fmt(f),
             ParamSource::UniqueFormalParameters(node) => node.fmt(f),
+            ParamSource::PropertySetParameterList(node) => node.fmt(f),
         }
     }
 }
@@ -297,12 +299,14 @@ impl PartialEq for ParamSource {
             (Self::AsyncArrowBinding(l0), Self::AsyncArrowBinding(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowFormals(l0), Self::ArrowFormals(r0)) => Rc::ptr_eq(l0, r0),
             (Self::UniqueFormalParameters(l0), Self::UniqueFormalParameters(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::PropertySetParameterList(l0), Self::PropertySetParameterList(r0)) => Rc::ptr_eq(l0, r0),
             (
                 Self::UniqueFormalParameters(_)
                 | Self::FormalParameters(_)
                 | Self::ArrowParameters(_)
                 | Self::AsyncArrowBinding(_)
-                | Self::ArrowFormals(_),
+                | Self::ArrowFormals(_)
+                | Self::PropertySetParameterList(_),
                 _,
             ) => false,
         }
@@ -334,6 +338,11 @@ impl From<Rc<UniqueFormalParameters>> for ParamSource {
         Self::UniqueFormalParameters(value)
     }
 }
+impl From<Rc<PropertySetParameterList>> for ParamSource {
+    fn from(value: Rc<PropertySetParameterList>) -> Self {
+        Self::PropertySetParameterList(value)
+    }
+}
 impl TryFrom<ParamSource> for Rc<FormalParameters> {
     type Error = anyhow::Error;
     fn try_from(value: ParamSource) -> Result<Self, Self::Error> {
@@ -351,6 +360,7 @@ impl ParamSource {
             ParamSource::AsyncArrowBinding(node) => node.expected_argument_count(),
             ParamSource::ArrowFormals(node) => node.expected_argument_count(),
             ParamSource::UniqueFormalParameters(node) => node.expected_argument_count(),
+            ParamSource::PropertySetParameterList(node) => node.expected_argument_count(),
         }
     }
 
@@ -361,6 +371,7 @@ impl ParamSource {
             ParamSource::AsyncArrowBinding(node) => node.bound_names(),
             ParamSource::ArrowFormals(node) => node.bound_names(),
             ParamSource::UniqueFormalParameters(node) => node.bound_names(),
+            ParamSource::PropertySetParameterList(node) => node.bound_names(),
         }
     }
 
@@ -371,6 +382,7 @@ impl ParamSource {
             ParamSource::AsyncArrowBinding(node) => node.is_simple_parameter_list(),
             ParamSource::ArrowFormals(node) => node.is_simple_parameter_list(),
             ParamSource::UniqueFormalParameters(node) => node.is_simple_parameter_list(),
+            ParamSource::PropertySetParameterList(node) => node.is_simple_parameter_list(),
         }
     }
 
@@ -381,6 +393,7 @@ impl ParamSource {
             ParamSource::AsyncArrowBinding(node) => node.contains_expression(),
             ParamSource::ArrowFormals(node) => node.contains_expression(),
             ParamSource::UniqueFormalParameters(node) => node.contains_expression(),
+            ParamSource::PropertySetParameterList(node) => node.contains_expression(),
         }
     }
 }

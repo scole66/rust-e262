@@ -612,6 +612,7 @@ mod nameable_production {
             ParamSource::AsyncArrowBinding(node) => format!("AsyncArrowBinding: {node}"),
             ParamSource::ArrowFormals(node) => format!("ArrowFormals: {node}"),
             ParamSource::UniqueFormalParameters(node) => format!("UniqueFormalParameters: {node}"),
+            ParamSource::PropertySetParameterList(node) => format!("PropertySetParameterList: {node}"),
         }
     }
 }
@@ -3222,8 +3223,48 @@ mod assignment_expression {
         ));
         "logical and assignment"
     )]
-    #[test_case("a ||= b", true, &[] => panics "not yet implemented"; "logical or assignment")]
-    #[test_case("c ??= b", true, &[] => panics "not yet implemented"; "coalesce assignment")]
+    #[test_case("a ||= b", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 18",
+        "JUMP_IF_TRUE 16",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "DUP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "logical or assignment")]
+    #[test_case("c ??= b", true, &[] => Ok((svec(&[
+        "STRING 0 (c)",
+        "STRICT_RESOLVE",
+        "JUMP_IF_ABRUPT 24",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 18",
+        "JUMP_NOT_NULLISH 16",
+        "POP",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 9",
+        "DUP",
+        "ROTATEDOWN 3",
+        "PUT_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "coalesce assignment")]
     #[test_case("{a} = b", true, &[] => Ok((svec(&[
         "STRING 0 (b)",
         "STRICT_RESOLVE",
@@ -12496,7 +12537,7 @@ mod method_definition {
     #[test_case(
         "get a(){}", true, &[], false => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 hidden"])); "getter, not enumerable"
     )]
-    #[test_case("set a(b){}", true, &[], true => panics "not yet implemented"; "setter")]
+    #[test_case("set a(b){}", true, &[], true => Ok(svec(&["STRING 0 (a)", "DEF_SETTER 0 enumerable"])); "setter")]
     #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
     #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]
     #[test_case("async *a(){}", true, &[], true => panics "not yet implemented"; "async generator")]

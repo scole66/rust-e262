@@ -172,6 +172,7 @@ pub enum Insn {
     SetFunctionName,
     DefineMethodProperty,
     DefineGetter,
+    DefineSetter,
 }
 
 impl fmt::Display for Insn {
@@ -333,6 +334,7 @@ impl fmt::Display for Insn {
             Insn::SetFunctionName => "SET_FUNC_NAME",
             Insn::DefineMethodProperty => "DEF_METH_PROP",
             Insn::DefineGetter => "DEF_GETTER",
+            Insn::DefineSetter => "DEF_SETTER",
         })
     }
 }
@@ -3356,6 +3358,111 @@ impl ConditionalExpression {
 }
 
 impl AssignmentExpression {
+    fn lor_land_coal_assign(
+        lhse: &Rc<LeftHandSideExpression>,
+        ae: &Rc<AssignmentExpression>,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        jump_insn: Insn,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // AssignmentExpression : LeftHandSideExpression &&= AssignmentExpression
+        //  1. Let lref be ? Evaluation of LeftHandSideExpression.
+        //  2. Let lval be ? GetValue(lref).
+        //  3. Let lbool be ToBoolean(lval).
+        //  4. If lbool is false, return lval.
+        //  5. If IsAnonymousFunctionDefinition(AssignmentExpression) is true and IsIdentifierRef of
+        //     LeftHandSideExpression is true, then
+        //      a. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
+        //  6. Else,
+        //      a. Let rref be ? Evaluation of AssignmentExpression.
+        //      b. Let rval be ? GetValue(rref).
+        //  7. Perform ? PutValue(lref, rval).
+        //  8. Return rval.
+
+        // AssignmentExpression : LeftHandSideExpression ||= AssignmentExpression
+        //  1. Let lref be ? Evaluation of LeftHandSideExpression.
+        //  2. Let lval be ? GetValue(lref).
+        //  3. Let lbool be ToBoolean(lval).
+        //  4. If lbool is true, return lval.
+        //  5. If IsAnonymousFunctionDefinition(AssignmentExpression) is true and IsIdentifierRef of
+        //     LeftHandSideExpression is true, then
+        //      a. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
+        //  6. Else,
+        //      a. Let rref be ? Evaluation of AssignmentExpression.
+        //      b. Let rval be ? GetValue(rref).
+        //  7. Perform ? PutValue(lref, rval).
+        //  8. Return rval.
+
+        // start:
+        //   <lhse.evaluation>         err/lref
+        //   JUMP_IF_ABRUPT exit       lref
+        //   DUP                       lref lref
+        //   GET_VALUE                 err/lval lref
+        //   JUMP_IF_ABRUPT unwind     lval lref
+        //   JUMP_IF_FALSE/TRUE unwind      lval lref
+        //   POP                       lref
+        //   <ae.evaluation>           err/rref lref
+        //   GET_VALUE                 err/rval lref
+        //   JUMP_IF_ABRUPT unwind     rval lref
+        //   DUP                       rval rval lref
+        //   ROTATE_DN 3               rval lref rval
+        //   PUT_VALUE                 err/[empty] rval
+        //   JUMP_IF_ABRUPT unwind     [empty] rval
+        //   POP                       rval
+        //   JUMP exit
+        // unwind:
+        //   UNWIND 1                  err/lval
+        // exit:                       err/lval/rval
+
+        let status = lhse.compile(chunk, strict, text)?;
+        let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op(Insn::Dup);
+        let unwind_1 = if status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        let unwind_2 = chunk.op_jump(jump_insn);
+        chunk.op(Insn::Pop);
+        let ae_status =
+            if let (Some(anonymous), Some(reference)) = (ae.anonymous_function_definition(), lhse.identifier_ref()) {
+                let idx = chunk.add_to_string_pool(reference.string_value()).expect("would already have been added");
+                anonymous.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
+            } else {
+                ae.compile(chunk, strict, text)?
+            };
+        if ae_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let unwind_3 = if ae_status.maybe_abrupt() || ae_status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        chunk.op(Insn::Dup);
+        chunk.op_plus_arg(Insn::RotateDown, 3);
+        chunk.op(Insn::PutValue);
+        let unwind_4 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Pop);
+        let exit_2 = chunk.op_jump(Insn::Jump);
+        chunk.fixup(unwind_4).expect("Jump too short to fail");
+        if let Some(unwind_3) = unwind_3 {
+            chunk.fixup(unwind_3).expect("Jump too short to fail");
+        }
+        chunk.fixup(unwind_2)?;
+        if let Some(unwind_1) = unwind_1 {
+            chunk.fixup(unwind_1)?;
+        }
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.fixup(exit_2).expect("Jump too short to fail");
+        if let Some(exit_1) = exit_1 {
+            chunk.fixup(exit_1)?;
+        }
+        Ok(AlwaysAbruptResult)
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict, text),
@@ -3507,92 +3614,29 @@ impl AssignmentExpression {
                 Ok(AlwaysAbruptResult.into())
             }
             AssignmentExpression::LandAssignment(lhse, ae) => {
-                // AssignmentExpression : LeftHandSideExpression &&= AssignmentExpression
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfFalse)
+                    .map(CompilerStatusFlags::from)
+            }
+            AssignmentExpression::LorAssignment(lhse, ae) => {
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfTrue)
+                    .map(CompilerStatusFlags::from)
+            }
+            AssignmentExpression::CoalAssignment(lhse, ae) => {
+                // AssignmentExpression : LeftHandSideExpression ??= AssignmentExpression
                 //  1. Let lref be ? Evaluation of LeftHandSideExpression.
                 //  2. Let lval be ? GetValue(lref).
-                //  3. Let lbool be ToBoolean(lval).
-                //  4. If lbool is false, return lval.
-                //  5. If IsAnonymousFunctionDefinition(AssignmentExpression) is true and IsIdentifierRef of
+                //  3. If lval is neither undefined nor null, return lval.
+                //  4. If IsAnonymousFunctionDefinition(AssignmentExpression) is true and IsIdentifierRef of
                 //     LeftHandSideExpression is true, then
                 //      a. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
-                //  6. Else,
+                //  5. Else,
                 //      a. Let rref be ? Evaluation of AssignmentExpression.
                 //      b. Let rval be ? GetValue(rref).
-                //  7. Perform ? PutValue(lref, rval).
-                //  8. Return rval.
-
-                // start:
-                //   <lhse.evaluation>         err/lref
-                //   JUMP_IF_ABRUPT exit       lref
-                //   DUP                       lref lref
-                //   GET_VALUE                 err/lval lref
-                //   JUMP_IF_ABRUPT unwind     lval lref
-                //   JUMP_IF_FALSE unwind      lval lref
-                //   POP                       lref
-                //   <ae.evaluation>           err/rref lref
-                //   GET_VALUE                 err/rval lref
-                //   JUMP_IF_ABRUPT unwind     rval lref
-                //   DUP                       rval rval lref
-                //   ROTATE_DN 3               rval lref rval
-                //   PUT_VALUE                 err/[empty] rval
-                //   JUMP_IF_ABRUPT unwind     [empty] rval
-                //   POP                       rval
-                //   JUMP exit
-                // unwind:
-                //   UNWIND 1                  err/lval
-                // exit:                       err/lval/rval
-
-                let status = lhse.compile(chunk, strict, text)?;
-                let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op(Insn::Dup);
-                let unwind_1 = if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
-                } else {
-                    None
-                };
-                let unwind_2 = chunk.op_jump(Insn::JumpIfFalse);
-                chunk.op(Insn::Pop);
-                let ae_status = if let (Some(anonymous), Some(reference)) =
-                    (ae.anonymous_function_definition(), lhse.identifier_ref())
-                {
-                    let idx =
-                        chunk.add_to_string_pool(reference.string_value()).expect("would already have been added");
-                    anonymous.compile_named_evaluation(chunk, strict, text, NameLoc::Index(idx))?
-                } else {
-                    ae.compile(chunk, strict, text)?
-                };
-                if ae_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
-                }
-                let unwind_3 = if ae_status.maybe_abrupt() || ae_status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
-                } else {
-                    None
-                };
-                chunk.op(Insn::Dup);
-                chunk.op_plus_arg(Insn::RotateDown, 3);
-                chunk.op(Insn::PutValue);
-                let unwind_4 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                let exit_2 = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind_4).expect("Jump too short to fail");
-                if let Some(unwind_3) = unwind_3 {
-                    chunk.fixup(unwind_3).expect("Jump too short to fail");
-                }
-                chunk.fixup(unwind_2)?;
-                if let Some(unwind_1) = unwind_1 {
-                    chunk.fixup(unwind_1)?;
-                }
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                chunk.fixup(exit_2).expect("Jump too short to fail");
-                if let Some(exit_1) = exit_1 {
-                    chunk.fixup(exit_1)?;
-                }
-                Ok(AlwaysAbruptResult.into())
+                //  6. Perform ? PutValue(lref, rval).
+                //  7. Return rval.
+                Self::lor_land_coal_assign(lhse, ae, chunk, strict, text, Insn::JumpIfNotNullish)
+                    .map(CompilerStatusFlags::from)
             }
-            AssignmentExpression::LorAssignment(_, _) => todo!(),
-            AssignmentExpression::CoalAssignment(_, _) => todo!(),
             AssignmentExpression::Destructuring(ap, ae) => {
                 //  2. Let assignmentPattern be the AssignmentPattern that is covered by LeftHandSideExpression.
                 //  3. Let rref be ? Evaluation of AssignmentExpression.
@@ -7858,7 +7902,22 @@ impl ParamSource {
             ParamSource::UniqueFormalParameters(params) => {
                 params.compile_binding_initialization(chunk, strict, text, env)
             }
+            ParamSource::PropertySetParameterList(params) => {
+                params.compile_binding_initialization(chunk, strict, text, env)
+            }
         }
+    }
+}
+
+impl PropertySetParameterList {
+    pub fn compile_binding_initialization(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        env: EnvUsage,
+    ) -> anyhow::Result<AbruptResult> {
+        self.node.compile_binding_initialization(chunk, strict, text, env)
     }
 }
 
@@ -9913,7 +9972,56 @@ impl MethodDefinition {
 
                 Ok(AlwaysAbruptResult)
             }
-            MethodDefinition::Setter(_, _, _, _) => todo!(),
+            MethodDefinition::Setter(name, pl, body, location) => {
+                // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+                //  1. Let propKey be ? Evaluation of ClassElementName.
+                //  2. Let env be the running execution context's LexicalEnvironment.
+                //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  4. Let sourceText be the source text matched by MethodDefinition.
+                //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, PropertySetParameterList,
+                //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+                //  6. Perform MakeMethod(closure, object).
+                //  7. Perform SetFunctionName(closure, propKey, "set").
+                //  8. If propKey is a Private Name, then
+                //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined,
+                //         [[Set]]: closure }.
+                //  9. Else,
+                //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable, [[Configurable]]: true }.
+                //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+                //      c. Return UNUSED.
+
+                // start:                                        object
+                //   <name.evaluate>                             err/propKey object
+                //   JUMP_IF_ABRUPT unwind_1                     propKey object
+                //   DEFINE_SETTER                               err/empty/PrivateElement
+                //   JUMP exit
+                // unwind_1:                                     err object
+                //   UNWIND 1                                    err
+                // exit:                                         err/empty/PrivateElement
+                let status = name.compile(chunk, strict, text)?;
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_text =
+                    text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: ParamSource::from(pl.clone()),
+                    body: body.clone().into(),
+                    to_compile: self_as_rc.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_two_args(Insn::DefineSetter, idx, u16::from(enumerable));
+
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("short jumps should be ok");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit).expect("short jumps should be ok");
+                }
+
+                Ok(AlwaysAbruptResult)
+            }
         }
     }
 }

@@ -451,7 +451,7 @@ impl MethodDefinition {
 //      FormalParameter[~Yield, ~Await]
 #[derive(Debug)]
 pub struct PropertySetParameterList {
-    node: Rc<FormalParameter>,
+    pub node: Rc<FormalParameter>,
 }
 
 impl fmt::Display for PropertySetParameterList {
@@ -512,6 +512,32 @@ impl PropertySetParameterList {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.node.early_errors(errs, strict);
+    }
+
+    /// Reports the number of expected arguments for the parameter list.
+    ///
+    /// The ExpectedArgumentCount of a FormalParameterList is the number of FormalParameters to the left of either the
+    /// rest parameter or the first FormalParameter with an Initializer. A FormalParameter without an initializer is
+    /// allowed after the first parameter with an initializer but such parameters are considered to be optional with
+    /// undefined as their default value.
+    ///
+    /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
+    pub fn expected_argument_count(&self) -> f64 {
+        // PropertySetParameterList : FormalParameter
+        //  1. If HasInitializer of FormalParameter is true, return 0.
+        //  2. Return 1.
+        if self.node.has_initializer() {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    /// Report whether this portion of a parameter list contains an expression
+    ///
+    /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
+    pub fn contains_expression(&self) -> bool {
+        self.node.contains_expression()
     }
 }
 
