@@ -1805,8 +1805,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let (left, right) = agent.two_values(index);
                     let result = match right {
                         ECMAScriptValue::Object(obj) => {
-                            let key = to_property_key(left)?;
-                            has_property(&obj, &key).map(NormalCompletion::from)
+                            to_property_key(left)
+                            .and_then(|key| has_property(&obj, &key))
+                            .map(NormalCompletion::from)
                         }
                         _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
                     };
