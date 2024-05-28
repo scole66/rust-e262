@@ -1570,20 +1570,23 @@ mod begin_call_evaluation {
         Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
     }
 
-    #[test_case(|| ECMAScriptValue::Undefined, || NormalCompletion::Empty => panics "begin_call_evaluation called with non-value, non-ref \"this\""; "empty reference")]
-    #[test_case(good_func, object_this => Some("\"this: legitimate this; args: sentinel\"".into()); "this is object")]
-    #[test_case(good_func, undef_this => Some("\"this: undefined; args: sentinel\"".into()); "this is undefined")]
-    #[test_case(good_func, unresolvable => panics "begin_call_evaluation called with unresolvable ref"; "unresolvable reference")]
-    #[test_case(|| ECMAScriptValue::Undefined, object_this => Some("TypeError: not an object".into()); "non-object in function spot")]
-    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype).into(), object_this => Some("TypeError: not a function".into()); "non-function object in function spot")]
-    #[test_case(good_func, with_env => Some("\"this: with-object; args: sentinel\"".into()); "with-object")]
-    fn call(make_func: fn() -> ECMAScriptValue, make_this: fn() -> NormalCompletion) -> Option<String> {
+    #[test_case(|| ECMAScriptValue::Undefined, || NormalCompletion::Empty => Err(InternalRuntimeError::ValueOrReferenceExpected); "empty reference")]
+    #[test_case(good_func, object_this => Ok(Some("\"this: legitimate this; args: sentinel\"".into())); "this is object")]
+    #[test_case(good_func, undef_this => Ok(Some("\"this: undefined; args: sentinel\"".into())); "this is undefined")]
+    #[test_case(good_func, unresolvable => Err(InternalRuntimeError::UnresolvableReference); "unresolvable reference")]
+    #[test_case(|| ECMAScriptValue::Undefined, object_this => Ok(Some("TypeError: not an object".into())); "non-object in function spot")]
+    #[test_case(|| intrinsic(IntrinsicId::ObjectPrototype).into(), object_this => Ok(Some("TypeError: not a function".into())); "non-function object in function spot")]
+    #[test_case(good_func, with_env => Ok(Some("\"this: with-object; args: sentinel\"".into())); "with-object")]
+    fn call(
+        make_func: fn() -> ECMAScriptValue,
+        make_this: fn() -> NormalCompletion,
+    ) -> Result<Option<String>, InternalRuntimeError> {
         setup_test_agent();
         let func = make_func();
         let reference = make_this();
-        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")]);
+        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")])?;
 
-        ec_pop().map(|v| v.map_err(unwind_any_error).map_or_else(|err| err, |nc| format!("{nc}")))
+        Ok(ec_pop().map(|v| v.map_err(unwind_any_error).map_or_else(|err| err, |nc| format!("{nc}"))))
     }
 }
 
