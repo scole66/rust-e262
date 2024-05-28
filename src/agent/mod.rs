@@ -3165,7 +3165,7 @@ pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, i
     let priv_env = current_private_environment();
 
     let name = AGENT.with(|agent| {
-        JSString::try_from(
+        FunctionName::try_from(
             ECMAScriptValue::try_from(agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
                 .unwrap(),
         )
@@ -3203,7 +3203,7 @@ pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, i
         info.strict,
         Rc::new(compiled),
     );
-    set_function_name(&closure, name.into(), None);
+    set_function_name(&closure, name, None);
 
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
 }
