@@ -2053,6 +2053,18 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
+    pub fn in_op() -> anyhow::Result<()> {
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = match right {
+            ECMAScriptValue::Object(obj) => {
+                super::to_property_key(left).and_then(|key| super::has_property(&obj, &key)).map(NormalCompletion::from)
+            }
+            _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -2217,18 +2229,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::LessEqual => insn_impl::compare(true, true).expect(GOODCODE),
                 Insn::GreaterEqual => insn_impl::compare(false, true).expect(GOODCODE),
                 Insn::InstanceOf => insn_impl::instance_of().expect(GOODCODE),
-                Insn::In => {
-                    let (left, right) = agent.two_values(index);
-                    let result = match right {
-                        ECMAScriptValue::Object(obj) => {
-                            to_property_key(left)
-                            .and_then(|key| has_property(&obj, &key))
-                            .map(NormalCompletion::from)
-                        }
-                        _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
+                Insn::In => insn_impl::in_op().expect(GOODCODE),
                 Insn::Equal => {
                     let (left, right) = agent.two_values(index);
                     let result = is_loosely_equal(&left, &right).map(NormalCompletion::from);
