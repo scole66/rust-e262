@@ -692,6 +692,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("Reflect.defineProperty(10, 'key', undefined)" => serr("Thrown: TypeError: Reflect.defineProperty: target must be an object"); "Reflect.defineProperty: target not an object")]
 #[test_case("Reflect.defineProperty({}, {toString() { throw 'nope'; }}, { value: 'some value' })" => serr("Thrown: nope"); "Reflect.defineProperty: ToPropertyKey throws")]
 #[test_case("Reflect.defineProperty({}, 'key', undefined)" => serr("Thrown: TypeError: Must be an object"); "Reflect.defineProperty: ToPropertyDescriptor throws")]
+// RelationalExpression : RelationalExpression in ShiftExpression
+#[test_case("(() => { throw 'oops'; })() in String" => serr("Thrown: oops"); "in-operator: Evaluation(RelationalExpression) throws")]
+#[test_case("({ get a() { throw 'oops'; }}).a in String" => serr("Thrown: oops"); "in-operator: GetValue(lref) throws")]
+#[test_case("'a' in (() => { throw 'oops'; })()" => serr("Thrown: oops"); "in-operator: Evaluation(ShiftExpression) throws")]
+#[test_case("'a' in ({ get b() { throw 'oops'; }}).b" => serr("Thrown: oops"); "in-operator: GetValue(rref) throws")]
+#[test_case("'a' in 3" => serr("Thrown: TypeError: Right-hand side of 'in' must be an object"); "in-operator: rval not an object")]
+#[test_case("({ [Symbol.toPrimitive]: () => { throw 'oops'; }}) in String" => serr("Thrown: oops"); "in-operator: ToPropertyKey(lval) throws")] // 5/28/2024: in operator incorrectly handles exceptions
+#[test_case("'a' in new Proxy({}, { has(p) { throw 'oops'; }})" => serr("Thrown: oops"); "in-operator: HasProperty(...) throws")]
+#[test_case("'a' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(true)); "in-operator: success (true)")]
+#[test_case("'b' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(false)); "in-operator: success (false)")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
@@ -725,8 +735,6 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(function (p = (() => { throw 'oops'; })(), q) {})()" => serr("Thrown: oops"); "errs in args")]
 // 5/28/2024: method definitions with arrow function values on symbol names don't work.
 #[test_case("String({ [Symbol.toPrimitive]: () => { return \"me\"; } })" => Ok(ECMAScriptValue::from("me")); "arrow function name")]
-// 5/28/2024: in operator incorrectly handles exceptions
-#[test_case("let o = { [Symbol.toPrimitive]: () => { throw \"hello\"; } }; o in String" => serr("Thrown: hello"); "errs in 'in' operator")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
