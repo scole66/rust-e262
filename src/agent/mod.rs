@@ -1805,8 +1805,9 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     let (left, right) = agent.two_values(index);
                     let result = match right {
                         ECMAScriptValue::Object(obj) => {
-                            let key = to_property_key(left)?;
-                            has_property(&obj, &key).map(NormalCompletion::from)
+                            to_property_key(left)
+                            .and_then(|key| has_property(&obj, &key))
+                            .map(NormalCompletion::from)
                         }
                         _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
                     };
@@ -3189,7 +3190,7 @@ pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, i
     let priv_env = current_private_environment();
 
     let name = AGENT.with(|agent| {
-        JSString::try_from(
+        FunctionName::try_from(
             ECMAScriptValue::try_from(agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
                 .unwrap(),
         )
@@ -3227,7 +3228,7 @@ pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, i
         info.strict,
         Rc::new(compiled),
     );
-    set_function_name(&closure, name.into(), None);
+    set_function_name(&closure, name, None);
 
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
 }
