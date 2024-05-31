@@ -1427,7 +1427,7 @@ pub fn is_callable(value: &ECMAScriptValue) -> bool {
 //  2. If argument has a [[Construct]] internal method, return true.
 //  3. Return false.
 pub fn is_constructor(value: &ECMAScriptValue) -> bool {
-    to_constructor(value).is_some()
+    value.is_constructor()
 }
 
 impl ECMAScriptValue {
@@ -1438,6 +1438,14 @@ impl ECMAScriptValue {
             }
         }
         None
+    }
+
+    pub fn is_constructor(&self) -> bool {
+        if let Self::Object(o) = self {
+            o.is_constructor()
+        } else {
+            false
+        }
     }
 
     #[inline]

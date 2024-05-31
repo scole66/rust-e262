@@ -1,15 +1,18 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
 use std::cell::{Cell, RefCell};
+use std::convert::identity;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::error;
 use std::fmt;
+use std::ops::Not;
 use std::rc::Rc;
+use thiserror::Error;
 
 // The tail-call optimization tests "work" if they can go 100,000 deep. (Because TCO means that we don't
 // actually consume context stack space.) So we put in an artificial limit for less than that so that TCO
@@ -639,8 +642,2261 @@ pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
     });
 }
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Error)]
+pub enum InternalRuntimeError {
+    #[error("no active execution context")]
+    NoContext,
+    #[error("runtime stack is empty")]
+    EmptyStack,
+    #[error("non-error completion expected")]
+    NonErrorExpected,
+    #[error("string value expected")]
+    StringExpected,
+    #[error("number value expected")]
+    NumberExpected,
+    #[error("code terminated early")]
+    CodeEndedEarly,
+    #[error("string index out of bounds")]
+    StringIndexOOB,
+    #[error("string set index out of bounds")]
+    StringSetIndexOOB,
+    #[error("float index out of bounds")]
+    FloatIndexOOB,
+    #[error("bigint index out of bounds")]
+    BigintIndexOOB,
+    #[error("stashed function data index out of bounds")]
+    SFDIndexOOB,
+    #[error("no current lexical environment")]
+    NoLexicalEnvironment,
+    #[error("no current variable environment")]
+    NoVarEnvironment,
+    #[error("binding already exists")]
+    BindingAlreadyExists,
+    #[error("an environment's HasBinding method failed")]
+    HasBindingFailure,
+    #[error("an environment's CreateMutableBinding method failed")]
+    CreateMutableBindingFailure,
+    #[error("an environment's InitializeBinding method failed")]
+    InitializeBindingFailure,
+    #[error("an environment's GetBindingValue method failed")]
+    GetBindingValueFailure,
+    #[error("an environment's SetMutableBinding method failed")]
+    SetMutableBindingFailure,
+    #[error("an object's CreateDataProperty method failed")]
+    ObjectCDPFailure,
+    #[error("an object's SetPrototypeOf method failed")]
+    SetPrototypeOfFailure,
+    #[error("throw completion expected")]
+    ThrowExpected,
+    #[error("function object expected")]
+    FunctionExpected,
+    #[error("value or reference expected")]
+    ValueOrReferenceExpected,
+    #[error("reference must be resolvable")]
+    UnresolvableReference,
+    #[error("arguments object expected")]
+    ArgumentsObjectExpected,
+    #[error("mapped arguments object expected")]
+    MappedArgumentsObjectExpected,
+    #[error("no active private environment")]
+    NoPrivateEnv,
+    #[error("private name missing from private environment")]
+    MissingPrivateName,
+    #[error("method definition expected")]
+    ExpectedMethod,
+    #[error("getter method production expected")]
+    GetterMethodExpected,
+    #[error("setter method production expected")]
+    SetterMethodExpected,
+}
+mod insn_impl {
+    use super::*;
+
+    const PUSHABLE: &str = "If we could pop a value, we should be able to push a value";
+    const POPPABLE: &str = "Previously pushed values should be present";
+
+    fn push_completion(cmpl: FullCompletion) -> anyhow::Result<()> {
+        // Input: nothing
+        // Output: Completion on the stack
+        AGENT.with(|agent| -> anyhow::Result<()> {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            ec.stack.push(cmpl);
+            Ok(())
+        })
+    }
+    fn push_value(val: ECMAScriptValue) -> anyhow::Result<()> {
+        // Input: nothing
+        // Output: ECMA value on the stack
+        push_completion(Ok(val.into()))
+    }
+    fn peek_completion(from_end: usize) -> anyhow::Result<FullCompletion> {
+        AGENT.with(|agent| {
+            let ec_stack_ref = agent.execution_context_stack.borrow();
+            let ec = ec_stack_ref.last().ok_or(InternalRuntimeError::NoContext)?;
+            let stack_len = ec.stack.len();
+            if stack_len < from_end + 1 {
+                Err(InternalRuntimeError::EmptyStack)?;
+            }
+            let spot = stack_len - 1 - from_end;
+            let completion = &ec.stack[spot];
+            Ok(completion.clone())
+        })
+    }
+    fn peek_value(from_end: usize) -> anyhow::Result<ECMAScriptValue> {
+        ECMAScriptValue::try_from(peek_completion(from_end)?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn peek_obj(from_end: usize) -> anyhow::Result<Object> {
+        Object::try_from(peek_value(from_end)?)
+    }
+    fn peek_function_name(from_end: usize) -> anyhow::Result<FunctionName> {
+        FunctionName::try_from(peek_completion(from_end)?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn peek_usize(from_end: usize) -> anyhow::Result<usize> {
+        let value = peek_value(from_end)?;
+        let number = f64::try_from(value)?;
+        let integer = to_usize(number)?;
+        Ok(integer)
+    }
+    fn peek_list(from_end: usize, length: usize) -> anyhow::Result<Vec<FullCompletion>> {
+        AGENT.with(|agent| {
+            let ec_stack_ref = agent.execution_context_stack.borrow();
+            let ec = ec_stack_ref.last().ok_or(InternalRuntimeError::NoContext)?;
+
+            let stack_len = ec.stack.len();
+            if stack_len >= from_end + length {
+                let starting_index = stack_len - from_end - length;
+                let ending_index = starting_index + length;
+                Ok(ec.stack[starting_index..ending_index].to_vec())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    fn pop_completion() -> anyhow::Result<FullCompletion> {
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let completion = ec.stack.pop().ok_or(InternalRuntimeError::EmptyStack)?;
+            Ok(completion)
+        })
+    }
+    fn pop_value() -> anyhow::Result<ECMAScriptValue> {
+        ECMAScriptValue::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_string() -> anyhow::Result<JSString> {
+        let value = pop_value()?;
+        if let ECMAScriptValue::String(s) = value {
+            Ok(s)
+        } else {
+            Err(InternalRuntimeError::StringExpected.into())
+        }
+    }
+    fn pop_usize() -> anyhow::Result<usize> {
+        let value = pop_value()?;
+        let number = f64::try_from(value)?;
+        let integer = to_usize(number)?;
+        Ok(integer)
+    }
+    fn pop_obj() -> anyhow::Result<Object> {
+        Object::try_from(pop_value()?)
+    }
+    fn pop_numeric() -> anyhow::Result<Numeric> {
+        Numeric::try_from(pop_value()?)
+    }
+    fn pop_ir() -> anyhow::Result<Rc<IteratorRecord>> {
+        Rc::<IteratorRecord>::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_classname() -> anyhow::Result<ClassName> {
+        ClassName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_functionname() -> anyhow::Result<FunctionName> {
+        FunctionName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_key() -> anyhow::Result<PropertyKey> {
+        PropertyKey::try_from(pop_value()?)
+    }
+    fn pop_key_list() -> anyhow::Result<Vec<PropertyKey>> {
+        let list_len = pop_usize()?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack_size = ec.stack.len();
+            if stack_size < list_len {
+                Err(InternalRuntimeError::EmptyStack)?;
+            }
+            ec.stack
+                .drain(stack_size - list_len..stack_size)
+                .rev()
+                .map(|fc| {
+                    let nc = fc.or(Err(InternalRuntimeError::NonErrorExpected))?;
+                    let val = ECMAScriptValue::try_from(nc)?;
+                    PropertyKey::try_from(val)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+    }
+    fn usize_at(from_end: usize) -> anyhow::Result<usize> {
+        AGENT.with(|agent| {
+            let ec_stack_ref = agent.execution_context_stack.borrow();
+            let ec = ec_stack_ref.last().ok_or(InternalRuntimeError::NoContext)?;
+            let stack_size = ec.stack.len();
+            if stack_size < 1 + from_end {
+                Err(InternalRuntimeError::EmptyStack.into())
+            } else {
+                let fc = ec.stack[stack_size - 1 - from_end].clone();
+                let nc = fc.or(Err(InternalRuntimeError::NonErrorExpected))?;
+                let value = ECMAScriptValue::try_from(nc)?;
+                let number = f64::try_from(value)?;
+                let length = to_usize(number)?;
+                Ok(length)
+            }
+        })
+    }
+    fn operand(chunk: &Rc<Chunk>) -> anyhow::Result<u16> {
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec: &mut ExecutionContext = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let operand = chunk.opcodes.get(ec.pc).ok_or(InternalRuntimeError::CodeEndedEarly)?;
+            ec.pc += 1;
+            Ok(*operand)
+        })
+    }
+    fn string_operand(chunk: &Rc<Chunk>) -> anyhow::Result<&JSString> {
+        let string_index = operand(chunk)?;
+        let string = chunk.strings.get(string_index as usize).ok_or(InternalRuntimeError::StringIndexOOB)?;
+        Ok(string)
+    }
+    fn string_set_operand(chunk: &Rc<Chunk>) -> anyhow::Result<&AHashSet<JSString>> {
+        let set_index = operand(chunk)?;
+        let string_set = chunk.string_sets.get(set_index as usize).ok_or(InternalRuntimeError::StringSetIndexOOB)?;
+        Ok(string_set)
+    }
+    fn usize_operand(chunk: &Rc<Chunk>) -> anyhow::Result<usize> {
+        operand(chunk).map(|short| short as usize)
+    }
+    fn sfd_operand(chunk: &Rc<Chunk>) -> anyhow::Result<&StashedFunctionData> {
+        let sfd_index = usize_operand(chunk)?;
+        let sfd = chunk.function_object_data.get(sfd_index).ok_or(InternalRuntimeError::SFDIndexOOB)?;
+        Ok(sfd)
+    }
+    fn bump_pc(jump: i16) -> anyhow::Result<()> {
+        AGENT.with(|agent| {
+            let mut ec_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            if jump >= 0 {
+                let offset: usize = usize::try_from(jump).expect("jump is positive");
+                if ec.pc + offset > ec.chunk.as_ref().map_or(0, |c| c.opcodes.len()) {
+                    return Err(InternalRuntimeError::CodeEndedEarly.into());
+                }
+                ec.pc += offset;
+            } else {
+                let offset: usize = usize::try_from(-jump).expect("jump is negative");
+                if offset > ec.pc {
+                    return Err(InternalRuntimeError::CodeEndedEarly.into());
+                }
+                ec.pc -= offset;
+            }
+            Ok(())
+        })
+    }
+    pub fn nop() {
+        // surprise. Do Nothing.
+    }
+    pub fn todo() -> ! {
+        // emit a todo error
+        todo!()
+    }
+    pub fn pop() -> anyhow::Result<()> {
+        // Input:  Stack: item
+        // Output: Stack:
+        let _ = pop_completion()?;
+        Ok(())
+    }
+    pub fn string(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: argument: index;
+        //        stack: no input
+        // Output: ECMA String value added to the stack
+        let string = string_operand(chunk)?;
+        push_value(ECMAScriptValue::String(string.clone()))
+    }
+    pub fn float(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: argument: index;
+        //        stack: no input
+        // Output: ECMA Number value added to the stack
+        let float_index = operand(chunk)?;
+        let float = chunk.floats.get(float_index as usize).ok_or(InternalRuntimeError::FloatIndexOOB)?;
+        push_value(ECMAScriptValue::Number(*float))
+    }
+    pub fn bigint(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: argument: index;
+        //        stack: no input
+        // Output: ECMA BigInt value added to the stack
+        let bigint_index = operand(chunk)?;
+        let bigint = chunk.bigints.get(bigint_index as usize).ok_or(InternalRuntimeError::BigintIndexOOB)?;
+        push_value(ECMAScriptValue::BigInt(bigint.clone()))
+    }
+    pub fn null() -> anyhow::Result<()> {
+        // Input: nothing
+        // Output: ECMA value NULL on the stack
+        push_value(ECMAScriptValue::Null)
+    }
+    pub fn true_val() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: ECMA value TRUE on the stack
+        push_value(ECMAScriptValue::Boolean(true))
+    }
+    pub fn false_val() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: ECMA value FALSE on the stack
+        push_value(ECMAScriptValue::Boolean(false))
+    }
+    pub fn zero() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: ECMA value 0.0 on the stack
+        push_value(ECMAScriptValue::Number(0.0))
+    }
+    pub fn empty() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: [ empty ] on the stack
+        push_completion(Ok(NormalCompletion::Empty))
+    }
+    pub fn empty_if_not_error() -> anyhow::Result<()> {
+        // Input: Stack one item.
+        // Output: On stack: item if item is an error, else [ empty ]
+        let completion = pop_completion()?;
+        push_completion(match completion {
+            Ok(_) => Ok(NormalCompletion::Empty),
+            Err(_) => completion,
+        })
+    }
+    pub fn undefined() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: Undefined on the stack
+        push_value(ECMAScriptValue::Undefined)
+    }
+    pub fn function_prototype() -> anyhow::Result<()> {
+        // Input: None
+        // Output: Stack: Current realm's %Function.prototype%
+        push_value(ECMAScriptValue::Object(intrinsic(IntrinsicId::FunctionPrototype)))
+    }
+    pub fn this() -> anyhow::Result<()> {
+        // Input: Nothing
+        // Output: the result of ResolveThisBinding on the stack.
+        let this_resolved = resolve_this_binding().map(NormalCompletion::from);
+        push_completion(this_resolved)
+    }
+    pub fn resolve(strict: bool) -> anyhow::Result<()> {
+        // Input: A string item on the stack
+        // Output: A resolved binding for that string on the stack
+        let name = pop_string()?;
+        let resolved = resolve_binding(&name, None, strict);
+        push_completion(resolved).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn get_value() -> anyhow::Result<()> {
+        // Input:  Stack: A reference, value, or error.
+        // Output: Stack: The error, the value, or a value from dereferencing the reference
+        let reference = pop_completion()?;
+        let value = super::get_value(reference);
+        push_completion(value.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn put_value() -> anyhow::Result<()> {
+        // Input: Stack, 2 args: the value to store, then the reference to store it in.
+        // Output Stack: [empty] or error
+        let wc = pop_completion()?;
+        let w = match wc.map(ECMAScriptValue::try_from) {
+            Ok(Err(err)) => Err(err),
+            Ok(Ok(val)) => Ok(Ok(val)),
+            Err(err) => Ok(Err(err)),
+        }?;
+        let v = pop_completion()?;
+        let result = super::put_value(v, w).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_completion(0)?;
+        if tos.is_err() {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_if_normal(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_completion(0)?;
+        if tos.is_ok() {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_referencing_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_value(0)?;
+        let bool_val = bool::from(tos);
+        if bool_match == bool_val {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_taking_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any value
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = pop_value()?;
+        let bool_val = bool::from(tos);
+        if bool_match == bool_val {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_nullishness(nullish: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_value(0)?;
+        let is_nullish = tos == ECMAScriptValue::Undefined || tos == ECMAScriptValue::Null;
+        if nullish == is_nullish {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_undefness(undef: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_value(0)?;
+        let is_undef = tos == ECMAScriptValue::Undefined;
+        if undef == is_undef {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump_throwyness(throw: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        let tos = peek_completion(0)?;
+        let is_throw = matches!(tos, Err(AbruptCompletion::Throw { .. }));
+        if throw == is_throw {
+            bump_pc(jump)?;
+        }
+        Ok(())
+    }
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn jump(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: i16 instruction offset. Stack: nothing
+        // Output: nothing
+        let jump = operand(chunk)? as i16;
+        bump_pc(jump)
+    }
+    pub fn update_empty() -> anyhow::Result<()> {
+        // Input: on stack: newer (any completion)
+        //                  older (any normal completion)
+        // Output: on stack: the result of UpdateEmpty
+        let newer = pop_completion()?;
+        let older = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+        push_completion(super::update_empty(newer, older)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn pop2push3() -> anyhow::Result<()> {
+        // Input:  Stack: top lower
+        // Output: Stack: top lower top
+        let top = pop_completion()?;
+        let lower = pop_completion()?;
+        let bottom = top.clone();
+        push_completion(bottom).expect(PUSHABLE);
+        push_completion(lower).expect(PUSHABLE);
+        push_completion(top).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn dup() -> anyhow::Result<()> {
+        // Input:  Stack: item
+        // Output: Stack: item item
+        let item = peek_completion(0)?;
+        push_completion(item).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn dup_after_list() -> anyhow::Result<()> {
+        // stack has a list followed by a value: N item(n-1) ... item(0) value
+        // output dups that value behind the list: N item(n-1) ... item(0) value value
+        let list_len = peek_usize(0)?;
+        AGENT.with(|agent| -> anyhow::Result<()> {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_len = stack.len();
+            if stack_len < list_len + 2 {
+                Err(InternalRuntimeError::EmptyStack)?;
+            }
+            let value_index = stack_len - (list_len + 2);
+            let value = stack[value_index].clone();
+            stack.push(value);
+            stack[value_index..].rotate_right(1);
+            Ok(())
+        })
+    }
+    pub fn swap() -> anyhow::Result<()> {
+        // Input:  Stack: A B
+        // Output: Stack: B A
+        AGENT.with(|agent| -> anyhow::Result<()> {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack_len = ec.stack.len();
+            if stack_len < 2 {
+                Err(InternalRuntimeError::EmptyStack.into())
+            } else {
+                ec.stack.swap(stack_len - 1, stack_len - 2);
+                Ok(())
+            }
+        })
+    }
+    pub fn rotate_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // a 1-arg instruction: take the n-th item in the stack and move it to the top, sliding the others
+        // down. E.g.: with A, B, C, D on the stack (top on the left), "RotateUp 3" will produce C, A, B, D.
+        let amt = operand(chunk)? as usize;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if len >= amt {
+                stack[len - amt..len].rotate_left(1);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn rotate_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // a 1-arg instruction: take the top item of the stack and move it down until it becomes the n-th item in the
+        // stack, sliding the others up. E.g.: with A, B, C, D on the stack (top on the left), "RotateDown 3" will
+        // produce B, C, A, D.
+        let amt = operand(chunk)? as usize;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if len >= amt {
+                stack[len - amt..len].rotate_right(1);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn rotate_down_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // a 1-arg instruction (N)
+        // Given a stack, ITEM LIST B C D, move ITEM down past the list plus N more items.
+        let amt = operand(chunk)? as usize;
+        let list_len = usize_at(1)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if list_len + amt + 2 <= len {
+                stack[len - list_len - amt - 2..len].rotate_right(1);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn make_ref(strict: bool) -> anyhow::Result<()> {
+        // Input:  Stack: name base
+        // Output: Stack: reference
+        let value = pop_value()?;
+        let name = PropertyKey::try_from(value)?;
+        let base = pop_value()?;
+        let reference = Reference::new(Base::Value(base), name, strict, None);
+        let result = Ok(NormalCompletion::from(reference));
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn pop_or_panic() -> anyhow::Result<()> {
+        let val = pop_completion()?;
+        if let Err(e) = val {
+            panic!("Unhandled, unexpected error {e}");
+        }
+        Ok(())
+    }
+    pub fn swap_list() -> anyhow::Result<()> {
+        // Input: LIST ITEM
+        // Output: ITEM LIST
+        let list_len = usize_at(0)?;
+        let item = AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            if stack_size < list_len + 2 {
+                return Err(InternalRuntimeError::EmptyStack);
+            }
+            let item = stack.remove(stack_size - list_len - 2);
+            Ok(item)
+        })?;
+        push_completion(item).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn pop_list() -> anyhow::Result<()> {
+        // Input: LIST
+        // Output:
+        let length = pop_usize()?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            if stack_size >= length {
+                stack.truncate(stack_size - length);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn pop_out_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: "N"
+        // Input:  Stack: item1 ... item(n-1) LIST
+        // Output: Stack: item1 ... item(n-1)
+        let skip = operand(chunk)? as usize;
+        let list_len = usize_at(skip)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            if stack_size < list_len + skip + 1 {
+                Err(InternalRuntimeError::EmptyStack.into())
+            } else {
+                //   SL-1   SL-2   SL-3  SL-4   SL-5   SL-6
+                //   item1  item2   3    listx  listy  listz
+                //   skip = 2;
+                //   list_len = 3;
+                stack[stack_size - list_len - skip - 1..stack_size].rotate_left(list_len + 1);
+                // truncate is: stack_size - list_len - 1
+                stack.truncate(stack_size - list_len - 1);
+                Ok(())
+            }
+        })
+    }
+    pub fn swap_deep_list() -> anyhow::Result<()> {
+        // Input: LIST_A item LIST_B
+        // Output: LIST_A LIST_B item
+        let a_len = usize_at(0)?;
+        let b_len = usize_at(a_len + 2)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            // 3 l2 l1 l0 item 6 n5 n4 n3 n2 n1 n0
+            // =>
+            // 3 l2 l1 l0 6 n5 n4 n3 n2 n1 n0 item
+            // that's a rotate in the (item list_b) sub-slice
+            stack[stack_size - a_len - b_len - 3..stack_size - a_len - 1].rotate_right(1);
+            Ok(())
+        })
+    }
+    pub fn list_to_array() -> anyhow::Result<()> {
+        // On the stack at the start: N list[N-1] ... list[0]
+        // Afterward: A
+        let array_len = pop_usize()?;
+        let elements = AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            stack
+                .drain(stack_size - array_len..stack_size)
+                .map(|completion| {
+                    let nc = completion.or(Err(InternalRuntimeError::NonErrorExpected))?;
+                    let value = ECMAScriptValue::try_from(nc)?;
+                    Ok(value)
+                })
+                .collect::<Result<Vec<_>, anyhow::Error>>()
+        })?;
+        let a = create_array_from_list(&elements);
+        push_value(a.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    fn unwind_internal(amt: usize) -> anyhow::Result<()> {
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_size = stack.len();
+            if stack_size <= amt {
+                Err(InternalRuntimeError::EmptyStack)?;
+            }
+            if amt > 0 {
+                let old_index_of_err = stack_size - 1;
+                let new_index_of_err = old_index_of_err - amt;
+                stack.swap(new_index_of_err, old_index_of_err);
+                stack.truncate(new_index_of_err + 1);
+            }
+            Ok(())
+        })
+    }
+    pub fn unwind(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let vals_to_remove = usize_operand(chunk)?;
+        unwind_internal(vals_to_remove)
+    }
+    pub fn unwind_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let vals_to_remove = usize_operand(chunk)?;
+        let top_completion = peek_completion(0)?;
+        if top_completion.is_err() && vals_to_remove > 0 {
+            unwind_internal(vals_to_remove)
+        } else {
+            Ok(())
+        }
+    }
+    pub fn unwind_list() -> anyhow::Result<()> {
+        let err_to_keep = pop_completion()?;
+        let vals_to_remove = pop_usize()?;
+        if vals_to_remove > 0 {
+            AGENT.with(|agent| -> Result<_, InternalRuntimeError> {
+                let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+                let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+                let stack = &mut ec.stack;
+                let old_stack_size = stack.len();
+                if vals_to_remove > old_stack_size {
+                    Err(InternalRuntimeError::EmptyStack)?;
+                }
+                let new_stack_size = old_stack_size - vals_to_remove;
+                stack.truncate(new_stack_size);
+                Ok(())
+            })?;
+        }
+        push_completion(err_to_keep).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn initialize_referenced_binding() -> anyhow::Result<()> {
+        // Input:  Stack: (value to store) (place to store)
+        // Output: Stack: [empty] or error
+        let value = match pop_completion()?.map(ECMAScriptValue::try_from) {
+            Ok(Ok(item)) => Ok(Ok(item)),
+            Ok(Err(err)) => Err(err),
+            Err(ac) => Ok(Err(ac)),
+        }?;
+        let lhs = pop_completion()?;
+        let result = super::initialize_referenced_binding(lhs, value).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn push_new_lexical_environment() {
+        let current_env = current_lexical_environment();
+        let new_env = DeclarativeEnvironmentRecord::new(current_env, "inner block");
+        set_lexical_environment(Some(Rc::new(new_env)));
+    }
+    pub fn pop_lexical_environment() -> anyhow::Result<()> {
+        let current_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let outer_env = current_env.get_outer_env();
+        set_lexical_environment(outer_env);
+        Ok(())
+    }
+    pub fn push_new_var_env_from_lex() {
+        let current_env = current_lexical_environment();
+        let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
+        set_variable_environment(Some(Rc::new(new_env)));
+    }
+    pub fn push_new_lex_env_from_var() {
+        let current_env = current_variable_environment();
+        let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
+        set_lexical_environment(Some(Rc::new(new_env)));
+    }
+    pub fn set_lex_env_to_var_env() {
+        let current_env = current_variable_environment();
+        set_lexical_environment(current_env);
+    }
+    pub fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let name = string_operand(chunk)?;
+
+        env.create_immutable_binding(name.clone(), strict).or(Err(InternalRuntimeError::BindingAlreadyExists))?;
+        Ok(())
+    }
+    fn create_mutable_binding(
+        env: &Rc<dyn EnvironmentRecord>,
+        deletable: bool,
+        chunk: &Rc<Chunk>,
+    ) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        env.create_mutable_binding(name.clone(), deletable).or(Err(InternalRuntimeError::BindingAlreadyExists))?;
+        Ok(())
+    }
+    pub fn create_mutable_lexical_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        create_mutable_binding(&env, deletable, chunk)
+    }
+    pub fn create_mutable_var_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
+        create_mutable_binding(&env, deletable, chunk)
+    }
+    pub fn create_mutable_lexical_binding_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
+        //  2. If alreadyDeclared is false, then
+        //        a. Perform ! env.CreateMutableBinding(paramName, false).
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let name = string_operand(chunk)?;
+
+        let already_declared = env.has_binding(name).or(Err(InternalRuntimeError::HasBindingFailure))?;
+        if !already_declared {
+            env.create_mutable_binding(name.clone(), false)
+                .or(Err(InternalRuntimeError::CreateMutableBindingFailure))?;
+        }
+        Ok(())
+    }
+    pub fn create_initialized_permanent_mutable_lexical_binding_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
+        //  2. If alreadyDeclared is false, then
+        //      a. Perform ! env.CreateMutableBinding(paramName, false).
+        //      b. Perform ! env.InitializeBinding(paramName, undefined).
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let name = string_operand(chunk)?;
+
+        let already_declared = env.has_binding(name).or(Err(InternalRuntimeError::HasBindingFailure))?;
+        if !already_declared {
+            env.create_mutable_binding(name.clone(), false)
+                .or(Err(InternalRuntimeError::CreateMutableBindingFailure))?;
+            env.initialize_binding(name, ECMAScriptValue::Undefined)
+                .or(Err(InternalRuntimeError::InitializeBindingFailure))?;
+        }
+        Ok(())
+    }
+    fn initialize_binding(env: &Rc<dyn EnvironmentRecord>, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let value = pop_value()?;
+        env.initialize_binding(name, value).or(Err(InternalRuntimeError::InitializeBindingFailure))?;
+        Ok(())
+    }
+    pub fn initialize_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        initialize_binding(&env, chunk)
+    }
+    pub fn initialize_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
+        initialize_binding(&env, chunk)
+    }
+    pub fn get_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let name = string_operand(chunk)?;
+        let value = env.get_binding_value(name, false).or(Err(InternalRuntimeError::GetBindingValueFailure))?;
+        push_value(value)
+    }
+    pub fn set_mutable_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
+        let name = string_operand(chunk)?;
+        let value = pop_value()?;
+        env.set_mutable_binding(name.clone(), value, false).or(Err(InternalRuntimeError::SetMutableBindingFailure))?;
+        Ok(())
+    }
+    pub fn create_per_iteration_environment(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // A 1-operand instruction that takes nothing from the stack as input, and produces one
+        // stack item ([empty]/error) on exit.
+        let string_set = string_set_operand(chunk)?;
+        let res = super::create_per_iteration_environment(string_set).map(NormalCompletion::from);
+        push_completion(res)?;
+        Ok(())
+    }
+    pub fn extract_thrown_value() -> anyhow::Result<()> {
+        let item = pop_completion()?;
+        match item {
+            Err(AbruptCompletion::Throw { value }) => {
+                push_value(value).expect(PUSHABLE);
+            }
+            _ => Err(InternalRuntimeError::ThrowExpected)?,
+        }
+        Ok(())
+    }
+    pub fn extract_arg() -> anyhow::Result<()> {
+        // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)
+        // Out: arg[0] N-1 arg[N-1] arg[N-2] ... arg[1]
+        //   --or, if N == 0 --
+        // Stack: 0
+        // Out: Undefined 0
+        let arg_count = usize_at(0)?;
+        if arg_count == 0 {
+            push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+            Ok(())
+        } else {
+            AGENT.with(|agent| {
+                let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+                let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+                let stack = &mut ec.stack;
+                let stack_len = stack.len();
+                if stack_len <= arg_count {
+                    Err(InternalRuntimeError::EmptyStack)?;
+                } else {
+                    let arg0 = stack.remove(stack_len - arg_count - 1);
+                    stack[stack_len - 2] = Ok(NormalCompletion::from(arg_count - 1));
+                    stack.push(arg0);
+                }
+                Ok(())
+            })
+        }
+    }
+    pub fn finish_args() -> anyhow::Result<()> {
+        // Stack: N arg[N-1] ... arg[0]
+        // Out:
+        // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
+        let arg_count = usize_at(0)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let stack_len = stack.len();
+            if stack_len <= arg_count {
+                Err(InternalRuntimeError::EmptyStack)?;
+            }
+            let to_retain = stack_len - arg_count - 1;
+            stack.truncate(to_retain);
+            Ok(())
+        })
+    }
+    pub fn object() -> anyhow::Result<()> {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let o = ordinary_object_create(Some(obj_proto), &[]);
+        push_value(ECMAScriptValue::Object(o))
+    }
+    pub fn array() -> anyhow::Result<()> {
+        let array = array_create(0, None).expect("Arrays of length zero are not too large");
+        push_value(ECMAScriptValue::Object(array))
+    }
+    pub fn create_data_property() -> anyhow::Result<()> {
+        let value = pop_value()?;
+        let nc_name = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+        let nc_obj = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+        let obj = Object::try_from(nc_obj)?;
+        let name = PropertyKey::try_from(nc_name)?;
+        obj.create_data_property_or_throw(name, value).or(Err(InternalRuntimeError::ObjectCDPFailure))?;
+        push_value(ECMAScriptValue::Object(obj)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn set_prototype() -> anyhow::Result<()> {
+        let value = pop_value()?;
+        let nc_obj = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+        let obj = Object::try_from(nc_obj)?;
+        let val_obj_res: anyhow::Result<Option<Object>> = value.try_into();
+        if let Ok(new_proto) = val_obj_res {
+            obj.o.set_prototype_of(new_proto).or(Err(InternalRuntimeError::SetPrototypeOfFailure))?;
+        }
+        push_value(ECMAScriptValue::Object(obj)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn to_property_key() -> anyhow::Result<()> {
+        let value_name = pop_value()?;
+        let key = super::to_property_key(value_name);
+        let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
+        push_completion(fc).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn copy_data_props(exclusions: &[PropertyKey]) -> anyhow::Result<()> {
+        let value = pop_value()?;
+        let obj = pop_obj()?;
+        let fc = obj.copy_data_properties(value, exclusions).map(|()| NormalCompletion::from(obj));
+        push_completion(fc).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn copy_data_props_with_exclusions() -> anyhow::Result<()> {
+        let exclusions = pop_key_list()?;
+        copy_data_props(&exclusions)
+    }
+    pub fn to_string() -> anyhow::Result<()> {
+        let val = pop_value()?;
+        let result = super::to_string(val).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn to_numeric() -> anyhow::Result<()> {
+        let val = pop_value()?;
+        let result = super::to_numeric(val).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn to_object() -> anyhow::Result<()> {
+        let val = pop_value()?;
+        let result = super::to_object(val).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn increment() -> anyhow::Result<()> {
+        let num = pop_numeric()?;
+        let result_val = match num {
+            Numeric::Number(n) => ECMAScriptValue::Number(n + 1.0),
+            Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi + 1)),
+        };
+        push_value(result_val).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn decrement() -> anyhow::Result<()> {
+        let num = pop_numeric()?;
+        let result_val = match num {
+            Numeric::Number(n) => ECMAScriptValue::Number(n - 1.0),
+            Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi - 1)),
+        };
+        push_value(result_val).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn pre_increment() -> anyhow::Result<()> {
+        let fc = pop_completion()?;
+        let result = prefix_increment(fc);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn pre_decrement() -> anyhow::Result<()> {
+        let fc = pop_completion()?;
+        let result = prefix_decrement(fc);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn delete() -> anyhow::Result<()> {
+        let fc = pop_completion()?;
+        let result = delete_ref(fc);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn void() -> anyhow::Result<()> {
+        let fc = pop_completion()?;
+        let result = void_operator(fc);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn type_of() -> anyhow::Result<()> {
+        let fc = pop_completion()?;
+        let result = typeof_operator(fc);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn append_list() -> anyhow::Result<()> {
+        // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
+        // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
+        // call them ListA and ListB ...
+        let len_a = pop_usize()?;
+        AGENT.with(|agent| -> Result<(), InternalRuntimeError> {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if len < len_a + 1 {
+                Err(InternalRuntimeError::EmptyStack)
+            } else {
+                stack[len - (len_a + 1)..len].rotate_left(1);
+                Ok(())
+            }
+        })?;
+        let len_b = pop_usize()?;
+        let new_len = len_a + len_b;
+        assert!(new_len < 1 << 53);
+        #[allow(clippy::cast_precision_loss)]
+        push_completion(Ok((new_len as f64).into())).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn require_constructor() -> anyhow::Result<()> {
+        let val = pop_value()?;
+        push_completion(if val.is_constructor() {
+            Ok(NormalCompletion::Empty)
+        } else {
+            Err(create_type_error("Constructor required"))
+        })
+        .expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn call(strict: bool) -> anyhow::Result<()> {
+        let arg_count = pop_usize()?;
+        let mut arguments = Vec::with_capacity(arg_count);
+        for _ in 1..=arg_count {
+            let val = pop_value()?;
+            arguments.push(val);
+        }
+        arguments.reverse();
+        let func_val = pop_value()?;
+        let ref_nc = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+
+        let mut was_direct_eval = false;
+        if let NormalCompletion::Reference(evalref) = &ref_nc {
+            if !evalref.is_property_reference() {
+                if let ReferencedName::String(name) = &evalref.referenced_name {
+                    if name == &JSString::from("eval")
+                        && super::to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
+                    {
+                        // A direct eval
+                        if arg_count == 0 {
+                            push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+                        } else {
+                            let result = perform_eval(
+                                arguments[0].clone(),
+                                if strict {
+                                    EvalCallStatus::DirectWithStrictCaller
+                                } else {
+                                    EvalCallStatus::DirectWithNonStrictCaller
+                                },
+                            );
+                            push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+                        }
+                        was_direct_eval = true;
+                    }
+                }
+            }
+        }
+
+        if !was_direct_eval {
+            begin_call_evaluation(&func_val, &ref_nc, &arguments)?;
+        }
+
+        Ok(())
+    }
+    pub fn end_function() -> anyhow::Result<()> {
+        let result = pop_completion()?;
+        let f_obj = pop_obj()?;
+        let callable = f_obj.o.to_callable_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
+        callable.end_evaluation(result);
+        Ok(())
+    }
+    pub fn construct() -> anyhow::Result<()> {
+        // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
+        let arg_count = pop_usize()?;
+        let mut arguments = Vec::with_capacity(arg_count);
+        for _ in 1..=arg_count {
+            let val = pop_value()?;
+            arguments.push(val);
+        }
+        arguments.reverse();
+        let newtgt = pop_value()?;
+        let cstr_val = pop_value()?;
+
+        begin_constructor_evaluation(cstr_val, newtgt, &arguments)?;
+
+        Ok(())
+    }
+    pub fn return_insn() -> anyhow::Result<()> {
+        let value = pop_value()?;
+        push_completion(Err(AbruptCompletion::Return { value })).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn unary_plus() -> anyhow::Result<()> {
+        let exp = pop_completion()?;
+        let val = super::get_value(exp);
+        let result = match val {
+            Ok(ev) => ev.to_number().map(NormalCompletion::from),
+            Err(ac) => Err(ac),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn unary_minus() -> anyhow::Result<()> {
+        let exp = pop_completion()?;
+        let val = super::get_value(exp);
+        let old_val = match val {
+            Ok(val) => super::to_numeric(val),
+            Err(ac) => Err(ac),
+        };
+        let result = match old_val {
+            Err(ac) => Err(ac),
+            Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(-n)),
+            Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(-&*bi))),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn unary_complement() -> anyhow::Result<()> {
+        let exp = pop_completion()?;
+        let val = super::get_value(exp);
+        let old_val = match val {
+            Ok(val) => super::to_numeric(val),
+            Err(ac) => Err(ac),
+        };
+        let result = match old_val {
+            Err(ac) => Err(ac),
+            Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32_f64(n))),
+            Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(!&*bi))),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn unary_not() -> anyhow::Result<()> {
+        let exp = pop_completion()?;
+        let val = super::get_value(exp);
+        let result = match val {
+            Ok(val) => Ok(NormalCompletion::from(!super::to_boolean(val))),
+            Err(ac) => Err(ac),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn binary_operation(op: BinOp) -> anyhow::Result<()> {
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = apply_string_or_numeric_binary_operator(left, right, op);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn instantiate_id_free_function_expression(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
+        // returns a function object. It is defined piecewise over the following productions:
+        //
+        //  FunctionExpression : function ( FormalParameters ) { FunctionBody }
+        //      1. If name is not present, set name to "".
+        //      2. Let env be the LexicalEnvironment of the running execution context.
+        //      3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //      4. Let sourceText be the source text matched by FunctionExpression.
+        //      5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //         FunctionBody, non-lexical-this, env, privateEnv).
+        //      6. Perform SetFunctionName(closure, name).
+        //      7. Perform MakeConstructor(closure).
+        //      8. Return closure.
+        let info = sfd_operand(chunk)?;
+        let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        // Name is on the stack.
+        // env/privateenv come from the agent.
+        // sourceText is on the stack? Or with the productions?
+        // FormalParameters/FunctionBody are... In a registry someplace maybe? With a registry ID in the instruction?
+        // strict is ... in that registry? (Needs to be not part of the current chunk).
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+
+        let name = pop_key()?;
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            outer_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+        make_constructor(&closure, None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn instantiate_ordinary_function_expression(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name
+        // and returns a function object. It is defined piecewise over the following productions:
+        //
+        // FunctionExpression : function BindingIdentifier ( FormalParameters ) { FunctionBody }
+        //
+        //   1. Assert: name is not present.
+        //   2. Set name to StringValue of BindingIdentifier.
+        //   3. Let outerEnv be the running execution context's LexicalEnvironment.
+        //   4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+        //   5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+        //   6. Let privateEnv be the running execution context's PrivateEnvironment.
+        //   7. Let sourceText be the source text matched by FunctionExpression.
+        //   8. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
+        //      FunctionBody, non-lexical-this, funcEnv, privateEnv).
+        //   9. Perform SetFunctionName(closure, name).
+        //  10. Perform MakeConstructor(closure).
+        //  11. Perform ! funcEnv.InitializeBinding(name, closure).
+        //  12. Return closure.
+        //
+        // NOTE: The BindingIdentifier in a FunctionExpression can be referenced from inside the
+        // FunctionExpression's FunctionBody to allow the function to call itself recursively. However, unlike
+        // in a FunctionDeclaration, the BindingIdentifier in a FunctionExpression cannot be referenced from
+        // and does not affect the scope enclosing the FunctionExpression.
+        let info = sfd_operand(chunk)?;
+
+        // First: compile the function.
+        let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let _ = pop_completion()?;
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let name = pop_string()?;
+
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let func_env = Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
+        let priv_env = current_private_environment();
+
+        func_env.create_immutable_binding(name.clone(), false).expect("Fresh environment won't fail");
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            func_env.clone(),
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.clone().into(), None);
+        make_constructor(&closure, None);
+        func_env.initialize_binding(&name, closure.clone().into()).expect("binding has been created");
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn instantiate_arrow_function_expression(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        let env = current_lexical_environment().unwrap();
+        let priv_env = current_private_environment();
+
+        let name_val = pop_value()?;
+        let name = FunctionName::try_from(name_val)?;
+
+        let to_compile: Rc<ArrowFunction> = info.to_compile.clone().try_into()?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::LexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name, None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn instantiate_ordinary_function_object(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let info = sfd_operand(chunk)?;
+
+        let to_compile: Rc<FunctionDeclaration> =
+            info.to_compile.clone().try_into().context("finding function compilation source")?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name.clone().into(), None);
+        make_constructor(&closure, None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn throw() -> anyhow::Result<()> {
+        // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
+        let value = pop_value()?;
+        push_completion(Err(AbruptCompletion::Throw { value })).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn compare(swap_args: bool, invert: bool) -> anyhow::Result<()> {
+        fn compare_invert(optb: Option<bool>) -> NormalCompletion {
+            NormalCompletion::from(!optb.unwrap_or(true))
+        }
+        fn compare_pass(optb: Option<bool>) -> NormalCompletion {
+            NormalCompletion::from(optb.unwrap_or(false))
+        }
+
+        let right_operand = pop_value()?;
+        let left_operand = pop_value()?;
+        let (x, y) = if swap_args { (right_operand, left_operand) } else { (left_operand, right_operand) };
+        let handler = if invert { compare_invert } else { compare_pass };
+        let result = is_less_than(x, y, !swap_args).map(handler);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn instance_of() -> anyhow::Result<()> {
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = instanceof_operator(left, &right);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn in_op() -> anyhow::Result<()> {
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = match right {
+            ECMAScriptValue::Object(obj) => {
+                super::to_property_key(left).and_then(|key| super::has_property(&obj, &key)).map(NormalCompletion::from)
+            }
+            _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
+        };
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn equal(invert: bool) -> anyhow::Result<()> {
+        let compute = if invert { bool::not } else { identity };
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = is_loosely_equal(&left, &right).map(compute).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn strict_equal(invert: bool) -> anyhow::Result<()> {
+        let compute = if invert { bool::not } else { identity };
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = Ok(NormalCompletion::from(compute(left.is_strictly_equal(&right))));
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn create_unmapped_arguments_object() -> anyhow::Result<()> {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
+        // Those values are NOT consumed; this function assumes they'll be used again.
+
+        let length = peek_usize(0)?;
+        let obj = ArgumentsObject::object(None);
+        define_property_or_throw(
+            &obj,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+
+        let arguments = peek_list(1, length)?;
+
+        for (arg_number, item) in arguments.into_iter().enumerate() {
+            let value = ECMAScriptValue::try_from(item.map_err(|_| InternalRuntimeError::NonErrorExpected)?)?;
+            obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
+        }
+
+        let iterator = wks(WksId::Iterator);
+        let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
+        let throw_type_error = intrinsic(IntrinsicId::ThrowTypeError);
+        define_property_or_throw(
+            &obj,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+        define_property_or_throw(
+            &obj,
+            "callee",
+            PotentialPropertyDescriptor::new()
+                .get(throw_type_error.clone())
+                .set(throw_type_error)
+                .enumerable(false)
+                .configurable(false),
+        )
+        .expect("Normal Object");
+
+        push_value(obj.into()).expect(PUSHABLE);
+        Ok(())
+        // Stack at exit: AObj N arg[N-1] ... arg[0] ...
+    }
+    pub fn create_mapped_arguments_object() -> anyhow::Result<()> {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
+        let length = peek_usize(0)?;
+        let arguments = peek_list(1, length)?;
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoContext)?;
+        let map = ParameterMap::new(env);
+        let ao = ArgumentsObject::object(Some(map));
+
+        for (idx, item) in arguments.into_iter().enumerate() {
+            let val =
+                ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
+            ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
+        }
+
+        define_property_or_throw(
+            &ao,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let iterator = wks(WksId::Iterator);
+        let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
+        define_property_or_throw(
+            &ao,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let func = peek_value(length + 1)?;
+        define_property_or_throw(
+            &ao,
+            "callee",
+            PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+
+        push_value(ao.into()).expect(PUSHABLE);
+        Ok(())
+        // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
+    }
+    pub fn add_mapped_argument(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let argument_index = usize_operand(chunk)?;
+        // Stack: AObj ...
+        let obj = peek_obj(0)?;
+        let ao = obj.o.to_arguments_object().ok_or(InternalRuntimeError::ArgumentsObjectExpected)?;
+        let pmap = ao.parameter_map.as_ref().ok_or(InternalRuntimeError::MappedArgumentsObjectExpected)?;
+        let mut pmap = pmap.borrow_mut();
+        pmap.add_mapped_name(name.clone(), argument_index);
+        // Stack: AObj ...
+        Ok(())
+    }
+    pub fn handle_empty_break() -> anyhow::Result<()> {
+        let prior_result = pop_completion()?;
+        let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
+            match value {
+                NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
+                value => Ok(value),
+            }
+        } else {
+            prior_result
+        };
+        push_completion(new_result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn handle_targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?;
+        let prior_result = pop_completion()?;
+        let new_result = match prior_result {
+            Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
+            _ => prior_result,
+        };
+        push_completion(new_result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn coalesce_value() -> anyhow::Result<()> {
+        // Stack: stmtResult V ...
+        // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
+        let stmt_result = pop_completion()?;
+        let v = pop_value()?;
+        push_completion(Ok(match stmt_result {
+            Ok(NormalCompletion::Value(value))
+            | Err(
+                AbruptCompletion::Throw { value }
+                | AbruptCompletion::Return { value }
+                | AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. }
+                | AbruptCompletion::Break { value: NormalCompletion::Value(value), .. },
+            ) => NormalCompletion::from(value),
+            _ => NormalCompletion::from(v),
+        }))
+        .expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn loop_continues(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
+        // true or false on the stack.
+        let label_set = string_set_operand(chunk)?;
+        // 1. If completion.[[Type]] is normal, return true.
+        // 2. If completion.[[Type]] is not continue, return false.
+        // 3. If completion.[[Target]] is empty, return true.
+        // 4. If completion.[[Target]] is an element of labelSet, return true.
+        // 5. Return false.
+        let completion = peek_completion(0)?;
+        let result = match &completion {
+            Ok(_) | Err(AbruptCompletion::Continue { value: _, target: None }) => true,
+            Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
+            _ => false,
+        };
+        push_value(result.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn continue_insn() -> anyhow::Result<()> {
+        push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }))
+    }
+    pub fn targeted_continue(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?.clone();
+        push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }))
+    }
+    pub fn break_insn() -> anyhow::Result<()> {
+        push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }))
+    }
+    pub fn targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?.clone();
+        push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }))
+    }
+    pub fn iterator_accumulate() -> anyhow::Result<()> {
+        let iterable = pop_value()?;
+        let starting_index = pop_value()?;
+        let array = pop_obj()?;
+        let mut next_index = to_index(starting_index).map_err(|_| InternalRuntimeError::NumberExpected)?;
+        match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
+            match ir.step() {
+                Ok(next_opt_obj) => match next_opt_obj {
+                    None => break Ok((next_index, array)),
+                    Some(next_obj) => {
+                        let next_value = iterator_value(&next_obj);
+                        match next_value {
+                            Err(e) => break Err(e),
+                            Ok(next_value) => {
+                                array
+                                    .create_data_property_or_throw(JSString::from(next_index), next_value)
+                                    .expect("props should store ok");
+                                next_index += 1;
+                            }
+                        }
+                    }
+                },
+                Err(e) => break Err(e),
+            }
+        }) {
+            Ok((next_index, array)) => {
+                push_value(array.into()).expect(PUSHABLE);
+                push_value(next_index.into()).expect(PUSHABLE);
+            }
+            Err(e) => {
+                push_completion(Err(e)).expect(PUSHABLE);
+            }
+        }
+        Ok(())
+    }
+    pub fn iterate_arguments() -> anyhow::Result<()> {
+        // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
+        // representation of an argument list (N arg(n-1) ... arg(0)). See
+        // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
+        // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
+        //
+        //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
+        //  5. Repeat,
+        //      a. Let next be ? IteratorStep(iteratorRecord).
+        //      b. If next is false, return list.
+        //      c. Let nextArg be ? IteratorValue(next).
+        //      d. Append nextArg to list.
+        let spread_obj = pop_value()?;
+
+        let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
+        let steps_result = if let Ok(iterator_record) = iterator_result {
+            let mut count = 0;
+            let res = loop {
+                match iterator_step(&iterator_record) {
+                    Ok(next_opt_obj) => match next_opt_obj {
+                        None => {
+                            push_value(count.into()).expect(PUSHABLE);
+                            break Ok(());
+                        }
+                        Some(obj) => match iterator_value(&obj) {
+                            Ok(next_arg) => {
+                                count += 1;
+                                push_value(next_arg).expect(PUSHABLE);
+                            }
+                            Err(e) => {
+                                break Err(e);
+                            }
+                        },
+                    },
+                    Err(e) => {
+                        break Err(e);
+                    }
+                }
+            };
+            if res.is_err() {
+                // unwind
+                for _ in 0..count {
+                    let _ = pop_completion().expect(POPPABLE);
+                }
+            }
+            res
+        } else {
+            Err(iterator_result.unwrap_err())
+        };
+        if let Err(e) = steps_result {
+            push_completion(Err(e)).expect(PUSHABLE);
+        }
+        Ok(())
+    }
+    pub fn elision_idae() -> anyhow::Result<()> {
+        // The Elision form of IteratorDestructuringAssignmentEvaluation
+        // Input on stack: <elision count as a float value> <iterator record>
+        // Ouptut on stack: <iterator record>/err
+        let mut count = pop_usize()?;
+        let ir = pop_ir()?;
+        // Elision : ,
+        //  1. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  2. Return unused.
+        // Elision : Elision ,
+        //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  3. Return unused.
+        let retval = loop {
+            if count == 0 || ir.done.get() {
+                break Ok(());
+            }
+            let next_result = ir.step();
+            match next_result {
+                Ok(None) => {
+                    ir.done.set(true);
+                }
+                Ok(Some(_)) => (),
+                Err(e) => {
+                    ir.done.set(true);
+                    break Err(e);
+                }
+            }
+            count -= 1;
+        }
+        .map(|()| NormalCompletion::from(ir));
+        push_completion(retval).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn embellished_iterator_step() -> anyhow::Result<()> {
+        // Input: on stack: an iterator record (ir)
+        // Output: on stack: an output value (v), and the input ir, -or- one error
+        //  1. Let v be undefined.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //      e. Else,
+        //          i. Set v to Completion(IteratorValue(next)).
+        //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(v).
+        let ir = pop_ir()?;
+        if ir.done.get() {
+            push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+            push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+        } else {
+            let next_result = ir.step();
+            match next_result {
+                Err(e) => {
+                    ir.done.set(true);
+                    push_completion(Err(e)).expect(PUSHABLE);
+                }
+                Ok(None) => {
+                    ir.done.set(true);
+                    push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                    push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+                }
+                Ok(Some(next_obj)) => {
+                    let v = iterator_value(&next_obj);
+                    match v {
+                        Err(e) => {
+                            ir.done.set(true);
+                            push_completion(Err(e)).expect(PUSHABLE);
+                        }
+                        Ok(v) => {
+                            push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                            push_value(v).expect(PUSHABLE);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn iterator_rest() -> anyhow::Result<()> {
+        // Input: one stack argument, an iterator record
+        // Output: two stack elements: an array object, followed by the iterator record
+        //     or: one stack element: an error
+
+        //  2. Let A be ! ArrayCreate(0).
+        //  3. Let n be 0.
+        //  4. Repeat,
+        //      a. If iteratorRecord.[[Done]] is false, then
+        //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+        //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(next).
+        //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+        //      b. If iteratorRecord.[[Done]] is true, then
+        //          i. Return (A, iteratorRecord).
+        //      c. Let nextValue be Completion(IteratorValue(next)).
+        //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      e. ReturnIfAbrupt(nextValue).
+        //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+        //      g. Set n to n + 1.
+        let ir = pop_ir()?;
+        let a = array_create(0, None).expect("0 should fit in ram");
+        let mut n = 0;
+        loop {
+            if ir.done.get() {
+                push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                push_value(ECMAScriptValue::Object(a)).expect(PUSHABLE);
+                break;
+            }
+            match ir.step() {
+                Ok(None) => {
+                    ir.done.set(true);
+                    push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                    push_value(ECMAScriptValue::Object(a)).expect(PUSHABLE);
+                    break;
+                }
+                Ok(Some(next_obj)) => {
+                    match iterator_value(&next_obj) {
+                        Ok(next_value) => {
+                            a.create_data_property_or_throw(format!("{n}"), next_value)
+                                .expect("array property set should work");
+                            n += 1;
+                        }
+                        Err(e) => {
+                            ir.done.set(true);
+                            push_completion(Err(e)).expect(PUSHABLE);
+                            break;
+                        }
+                    };
+                }
+                Err(e) => {
+                    ir.done.set(true);
+                    push_completion(Err(e)).expect(PUSHABLE);
+                    break;
+                }
+            };
+        }
+        Ok(())
+    }
+    pub fn require_coercible() -> anyhow::Result<()> {
+        // Input: one stack argument, an ECMAScriptValue
+        // Output: one stack completion: either the same input value, or an error.
+        let val = pop_value()?;
+        let result = require_object_coercible(&val);
+        push_completion(match result {
+            Ok(()) => Ok(val.into()),
+            Err(e) => Err(e),
+        })
+        .expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn get_sync_iterator() -> anyhow::Result<()> {
+        // This instruction handles the step that looks like:
+        //  1. Let iteratorRecord be ? GetIterator(value, sync).
+        //
+        // Input on stack: that value.
+        // Output on stack: the iterator record/abrupt completion.
+
+        let value = pop_value()?;
+        let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_close() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Return ? IteratorClose(iteratorRecord, status).
+
+        // Input on the stack: status iteratorRecord
+        // Ouptut on stack: the operation's result (which might be the input status)
+        let status = pop_completion()?;
+        let ir = pop_ir()?;
+        let result = super::iterator_close(&ir, status);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_close_if_not_done() -> anyhow::Result<()> {
+        // This instruction handles the step that looks like:
+        //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+        //  4. Return ? result.
+        //
+        // Input on stack: result iteratorRecord
+        // Output result/err
+        let result = pop_completion()?;
+        let ir = pop_ir()?;
+        let done = ir.done.get();
+        let right = if done { result } else { super::iterator_close(&ir, result) };
+        push_completion(right).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_next() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        //  2. If nextResult is not an Object, throw a TypeError exception.
+        //
+        // Input on stack: iteratorRecord
+        // Output:         nextResult/err iteratorRecord
+        let ir = pop_ir()?;
+        let next_method = ECMAScriptValue::from(ir.next_method.clone());
+        let iterator = ECMAScriptValue::from(ir.iterator.clone());
+        let next_result = super::call(&next_method, &iterator, &[]);
+
+        let result = match next_result {
+            Ok(val) => match val {
+                ECMAScriptValue::Object(_) => Ok(val),
+                _ => Err(create_type_error("Iterator Result must be an object")),
+            },
+            Err(_) => next_result,
+        };
+        push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_result_complete() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let done be ? IteratorComplete(nextResult).
+        //
+        // Input on stack: nextResult (an iterator result object)
+        // Output: done/err nextResult (the result is not consumed)
+
+        let next_result = pop_obj()?;
+        let done = iterator_complete(&next_result);
+        push_value(next_result.into()).expect(PUSHABLE);
+        push_completion(done.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_result_to_value() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let nextValue be ? IteratorValue(nextResult).
+        //
+        // Input on stack: nextResult (an iterator result object)
+        // Output: value/err (the nextResult is consumed)
+        let next_result = pop_obj()?;
+        let value = iterator_value(&next_result);
+        push_completion(value.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn getv() -> anyhow::Result<()> {
+        // input: key, base
+        let prop_name = pop_key()?;
+        let base_val = pop_value()?;
+        let result = base_val.get(&prop_name).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn enumerate_object_properties() -> anyhow::Result<()> {
+        // input: an object
+        // output: an iterator record set up to iterate over the properties of that object
+        let obj = pop_obj()?;
+        let iterator = create_for_in_iterator(obj);
+        let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
+            .expect("next method should be an object");
+        let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
+        push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn private_id_lookup(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
+        // Input on the stack: nothing
+        // Output on the stack: the sought-after PrivateId
+
+        // (These are from the evalution steps for the production: ClassElementName : PrivateIdentifier)
+        // 2. Let privateEnvRec be the running execution context's PrivateEnvironment.
+        // 3. Let names be privateEnvRec.[[Names]].
+        // 4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
+        // 5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
+        // 6. Return privateName.
+        let private_identifier = string_operand(chunk)?;
+        let priv_env = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
+        let names = &priv_env.borrow().names;
+        let private_name = names
+            .iter()
+            .find(|&item| item.description == *private_identifier)
+            .ok_or(InternalRuntimeError::MissingPrivateName)?
+            .clone();
+        push_completion(Ok(NormalCompletion::from(private_name)))
+    }
+    pub fn evaluate_initialized_class_field_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        let name = pop_classname()?;
+        let home_object = pop_obj()?;
+        let initializer = evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)?;
+
+        push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
+        push_completion(Ok(NormalCompletion::from(name))).expect(PUSHABLE);
+        push_value(ECMAScriptValue::Object(initializer)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        let home_object = pop_obj()?;
+        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)?;
+
+        push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
+        push_value(ECMAScriptValue::Object(block_body)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_method(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // on the stack: propkey object prototype
+        let info = sfd_operand(chunk)?;
+        let propkey = pop_key()?;
+        let obj = pop_obj()?;
+        let prototype = pop_obj()?;
+
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
+            let name = nameify(&info.source_text, 50);
+            let mut compiled = Chunk::new(name);
+            let compilation_status = body.compile_body(&mut compiled, text, info);
+            if let Err(err) = compilation_status {
+                let typeerror = create_type_error(err.to_string());
+                push_completion(Err(typeerror)).expect(PUSHABLE);
+                return Ok(());
+            }
+            for line in compiled.disassemble() {
+                println!("{line}");
+            }
+
+            let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+            let private_env = current_private_environment();
+            let source_text = &info.source_text;
+            let strict = info.strict;
+            let closure = ordinary_function_create(
+                prototype,
+                source_text,
+                info.params.clone(),
+                info.body.clone(),
+                ThisLexicality::NonLexicalThis,
+                env,
+                private_env,
+                strict,
+                Rc::new(compiled),
+            );
+
+            make_method(
+                closure.o.to_function_obj().expect("a closure we just created should be a function object"),
+                obj,
+            );
+
+            push_value(ECMAScriptValue::Object(closure)).expect(PUSHABLE);
+            push_completion(Ok(propkey.into())).expect(PUSHABLE);
+            Ok(())
+        } else {
+            Err(InternalRuntimeError::ExpectedMethod)?
+        }
+    }
+    pub fn set_function_name() -> anyhow::Result<()> {
+        // on stack: propertykey closure
+        // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
+        let property_key = peek_function_name(0)?;
+        let closure = peek_obj(1)?;
+        super::set_function_name(&closure, property_key, None);
+        Ok(())
+    }
+    pub fn define_method_property(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
+        // Stack: propertykey closure object
+        let enumerable = usize_operand(chunk)? != 0;
+        let name = pop_functionname()?;
+        let closure = pop_obj()?;
+        let home_object = pop_obj()?;
+        let result = super::define_method_property(&home_object, name, closure, enumerable);
+        push_completion(Ok(result.into())).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_getter(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  6. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
+        //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  7. Perform MakeMethod(closure, object).
+        //  8. Perform SetFunctionName(closure, propKey, "get").
+        //  9. If propKey is a Private Name, then
+        //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: closure, [[Set]]:
+        //         undefined }.
+        //  10. Else,
+        //      a. Let desc be the PropertyDescriptor { [[Get]]: closure, [[Enumerable]]: enumerable,
+        //         [[Configurable]]: true }.
+        //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+        //      c. Return UNUSED.
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        let MethodDefinition::Getter(_, fb, _) = to_compile.as_ref() else {
+            Err(InternalRuntimeError::GetterMethodExpected)?
+        };
+        let prod_text_loc = to_compile.location().span;
+        let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = fb.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let private_env = current_private_environment();
+        let prototype = intrinsic(IntrinsicId::FunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env,
+            private_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("get".into()));
+
+        let result = match prop_key {
+            FunctionName::String(_) | FunctionName::Symbol(_) => {
+                let desc = PotentialPropertyDescriptor::new().get(closure).enumerable(enumerable).configurable(true);
+                let result = define_property_or_throw(&base_object, PropertyKey::try_from(prop_key).unwrap(), desc);
+                result.map(|()| None)
+            }
+            FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
+                key: pn,
+                kind: PrivateElementKind::Accessor { get: Some(closure), set: None },
+            })),
+        };
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_setter(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText,
+        //     PropertySetParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  6. Perform MakeMethod(closure, object).
+        //  7. Perform SetFunctionName(closure, propKey, "set").
+        //  8. If propKey is a Private Name, then
+        //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined, [[Set]]:
+        //         closure }.
+        //  9. Else,
+        //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable,
+        //         [[Configurable]]: true }.
+        //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+        //      c. Return UNUSED.
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        let MethodDefinition::Setter(_, _, fb, _) = to_compile.as_ref() else {
+            Err(InternalRuntimeError::SetterMethodExpected)?
+        };
+        let prod_text_loc = to_compile.location().span;
+        let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = fb.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let private_env = current_private_environment();
+        let prototype = intrinsic(IntrinsicId::FunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env,
+            private_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("set".into()));
+
+        let result = match prop_key {
+            FunctionName::String(_) | FunctionName::Symbol(_) => {
+                let desc = PotentialPropertyDescriptor::new().set(closure).enumerable(enumerable).configurable(true);
+                let result = define_property_or_throw(&base_object, PropertyKey::try_from(prop_key).unwrap(), desc);
+                result.map(|()| None)
+            }
+            FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
+                key: pn,
+                kind: PrivateElementKind::Accessor { set: Some(closure), get: None },
+            })),
+        };
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+}
+
 #[allow(clippy::cast_possible_wrap)]
 pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
+    const GOODCODE: &str = "code should have been properly compiled";
+
     AGENT.with(|agent| {
         // If our ec index drops below this, we exit.
         let initial_context_index = agent.execution_context_stack.borrow().len() - 1;
@@ -683,2082 +2939,223 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
             let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
             agent.execution_context_stack.borrow_mut()[index].pc += 1;
             match instruction {
-                Insn::Nop => {
-                    // Do nothing
+                Insn::Nop => insn_impl::nop(),
+                Insn::ToDo => insn_impl::todo(),
+                Insn::String => insn_impl::string(&chunk).expect(GOODCODE),
+                Insn::Null => insn_impl::null().expect(GOODCODE),
+                Insn::True => insn_impl::true_val().expect(GOODCODE),
+                Insn::False => insn_impl::false_val().expect(GOODCODE),
+                Insn::Zero => insn_impl::zero().expect(GOODCODE),
+                Insn::Empty => insn_impl::empty().expect(GOODCODE),
+                Insn::EmptyIfNotError => insn_impl::empty_if_not_error().expect(GOODCODE),
+                Insn::Undefined => insn_impl::undefined().expect(GOODCODE),
+                Insn::This => insn_impl::this().expect(GOODCODE),
+                Insn::Resolve => insn_impl::resolve(false).expect(GOODCODE),
+                Insn::StrictResolve => insn_impl::resolve(true).expect(GOODCODE),
+                Insn::Float => insn_impl::float(&chunk).expect(GOODCODE),
+                Insn::Bigint => insn_impl::bigint(&chunk).expect(GOODCODE),
+                Insn::GetValue => insn_impl::get_value().expect(GOODCODE),
+                Insn::PutValue => insn_impl::put_value().expect(GOODCODE),
+                Insn::FunctionPrototype => insn_impl::function_prototype().expect(GOODCODE),
+                Insn::JumpIfAbrupt => insn_impl::jump_if_abrupt(&chunk).expect(GOODCODE),
+                Insn::JumpIfNormal => insn_impl::jump_if_normal(&chunk).expect(GOODCODE),
+                Insn::JumpIfFalse => insn_impl::jump_referencing_bool(false, &chunk).expect(GOODCODE),
+                Insn::JumpIfTrue => insn_impl::jump_referencing_bool(true, &chunk).expect(GOODCODE),
+                Insn::JumpPopIfFalse => insn_impl::jump_taking_bool(false, &chunk).expect(GOODCODE),
+                Insn::JumpPopIfTrue => insn_impl::jump_taking_bool(true, &chunk).expect(GOODCODE),
+                Insn::JumpIfNotNullish => insn_impl::jump_nullishness(false, &chunk).expect(GOODCODE),
+                Insn::JumpIfNullish => insn_impl::jump_nullishness(true, &chunk).expect(GOODCODE),
+                Insn::JumpIfNotUndef => insn_impl::jump_undefness(false, &chunk).expect(GOODCODE),
+                Insn::JumpNotThrow => insn_impl::jump_throwyness(false, &chunk).expect(GOODCODE),
+                Insn::Jump => insn_impl::jump(&chunk).expect(GOODCODE),
+                Insn::UpdateEmpty => insn_impl::update_empty().expect(GOODCODE),
+                Insn::Pop2Push3 => insn_impl::pop2push3().expect(GOODCODE),
+                Insn::RotateUp => insn_impl::rotate_up(&chunk).expect(GOODCODE),
+                Insn::RotateDown => insn_impl::rotate_down(&chunk).expect(GOODCODE),
+                Insn::RotateDownList => insn_impl::rotate_down_list(&chunk).expect(GOODCODE),
+                Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
+                Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
+                Insn::Pop => insn_impl::pop().expect(GOODCODE),
+                Insn::PopOrPanic => insn_impl::pop_or_panic().expect(GOODCODE),
+                Insn::Swap => insn_impl::swap().expect(GOODCODE),
+                Insn::SwapList => insn_impl::swap_list().expect(GOODCODE),
+                Insn::PopList => insn_impl::pop_list().expect(GOODCODE),
+                Insn::PopOutList => insn_impl::pop_out_list(&chunk).expect(GOODCODE),
+                Insn::SwapDeepList => insn_impl::swap_deep_list().expect(GOODCODE),
+                Insn::ListToArray => insn_impl::list_to_array().expect(GOODCODE),
+                Insn::InitializeReferencedBinding => insn_impl::initialize_referenced_binding().expect(GOODCODE),
+                Insn::PushNewLexEnv => insn_impl::push_new_lexical_environment(),
+                Insn::PopLexEnv => insn_impl::pop_lexical_environment().expect(GOODCODE),
+                Insn::PushNewVarEnvFromLex => insn_impl::push_new_var_env_from_lex(),
+                Insn::PushNewLexEnvFromVar => insn_impl::push_new_lex_env_from_var(),
+                Insn::SetLexEnvToVarEnv => insn_impl::set_lex_env_to_var_env(),
+                Insn::CreateStrictImmutableLexBinding => {
+                    insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
                 }
-                Insn::ToDo => {
-                    // Panic with a todo message
-                    todo!()
+                Insn::CreateNonStrictImmutableLexBinding => {
+                    insn_impl::create_immutable_lex_binding(false, &chunk).expect(GOODCODE);
                 }
-                Insn::String => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let string = &chunk.strings[string_index as usize];
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(string.into()));
+                Insn::CreatePermanentMutableLexBinding => {
+                    insn_impl::create_mutable_lexical_binding(false, &chunk).expect(GOODCODE);
                 }
-                Insn::Null => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Null.into()));
-                }
-                Insn::True => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(true.into())),
-                Insn::False => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(false.into())),
-                Insn::Zero => agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(0.into())),
-                Insn::Empty => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::Empty));
-                }
-                Insn::EmptyIfNotError => {
-                    // if the top stack element is an error, don't change it. Otherwise, replace it with [empty]
-                    let completion = ec_pop().expect("There should be an argument on the stack");
-                    match completion {
-                        Ok(_) => {
-                            ec_push(Ok(NormalCompletion::Empty));
-                        }
-                        Err(_) => {
-                            ec_push(completion);
-                        }
-                    }
-                }
-                Insn::Undefined => {
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::Undefined.into()));
-                }
-                Insn::This => {
-                    let this_resolved = resolve_this_binding().map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(this_resolved);
-                }
-                Insn::Resolve => {
-                    //let name = match agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap() {
-                    //    NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
-                    //    _ => unreachable!(),
-                    //};
-                    let NormalCompletion::Value(ECMAScriptValue::String(name)) =
-                        agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap()
-                        else { unreachable!() };
-                    let resolved = resolve_binding(&name, None, false);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(resolved);
-                }
-                Insn::StrictResolve => {
-                    let NormalCompletion::Value(ECMAScriptValue::String(name)) =
-                        agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap()
-                        else { unreachable!() };
-                    let resolved = resolve_binding(&name, None, true);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(resolved);
-                }
-                Insn::Float => {
-                    let float_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let number = chunk.floats[float_index as usize];
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
-                }
-                Insn::Bigint => {
-                    let bigint_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let number = Rc::clone(&chunk.bigints[bigint_index as usize]);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(number.into()));
-                }
-                Insn::GetValue => {
-                    let reference = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let value = get_value(reference);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(value.map(NormalCompletion::from));
-                }
-                Insn::PutValue => {
-                    let w = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let v = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = put_value(v, w.map(|v| v.try_into().unwrap()));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result.map(NormalCompletion::from));
-                }
-                Insn::FunctionPrototype => {
-                    let proto = ECMAScriptValue::from(intrinsic(IntrinsicId::FunctionPrototype));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(proto.into()));
-
-                }
-                Insn::JumpIfAbrupt => {
-                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as i16;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                    if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_err() {
-                        if jump >= 0 {
-                            agent.execution_context_stack.borrow_mut()[index].pc += usize::try_from(jump).expect("jump is positive");
-                        } else {
-                            agent.execution_context_stack.borrow_mut()[index].pc -= usize::try_from(-jump).expect("-jump is positive");
-                        }
-                    }
-                }
-                Insn::JumpIfNormal => {
-                    let jump = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as i16;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                    if agent.execution_context_stack.borrow()[index].stack[stack_idx].is_ok() {
-                        if jump >= 0 {
-                            agent.execution_context_stack.borrow_mut()[index].pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            agent.execution_context_stack.borrow_mut()[index].pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::JumpIfFalse | Insn::JumpIfTrue => {
-                    let execution_context = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[execution_context.pc] as i16;
-                    execution_context.pc += 1;
-                    let stack_idx = execution_context.stack.len() - 1;
-                    let bool_val = bool::from(
-                        ECMAScriptValue::try_from(
-                            execution_context.stack[stack_idx]
-                                .clone()
-                                .expect("Boolean Jumps may only be used with Normal completions"),
-                        )
-                        .expect("Boolean Jumps may only be used with Values"),
-                    );
-                    if (instruction == Insn::JumpIfFalse && !bool_val) || (instruction == Insn::JumpIfTrue && bool_val)
-                    {
-                        if jump >= 0 {
-                            execution_context.pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            execution_context.pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::JumpPopIfFalse | Insn::JumpPopIfTrue => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc] as i16;
-                    ec.pc += 1;
-                    let bool_val = bool::from(
-                        ECMAScriptValue::try_from(
-                            ec.stack
-                                .pop()
-                                .expect("JumpPop must have an argument")
-                                .expect("Boolean Jumps may only be used with Normal completions"),
-                        )
-                        .expect("Boolean Jumps may only be used with Values"),
-                    );
-                    if (instruction == Insn::JumpPopIfFalse && !bool_val)
-                        || (instruction == Insn::JumpPopIfTrue && bool_val)
-                    {
-                        if jump >= 0 {
-                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::JumpIfNotNullish | Insn::JumpIfNullish => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc] as i16;
-                    ec.pc += 1;
-                    let stack_idx = ec.stack.len() - 1;
-                    let val = ECMAScriptValue::try_from(
-                        ec.stack[stack_idx].clone().expect("Nullish Jumps may only be used with Normal completions"),
-                    )
-                    .expect("Nullish Jumps may only be used with Values");
-                    let should_jump = (instruction != Insn::JumpIfNotNullish)
-                        ^ (val != ECMAScriptValue::Undefined && val != ECMAScriptValue::Null);
-                    if should_jump {
-                        if jump >= 0 {
-                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::JumpIfNotUndef => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc] as i16;
-                    ec.pc += 1;
-                    let stack_idx = ec.stack.len() - 1;
-                    let val = ECMAScriptValue::try_from(
-                        ec.stack[stack_idx].clone().expect("Undef Jumps may only be used with Normal completions"),
-                    )
-                    .expect("Undef Jumps may only be used with Values");
-                    if val != ECMAScriptValue::Undefined {
-                        if jump >= 0 {
-                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::JumpNotThrow => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc] as i16;
-                    ec.pc += 1;
-                    let stack_idx = ec.stack.len() - 1;
-                    let completion = &ec.stack[stack_idx];
-
-                    if !matches!(completion, Err(AbruptCompletion::Throw { .. })) {
-                        if jump >= 0 {
-                            ec.pc += usize::try_from(jump).expect("jump should be >= 0");
-                        } else {
-                            ec.pc -= usize::try_from(-jump).expect("jump should be < 0");
-                        }
-                    }
-                }
-                Insn::Jump => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let jump = chunk.opcodes[ec.pc] as i16;
-                    ec.pc += 1;
-                    if jump >= 0 {
-                        ec.pc += usize::try_from(jump).expect("jump should be >= 0");
-                    } else {
-                        ec.pc -= usize::try_from(-jump).expect("jump sjould be < 0");
-                    }
-                }
-                Insn::UpdateEmpty => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let newer = ec.stack.pop().unwrap();
-                    let older = ec.stack.pop().unwrap().unwrap();
-                    ec.stack.push(update_empty(newer, older));
-                }
-                Insn::Pop2Push3 => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    // Stack: top lower ====> top lower top
-                    let top = ec.stack.pop().unwrap();
-                    let lower = ec.stack.pop().unwrap();
-                    let bottom = top.clone();
-                    ec.stack.push(bottom);
-                    ec.stack.push(lower);
-                    ec.stack.push(top);
-                }
-                Insn::RotateUp => {
-                    // a 1-arg instruction: take the n-th item in the stack and move it to the top, sliding the others
-                    // down. E.g.: with A, B, C, D on the stack (top on the left), "RotateUp 3" will produce C, A, B, D.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let amt = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let stack = &mut ec.stack;
-                    let len = stack.len();
-                    assert!(len >= amt);
-                    stack[len - amt..len].rotate_left(1);
-                }
-                Insn::RotateDown => {
-                    // a 1-arg instruction: take the top item of the stack and move it down until it becomes the n-th item in the stack, sliding the others
-                    // up. E.g.: with A, B, C, D on the stack (top on the left), "RotateDown 3" will produce B, C, A, D.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let amt = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let stack = &mut ec.stack;
-                    let len = stack.len();
-                    assert!(len >= amt);
-                    stack[len - amt..len].rotate_right(1);
-                }
-                Insn::RotateDownList => {
-                    // a 1-arg instruction (N)
-                    // Given a stack, ITEM LIST B C D, move ITEM down past the list plus N more items.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let amt = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let stack = &mut ec.stack;
-                    let len = stack.len();
-                    let list_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(stack[len - 2].clone().expect("length should not be error"))
-                            .expect("length should be value"),
-                    )
-                    .expect("length must be a number"))
-                    .expect("length should be a valid integer");
-                    stack[len - list_len - amt - 2..len].rotate_right(1);
-                }
-                Insn::Ref | Insn::StrictRef => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let strict = instruction == Insn::StrictRef;
-                    // Stack: name base ...
-                    let name = {
-                        let result: Result<ECMAScriptValue, _> = ec.stack.pop().unwrap().unwrap().try_into();
-                        let value: Result<PropertyKey, _> = result.unwrap().try_into();
-                        value.unwrap()
-                    };
-                    // Stack: base ...
-                    let base = {
-                        let result: Result<ECMAScriptValue, _> = ec.stack.pop().unwrap().unwrap().try_into();
-                        result.unwrap()
-                    };
-                    // Stack: ...
-                    let reference = Reference::new(Base::Value(base), name, strict, None);
-                    let result = Ok(NormalCompletion::from(reference));
-                    ec.stack.push(result);
-                    // Stack: ref ...
-                }
-                Insn::Pop => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let stack_size = ec.stack.len();
-                    assert!(stack_size > 0);
-                    ec.stack.truncate(stack_size - 1);
-                }
-                Insn::PopOrPanic => {
-                    let val = ec_pop().expect("stack should not be empty");
-                    if let Err(e) = val {
-                        panic!("Unhandled, unexpected error {e}");
-                    }
-                }
-                Insn::Swap => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let stack_size = ec.stack.len();
-                    assert!(stack_size >= 2);
-                    ec.stack.swap(stack_size - 1, stack_size - 2);
-                }
-                Insn::SwapList => {
-                    // Input: LIST ITEM
-                    // Output: ITEM LIST
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let stack_size = ec.stack.len();
-                    assert!(stack_size >= 2);
-                    let list_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack[stack_size - 1].clone().expect("Top of stack must contain a list"),
-                        )
-                        .expect("Top of stack must contain a list"),
-                    )
-                    .expect("Top of stack must contain a list"))
-                    .expect("List length should be a valid integer");
-                    let item = ec.stack.remove(stack_size - list_len - 2);
-                    ec.stack.push(item);
-                }
-                Insn::PopList => {
-                    let length = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop().expect("should be arguments").expect("should not be errors"),
-                        )
-                        .expect("length should be a value"),
-                    )
-                    .expect("length should be a number"))
-                    .expect("length should be a valid integer");
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let stack_size = ec.stack.len();
-                    ec.stack.truncate(stack_size - length);
-                }
-                Insn::PopOutList => {
-                    // Input: item1 ... item(n-1) LIST
-                    // Output: item1 ... item(n-1)
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let skip = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let stack_size = ec.stack.len();
-                    let list_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack[stack_size - skip - 1].clone().expect("list len should not be an error"),
-                        )
-                        .expect("list len should be a value"),
-                    )
-                    .expect("length should be a number"))
-                    .expect("length should be a valid integer");
-                    //   SL-1   SL-2   SL-3  SL-4   SL-5   SL-6
-                    //   item1  item2   3    listx  listy  listz
-                    //   skip = 2;
-                    //   list_len = 3;
-                    ec.stack[stack_size - list_len - skip - 1..stack_size].rotate_left(list_len + 1);
-                    // truncate is: stack_size - list_len - 1
-                    ec.stack.truncate(stack_size - list_len - 1);
-                }
-                Insn::SwapDeepList => {
-                    // Input: LIST_A item LIST_B
-                    // Output: LIST_A LIST_B item
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let stack_size = ec.stack.len();
-                    let a_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack[stack_size - 1].clone().expect("list len should not be an error"),
-                        )
-                        .expect("list len should be a value"),
-                    )
-                    .expect("length should be a number"))
-                    .expect("length should be a valid integer");
-                    let b_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack[stack_size - 1 - (a_len + 1) - 1]
-                                .clone()
-                                .expect("list len should not be an error"),
-                        )
-                        .expect("list len should be a value"),
-                    )
-                    .expect("length should be a number"))
-                    .expect("length should be a valid integer");
-
-                    // 3 l2 l1 l0 item 6 n5 n4 n3 n2 n1 n0
-                    // =>
-                    // 3 l2 l1 l0 6 n5 n4 n3 n2 n1 n0 item
-                    // that's a rotate in the (item list_b) sub-slice
-                    ec.stack[stack_size - a_len - b_len - 3..stack_size - a_len - 1].rotate_right(1);
-                }
-                Insn::ListToArray => {
-                    // On the stack at the start: N list[N-1] ... list[0]
-                    // Afterward: A
-                    let elements = {
-                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                        let array_len = to_usize(f64::try_from(
-                            ECMAScriptValue::try_from(
-                                ec.stack.pop().expect("stack should not be empty").expect("list len should not be an error"),
-                            )
-                            .expect("list len should be a value"),
-                        )
-                        .expect("length should be a number"))
-                        .expect("length should be a valid integer");
-                        let stack_size = ec.stack.len();
-                        ec.stack
-                            .drain(stack_size - array_len .. stack_size)
-                            .map(|completion| {
-                                ECMAScriptValue::try_from(completion.expect("List element should not be an error"))
-                                    .expect("List element should be a value")
-                            }).collect::<Vec<_>>()
-                    };
-                    let a = create_array_from_list(&elements);
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    ec.stack.push(Ok(NormalCompletion::from(a)));
-                }
-                Insn::InitializeReferencedBinding => {
-                    let (value, lhs) = {
-                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                        let stack_size = ec.stack.len();
-                        assert!(stack_size >= 2);
-                        let value = ec.stack.pop().unwrap();
-                        let lhs = ec.stack.pop().unwrap();
-                        (value, lhs)
-                    };
-                    let result = initialize_referenced_binding(lhs, value.map(|nc| nc.try_into().unwrap()))
-                        .map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::PushNewLexEnv => {
-                    let current_env = current_lexical_environment();
-                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "inner block");
-                    set_lexical_environment(Some(Rc::new(new_env)));
-                }
-                Insn::PopLexEnv => {
-                    let current_env = current_lexical_environment().expect("lex environment must exist");
-                    let outer_env = current_env.get_outer_env();
-                    set_lexical_environment(outer_env);
-                }
-                Insn::PushNewVarEnvFromLex => {
-                    let current_env = current_lexical_environment();
-                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
-                    set_variable_environment(Some(Rc::new(new_env)));
-                }
-                Insn::PushNewLexEnvFromVar => {
-                    let current_env = current_variable_environment();
-                    let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
-                    set_lexical_environment(Some(Rc::new(new_env)));
-                }
-                Insn::SetLexEnvToVarEnv => {
-                    let current_env = current_variable_environment();
-                    set_lexical_environment(current_env);
-                }
-
-                Insn::CreateStrictImmutableLexBinding | Insn::CreateNonStrictImmutableLexBinding => {
-                    let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = chunk.strings[string_idx].clone();
-
-                    env.create_immutable_binding(name, instruction == Insn::CreateStrictImmutableLexBinding)
-                        .expect("binding should not already exist");
-                }
-                Insn::CreatePermanentMutableLexBinding | Insn::CreatePermanentMutableVarBinding => {
-                    let env = if instruction == Insn::CreatePermanentMutableLexBinding {
-                        current_lexical_environment().expect("lex environment must exist")
-                    } else {
-                        current_variable_environment().expect("var environment must exist")
-                    };
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = chunk.strings[string_idx].clone();
-
-                    env.create_mutable_binding(name, false).expect("binding should not already exist");
+                Insn::CreatePermanentMutableVarBinding => {
+                    insn_impl::create_mutable_var_binding(false, &chunk).expect(GOODCODE);
                 }
                 Insn::CreatePermanentMutableLexIfMissing => {
-                    //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
-                    //  2. If alreadyDeclared is false, then
-                    //        a. Perform ! env.CreateMutableBinding(paramName, false).
-                    let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = &chunk.strings[string_idx];
-
-                    let already_declared = env.has_binding(name).expect("basic environments can't fail this");
-                    if !already_declared {
-                        env.create_mutable_binding(name.clone(), false).expect("binding does not already exist");
-                    }
+                    insn_impl::create_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
                 }
                 Insn::CreateInitializedPermanentMutableLexIfMissing => {
-                    //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
-                    //  2. If alreadyDeclared is false, then
-                    //      a. Perform ! env.CreateMutableBinding(paramName, false).
-                    //      b. Perform ! env.InitializeBinding(paramName, undefined).
-                    let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = &chunk.strings[string_idx];
-
-                    let already_declared = env.has_binding(name).expect("basic environments can't fail this");
-                    if !already_declared {
-                        env.create_mutable_binding(name.clone(), false).expect("binding does not already exist");
-                        env.initialize_binding(name, ECMAScriptValue::Undefined)
-                            .expect("binding is not previously initialized");
-                    }
+                    insn_impl::create_initialized_permanent_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
                 }
-                Insn::InitializeLexBinding | Insn::InitializeVarBinding => {
-                    let env = if instruction == Insn::InitializeLexBinding {
-                        current_lexical_environment().expect("lex environment must exist")
-                    } else {
-                        current_variable_environment().expect("var environment must exist")
-                    };
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = &chunk.strings[string_idx];
-
-                    let value = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("InitializeLexBinding must have a stack arg")
-                            .expect("InitializeLexBinding's stack arg must be a normal completion"),
-                    )
-                    .expect("InitializeLexBinding's stack arg must be a value");
-                    env.initialize_binding(name, value).expect("binding should not already have a value");
-                }
-                Insn::GetLexBinding => {
-                    let env = current_lexical_environment().expect("lex environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = &chunk.strings[string_idx];
-                    let value = env.get_binding_value(name, false).expect("Binding will be there");
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(value)));
-                }
-                Insn::SetMutableVarBinding => {
-                    let env = current_variable_environment().expect("var environment must exist");
-                    let string_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = &chunk.strings[string_idx];
-                    let value = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("SetMutableVarBinding must have a stack arg")
-                            .expect("SetMutableVarBinding's stack arg must be a normal completion"),
-                    )
-                    .expect("SetMutableVarBinding's stack arg must be a value");
-                    env.set_mutable_binding(name.clone(), value, false).expect("error free execution");
-                }
+                Insn::InitializeLexBinding => insn_impl::initialize_lex_binding(&chunk).expect(GOODCODE),
+                Insn::InitializeVarBinding => insn_impl::initialize_var_binding(&chunk).expect(GOODCODE),
+                Insn::GetLexBinding => insn_impl::get_lex_binding(&chunk).expect(GOODCODE),
+                Insn::SetMutableVarBinding => insn_impl::set_mutable_var_binding(&chunk).expect(GOODCODE),
                 Insn::CreatePerIterationEnvironment => {
-                    // A 1-operand instruction that takes nothing from the stack as input, and produces one
-                    // stack item ([empty]/error) on exit.
-                    let set_idx = {
-                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                        let set_idx = chunk.opcodes[ec.pc] as usize;
-                        ec.pc += 1;
-                        set_idx
-                    };
-                    let string_set = &chunk.string_sets[set_idx];
-                    let res = create_per_iteration_environment(string_set).map(NormalCompletion::from);
-                    ec_push(res);
+                    insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE);
                 }
-                Insn::ExtractThrownValue => {
-                    let stack_idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                    let errval = {
-                        let completion = &agent.execution_context_stack.borrow()[index].stack[stack_idx];
-                        match completion.as_ref().unwrap_err() {
-                            AbruptCompletion::Throw { value } => value.clone(),
-                            _ => panic!("Bad error type for ExtractThrownValue"),
-                        }
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack[stack_idx] = Ok(errval.into());
-                }
-                Insn::ExtractArg => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)
-                    // Out: arg[0] N-1 arg[N-1] arg[N-2] ... arg[1]
-                    //   --or, if N == 0 --
-                    // Stack: 0
-                    // Out: Undefined 0
-                    let stack_len = ec.stack.len();
-                    assert!(stack_len > 0, "ExtractArg must have an argument list on the stack");
-                    let arg_count = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack[stack_len - 1].clone().expect("ExtractArg must have a 'count' argument"),
-                        )
-                        .expect("ExtractArg must have a 'count' argument"),
-                    )
-                    .expect("ExtractArg 'count' arg must be a number"))
-                    .expect("count must be a valid integer");
-                    if arg_count == 0 {
-                        ec.stack.push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                    } else {
-                        assert!(stack_len > arg_count, "Stack must contain an argument list");
-                        let arg0 = ec.stack.remove(stack_len - arg_count - 1);
-                        ec.stack[stack_len - 2] = Ok(NormalCompletion::from(arg_count - 1));
-                        ec.stack.push(arg0);
-                    }
-                }
-                Insn::FinishArgs => {
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    // Stack: N arg[N-1] ... arg[0]
-                    // Out:
-                    // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
-                    let arg_count = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec.stack
-                                .pop()
-                                .expect("FinishArgs must have a 'count' argument")
-                                .expect("FinishArgs must have a 'count' argument"),
-                        )
-                        .expect("FinishArgs must have a 'count' argument"),
-                    )
-                    .expect("FinishArgs 'count' arg must be a number"))
-                    .expect("count must be a valid integer");
-                    let to_retain = ec.stack.len() - arg_count;
-                    ec.stack.truncate(to_retain);
-                }
-                Insn::Object => {
-                    let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-                    let o = ordinary_object_create(Some(obj_proto), &[]);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
-                }
-                Insn::Array => {
-                    let array = array_create(0, None).expect("Arrays of length zero are not too large");
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Ok(ECMAScriptValue::from(array).into()));
-                }
-                Insn::CreateDataProperty => {
-                    let nc_value = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let nc_name = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let obj = Object::try_from(nc_obj).unwrap();
-                    let name = PropertyKey::try_from(nc_name).unwrap();
-                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    obj.create_data_property_or_throw(name, value).unwrap();
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
-                }
-                Insn::SetPrototype => {
-                    let nc_value = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let obj = Object::try_from(nc_obj).unwrap();
-                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    let val_obj_res: anyhow::Result<Option<Object>> = value.try_into();
-                    if let Ok(new_proto) = val_obj_res {
-                        obj.o.set_prototype_of(new_proto).unwrap();
-                    }
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj)));
-                }
-                Insn::ToPropertyKey => {
-                    let nc_name = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let value_name = ECMAScriptValue::try_from(nc_name).unwrap();
-                    let key = to_property_key(value_name);
-                    let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
-                }
-                Insn::CopyDataProps => {
-                    let nc_value = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let nc_obj = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let obj = Object::try_from(nc_obj).unwrap();
-                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
-                    let result = obj.copy_data_properties(value, &[]);
-                    let fc = match result {
-                        Ok(()) => Ok(NormalCompletion::from(obj)),
-                        Err(e) => Err(e),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
-                }
-                Insn::CopyDataPropsWithExclusions => {
-                    let exclusions = ec_pop_list()
-                        .expect("list should be on the stack")
-                        .into_iter()
-                        .map(|val| PropertyKey::try_from(val).expect("values should be property keys"))
-                        .collect::<Vec<_>>();
-                    let value = ECMAScriptValue::try_from(
-                        ec_pop().expect("source should be on the stack").expect("source should not be an error"),
-                    )
-                    .expect("source should be a value");
-                    let dest = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop().expect("dest should be on the stack").expect("dest should not be an error"),
-                        )
-                        .expect("dest should be a value"),
-                    )
-                    .expect("dest should be an object");
-                    let result = dest.copy_data_properties(value, &exclusions);
-                    let fc = match result {
-                        Ok(()) => Ok(NormalCompletion::from(dest)),
-                        Err(e) => Err(e),
-                    };
-                    ec_push(fc);
-                }
-                Insn::Dup => {
-                    let idx = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                    let fc = agent.execution_context_stack.borrow()[index].stack[idx].clone();
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
-                }
-                Insn::DupAfterList => {
-                    // stack has a list followed by a value: N item(n-1) ... item(0) value
-                    // output dups that value behind the list: N item(n-1) ... item(0) value value
-                    let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                    let stack_len = stack.len();
-                    let list_len = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            stack[stack_len - 1].clone().expect("list len must be normal completion"),
-                        )
-                        .expect("list len must be a value"),
-                    )
-                    .expect("list len must be a number"))
-                    .expect("list len must be a valid integer");
-                    assert!(stack_len >= list_len + 2, "stack must contain a list and a completion");
-                    let value_index = stack_len - (list_len + 2);
-                    let value = stack[value_index].clone();
-                    stack.push(value);
-                    stack[value_index..].rotate_right(1);
-                }
-                Insn::ToString => {
-                    let val = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn should have a stack argument")
-                            .expect("insn's arg should not be an error"),
-                    )
-                    .expect("insn's arg should be a value");
-                    let result = to_string(val).map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::ToNumeric => {
-                    let nc_val = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let val: ECMAScriptValue = nc_val.try_into().unwrap();
-                    let result = to_numeric(val).map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::ToObject => {
-                    let nc_val = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("ToObject should have a stack parameter")
-                        .expect("ToObject's parameter should not be an error");
-                    let val: ECMAScriptValue = nc_val.try_into().expect("ToObject's parameter should be a value");
-                    let result = to_object(val).map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Increment => {
-                    let nc_val = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let num: Numeric = nc_val.try_into().unwrap();
-                    let result_val: ECMAScriptValue = match num {
-                        Numeric::Number(n) => (n + 1.0).into(),
-                        Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi + 1)),
-                    };
-                    let fc = Ok(NormalCompletion::from(result_val));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
-                }
-                Insn::Decrement => {
-                    let nc_val = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let num: Numeric = nc_val.try_into().unwrap();
-                    let result_val: ECMAScriptValue = match num {
-                        Numeric::Number(n) => (n - 1.0).into(),
-                        Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi - 1)),
-                    };
-                    let fc = Ok(NormalCompletion::from(result_val));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(fc);
-                }
-                Insn::PreIncrement => {
-                    let fc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = prefix_increment(fc);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::PreDecrement => {
-                    let fc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = prefix_decrement(fc);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Delete => {
-                    let fc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = delete_ref(fc);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Void => {
-                    let fc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = void_operator(fc);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::TypeOf => {
-                    let fc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let result = typeof_operator(fc);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Unwind => {
-                    let vals_to_remove = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    assert!(vals_to_remove < agent.execution_context_stack.borrow()[index].stack.len());
-                    if vals_to_remove > 0 {
-                        let old_index_of_err = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                        let new_index_of_err = old_index_of_err - vals_to_remove;
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .swap(new_index_of_err, old_index_of_err);
-                        agent.execution_context_stack.borrow_mut()[index].stack.truncate(new_index_of_err + 1);
-                    }
-                }
-                Insn::UnwindIfAbrupt => {
-                    let vals_to_remove = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let top_completion = ec_peek(0).expect("items should be on stack");
-                    if top_completion.is_err() && vals_to_remove > 0 {
-                        assert!(vals_to_remove < agent.execution_context_stack.borrow()[index].stack.len());
-                        let old_index_of_err = agent.execution_context_stack.borrow()[index].stack.len() - 1;
-                        let new_index_of_err = old_index_of_err - vals_to_remove;
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .swap(new_index_of_err, old_index_of_err);
-                        agent.execution_context_stack.borrow_mut()[index].stack.truncate(new_index_of_err + 1);
-                    }
-                }
-                Insn::UnwindList => {
-                    let err_to_keep = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("UnwindList has two stack args");
-                    let vals_to_remove = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index]
-                                .stack
-                                .pop()
-                                .expect("UnwindList has a stack argument")
-                                .expect("UnwindList expects a normal completion"),
-                        )
-                        .expect("UnwindList expects a value"),
-                    )
-                    .expect("UnwindList expects a number"))
-                    .expect("UnwindList list length should be a valid integer");
-                    if vals_to_remove > 0 {
-                        let old_stack_size = agent.execution_context_stack.borrow()[index].stack.len();
-                        assert!(vals_to_remove <= old_stack_size);
-                        let new_stack_size = old_stack_size - vals_to_remove;
-                        agent.execution_context_stack.borrow_mut()[index].stack.truncate(new_stack_size);
-                    }
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(err_to_keep);
-                }
-                Insn::AppendList => {
-                    // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
-                    // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
-                    // call them ListA and ListB ...
-                    let len_a = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("AppendList stack depth should be at least 2")
-                                .expect("list length should not be an error"),
-                        )
-                        .expect("list length should be an ecmascript value"),
-                    )
-                    .expect("list length should be a ecamscript number value"))
-                    .expect("list length should be a valid integer");
-                    {
-                        let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                        let stack = &mut ec.stack;
-                        let len = stack.len();
-                        assert!(len > len_a);
-                        stack[len - (len_a + 1)..len].rotate_left(1);
-                    }
-                    let len_b = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("AppendList stack dep th should include two lists")
-                                .expect("list length should not be an error"),
-                        )
-                        .expect("list length shoud be a value"),
-                    )
-                    .expect("list length should be a number value"))
-                    .expect("list length should be a valid integer");
-                    let new_len = len_a + len_b;
-                    assert!(new_len < 1<<53);
-                    #[allow(clippy::cast_precision_loss)]
-                    ec_push(Ok((new_len as f64).into()));
-                }
-                Insn::Call | Insn::StrictCall => {
-                    let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
-                    let arg_count: usize = to_usize(f64::try_from(arg_count_val)
-                        .expect("arg_count should be a number"))
-                        .expect("arg_count should be a valid integer");
-                    let mut arguments = Vec::with_capacity(arg_count);
-                    for _ in 1..=arg_count {
-                        let nc = ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
-                        )
-                        .unwrap();
-                        arguments.push(nc);
-                    }
-                    arguments.reverse();
-                    let func_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
-                    let ref_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-
-                    let mut was_direct_eval = false;
-                    if let NormalCompletion::Reference(evalref) = &ref_nc {
-                        if !evalref.is_property_reference() {
-                            if let ReferencedName::String(name) = &evalref.referenced_name {
-                                if name == &JSString::from("eval")
-                                    && to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
-                                {
-                                    // A direct eval
-                                    if arg_count == 0 {
-                                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                                    } else {
-                                        let result = perform_eval(
-                                            arguments[0].clone(),
-                                            if instruction == Insn::Call {
-                                                EvalCallStatus::DirectWithNonStrictCaller
-                                            } else {
-                                                EvalCallStatus::DirectWithStrictCaller
-                                            },
-                                        );
-                                        ec_push(result.map(NormalCompletion::from));
-                                    }
-                                    was_direct_eval = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if !was_direct_eval {
-                        begin_call_evaluation(&func_val, &ref_nc, &arguments);
-                    }
-                }
-                Insn::EndFunction => {
-                    let stack_len = agent.execution_context_stack.borrow()[index].stack.len();
-                    assert!(stack_len >= 2);
-                    let result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("Stack is at least 2 elements");
-                    let f_obj = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index]
-                                .stack
-                                .pop()
-                                .expect("Stack is at least 2 elements")
-                                .expect("function obj argument must be a function obj"),
-                        )
-                        .expect("function obj argument must be a function obj"),
-                    )
-                    .expect("function obj argument must be a function obj");
-                    let callable = f_obj.o.to_callable_obj().expect("function obj argument must be a function obj");
-                    callable.end_evaluation(result);
-                }
-                Insn::Construct => {
-                    // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
-                    let arg_count_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
-                    let arg_count: usize = to_usize(f64::try_from(arg_count_val)
-                        .expect("arg_count should be a number"))
-                        .expect("arg_count should be a valid integer");
-                    let mut arguments = Vec::with_capacity(arg_count);
-                    for _ in 1..=arg_count {
-                        let nc = ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
-                        )
-                        .unwrap();
-                        arguments.push(nc);
-                    }
-                    arguments.reverse();
-                    let newtgt = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap(),
-                    )
-                    .expect("new target must be value");
-                    let cstr_nc = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap();
-                    let cstr_val = ECMAScriptValue::try_from(cstr_nc).unwrap();
-
-                    begin_constructor_evaluation(cstr_val, newtgt, &arguments);
-                }
-                Insn::RequireConstructor => {
-                    let x = ec_pop()
-                        .ok_or(())
-                        .and_then(|fc| fc.map_err(|_| ()))
-                        .and_then(|nc| ECMAScriptValue::try_from(nc).map_err(|_| ()))
-                        .and_then(|val| if is_constructor(&val) { Ok(()) } else { Err(()) })
-                        .map_err(|()| create_type_error("Constructor required"));
-                    ec_push(x.map(NormalCompletion::from));
-                }
-
-                Insn::Return => {
-                    let value = ECMAScriptValue::try_from(
-                        ec_pop().expect("Return needs an argument").expect("Return needs a normal completion"),
-                    )
-                    .expect("Return needs a value");
-                    ec_push(Err(AbruptCompletion::Return { value }));
-                }
-                Insn::UnaryPlus => {
-                    let exp = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let val = get_value(exp);
-                    let result = match val {
-                        Ok(ev) => ev.to_number().map(NormalCompletion::from),
-                        Err(ac) => Err(ac),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::UnaryMinus => {
-                    let exp = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let val = get_value(exp);
-                    let old_val = match val {
-                        Ok(val) => to_numeric(val),
-                        Err(ac) => Err(ac),
-                    };
-                    let result = match old_val {
-                        Err(ac) => Err(ac),
-                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(-n)),
-                        Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(-&*bi))),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::UnaryComplement => {
-                    let exp = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let val = get_value(exp);
-                    let old_val = match val {
-                        Ok(val) => to_numeric(val),
-                        Err(ac) => Err(ac),
-                    };
-                    let result = match old_val {
-                        Err(ac) => Err(ac),
-                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32_f64(n))),
-                        Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(!&*bi))),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::UnaryNot => {
-                    let exp = agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap();
-                    let val = get_value(exp);
-                    let result = match val {
-                        Ok(val) => Ok(NormalCompletion::from(!to_boolean(val))),
-                        Err(ac) => Err(ac),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Exponentiate => agent.binary_operation(index, BinOp::Exponentiate),
-                Insn::Multiply => agent.binary_operation(index, BinOp::Multiply),
-                Insn::Divide => agent.binary_operation(index, BinOp::Divide),
-                Insn::Modulo => agent.binary_operation(index, BinOp::Remainder),
-                Insn::Add => agent.binary_operation(index, BinOp::Add),
-                Insn::Subtract => agent.binary_operation(index, BinOp::Subtract),
-
+                Insn::ExtractThrownValue => insn_impl::extract_thrown_value().expect(GOODCODE),
+                Insn::ExtractArg => insn_impl::extract_arg().expect(GOODCODE),
+                Insn::FinishArgs => insn_impl::finish_args().expect(GOODCODE),
+                Insn::Object => insn_impl::object().expect(GOODCODE),
+                Insn::Array => insn_impl::array().expect(GOODCODE),
+                Insn::CreateDataProperty => insn_impl::create_data_property().expect(GOODCODE),
+                Insn::SetPrototype => insn_impl::set_prototype().expect(GOODCODE),
+                Insn::ToPropertyKey => insn_impl::to_property_key().expect(GOODCODE),
+                Insn::CopyDataProps => insn_impl::copy_data_props(&[]).expect(GOODCODE),
+                Insn::CopyDataPropsWithExclusions => insn_impl::copy_data_props_with_exclusions().expect(GOODCODE),
+                Insn::Dup => insn_impl::dup().expect(GOODCODE),
+                Insn::DupAfterList => insn_impl::dup_after_list().expect(GOODCODE),
+                Insn::ToString => insn_impl::to_string().expect(GOODCODE),
+                Insn::ToNumeric => insn_impl::to_numeric().expect(GOODCODE),
+                Insn::ToObject => insn_impl::to_object().expect(GOODCODE),
+                Insn::Increment => insn_impl::increment().expect(GOODCODE),
+                Insn::Decrement => insn_impl::decrement().expect(GOODCODE),
+                Insn::PreIncrement => insn_impl::pre_increment().expect(GOODCODE),
+                Insn::PreDecrement => insn_impl::pre_decrement().expect(GOODCODE),
+                Insn::Delete => insn_impl::delete().expect(GOODCODE),
+                Insn::Void => insn_impl::void().expect(GOODCODE),
+                Insn::TypeOf => insn_impl::type_of().expect(GOODCODE),
+                Insn::Unwind => insn_impl::unwind(&chunk).expect(GOODCODE),
+                Insn::UnwindIfAbrupt => insn_impl::unwind_if_abrupt(&chunk).expect(GOODCODE),
+                Insn::UnwindList => insn_impl::unwind_list().expect(GOODCODE),
+                Insn::AppendList => insn_impl::append_list().expect(GOODCODE),
+                Insn::Call => insn_impl::call(false).expect(GOODCODE),
+                Insn::StrictCall => insn_impl::call(true).expect(GOODCODE),
+                Insn::EndFunction => insn_impl::end_function().expect(GOODCODE),
+                Insn::Construct => insn_impl::construct().expect(GOODCODE),
+                Insn::RequireConstructor => insn_impl::require_constructor().expect(GOODCODE),
+                Insn::Return => insn_impl::return_insn().expect(GOODCODE),
+                Insn::UnaryPlus => insn_impl::unary_plus().expect(GOODCODE),
+                Insn::UnaryMinus => insn_impl::unary_minus().expect(GOODCODE),
+                Insn::UnaryComplement => insn_impl::unary_complement().expect(GOODCODE),
+                Insn::UnaryNot => insn_impl::unary_not().expect(GOODCODE),
+                Insn::Exponentiate => insn_impl::binary_operation(BinOp::Exponentiate).expect(GOODCODE),
+                Insn::Multiply => insn_impl::binary_operation(BinOp::Multiply).expect(GOODCODE),
+                Insn::Divide => insn_impl::binary_operation(BinOp::Divide).expect(GOODCODE),
+                Insn::Modulo => insn_impl::binary_operation(BinOp::Remainder).expect(GOODCODE),
+                Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
+                Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
                 Insn::InstantiateIdFreeFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[id as usize];
-                    instantiate_ordinary_function_expression_without_binding_id(index, text, info);
+                    insn_impl::instantiate_id_free_function_expression(&chunk, text).expect(GOODCODE);
                 }
                 Insn::InstantiateOrdinaryFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[id as usize];
-                    instantiate_ordinary_function_expression_with_binding_id(index, text, info);
+                    insn_impl::instantiate_ordinary_function_expression(&chunk, text).expect(GOODCODE);
                 }
-
                 Insn::InstantiateArrowFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[id as usize];
-                    instantiate_arrow_function_expression(Some(index), text, info);
+                    insn_impl::instantiate_arrow_function_expression(&chunk, text).expect(GOODCODE);
                 }
                 Insn::InstantiateOrdinaryFunctionObject => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let string = &chunk.strings[string_index as usize];
-                    let func_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[func_index];
-                    instantiate_ordinary_function_object(Some(index), text, string, info);
+                    insn_impl::instantiate_ordinary_function_object(&chunk, text).expect(GOODCODE);
                 }
-                Insn::LeftShift => agent.binary_operation(index, BinOp::LeftShift),
-                Insn::SignedRightShift => agent.binary_operation(index, BinOp::SignedRightShift),
-                Insn::UnsignedRightShift => agent.binary_operation(index, BinOp::UnsignedRightShift),
-                Insn::Throw => {
-                    // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
-                    let exp: ECMAScriptValue = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("Throw requires an argument")
-                        .expect("Throw requires a NormalCompletion")
-                        .try_into()
-                        .expect("Throw requires a value");
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Throw { value: exp }));
-                }
-                Insn::Less => {
-                    let (left, right) = agent.two_values(index);
-                    let result =
-                        is_less_than(left, right, true).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Greater => {
-                    let (left, right) = agent.two_values(index);
-                    let result =
-                        is_less_than(right, left, false).map(|optb| NormalCompletion::from(optb.unwrap_or(false)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::LessEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result =
-                        is_less_than(right, left, false).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::GreaterEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result =
-                        is_less_than(left, right, true).map(|optb| NormalCompletion::from(!optb.unwrap_or(true)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::InstanceOf => {
-                    let (left, right) = agent.two_values(index);
-                    let result = instanceof_operator(left, &right);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::In => {
-                    let (left, right) = agent.two_values(index);
-                    let result = match right {
-                        ECMAScriptValue::Object(obj) => {
-                            to_property_key(left)
-                            .and_then(|key| has_property(&obj, &key))
-                            .map(NormalCompletion::from)
-                        }
-                        _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::Equal => {
-                    let (left, right) = agent.two_values(index);
-                    let result = is_loosely_equal(&left, &right).map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::NotEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = is_loosely_equal(&left, &right).map(|val| NormalCompletion::from(!val));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::StrictEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(left.is_strictly_equal(&right)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::StrictNotEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(!left.is_strictly_equal(&right)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::BitwiseAnd => agent.binary_operation(index, BinOp::BitwiseAnd),
-                Insn::BitwiseOr => agent.binary_operation(index, BinOp::BitwiseOr),
-                Insn::BitwiseXor => agent.binary_operation(index, BinOp::BitwiseXor),
-                Insn::CreateUnmappedArguments => create_unmapped_arguments_object(index),
-                Insn::CreateMappedArguments => create_mapped_arguments_object(index),
-                Insn::AddMappedArgument => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let string = &chunk.strings[string_index as usize];
-                    let argument_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    attach_mapped_arg(index, string, argument_index);
-                }
-                Insn::HandleEmptyBreak => {
-                    let prior_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("HandleEmptyBreak requires an argument");
-                    let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
-                        match value {
-                            NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
-                            value => Ok(value),
-                        }
-                    } else {
-                        prior_result
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(new_result);
-                }
-                Insn::HandleTargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = &chunk.strings[str_idx];
-                    let prior_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("HandleTargetedBreak requires an argument");
-                    let new_result = match prior_result {
-                        Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
-                        _ => prior_result,
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(new_result);
-                }
-                Insn::CoalesceValue => {
-                    // Stack: stmtResult V ...
-                    // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
-                    let stmt_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("CoalesceValue requires two arguments");
-                    let v = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("CoalesceValue requires two arguments")
-                            .expect("argument V must be  normal completion"),
-                    )
-                    .expect("argument V must be a value");
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(match stmt_result {
-                        Ok(NormalCompletion::Value(value))
-                        | Err(
-                            AbruptCompletion::Throw { value }
-                            | AbruptCompletion::Return { value }
-                            | AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. }
-                            | AbruptCompletion::Break { value: NormalCompletion::Value(value), .. })
-                        => {
-                            NormalCompletion::from(value)
-                        }
-                        _ => NormalCompletion::from(v),
-                    }));
-                }
-                Insn::LoopContinues => {
-                    // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
-                    // true or false on the stack.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let set_idx = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let label_set = &chunk.string_sets[set_idx];
-                    // 1. If completion.[[Type]] is normal, return true.
-                    // 2. If completion.[[Type]] is not continue, return false.
-                    // 3. If completion.[[Target]] is empty, return true.
-                    // 4. If completion.[[Target]] is an element of labelSet, return true.
-                    // 5. Return false.
-                    let completion = ec.stack.last().expect("stack must have at least one item");
-                    let result = match completion {
-                        Ok(_)
-                        | Err(AbruptCompletion::Continue { value: _, target: None }) => true,
-                        Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
-                        _ => false,
-                    };
-                    ec.stack.push(Ok(NormalCompletion::from(result)));
-                }
-                Insn::Continue => {
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }));
-                }
-                Insn::TargetedContinue => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = chunk.strings[str_idx].clone();
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }));
-                }
-                Insn::Break => {
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }));
-                }
-                Insn::TargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = chunk.strings[str_idx].clone();
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }));
-                }
-                Insn::IteratorAccumulate => {
-                    let iterable = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has 3 stack args")
-                            .expect("should not be errors"),
-                    )
-                    .expect("arg should be a value");
-                    let starting_index = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has 3 stack args")
-                            .expect("should not be errors"),
-                    )
-                    .expect("arg should be a value");
-                    let array = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index]
-                                .stack
-                                .pop()
-                                .expect("insn has 3 stack args")
-                                .expect("should not be errs"),
-                        )
-                        .expect("arg should be value"),
-                    )
-                    .expect("arg should be obj");
-                    let mut next_index = to_index(starting_index).expect("should be in range");
-                    match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
-                        match ir.step() {
-                            Ok(next_opt_obj) => match next_opt_obj {
-                                None => break Ok((next_index, array)),
-                                Some(next_obj) => {
-                                    let next_value = iterator_value(&next_obj);
-                                    match next_value {
-                                        Err(e) => break Err(e),
-                                        Ok(next_value) => {
-                                            array
-                                                .create_data_property_or_throw(
-                                                    JSString::from(next_index),
-                                                    next_value,
-                                                )
-                                                .expect("props should store ok");
-                                            next_index += 1;
-                                        }
-                                    }
-                                }
-                            },
-                            Err(e) => break Err(e),
-                        }
-                    }) {
-                        Ok((next_index, array)) => {
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(array.into()));
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(next_index.into()));
-                        }
-                        Err(e) => {
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Err(e));
-                        }
-                    }
-                }
-                Insn::IterateArguments => {
-                    // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
-                    // representation of an argument list (N arg(n-1) ... arg(0)). See
-                    // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
-                    // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
-                    //
-                    //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
-                    //  5. Repeat,
-                    //      a. Let next be ? IteratorStep(iteratorRecord).
-                    //      b. If next is false, return list.
-                    //      c. Let nextArg be ? IteratorValue(next).
-                    //      d. Append nextArg to list.
-                    let spread_obj = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has a stack arg")
-                            .expect("should not be an error"),
-                    )
-                    .expect("arg should be a value");
-
-                    let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
-                    let steps_result = if let Ok(iterator_record) = iterator_result {
-                        let mut count = 0;
-                        let res = loop {
-                            match iterator_step(&iterator_record) {
-                                Ok(next_opt_obj) => match next_opt_obj {
-                                    None => {
-                                        ec_push(Ok(count.into()));
-                                        break Ok(());
-                                    }
-                                    Some(obj) => match iterator_value(&obj) {
-                                        Ok(next_arg) => {
-                                            count += 1;
-                                            ec_push(Ok(next_arg.into()));
-                                        }
-                                        Err(e) => {
-                                            break Err(e);
-                                        }
-                                    },
-                                },
-                                Err(e) => {
-                                    break Err(e);
-                                }
-                            }
-                        };
-                        if res.is_err() {
-                            // unwind
-                            for _ in 0..count {
-                                ec_pop();
-                            }
-                        }
-                        res
-                    } else {
-                        Err(iterator_result.unwrap_err())
-                    };
-                    if let Err(e) = steps_result
-                    {
-                        ec_push(Err(e));
-                    }
-                }
-                Insn::IteratorDAEElision => {
-                    // The Elision form of IteratorDestructuringAssignmentEvaluation
-                    // Input on stack: <elision count as a float value> <iterator record>
-                    // Ouptut on stack: <iterator record>/err
-                    let mut count = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("IteratorDAEElision stack should include two items")
-                                .expect("elision count should not be an error"),
-                        )
-                        .expect("elision count shoud be a value"),
-                    )
-                    .expect("elision count should be a number value"))
-                    .expect("elision count should be a valid integer");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("IteratorDAEElision stack should include two items")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    // Elision : ,
-                    //  1. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //  2. Return unused.
-                    // Elision : Elision ,
-                    //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
-                    //  2. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //  3. Return unused.
-                    let retval = loop {
-                        if count == 0 || ir.done.get() {
-                            break Ok(());
-                        }
-                        let next_result = ir.step();
-                        match next_result {
-                            Ok(None) => {
-                                ir.done.set(true);
-                            }
-                            Ok(Some(_)) => (),
-                            Err(e) => {
-                                ir.done.set(true);
-                                break Err(e);
-                            }
-                        }
-                        count -= 1;
-                    }
-                    .map(|()| NormalCompletion::from(ir));
-                    ec_push(retval);
-                }
-                Insn::EmbellishedIteratorStep => {
-                    // Input: on stack: an iterator record (ir)
-                    // Output: on stack: an output value (v), and the input ir, -or- one error
-                    //  1. Let v be undefined.
-                    //  2. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //      e. Else,
-                    //          i. Set v to Completion(IteratorValue(next)).
-                    //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //          iii. ReturnIfAbrupt(v).
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("EmbellishedIteratorStep stack should include an item")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    if ir.done.get() {
-                        ec_push(Ok(NormalCompletion::from(ir)));
-                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                    } else  {
-                        let next_result = ir.step();
-                        match next_result {
-                            Err(e) => {
-                                ir.done.set(true);
-                                ec_push(Err(e));
-                            }
-                            Ok(None) => {
-                                ir.done.set(true);
-                                ec_push(Ok(NormalCompletion::from(ir)));
-                                ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                            }
-                            Ok(Some(next_obj)) => {
-                                let v = iterator_value(&next_obj);
-                                match v {
-                                    Err(e) => {
-                                        ir.done.set(true);
-                                        ec_push(Err(e));
-                                    }
-                                    Ok(v) => {
-                                        ec_push(Ok(NormalCompletion::from(ir)));
-                                        ec_push(Ok(NormalCompletion::from(v)));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Insn::IteratorRest => {
-                    // Input: one stack argument, an iterator record
-                    // Output: two stack elements: an array object, followed by the iterator record
-                    //     or: one stack element: an error
-
-                    //  2. Let A be ! ArrayCreate(0).
-                    //  3. Let n be 0.
-                    //  4. Repeat,
-                    //      a. If iteratorRecord.[[Done]] is false, then
-                    //          i. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //          iii. ReturnIfAbrupt(next).
-                    //          iv. If next is false, set iteratorRecord.[[Done]] to true.
-                    //      b. If iteratorRecord.[[Done]] is true, then
-                    //          i. Return (A, iteratorRecord).
-                    //      c. Let nextValue be Completion(IteratorValue(next)).
-                    //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      e. ReturnIfAbrupt(nextValue).
-                    //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
-                    //      g. Set n to n + 1.
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("IteratorRest stack should include an item")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    let a = array_create(0, None).expect("0 should fit in ram");
-                    let mut n = 0;
-                    loop {
-                        if ir.done.get() {
-                            ec_push(Ok(NormalCompletion::from(ir)));
-                            ec_push(Ok(NormalCompletion::from(a)));
-                            break;
-                        }
-                        match ir.step() {
-                            Ok(None) => {
-                                ir.done.set(true);
-                                ec_push(Ok(NormalCompletion::from(ir)));
-                                ec_push(Ok(NormalCompletion::from(a)));
-                                break;
-                            }
-                            Ok(Some(next_obj)) => {
-                                match iterator_value(&next_obj) {
-                                    Ok(next_value) => {
-                                        a.create_data_property_or_throw(format!("{n}"), next_value)
-                                            .expect("array property set should work");
-                                        n += 1;
-                                    }
-                                    Err(e) => {
-                                        ir.done.set(true);
-                                        ec_push(Err(e));
-                                        break;
-                                    }
-                                };
-                            }
-                            Err(e) => {
-                                ir.done.set(true);
-                                ec_push(Err(e));
-                                break;
-                            }
-                        };
-                    }
-                }
-                Insn::RequireCoercible => {
-                    // Input: one stack argument, an ECMAScriptValue
-                    // Output: one stack completion: either the same input value, or an error.
-                    let val = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be a stack argument").expect("argument should not be an error"),
-                    )
-                    .expect("argument should be a value");
-                    let result = require_object_coercible(&val);
-                    ec_push(match result {
-                        Ok(()) => Ok(val.into()),
-                        Err(e) => Err(e),
-                    });
-                }
-                Insn::GetSyncIterator => {
-                    // This instruction handles the step that looks like:
-                    //  1. Let iteratorRecord be ? GetIterator(value, sync).
-                    //
-                    // Input on stack: that value.
-                    // Output on stack: the iterator record/abrupt completion.
-
-                    let value = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be an argument").expect("should not be an error"),
-                    )
-                    .expect("argument should be a value");
-                    let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
-                    ec_push(result);
-                }
-                Insn::IteratorClose => {
-                    // This instruction handles the steps that look like:
-                    //  1. Return ? IteratorClose(iteratorRecord, status).
-
-                    // Input on the stack: status iteratorRecord
-                    // Ouptut on stack: the operation's result (which might be the input status)
-                    let status = ec_pop().expect("There should be 2 arguments");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be 2 arguments")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let result = iterator_close(&ir, status);
-                    ec_push(result);
-                }
-                Insn::IteratorCloseIfNotDone => {
-                    // This instruction handles the step that looks like:
-                    //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
-                    //  4. Return ? result.
-                    //
-                    // Input on stack: result iteratorRecord
-                    // Output result/err
-                    let result = ec_pop().expect("There should be 2 arguments");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be 2 arguments")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let done = ir.done.get();
-                    let right = if done { result } else { iterator_close(&ir, result) };
-                    ec_push(right.map(NormalCompletion::from));
-                }
-                Insn::IteratorNext => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-                    //  2. If nextResult is not an Object, throw a TypeError exception.
-                    //
-                    // Input on stack: iteratorRecord
-                    // Output:         nextResult/err iteratorRecord
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be an argument")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let next_method = ECMAScriptValue::from(ir.next_method.clone());
-                    let iterator = ECMAScriptValue::from(ir.iterator.clone());
-                    let next_result = call(&next_method, &iterator, &[]);
-
-                    let result = match next_result {
-                        Ok(val) => match val {
-                            ECMAScriptValue::Object(_) => Ok(val),
-                            _ => Err(create_type_error("Iterator Result must be an object")),
-                        },
-                        Err(_) => next_result,
-                    };
-                    ec_push(Ok(NormalCompletion::from(ir)));
-                    ec_push(result.map(NormalCompletion::from));
-                }
-                Insn::IteratorResultComplete => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let done be ? IteratorComplete(nextResult).
-                    //
-                    // Input on stack: nextResult (an iterator result object)
-                    // Output: done/err nextResult (the result is not consumed)
-
-                    let next_result = Object::try_from(
-                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
-                    )
-                    .expect("and should be an object");
-                    let done = iterator_complete(&next_result);
-                    ec_push(Ok(next_result.into()));
-                    ec_push(done.map(NormalCompletion::from));
-                }
-                Insn::IteratorResultToValue => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let nextValue be ? IteratorValue(nextResult).
-                    //
-                    // Input on stack: nextResult (an iterator result object)
-                    // Output: value/err (the nextResult is consumed)
-                    let next_result = Object::try_from(
-                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
-                    )
-                    .expect("and should be an object");
-                    let value = iterator_value(&next_result);
-                    ec_push(value.map(NormalCompletion::from));
-                }
-                Insn::GetV => {
-                    // input: key, base
-                    let prop_name = PropertyKey::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop().expect("should be 2 arguments").expect("args should not be errors"),
-                        )
-                        .expect("arg should be value"),
-                    )
-                    .expect("arg should be key");
-                    let base_val = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be 2 arguments").expect("should not be errors"),
-                    )
-                    .expect("arg should be value");
-                    let result = base_val.get(&prop_name).map(NormalCompletion::from);
-                    ec_push(result);
-                }
-                Insn::EnumerateObjectProperties => {
-                    // input: an object
-                    // output: an iterator record set up to iterate over the properties of that object
-                    let obj = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("EnumerateObjectProperties should have an argument")
-                                .expect("That argument should not be an error"),
-                        )
-                        .expect("That argument should be a language value"),
-                    )
-                    .expect("That value should be an object");
-                    let iterator = create_for_in_iterator(obj);
-                    let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
-                        .expect("next method should be an object");
-                    let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
-                    ec_push(Ok(NormalCompletion::from(ir)));
-                }
-                Insn::PrivateIdLookup => {
-                    // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
-                    // Input on the stack: nothing
-                    // Output on the stack: the sought-after PrivateId
-
-                    // (These are from the evalution steps for the production: ClassElementName : PrivateIdentifier)
-                    // 2. Let privateEnvRec be the running execution context's PrivateEnvironment.
-                    // 3. Let names be privateEnvRec.[[Names]].
-                    // 4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
-                    // 5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
-                    // 6. Return privateName.
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let private_identifier = &chunk.strings[string_index as usize];
-                    let priv_env = current_private_environment().expect("Private environment exists");
-                    let names = &priv_env.borrow().names;
-                    let private_name = names
-                        .iter()
-                        .find(|&item| item.description == *private_identifier)
-                        .expect("Identifer must be present")
-                        .clone();
-                    ec_push(Ok(NormalCompletion::from(private_name)));
-                }
+                Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
+                Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
+                Insn::UnsignedRightShift => insn_impl::binary_operation(BinOp::UnsignedRightShift).expect(GOODCODE),
+                Insn::Throw => insn_impl::throw().expect(GOODCODE),
+                Insn::Less => insn_impl::compare(false, false).expect(GOODCODE),
+                Insn::Greater => insn_impl::compare(true, false).expect(GOODCODE),
+                Insn::LessEqual => insn_impl::compare(true, true).expect(GOODCODE),
+                Insn::GreaterEqual => insn_impl::compare(false, true).expect(GOODCODE),
+                Insn::InstanceOf => insn_impl::instance_of().expect(GOODCODE),
+                Insn::In => insn_impl::in_op().expect(GOODCODE),
+                Insn::Equal => insn_impl::equal(false).expect(GOODCODE),
+                Insn::NotEqual => insn_impl::equal(true).expect(GOODCODE),
+                Insn::StrictEqual => insn_impl::strict_equal(false).expect(GOODCODE),
+                Insn::StrictNotEqual => insn_impl::strict_equal(true).expect(GOODCODE),
+                Insn::BitwiseAnd => insn_impl::binary_operation(BinOp::BitwiseAnd).expect(GOODCODE),
+                Insn::BitwiseOr => insn_impl::binary_operation(BinOp::BitwiseOr).expect(GOODCODE),
+                Insn::BitwiseXor => insn_impl::binary_operation(BinOp::BitwiseXor).expect(GOODCODE),
+                Insn::CreateUnmappedArguments => insn_impl::create_unmapped_arguments_object().expect(GOODCODE),
+                Insn::CreateMappedArguments => insn_impl::create_mapped_arguments_object().expect(GOODCODE),
+                Insn::AddMappedArgument => insn_impl::add_mapped_argument(&chunk).expect(GOODCODE),
+                Insn::HandleEmptyBreak => insn_impl::handle_empty_break().expect(GOODCODE),
+                Insn::HandleTargetedBreak => insn_impl::handle_targeted_break(&chunk).expect(GOODCODE),
+                Insn::CoalesceValue => insn_impl::coalesce_value().expect(GOODCODE),
+                Insn::LoopContinues => insn_impl::loop_continues(&chunk).expect(GOODCODE),
+                Insn::Continue => insn_impl::continue_insn().expect(GOODCODE),
+                Insn::TargetedContinue => insn_impl::targeted_continue(&chunk).expect(GOODCODE),
+                Insn::Break => insn_impl::break_insn().expect(GOODCODE),
+                Insn::TargetedBreak => insn_impl::targeted_break(&chunk).expect(GOODCODE),
+                Insn::IteratorAccumulate => insn_impl::iterator_accumulate().expect(GOODCODE),
+                Insn::IterateArguments => insn_impl::iterate_arguments().expect(GOODCODE),
+                Insn::IteratorDAEElision => insn_impl::elision_idae().expect(GOODCODE),
+                Insn::EmbellishedIteratorStep => insn_impl::embellished_iterator_step().expect(GOODCODE),
+                Insn::IteratorRest => insn_impl::iterator_rest().expect(GOODCODE),
+                Insn::RequireCoercible => insn_impl::require_coercible().expect(GOODCODE),
+                Insn::GetSyncIterator => insn_impl::get_sync_iterator().expect(GOODCODE),
+                Insn::IteratorClose => insn_impl::iterator_close().expect(GOODCODE),
+                Insn::IteratorCloseIfNotDone => insn_impl::iterator_close_if_not_done().expect(GOODCODE),
+                Insn::IteratorNext => insn_impl::iterator_next().expect(GOODCODE),
+                Insn::IteratorResultComplete => insn_impl::iterator_result_complete().expect(GOODCODE),
+                Insn::IteratorResultToValue => insn_impl::iterator_result_to_value().expect(GOODCODE),
+                Insn::GetV => insn_impl::getv().expect(GOODCODE),
+                Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
+                Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
                 Insn::EvaluateInitializedClassFieldDefinition => {
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let name = ClassName::try_from(
-                        ec_pop().expect("two items must be on stack").expect("first item must not be error"),
-                    )
-                    .expect("first item must be a ClassName");
-                    let home_object = Object::try_from(
-                        ec_pop().expect("two items must be on stack").expect("second item must not be error"),
-                    )
-                    .expect("second item must be object");
-                    let initializer =
-                        evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)
-                            .expect("initializer must compile");
-
-                    ec_push(Ok(NormalCompletion::from(home_object)));
-                    ec_push(Ok(NormalCompletion::from(name)));
-                    ec_push(Ok(NormalCompletion::from(initializer)));
+                    insn_impl::evaluate_initialized_class_field_def(&chunk, text).expect(GOODCODE);
                 }
                 Insn::EvaluateClassStaticBlockDefinition => {
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let home_object =
-                        Object::try_from(ec_pop().expect("item must be on stack").expect("item must not be error"))
-                            .expect("item must be object");
-
-                    let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)
-                        .expect("initializer must compile");
-
-                    ec_push(Ok(NormalCompletion::from(home_object)));
-                    ec_push(Ok(NormalCompletion::from(block_body)));
+                    insn_impl::evaluate_class_static_block_def(&chunk, text).expect(GOODCODE);
                 }
-                Insn::DefineMethod => {
-                    // on the stack: propkey object prototype
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let propkey = PropertyKey::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be a property key");
-                    let obj = Object::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be an object");
-                    let prototype = Object::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be an object");
-
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with MethodDefinitions");
-                    if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
-                        let name = nameify(&info.source_text, 50);
-                        let mut compiled = Chunk::new(name);
-                        let compilation_status = body.compile_body(&mut compiled, text, info);
-                        if let Err(err) = compilation_status {
-                            AGENT.with(|agent| {
-                                let typeerror = create_type_error(err.to_string());
-                                let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                                stack.push(Err(typeerror));
-                            });
-                            break;
-                        }
-                        for line in compiled.disassemble() {
-                            println!("{line}");
-                        }
-
-                        let env =
-                            current_lexical_environment().expect("a lexical environment should have been established");
-                        let private_env = current_private_environment();
-                        let source_text = &info.source_text;
-                        let strict = info.strict;
-                        let closure = ordinary_function_create(
-                            prototype,
-                            source_text,
-                            info.params.clone(),
-                            info.body.clone(),
-                            ThisLexicality::NonLexicalThis,
-                            env,
-                            private_env,
-                            strict,
-                            Rc::new(compiled),
-                        );
-
-                        make_method(closure.o.to_function_obj().unwrap(), obj);
-
-                        ec_push(Ok(closure.into()));
-                        ec_push(Ok(propkey.into()));
-
-                    } else {
-                        panic!("This routine is only for the production MethodDefinition : ClassElementName ( UniqueFormalParameters) {{ FunctionBody }}");
-                    }
-                }
-                Insn::SetFunctionName => {
-                    // on stack: propertykey closure
-                    // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
-                    let property_key = FunctionName::from(
-                        PropertyKey::try_from(
-                            ec_peek(0)
-                            .expect("items should be on stack")
-                            .expect("item should not be an error")
-                        )
-                        .expect("item should be a property key"));
-                    let closure =
-                        Object::try_from(
-                                ec_peek(1)
-                                .expect("items should be on stack")
-                                .expect("item should not be an error")
-                        )
-                        .expect("item should be an object");
-                    set_function_name(&closure, property_key, None);
-                }
-                Insn::DefineMethodProperty => {
-                    // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
-                    // Stack: propertykey closure object
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] == 1;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be a function name");
-                    let closure = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be an object");
-                    let home_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be an object");
-                    let result = define_method_property(&home_object, name, closure, enumerable);
-                    ec_push(Ok(result.into()));
-                }
-                Insn::DefineGetter => {
-                    // Takes two args: idx into function stash and enumerable flag
-                    // stack input: propkey object
-                    // output: err/empty/PrivateElement
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] != 0;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let prop_key = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be a function name");
-                    let base_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be an object");
-
-                    //  2. Let env be the running execution context's LexicalEnvironment.
-                    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-                    //  6. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
-                    //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
-                    //  7. Perform MakeMethod(closure, object).
-                    //  8. Perform SetFunctionName(closure, propKey, "get").
-                    //  9. If propKey is a Private Name, then
-                    //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: closure, [[Set]]:
-                    //         undefined }.
-                    //  10. Else,
-                    //      a. Let desc be the PropertyDescriptor { [[Get]]: closure, [[Enumerable]]: enumerable,
-                    //         [[Configurable]]: true }.
-                    //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
-                    //      c. Return UNUSED.
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-                    let MethodDefinition::Getter(_, fb, _) = to_compile.as_ref() else { unreachable!() };
-                    let prod_text_loc = to_compile.location().span;
-                    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
-                    let chunk_name = nameify(prod_text, 50);
-                    let mut compiled = Chunk::new(chunk_name);
-                    let compilation_status = fb.compile_body(&mut compiled, text, info);
-                    if let Err(err) = compilation_status {
-                        AGENT.with(|agent| {
-                            let typeerror = create_type_error(err.to_string());
-                            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                            stack.push(Err(typeerror));
-                        });
-                        break;
-                    }
-
-                    for line in compiled.disassemble() {
-                        println!("{line}");
-                    }
-
-                    let env = current_lexical_environment().unwrap();
-                    let private_env = current_private_environment();
-                    let prototype = intrinsic(IntrinsicId::FunctionPrototype);
-                    let closure = ordinary_function_create(
-                        prototype,
-                        &info.source_text,
-                        info.params.clone(),
-                        info.body.clone(),
-                        info.this_mode,
-                        env,
-                        private_env,
-                        info.strict,
-                        Rc::new(compiled),
-                    );
-                    make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
-                    set_function_name(&closure, prop_key.clone(), Some("get".into()));
-
-                    let result = match prop_key {
-                        FunctionName::String(_) |
-                        FunctionName::Symbol(_) => {
-                            let desc =
-                                PotentialPropertyDescriptor::new()
-                                    .get(closure)
-                                    .enumerable(enumerable)
-                                    .configurable(true);
-                            let result =
-                                define_property_or_throw(
-                                    &base_object,
-                                    PropertyKey::try_from(prop_key).unwrap(),
-                                    desc
-                                );
-                            result.map(|()| None)
-                        },
-                        FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
-                            key: pn,
-                            kind: PrivateElementKind::Accessor{ get: Some(closure), set: None },
-                        })),
-                    };
-                    ec_push(result.map(NormalCompletion::from));
-                }
-                Insn::DefineSetter => {
-                    // Takes two args: idx into function stash and enumerable flag
-                    // stack input: propkey object
-                    // output: err/empty/PrivateElement
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] != 0;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let prop_key = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be a function name");
-                    let base_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be an object");
-
-                    //  2. Let env be the running execution context's LexicalEnvironment.
-                    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-                    //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText,
-                    //     PropertySetParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
-                    //  6. Perform MakeMethod(closure, object).
-                    //  7. Perform SetFunctionName(closure, propKey, "set").
-                    //  8. If propKey is a Private Name, then
-                    //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined, [[Set]]:
-                    //         closure }.
-                    //  9. Else,
-                    //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable,
-                    //         [[Configurable]]: true }.
-                    //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
-                    //      c. Return UNUSED.
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-                    let MethodDefinition::Setter(_, _, fb, _) = to_compile.as_ref() else { unreachable!() };
-                    let prod_text_loc = to_compile.location().span;
-                    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
-                    let chunk_name = nameify(prod_text, 50);
-                    let mut compiled = Chunk::new(chunk_name);
-                    let compilation_status = fb.compile_body(&mut compiled, text, info);
-                    if let Err(err) = compilation_status {
-                        AGENT.with(|agent| {
-                            let typeerror = create_type_error(err.to_string());
-                            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                            stack.push(Err(typeerror));
-                        });
-                        break;
-                    }
-
-                    for line in compiled.disassemble() {
-                        println!("{line}");
-                    }
-
-                    let env = current_lexical_environment().unwrap();
-                    let private_env = current_private_environment();
-                    let prototype = intrinsic(IntrinsicId::FunctionPrototype);
-                    let closure = ordinary_function_create(
-                        prototype,
-                        &info.source_text,
-                        info.params.clone(),
-                        info.body.clone(),
-                        info.this_mode,
-                        env,
-                        private_env,
-                        info.strict,
-                        Rc::new(compiled),
-                    );
-                    make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
-                    set_function_name(&closure, prop_key.clone(), Some("set".into()));
-
-                    let result = match prop_key {
-                        FunctionName::String(_) |
-                        FunctionName::Symbol(_) => {
-                            let desc =
-                                PotentialPropertyDescriptor::new()
-                                    .set(closure)
-                                    .enumerable(enumerable)
-                                    .configurable(true);
-                            let result =
-                                define_property_or_throw(
-                                    &base_object,
-                                    PropertyKey::try_from(prop_key).unwrap(),
-                                    desc
-                                );
-                            result.map(|()| None)
-                        },
-                        FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
-                            key: pn,
-                            kind: PrivateElementKind::Accessor{ set: Some(closure), get: None },
-                        })),
-                    };
-                    ec_push(result.map(NormalCompletion::from));
-                }
-
+                Insn::DefineMethod => insn_impl::define_method(&chunk, text).expect(GOODCODE),
+                Insn::SetFunctionName => insn_impl::set_function_name().expect(GOODCODE),
+                Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
+                Insn::DefineGetter => insn_impl::define_getter(&chunk, text).expect(GOODCODE),
+                Insn::DefineSetter => insn_impl::define_setter(&chunk, text).expect(GOODCODE),
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
-        agent.execution_context_stack.borrow_mut()[index]
-            .stack
-            .pop()
-            .map_or(Ok(ECMAScriptValue::Undefined), |svr| {
-                svr.map(|sv| match sv {
-                    NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
-                    NormalCompletion::Value(v) => v,
-                    NormalCompletion::IteratorRecord(_)
-                    | NormalCompletion::Environment(..)
-                    | NormalCompletion::PrivateName(_) | NormalCompletion::PrivateElement(_) => unreachable!(),
-                })
+        agent.execution_context_stack.borrow_mut()[index].stack.pop().map_or(Ok(ECMAScriptValue::Undefined), |svr| {
+            svr.map(|sv| match sv {
+                NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
+                NormalCompletion::Value(v) => v,
+                NormalCompletion::IteratorRecord(_)
+                | NormalCompletion::Environment(..)
+                | NormalCompletion::PrivateName(_)
+                | NormalCompletion::PrivateElement(_) => unreachable!(),
             })
+        })
     })
 }
 
-fn begin_call_evaluation(func: &ECMAScriptValue, reference: &NormalCompletion, arguments: &[ECMAScriptValue]) {
+fn begin_call_evaluation(
+    func: &ECMAScriptValue,
+    reference: &NormalCompletion,
+    arguments: &[ECMAScriptValue],
+) -> Result<(), InternalRuntimeError> {
     let this_value = match reference {
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Empty
         | NormalCompletion::Environment(..)
         | NormalCompletion::PrivateName(_)
         | NormalCompletion::PrivateElement(_) => {
-            panic!("begin_call_evaluation called with non-value, non-ref \"this\"");
+            return Err(InternalRuntimeError::ValueOrReferenceExpected);
         }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
         NormalCompletion::Reference(r) => match &r.base {
-            Base::Unresolvable => panic!("begin_call_evaluation called with unresolvable ref"),
+            Base::Unresolvable => {
+                return Err(InternalRuntimeError::UnresolvableReference);
+            }
             Base::Environment(e) => e.with_base_object().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from),
             Base::Value(_) => r.get_this_value(),
         },
@@ -2766,21 +3163,27 @@ fn begin_call_evaluation(func: &ECMAScriptValue, reference: &NormalCompletion, a
     if !func.is_object() {
         let err = Err(create_type_error("not an object"));
         ec_push(err);
-        return;
+        return Ok(());
     }
     if !is_callable(func) {
         let err = Err(create_type_error("not a function"));
         ec_push(err);
-        return;
+        return Ok(());
     }
     initiate_call(func, &this_value, arguments);
+    Ok(())
 }
 
-fn begin_constructor_evaluation(cstr: ECMAScriptValue, newtgt: ECMAScriptValue, args: &[ECMAScriptValue]) {
+fn begin_constructor_evaluation(
+    cstr: ECMAScriptValue,
+    newtgt: ECMAScriptValue,
+    args: &[ECMAScriptValue],
+) -> anyhow::Result<()> {
     assert!(is_constructor(&cstr));
-    let cstr = Object::try_from(cstr).expect("Must be a constructor");
-    let newtgt = Object::try_from(newtgt).expect("Must be an object");
+    let cstr = Object::try_from(cstr).context("getting a constructor from a value")?;
+    let newtgt = Object::try_from(newtgt).context("getting new.target from a value")?;
     initiate_construct(&cstr, args, Some(&newtgt));
+    Ok(())
 }
 
 fn prefix_increment(expr: FullCompletion) -> FullCompletion {
@@ -2888,12 +3291,6 @@ impl Agent {
             .expect("Left must be a value");
         (left, right)
     }
-
-    fn binary_operation(&self, index: usize, op: BinOp) {
-        let (left, right) = self.two_values(index);
-        let result = apply_string_or_numeric_binary_operator(left, right, op);
-        self.execution_context_stack.borrow_mut()[index].stack.push(result);
-    }
 }
 
 fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScriptValue, op: BinOp) -> FullCompletion {
@@ -3000,261 +3397,6 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
     }
 }
 
-fn instantiate_ordinary_function_expression_without_binding_id(index: usize, text: &str, info: &StashedFunctionData) {
-    // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
-    // returns a function object. It is defined piecewise over the following productions:
-    //
-    //  FunctionExpression : function ( FormalParameters ) { FunctionBody }
-    //      1. If name is not present, set name to "".
-    //      2. Let env be the LexicalEnvironment of the running execution context.
-    //      3. Let privateEnv be the running execution context's PrivateEnvironment.
-    //      4. Let sourceText be the source text matched by FunctionExpression.
-    //      5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
-    //         FunctionBody, non-lexical-this, env, privateEnv).
-    //      6. Perform SetFunctionName(closure, name).
-    //      7. Perform MakeConstructor(closure).
-    //      8. Return closure.
-
-    let to_compile: Rc<FunctionExpression> =
-        info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
-    let name = nameify(&info.source_text, 50);
-    let mut compiled = Chunk::new(name);
-    let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
-    if let Err(err) = compilation_status {
-        AGENT.with(|agent| {
-            let typeerror = create_type_error(err.to_string());
-            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-            let l = stack.len();
-            stack[l - 1] = Err(typeerror); // pop then push
-        });
-        return;
-    }
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    // Name is on the stack.
-    // env/privateenv come from the agent.
-    // sourceText is on the stack? Or with the productions?
-    // FormalParameters/FunctionBody are... In a registry someplace maybe? With a registry ID in the instruction?
-    // strict is ... in that registry? (Needs to be not part of the current chunk).
-    let env = current_lexical_environment().expect("Lexical environment must exist if code is running");
-    let priv_env = current_private_environment();
-
-    let name = AGENT.with(|agent| {
-        PropertyKey::try_from(
-            ECMAScriptValue::try_from(
-                agent.execution_context_stack.borrow_mut()[index]
-                    .stack
-                    .pop()
-                    .expect("Insn only used with argument on stack")
-                    .expect("Argument must not be an AbruptCompletion"),
-            )
-            .expect("Argument must be a value"),
-        )
-        .expect("Argument must be a property key")
-    });
-
-    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-
-    let closure = ordinary_function_create(
-        function_prototype,
-        info.source_text.as_str(),
-        info.params.clone(),
-        info.body.clone(),
-        ThisLexicality::NonLexicalThis,
-        env,
-        priv_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-
-    set_function_name(&closure, name.into(), None);
-    make_constructor(&closure, None);
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
-}
-
-fn instantiate_ordinary_function_expression_with_binding_id(index: usize, text: &str, info: &StashedFunctionData) {
-    // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name
-    // and returns a function object. It is defined piecewise over the following productions:
-    //
-    // FunctionExpression : function BindingIdentifier ( FormalParameters ) { FunctionBody }
-    //
-    //   1. Assert: name is not present.
-    //   2. Set name to StringValue of BindingIdentifier.
-    //   3. Let outerEnv be the running execution context's LexicalEnvironment.
-    //   4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
-    //   5. Perform ! funcEnv.CreateImmutableBinding(name, false).
-    //   6. Let privateEnv be the running execution context's PrivateEnvironment.
-    //   7. Let sourceText be the source text matched by FunctionExpression.
-    //   8. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters,
-    //      FunctionBody, non-lexical-this, funcEnv, privateEnv).
-    //   9. Perform SetFunctionName(closure, name).
-    //  10. Perform MakeConstructor(closure).
-    //  11. Perform ! funcEnv.InitializeBinding(name, closure).
-    //  12. Return closure.
-    //
-    // NOTE: The BindingIdentifier in a FunctionExpression can be referenced from inside the
-    // FunctionExpression's FunctionBody to allow the function to call itself recursively. However, unlike
-    // in a FunctionDeclaration, the BindingIdentifier in a FunctionExpression cannot be referenced from
-    // and does not affect the scope enclosing the FunctionExpression.
-
-    // First: compile the function.
-    let to_compile: Rc<FunctionExpression> =
-        info.to_compile.clone().try_into().expect("This routine only used with FunctionExpressions");
-    let chunk_name = nameify(&info.source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
-    let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
-    if let Err(err) = compilation_status {
-        AGENT.with(|agent| {
-            let typeerror = create_type_error(err.to_string());
-            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-            let stack = &mut execution_context_stack[index].stack;
-            let l = stack.len();
-            stack[l - 1] = Err(typeerror); // pop then push
-        });
-        return;
-    }
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    let name = AGENT.with(|agent| {
-        JSString::try_from(
-            ECMAScriptValue::try_from(
-                agent.execution_context_stack.borrow_mut()[index]
-                    .stack
-                    .pop()
-                    .expect("Insn only used with argument on stack")
-                    .expect("Argument must not be an AbruptCompletion"),
-            )
-            .expect("Argument must be a value"),
-        )
-        .expect("Argument must be a string")
-    });
-
-    let outer_env = current_lexical_environment().expect("Lexical environment must exist if code is running");
-    let func_env = Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
-    let priv_env = current_private_environment();
-
-    func_env.create_immutable_binding(name.clone(), false).expect("Fresh environment won't fail");
-    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-
-    let closure = ordinary_function_create(
-        function_prototype,
-        info.source_text.as_str(),
-        info.params.clone(),
-        info.body.clone(),
-        ThisLexicality::NonLexicalThis,
-        func_env.clone(),
-        priv_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-
-    set_function_name(&closure, name.clone().into(), None);
-    make_constructor(&closure, None);
-    func_env.initialize_binding(&name, closure.clone().into()).expect("binding has been created");
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
-}
-
-pub fn instantiate_arrow_function_expression(index: Option<usize>, text: &str, info: &StashedFunctionData) {
-    let index = index.unwrap_or(AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1);
-    let env = current_lexical_environment().unwrap();
-    let priv_env = current_private_environment();
-
-    let name = AGENT.with(|agent| {
-        FunctionName::try_from(
-            ECMAScriptValue::try_from(agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
-                .unwrap(),
-        )
-        .unwrap()
-    });
-
-    let to_compile: Rc<ArrowFunction> =
-        info.to_compile.clone().try_into().expect("This routine only used with Arrow Functions");
-    let chunk_name = nameify(&info.source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
-    let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
-    if let Err(err) = compilation_status {
-        AGENT.with(|agent| {
-            let typeerror = create_type_error(err.to_string());
-            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-            let l = execution_context_stack[index].stack.len();
-            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
-        });
-        return;
-    }
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-
-    let closure = ordinary_function_create(
-        function_prototype,
-        info.source_text.as_str(),
-        info.params.clone(),
-        info.body.clone(),
-        ThisLexicality::LexicalThis,
-        env,
-        priv_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-    set_function_name(&closure, name, None);
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
-}
-
-pub fn instantiate_ordinary_function_object(
-    index: Option<usize>,
-    text: &str,
-    name: &JSString,
-    info: &StashedFunctionData,
-) {
-    let index = index.unwrap_or(AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1);
-    let to_compile: Rc<FunctionDeclaration> =
-        info.to_compile.clone().try_into().expect("This routine only used with Function Declarations");
-    let chunk_name = nameify(&info.source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
-    let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
-    if let Err(err) = compilation_status {
-        let typeerror = create_type_error(err.to_string());
-        AGENT.with(|agent| {
-            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-            let l = execution_context_stack[index].stack.len();
-            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
-        });
-        return;
-    }
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    let env = current_lexical_environment().unwrap();
-    let priv_env = current_private_environment();
-    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-
-    let closure = ordinary_function_create(
-        function_prototype,
-        info.source_text.as_str(),
-        info.params.clone(),
-        info.body.clone(),
-        ThisLexicality::NonLexicalThis,
-        env,
-        priv_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-    set_function_name(&closure, name.clone().into(), None);
-    make_constructor(&closure, None);
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
-}
-
 fn evaluate_initialized_class_field_definition(
     info: &StashedFunctionData,
     home_object: Object,
@@ -3313,8 +3455,7 @@ fn evaluate_class_static_block_definition(
     //  3. Let bodyFunction be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameters, ClassStaticBlockBody, NON-LEXICAL-THIS, lex, privateEnv).
     //  4. Perform MakeMethod(bodyFunction, homeObject).
     //  5. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
-    let to_compile: Rc<ClassStaticBlock> =
-        info.to_compile.clone().try_into().expect("This routine only used with class field definitions");
+    let to_compile: Rc<ClassStaticBlock> = info.to_compile.clone().try_into()?;
     let prod_text_loc = to_compile.location().span;
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
@@ -3536,153 +3677,6 @@ fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullComp
         }
         _ => Err(create_type_error("Right-hand side of 'instanceof' is not an object")),
     }
-}
-
-pub fn create_unmapped_arguments_object(index: usize) {
-    // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
-    // Those values are NOT consumed; this function assumes they'll be used again.
-
-    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(stack_len > 0, "Stack must not be empty");
-    let length = to_usize(
-        f64::try_from(
-            ECMAScriptValue::try_from(AGENT.with(|agent| {
-                agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
-                    .clone()
-                    .expect("Non-error arguments needed")
-            }))
-            .expect("Value arguments needed"),
-        )
-        .expect("Numeric arguments needed"),
-    )
-    .expect("length should be a valid integer");
-    assert!(stack_len > length as usize, "Stack too short to fit all the arguments");
-
-    let obj = ArgumentsObject::object(None);
-    define_property_or_throw(
-        &obj,
-        "length",
-        PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("Normal Object");
-
-    let first_arg_index = stack_len - length - 1;
-    let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
-    });
-
-    for (arg_number, item) in arguments.into_iter().enumerate() {
-        let value =
-            ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
-        obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
-    }
-
-    let iterator = wks(WksId::Iterator);
-    let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
-    let throw_type_error = intrinsic(IntrinsicId::ThrowTypeError);
-    define_property_or_throw(
-        &obj,
-        iterator,
-        PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("Normal Object");
-    define_property_or_throw(
-        &obj,
-        "callee",
-        PotentialPropertyDescriptor::new()
-            .get(throw_type_error.clone())
-            .set(throw_type_error)
-            .enumerable(false)
-            .configurable(false),
-    )
-    .expect("Normal Object");
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj))));
-    // Stack at exit: AObj N arg[N-1] ... arg[0] ...
-}
-
-pub fn create_mapped_arguments_object(index: usize) {
-    // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
-
-    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(stack_len > 0, "Stack must not be empty");
-    let length = to_usize(
-        f64::try_from(
-            ECMAScriptValue::try_from(
-                AGENT
-                    .with(|agent| agent.execution_context_stack.borrow()[index].stack[stack_len - 1].clone())
-                    .expect("Non-error arguments needed"),
-            )
-            .expect("Value arguments needed"),
-        )
-        .expect("Numeric arguments needed"),
-    )
-    .expect("length should be a valid integer");
-    assert!(stack_len > length + 1, "Stack too short to fit all the arguments plus the function obj");
-
-    let first_arg_index = stack_len - length - 1;
-    let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
-    });
-
-    let env = current_lexical_environment().expect("A lex env must exist");
-    let map = ParameterMap::new(env);
-    let ao = ArgumentsObject::object(Some(map));
-
-    for (idx, item) in arguments.into_iter().enumerate() {
-        let val = ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
-        ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
-    }
-
-    define_property_or_throw(
-        &ao,
-        "length",
-        PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-    let iterator = wks(WksId::Iterator);
-    let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
-    define_property_or_throw(
-        &ao,
-        iterator,
-        PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-    let func = ECMAScriptValue::try_from(
-        AGENT
-            .with(|agent| agent.execution_context_stack.borrow()[index].stack[first_arg_index - 1].clone())
-            .expect("Function object type error"),
-    )
-    .expect("Function object type error");
-    define_property_or_throw(
-        &ao,
-        "callee",
-        PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ao))));
-    // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
-}
-
-pub fn attach_mapped_arg(index: usize, name: &JSString, idx: usize) {
-    // Stack: AObj ...
-    let top = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(top > 0, "stack must not be empty");
-    let obj = Object::try_from(
-        ECMAScriptValue::try_from(
-            AGENT
-                .with(|agent| agent.execution_context_stack.borrow()[index].stack[top - 1].clone())
-                .expect("arguments must be values"),
-        )
-        .expect("arguments must be values"),
-    )
-    .expect("argument must be an object");
-    let ao = obj.o.to_arguments_object().expect("argument must be an ArgumentsObject");
-    let pmap = ao.parameter_map.as_ref().expect("argument must be a mapped arguments object");
-    let mut pmap = pmap.borrow_mut();
-    pmap.add_mapped_name(name.clone(), idx);
-    // Stack: AObj ...
 }
 
 #[derive(PartialEq, Eq)]
